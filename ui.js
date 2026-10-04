@@ -325,7 +325,7 @@ function viewDecks(){
 }
 function aimPanel(d, ctx){
   const lock = d.aimLocked, dis = lock ? ' disabled' : '', aimed = isAimed(d);
-  let h = '<section class="panel aimp"><div class="ph"><h2>Aim</h2><button class="ico' + (lock ? ' on' : '') + '" data-act="lock-aim" title="' + (lock ? 'Unlock the aim' : 'Lock the aim') + '" aria-pressed="' + lock + '">' + SVG.lock + '</button></div>';
+  let h = '<section class="panel aimp"><div class="ph"><h2>Build</h2><button class="ico' + (lock ? ' on' : '') + '" data-act="lock-aim" title="' + (lock ? 'Unlock the build settings' : 'Lock the build settings') + '" aria-pressed="' + lock + '">' + SVG.lock + '</button></div>';
   h += '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>';
   h += '<div class="grp"><span class="lab">Format</span><div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></div>';
   if (d.format === 'commander'){
@@ -363,7 +363,7 @@ function listPanel(d, A){
     '<span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="pr' + (c && c.p != null && c.p > A.ctx.cap && !isBasic(c.n) ? ' over' : '') + '">' + money(c) + '</span>' +
     '<span class="row" style="gap:3px;flex-wrap:nowrap"><button class="ico' + (e.l ? ' on' : '') + '" data-act="lock" data-n="' + esc(e.n) + '" title="' + (e.l ? 'Unlock: allow this card to be cut' : 'Lock: never suggest cutting this card') + '" aria-pressed="' + !!e.l + '">' + SVG.lock + '</button><button class="ico" data-act="rm" data-n="' + esc(e.n) + '" title="Remove from deck">×</button></span></div>';
   let h = '<section class="panel list"><div class="ph"><h2>Decklist</h2><small>' + A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0') + '</small></div>';
-  h += '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div><button class="btn" data-act="import-open">Import text</button><button class="btn" data-act="precon-open">Load a precon</button>' +
+  h += '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
     '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your aims and tier">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>';
   if (!d.cards.length) h += '<p class="note">This deck is empty. Import a text list, search for cards, or aim the deck and fill the open slots.</p>';
   for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; b.sort((x, y) => x[1].cmc - y[1].cmc || x[1].n.localeCompare(y[1].n));
@@ -387,7 +387,7 @@ function upPanel(d, A){
   if (flags.length) h += '<div class="row">' + flags.join('') + '</div>';
   if (!isAimed(d)){
     const need = d.format === 'commander' && !A.ctx.cmd ? 'Choose your commander, then pick' : !d.aims.length ? 'Pick' : d.aims.includes('tribal') && !A.ctx.tribe ? 'Choose a creature type for your tribal aim. Then pick' : 'Choose your land colors, and pick';
-    return h + '<div class="gate"><b>Aim the deck first</b>' + need + ' at least one mechanic in the Aim panel. Recommendations are built around your priorities, so two players with the same commander get different lists.</div></section>';
+    return h + '<div class="gate"><b>Aim the deck first</b>' + need + ' at least one mechanic in the Build panel. Recommendations are built around your priorities, so two players with the same commander get different lists.</div></section>';
   }
   const R = recsFor(d), rec = (x, i, kind) => { const c = find(x.n); return '<div class="rec ' + kind + '"><img alt="" src="' + artFor(c) + '" style="width:44px;height:31px;object-fit:cover;border-radius:3px"><div style="min-width:0"><button class="nm" data-act="card" data-n="' + esc(x.n) + '">' + (x.q > 1 ? x.q + '× ' : '') + esc(x.n) + '</button> <span class="note">' + money(c) + '</span><div class="why">' + x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div></div><div class="acts">' +
     (kind === 'add' ? '<button class="btn sm pri" data-act="add-rec" data-v="' + i + '">Add</button><button class="ico" data-act="dismiss" data-v="' + i + '" title="Don’t suggest this again">×</button>' : '<button class="btn sm danger" data-act="cut-rec" data-v="' + i + '">Cut</button><button class="ico" data-act="lock" data-n="' + esc(x.n) + '" title="Keep and lock this card">' + SVG.lock + '</button>') + '</div></div>'; };
@@ -403,7 +403,7 @@ function upPanel(d, A){
 function viewDeck(){
   const d = cur(); if (!d) return '<section class="panel"><div class="ph"><h2>Builder</h2></div><p class="note">Open a deck from Decks, or start one.</p><div class="row"><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="precon-open">Load a precon</button></div></section>';
   const A = analyze(d);
-  return (d.example ? '<p class="note" style="margin:0 2px">This is an example deck so you can see the builder working. Edit it freely, or start your own from Decks.</p>' : '') + '<div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
+  return (d.example ? '<p class="note" style="margin:0 2px">This is an example deck so you can see the builder working. Edit it freely, or start your own from Decks.</p>' : '') + '<div class="row"><button class="btn pri" data-act="import-open">Import a text list</button><button class="btn pri" data-act="precon-open">Load a precon</button></div><div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
 }
 function searchResults(){
   const f = S.search, filt = {fmt:f.fmt, color:f.color, type:f.type, max:+f.max || 0, theme:f.theme}, q = f.q.trim();
@@ -553,7 +553,7 @@ document.addEventListener('click', ev => {
     case 'gen-pick': S.gen.cmd = n; changed = false; break;
     case 'gen-tier': S.gen.tier = v; changed = false; break;
     case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier}); setCommander(nd, c.n);
-      if (nd.aims.length){ fillDeck(nd); toast('Generated a ' + TIERS[nd.tier].label + ' deck for ' + c.n + '.'); } else toast('Pick your mechanics in the Aim panel, then press Fill.'); break; }
+      if (nd.aims.length){ fillDeck(nd); toast('Generated a ' + TIERS[nd.tier].label + ' deck for ' + c.n + '.'); } else toast('Pick your mechanics in the Build panel, then press Fill.'); break; }
     case 'std-starter': { const p = STD_STARTERS[+v], nd = newDeck({name:p.name, format:'standard', aims:p.aims.slice(), tribe:p.tribe || '', colors:p.colors.slice()}); fillDeck(nd); toast('Standard deck generated.'); break; }
     case 'import-go': {
       const txt = $('#imp-text').value; if (!txt.trim()){ toast('Paste a list or choose a text file first.'); return; }
