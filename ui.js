@@ -352,7 +352,7 @@ function backupPanel(){
 }
 
 // ---------- deck helpers ----------
-function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; return d; }
+function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; return d; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; S.draft = null; S.profile.decks.unshift(d); return d; }
 function doSwap(d, p, step){ const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0); cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add); if (en && keep) en.step = keep; }
@@ -432,14 +432,15 @@ function aimPanel(d, ctx){
   return h;
 }
 const GROUPS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['Instant', 'Instants'], ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
-function listRows(d){
-  const buckets = {}, unknown = [];
-  for (const e of d.cards){ const c = find(e.n); if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
+function listRows(d, q){
+  const buckets = {}, unknown = [], lq = String(q || '').toLowerCase().trim(); let shown = 0;
+  for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
     '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
     '<span class="pr">' + money(c) + '</span></button>';
   let h = '';
-  if (!d.cards.length) h += '<p class="note">This deck is empty. Search for cards above, or set the build and fill the open slots.</p>';
+  if (!d.cards.length) h += '<p class="note">This deck is empty. Add cards from the Upgrades tab, or set the build and fill the open slots there.</p>';
+  else if (lq && !shown) h += '<p class="note">No card in this deck matches “' + esc(q) + '”.</p>';
   for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; b.sort((x, y) => x[1].cmc - y[1].cmc || x[1].n.localeCompare(y[1].n));
     h += '<div><div class="gh"><span>' + label + '</span><span>' + b.reduce((s, x) => s + x[0].q, 0) + '</span></div>' + b.map(x => rowH(x[0], x[1])).join('') + '</div>'; }
   if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card data yet</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These stay in your list but can’t be analyzed until the full card data has loaded.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
@@ -448,9 +449,8 @@ function listRows(d){
 const deckStat = (d, A) => A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0');
 function listPanel(d, A){
   return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="list-all">View all</button></div>' +
-    '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
-    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>' +
-    '<div class="scroll rows" id="rows" data-keep>' + listRows(d) + '</div>';
+    '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn" data-act="copy-list">Copy list</button></div>' +
+    '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + '</div>';
 }
 // Buy list: what to buy for each tier's upgrades, grouped by color then A–Z.
 const BUY_GROUPS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolor'], ['C', 'Colorless'], ['L', 'Land']];
@@ -514,7 +514,8 @@ function openList(){
 const TIER_KEYS = ['budget', 'mid', 'apex'];
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
-  let h = '<div class="row"><span class="lab" style="flex:1">Budget · Mid · Apex upgrade paths</span></div><div class="scroll up" id="upscroll" data-keep>';
+  let h = '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
+    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button></div><div class="scroll up" id="upscroll" data-keep>';
   if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
   h += '<div class="grp"><span class="lab">Card types</span><div class="row">' + TYPE_ORDER.filter(k => A.types[k]).map(k => '<span class="chip">' + (k === 'Sorcery' ? 'Sorceries' : k + 's') + ' · ' + A.types[k] + '</span>').join('') + '</div></div>';
@@ -784,7 +785,7 @@ function handleAct(act, v, n, pArg){
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
-    case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; changed = false; break;
+    case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; changed = false; break;
     case 'tab': S.tab = v; changed = false; break;
     case 'deck-back': S.open = false; S.confirmDel = null; changed = false; break;
     case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; S.tab = null; } changed = false; break;
@@ -863,6 +864,7 @@ function handleAct(act, v, n, pArg){
 let st = 0;
 document.addEventListener('input', ev => {
   const t = ev.target, d = cur();
+  if (t.id === 'deck-q'){ S.deckQ = t.value; const el = $('#rows'), dk = cur(); if (el && dk) el.innerHTML = listRows(dk, S.deckQ); return; }
   if (t.id === 's-q'){ S.search.q = t.value; clearTimeout(st); st = setTimeout(() => { const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }, 160); }
   else if (t.id === 'add-q' && d){ const A = ctxOf(d); dropdown(t, $('#add-res'), {fmt:d.format, within:d.format === 'standard' && A.ident.length ? A.ident : null}, 'pick-add'); }
   else if (t.id === 'pre-q'){ const el = $('#pre-list'); if (el) el.innerHTML = preRows(t.value); }
