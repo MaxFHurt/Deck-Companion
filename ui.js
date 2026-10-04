@@ -212,7 +212,7 @@ async function loadSavedLibrary(){
   if (!complete) autoUpdate(); else checkReleases();
 }
 function useFull(rows, when, complete){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when, complete:!!complete}; ART.clear(); }
-function setStatus(t){ const el = $('#status'); if (el){ el.textContent = t; el.hidden = !t; } }
+function setStatus(t){ const el = $('#status'); if (el){ const was = el.hidden; el.textContent = t; el.hidden = !t; if (was !== el.hidden) fitWork(); } }
 async function ingest(stream, size, when){
   const rows = []; let buf = '', read = 0, lines = 0;
   const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
@@ -349,7 +349,7 @@ function backupPanel(){
 }
 
 // ---------- deck helpers ----------
-function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; return d; }
+function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; return d; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; S.draft = null; S.profile.decks.unshift(d); return d; }
 function doSwap(d, p, step){ const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0); cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add); if (en && keep) en.step = keep; }
@@ -374,10 +374,16 @@ function viewHome(){
 }
 function viewDecks(){
   const P = S.profile, od = S.open ? cur() : null;
-  if (od){ const A = analyze(od), isDraft = od === S.draft;
+  if (od){ const A = analyze(od), isDraft = od === S.draft, narrow = matchMedia('(max-width:820px)').matches;
+    let tab = S.tab || (narrow && !isAimed(od) ? 'build' : 'list'); if (!narrow && tab === 'build') tab = 'list';
+    const R = isAimed(od) ? recsFor(od) : null, nUp = R ? R.paths.length + R.fixes.length + R.drops.length : 0;
+    const build = aimPanel(od, A.ctx).replace('<section class="panel aimp">', '<section class="panel aimp"><div class="scroll" id="bscroll" data-keep>').replace(/<\/section>$/, '</div></section>');
+    const tb = (k, label, cls) => '<button class="tab' + (tab === k ? ' on' : '') + (cls || '') + '" data-act="tab" data-v="' + k + '" role="tab" aria-selected="' + (tab === k) + '">' + label + '</button>';
     return '<div class="row"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
       ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
-      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div><div class="work">' + aimPanel(od, A.ctx) + listPanel(od, A) + upPanel(od, A) + '</div>'; }
+      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
+      '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + '</div>' +
+      (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : listPanel(od, A)) + '</section></div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
     return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row"><span class="chip gold">' + TIERS[d.tier].label + '</span><span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
   return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
@@ -438,10 +444,10 @@ function listRows(d){
 }
 const deckStat = (d, A) => A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0');
 function listPanel(d, A){
-  return '<section class="panel list"><div class="ph"><h2>Decklist</h2><small>' + deckStat(d, A) + '</small><button class="btn sm" data-act="list-all">View all</button></div>' +
+  return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="list-all">View all</button></div>' +
     '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
     '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>' +
-    '<div class="rows" id="rows">' + listRows(d) + '</div></section>';
+    '<div class="scroll rows" id="rows" data-keep>' + listRows(d) + '</div>';
 }
 // Buy list: what to buy for each tier's upgrades, grouped by color then A–Z.
 const BUY_GROUPS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolor'], ['C', 'Colorless'], ['L', 'Land']];
@@ -497,7 +503,7 @@ function openList(){
 const TIER_KEYS = ['budget', 'mid', 'apex'];
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
-  let h = '<section class="panel up"><div class="ph"><h2>Upgrades</h2><small>Budget · Mid · Apex</small><button class="btn sm" data-act="buy-open">Buy list</button></div>';
+  let h = '<div class="row"><span class="lab" style="flex:1">Budget · Mid · Apex upgrade paths</span><button class="btn sm" data-act="buy-open">Buy list</button></div><div class="scroll up" id="upscroll" data-keep>';
   if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
   h += '<div class="grp"><span class="lab">Card types</span><div class="row">' + TYPE_ORDER.filter(k => A.types[k]).map(k => '<span class="chip">' + (k === 'Sorcery' ? 'Sorceries' : k + 's') + ' · ' + A.types[k] + '</span>').join('') + '</div></div>';
@@ -513,7 +519,7 @@ function upPanel(d, A){
   if (flags.length) h += '<div class="row">' + flags.join('') + '</div>';
   if (!isAimed(d)){
     const need = d.format === 'commander' && !A.ctx.cmd ? 'Choose your commander, then pick' : !d.aims.length ? 'Pick' : d.aims.includes('tribal') && !A.ctx.tribe ? 'Choose a creature type for your tribal aim. Then pick' : 'Choose your land colors, and pick';
-    return h + '<div class="gate"><b>Set up the build first</b>' + need + ' at least one mechanic in the Build panel. Upgrade paths are built around your priorities, so two players with the same commander get different lists.</div></section>';
+    return h + '<div class="gate"><b>Set up the build first</b>' + need + ' at least one mechanic in the Build panel. Upgrade paths are built around your priorities, so two players with the same commander get different lists.</div></div>';
   }
   const R = recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>'; }, price = n => money(find(n));
   const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + '</span><em>' + price(n) + '</em></button>';
@@ -538,7 +544,7 @@ function upPanel(d, A){
     if (any > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, any - show) + ' more</button>';
   }
   h += '</div>';
-  return h + '</section>';
+  return h + '</div>';
 }
 function viewDeck(){
   const opt = (act, v, title, text) => '<button class="tile" data-act="' + act + '"' + (v ? ' data-v="' + v + '"' : '') + '><div class="tb"><h3>' + title + '</h3><p>' + text + '</p></div></button>';
@@ -643,13 +649,16 @@ function viewProfile(){
     '<div class="row"><button class="btn pri" data-act="db-update">Update card data now</button></div>' +
     '<p class="note" style="margin:0">If the automatic update keeps failing, download <b>Oracle Cards</b> from <a href="https://scryfall.com/docs/api/bulk-data" target="_blank" rel="noopener">scryfall.com/docs/api/bulk-data</a> and load the file here:</p><div class="row"><input type="file" id="db-file" accept=".json,application/json" style="max-width:340px"></div></section>';
 }
+// The deck editor fills what is left of the screen, and its panes scroll inside themselves.
+function fitWork(){ const w = document.querySelector('.work'); if (!w) return; const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(380, Math.round(vh - w.getBoundingClientRect().top - scrollY - 12)) + 'px'; }
 function render(){
-  const keepRows = $('#rows') ? $('#rows').scrollTop : 0;
+  const keep = {}; document.querySelectorAll('[data-keep]').forEach(el => keep[el.id] = el.scrollTop);
   navHtml(); const m = $('#main');
   document.querySelector('.top').classList.toggle('home', S.view === 'home'); document.querySelector('.app').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = S.view === 'home' ? '10px' : '16px';
-  if (keepRows && $('#rows')) $('#rows').scrollTop = keepRows;
+  document.querySelector('.app').classList.toggle('editing', S.view === 'decks' && S.open && !!cur()); fitWork();
+  for (const id in keep){ const el = document.getElementById(id); if (el && keep[id]) el.scrollTop = keep[id]; }
   ensureTheme(); ensureEdh();
 }
 function ctlHtml(n){
@@ -747,9 +756,10 @@ function handleAct(act, v, n, pArg){
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
-    case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; changed = false; break;
+    case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; changed = false; break;
+    case 'tab': S.tab = v; changed = false; break;
     case 'deck-back': S.open = false; S.confirmDel = null; changed = false; break;
-    case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; } changed = false; break;
+    case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; S.tab = null; } changed = false; break;
     case 'draft-save': if (S.draft){ const nd = S.draft; S.profile.decks.unshift(nd); S.draft = null; S.deckId = nd.id; toast('Saved ' + nd.name + ' to your decks.'); } break;
     case 'draft-discard': if (S.draft){ const nm = S.draft.name; S.draft = null; S.open = false; S.deckId = (S.profile.decks[0] || {}).id || null; lsSet('dc.draft', null); toast('Discarded ' + nm + '.'); } changed = false; break;
     case 'new-deck': newDeck({format:v, name:v === 'commander' ? 'New Commander deck' : 'New Standard deck'}); break;
@@ -848,7 +858,8 @@ document.addEventListener('keydown', ev => { if (ev.key === 'Escape'){ $('#modal
 addEventListener('pagehide', () => { clearTimeout(saveT); if (!S.profile.example) persist(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !S.profile.example){ clearTimeout(saveT); persist(); } });
 // ---------- boot ----------
-ornaments(); paintSky(); let rz = 0; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 250); });
+ornaments(); paintSky(); let rz = 0; let wasNarrow = matchMedia('(max-width:820px)').matches;
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 250); const nw = matchMedia('(max-width:820px)').matches; if (nw !== wasNarrow){ wasNarrow = nw; render(); } else fitWork(); });
 loadLocal();
 if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else S.deckId = S.profile.decks[0].id;
 S.view = 'home'; S.open = false;
