@@ -68,7 +68,7 @@ button.brand{background:none;border:0;padding:0;color:inherit;font:inherit}
 .steps{margin:0;padding:0 0 0 18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 30px;color:var(--mute);font-size:12.5px;line-height:1.35} .steps b{color:var(--chrome)}
 .nav{display:flex;gap:8px;flex-wrap:wrap}
 .nav.right{justify-content:flex-end}
-.nav button{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:74px;padding:7px 10px 6px;font:600 13px var(--label);letter-spacing:.1em;text-transform:uppercase;
+.nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap;gap:3px;min-width:74px;padding:7px 10px 6px;font:600 13px var(--label);letter-spacing:.1em;text-transform:uppercase;
   background:linear-gradient(180deg,#22154a,#110929);border:1px solid var(--line);border-radius:7px;color:var(--chrome);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 2px 0 #05020a}
 .nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .nav button:hover{color:#fff;border-color:var(--violet);box-shadow:0 0 14px rgba(141,92,255,.55),inset 0 1px 0 rgba(255,255,255,.15)}
@@ -278,7 +278,7 @@ a{color:var(--glow)}
   .top{grid-template-columns:repeat(4,minmax(0,1fr));justify-items:stretch;gap:6px 4px;padding:6px} .motto{display:none}
   .brand{order:-1;grid-column:1/-1;gap:8px} .brand b{font-size:17px} .brand span{font-size:8.5px;margin-top:2px} .brand svg{width:28px;height:28px}
   .nav,.nav.right{display:contents}
-  .nav button{min-width:0;padding:5px 0 4px;gap:2px;font-size:clamp(8px,3vw,12px);letter-spacing:0;line-height:1.1;text-align:center;border-radius:6px;overflow:hidden}
+  .nav button{white-space:normal;min-width:0;padding:5px 0 4px;gap:2px;font-size:clamp(8px,3vw,12px);letter-spacing:0;line-height:1.1;text-align:center;border-radius:6px;overflow:hidden}
   .nav button svg{width:clamp(14px,4.6vw,19px);height:clamp(14px,4.6vw,19px)}
   .xs-hide{display:none}
   #status{white-space:normal;text-align:center;font-size:11px}
@@ -343,7 +343,7 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 54.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 55.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
@@ -351,7 +351,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 54;
+window.BUILD = 55;
 (function(){
   var last = 0;
   function check(){
@@ -363,9 +363,9 @@ window.BUILD = 54;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=54"></script>
-<script src="lists.js?v=54"></script>
-<script src="engine.js?v=54"></script>
-<script src="ui.js?v=54"></script>
+<script src="data.js?v=55"></script>
+<script src="lists.js?v=55"></script>
+<script src="engine.js?v=55"></script>
+<script src="ui.js?v=55"></script>
 </body>
 </html>
