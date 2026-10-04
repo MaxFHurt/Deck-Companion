@@ -653,6 +653,7 @@ function viewDeck(){
   const opt = (act, v, title, text) => '<button class="tile" data-act="' + act + '"' + (v ? ' data-v="' + v + '"' : '') + '><div class="tb"><h3>' + title + '</h3><p>' + text + '</p></div></button>';
   return '<section class="panel"><div class="ph"><h2>Build a new deck</h2><small>Saved to Decks when created</small></div><div class="tiles">' +
     opt('gen-open', '', 'Generate from a commander', 'Pick a legendary creature and a tier. The app builds a full 100-card deck around what that commander does.') +
+    opt('seed-open', '', 'Generate from cards', 'Don’t know your commander yet? Add any cards you want to play. The app suggests commanders that fit them and fills in the rest of the deck.') +
     opt('precon-open', '', 'Load a precon', 'Start from a real preconstructed Commander deck with its official card list.') +
     opt('import-open', '', 'Import a text list', 'Paste or load a decklist you already have, from Arena, Moxfield, Archidekt or a plain text file.') +
     opt('new-deck', 'commander', 'Empty Commander deck', 'Start from nothing: choose a commander, set the build, and add cards yourself.') +
@@ -740,6 +741,40 @@ function openGenerate(){
     '</div></div>';
   h += '<div class="grp"><span class="lab">Or a 60-card Standard deck from a theme</span>' + STD_STARTERS.map((p, i) => '<div class="pre" style="grid-template-columns:minmax(0,1fr) auto"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + p.colors.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') + '<div class="note">' + esc(p.note) + '</div></div><div><button class="btn pri sm" data-act="std-starter" data-v="' + i + '">Generate</button></div></div>').join('') + '</div></div>';
   $('#modal').innerHTML = h; $('#modal').hidden = false;
+}
+// Generate from cards: the player names cards they want to play; the app proposes commanders that fit them and builds the rest.
+function seedThemes(cards){
+  const n = {}; cards.forEach(c => { const th = tags(c).th; for (const k in th) if (th[k] === 1) n[k] = (n[k] || 0) + 1; });
+  return Object.keys(n).sort((a, b) => n[b] - n[a]).slice(0, 3);
+}
+function seedInfo(){
+  const cards = S.seed.cards.map(find).filter(Boolean), colors = 'WUBRG'.split('').filter(k => cards.some(c => c.ci.includes(k))), aims = seedThemes(cards);
+  const tmp = {format:'commander', commander:'', cards:cards.map(c => ({n:c.n, q:1})), aims, tribe:'', colors};
+  const own = cards.filter(c => c.cmd && /Legendary/.test(c.t) && /Creature/.test(frontType(c)) && colors.every(k => c.ci.includes(k))).map(c => ({n:c.n, why:['One of your cards'], mine:true}));
+  const rest = cards.length ? findCommanders(tmp, colors, 8).filter(x => !own.some(o => o.n === x.n)) : [];
+  return {cards, colors, aims, cmds:own.concat(rest).slice(0, 8)};
+}
+function openSeed(){
+  S.modalCard = null; const I = seedInfo(), g = S.gen;
+  let h = '<div class="panel" role="dialog" aria-label="Generate from cards"><div class="ph"><h2>Generate from cards</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Add any number of cards you want in the deck. Deck Companion works out their colors and what they do, suggests commanders that fit, then builds the rest of the 100 cards around them. Your cards are locked in.</p>' +
+    '<div class="grp"><label class="lab" for="seed-q">Cards you want to play</label><div class="dd"><input type="search" id="seed-q" placeholder="Search for a card to add" autocomplete="off"><div class="ddl" id="seed-res" hidden></div></div>' +
+    (S.seed.paste ? '<textarea id="seed-text" placeholder="1 Doubling Season&#10;1 Craterhoof Behemoth"></textarea><div class="row"><button class="btn sm pri" data-act="seed-paste-go">Add these cards</button></div>' : '<div class="row"><button class="btn sm" data-act="seed-paste">Paste a list instead</button></div>') +
+    (S.seed.cards.length ? '<div class="row">' + S.seed.cards.map(n => '<span class="chip">' + esc(n) + ' <button class="x" data-act="seed-del" data-n="' + esc(n) + '" aria-label="Remove ' + esc(n) + '">×</button></span>').join('') + '</div>' : '<p class="note" style="margin:0">No cards yet.</p>') + '</div>';
+  if (I.cards.length){
+    h += '<div class="grp"><span class="lab">What these cards point to</span><div class="row">' + (I.colors.length ? I.colors.map(k => '<i class="pip p' + k + '">' + k + '</i>').join('') : '<span class="chip">Colorless</span>') + I.aims.map(k => '<span class="chip gold">' + THEMES[k].label + '</span>').join('') + '</div></div>' +
+      '<div class="grp"><span class="lab">Tier for the rest of the deck</span><div class="seg">' + Object.keys(TIERS).map(k => '<button data-act="seed-tier" data-v="' + k + '" class="' + (g.tier === k ? 'on' : '') + '">' + TIERS[k].label + '<small>' + (TIERS[k].cap === Infinity ? 'no price cap' : 'cards ≤ $' + TIERS[k].cap) + '</small></button>').join('') + '</div></div>' +
+      '<div class="grp"><span class="lab">Commanders that fit · pick one to build the deck</span>' + (DBINFO.complete ? '' : '<p class="note" style="margin:0">Card data is still downloading, so more commanders and better picks will appear when it finishes.</p>') +
+      (I.cmds.length ? I.cmds.map(x => { const k = find(x.n); return '<div class="pre"><img alt="" src="' + artFor(k) + '"><div style="min-width:0"><b>' + esc(k.n) + '</b> ' + k.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why">' + (x.mine ? '<span class="chip good">One of your cards</span>' : x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('')) + '</div></div><div class="acts"><button class="btn sm" data-act="card" data-n="' + esc(k.n) + '">View</button><button class="btn pri sm" data-act="seed-go" data-n="' + esc(k.n) + '">Build</button></div></div>'; }).join('')
+        : '<p class="note" style="margin:0">No commander in the card data covers all of these colors' + (DBINFO.complete ? '. Try removing a card.' : ' yet.') + '</p>') + '</div>';
+  }
+  $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
+}
+function seedBuild(n){
+  const c = find(n); if (!c) return; const I = seedInfo(), nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier, auto:'commander'});
+  setCommander(nd, c.n); I.aims.forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
+  let kept = 0; I.cards.forEach(x => { if (x.n === c.n || !x.ci.every(k => c.ci.includes(k))) return; addCard(nd, x.n, 1); const en = nd.cards.find(y => y.n === x.n); if (en) en.l = true; kept++; });
+  if (nd.aims.length){ fillDeck(nd); toast('Built a deck for ' + c.n + ' around your ' + kept + ' card' + (kept === 1 ? '' : 's') + '.'); } else toast('Your cards are in. Pick mechanics in the Build panel, then press Fill.');
+  S.seed = {cards:[], paste:false}; touch(); render();
 }
 function viewProfile(){
   const P = S.profile;
@@ -950,6 +985,13 @@ function handleAct(act, v, n, pArg){
     case 'precon-open': openPrecons(); return;
     case 'precon-live': $('#modal').hidden = true; loadPreconLive(v, n); return;
     case 'gen-open': openGenerate(); return;
+    case 'seed-open': S.seed = S.seed || {cards:[], paste:false}; openSeed(); return;
+    case 'seed-add': { const c = find(n); if (c && !S.seed.cards.includes(c.n)) S.seed.cards.push(c.n); openSeed(); const q = $('#seed-q'); if (q) q.focus(); return; }
+    case 'seed-del': S.seed.cards = S.seed.cards.filter(x => x !== n); openSeed(); return;
+    case 'seed-paste': S.seed.paste = true; openSeed(); return;
+    case 'seed-paste-go': { const r = parseDeckText(($('#seed-text') || {}).value || ''); let k = 0, miss = 0; (r.commander ? [{n:r.commander}] : []).concat(r.cards).forEach(x => { const c = find(x.n); if (!c){ miss++; return; } if (!S.seed.cards.includes(c.n)){ S.seed.cards.push(c.n); k++; } }); S.seed.paste = false; openSeed(); toast('Added ' + k + ' card' + (k === 1 ? '' : 's') + (miss ? ' · ' + miss + ' not recognised' : '') + '.'); return; }
+    case 'seed-tier': S.gen.tier = v; openSeed(); return;
+    case 'seed-go': { $('#modal').hidden = true; toast('Building your deck…'); const go = () => seedBuild(n); loadEdh(n).then(go, go); return; }
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
     case 'gen-pick': S.gen.cmd = n; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
     case 'gen-tier': S.gen.tier = v; openGenerate(); return;
@@ -981,6 +1023,7 @@ document.addEventListener('input', ev => {
   else if (t.id === 'lib-set') setDrop(t, $('#set-res'));
   else if (t.id === 'lib-f'){ S.libF = t.value; const el = $('#librows'); if (el) el.innerHTML = libRows(S.libF); }
   else if (t.id === 'pre-q'){ const el = $('#pre-list'); if (el) el.innerHTML = preRows(t.value); }
+  else if (t.id === 'seed-q') dropdown(t, $('#seed-res'), {fmt:'commander'}, 'seed-add');
   else if (t.id === 'gen-q') dropdown(t, $('#gen-res'), {fmt:'commander', legend:true}, 'gen-pick');
   else if (t.id === 'cmd-q') dropdown(t, $('#cmd-res'), {fmt:'commander', legend:true}, 'set-cmd');
 });

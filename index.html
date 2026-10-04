@@ -146,6 +146,7 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .hist small{font:600 11px var(--label);letter-spacing:.1em;text-transform:uppercase;color:var(--chrome);margin-right:8px} .hist span button{border:0;background:none;color:var(--mute);font:inherit;padding:0;text-decoration:line-through} .hist b{color:var(--ink);font-weight:600}
 .dl.libr{grid-template-columns:minmax(0,1fr) auto auto} .dl.libr .nm{border:0;background:none;color:inherit;font:inherit;font-weight:500;text-align:left;padding:0}
 .qty{display:flex;align-items:center;gap:6px} .qty b{min-width:18px;text-align:center;font:700 14px var(--label)} .qty .ico{width:28px;height:28px}
+.chip .x{border:0;background:none;color:inherit;font:inherit;padding:0 0 0 4px;font-size:15px;line-height:1}
 .opt.none{opacity:.6} .opt.none p{margin:0;font-size:13px;color:var(--mute)}
 .cmdbox{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;background:var(--well);border:1px solid var(--line);border-radius:8px;padding:8px}
 .cmdbox img{width:96px;height:68px;object-fit:cover;border-radius:5px;border:1px solid var(--chrome2);box-shadow:0 0 12px rgba(141,92,255,.5)}
@@ -338,7 +339,7 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 48.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 49.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
@@ -346,7 +347,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 48;
+window.BUILD = 49;
 (function(){
   var last = 0;
   function check(){
@@ -358,9 +359,9 @@ window.BUILD = 48;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=48"></script>
-<script src="lists.js?v=48"></script>
-<script src="engine.js?v=48"></script>
-<script src="ui.js?v=48"></script>
+<script src="data.js?v=49"></script>
+<script src="lists.js?v=49"></script>
+<script src="engine.js?v=49"></script>
+<script src="ui.js?v=49"></script>
 </body>
 </html>
