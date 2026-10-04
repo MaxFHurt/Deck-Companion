@@ -374,16 +374,16 @@ function viewHome(){
 }
 function viewDecks(){
   const P = S.profile, od = S.open ? cur() : null;
-  if (od){ const A = analyze(od), isDraft = od === S.draft, narrow = matchMedia('(max-width:820px)').matches;
+  if (od){ const A = analyze(od), isDraft = od === S.draft, narrow = isNarrow();
     let tab = S.tab || (narrow && !isAimed(od) ? 'build' : 'list'); if (!narrow && tab === 'build') tab = 'list';
     const R = isAimed(od) ? recsFor(od) : null, nUp = R ? R.paths.length + R.fixes.length + R.drops.length : 0;
     const build = aimPanel(od, A.ctx).replace('<section class="panel aimp">', '<section class="panel aimp"><div class="scroll" id="bscroll" data-keep>').replace(/<\/section>$/, '</div></section>');
     const tb = (k, label, cls) => '<button class="tab' + (tab === k ? ' on' : '') + (cls || '') + '" data-act="tab" data-v="' + k + '" role="tab" aria-selected="' + (tab === k) + '">' + label + '</button>';
-    return '<div class="row"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
+    return '<div class="row bar"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
       ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
       : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
-      '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + '</div>' +
-      (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : listPanel(od, A)) + '</section></div>'; }
+      '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + tb('buy', 'Buy list') + '</div>' +
+      (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
     return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row"><span class="chip gold">' + TIERS[d.tier].label + '</span><span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
   return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
@@ -465,6 +465,14 @@ function buyText(d){
   buyData(d).forEach(T => { L.push('', '// ' + TIERS[T.t].label + ' (' + T.count + ' cards' + (T.count ? ', about $' + T.cost.toFixed(2) : '') + ')'); if (!T.items.length) L.push('// nothing to buy at this tier'); T.items.forEach(x => L.push(x.q + ' ' + x.n)); });
   return L.join('\n') + '\n';
 }
+function buyPanel(d){
+  if (!isAimed(d)) return '<div class="scroll"><div class="gate"><b>Set up the build first</b>The buy list comes from the deck’s upgrade paths, which need the build to be set.</div></div>';
+  const data = buyData(d);
+  return '<div class="row"><span class="lab" style="flex:1">What each tier’s upgrades would add</span><button class="btn pri sm" data-act="buy-copy">Copy as text</button><button class="btn sm" data-act="buy-save">Save text file</button></div>' +
+    '<div class="scroll" id="buyscroll" data-keep><p class="note" style="margin:0">One list per tier, sorted by color, then A to Z. Basic lands are left off.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
+    data.map(T => '<div class="grp"><div class="gh" style="font-size:15px"><span>' + TIERS[T.t].label + '</span><span>' + T.count + ' card' + (T.count === 1 ? '' : 's') + (T.count ? ' · ' + (DBINFO.source === 'starter' ? '~' : '') + '$' + T.cost.toFixed(2) : '') + '</span></div>' +
+      (T.items.length ? BUY_GROUPS.map(([k, label]) => { const xs = T.items.filter(x => x.g === k); return xs.length ? '<div><span class="lab">' + label + '</span>' + xs.map(x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + '</span><span class="pr">' + money(find(x.n)) + '</span></button>').join('') + '</div>' : ''; }).join('') : '<p class="note" style="margin:0">Nothing to buy at this tier.</p>') + '</div>').join('') + '</div>';
+}
 function openBuy(){
   const d = cur(); if (!d) return; S.modalCard = null;
   let h = '<div class="panel" role="dialog" aria-label="Buy list"><div class="ph"><h2>Buy list</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>';
@@ -503,7 +511,7 @@ function openList(){
 const TIER_KEYS = ['budget', 'mid', 'apex'];
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
-  let h = '<div class="row"><span class="lab" style="flex:1">Budget · Mid · Apex upgrade paths</span><button class="btn sm" data-act="buy-open">Buy list</button></div><div class="scroll up" id="upscroll" data-keep>';
+  let h = '<div class="row"><span class="lab" style="flex:1">Budget · Mid · Apex upgrade paths</span></div><div class="scroll up" id="upscroll" data-keep>';
   if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
   h += '<div class="grp"><span class="lab">Card types</span><div class="row">' + TYPE_ORDER.filter(k => A.types[k]).map(k => '<span class="chip">' + (k === 'Sorcery' ? 'Sorceries' : k + 's') + ' · ' + A.types[k] + '</span>').join('') + '</div></div>';
@@ -650,14 +658,16 @@ function viewProfile(){
     '<p class="note" style="margin:0">If the automatic update keeps failing, download <b>Oracle Cards</b> from <a href="https://scryfall.com/docs/api/bulk-data" target="_blank" rel="noopener">scryfall.com/docs/api/bulk-data</a> and load the file here:</p><div class="row"><input type="file" id="db-file" accept=".json,application/json" style="max-width:340px"></div></section>';
 }
 // The deck editor fills what is left of the screen, and its panes scroll inside themselves.
-function fitWork(){ const w = document.querySelector('.work'); if (!w) return; const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(380, Math.round(vh - w.getBoundingClientRect().top - scrollY - 12)) + 'px'; }
+// One-pane (tabbed) layout for phones in portrait and narrow tablets in portrait; two panes whenever there is room side by side.
+function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h > w && w < 900); }
+function fitWork(){ const w = document.querySelector('.work'); if (!w) return; const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
 function render(){
   const keep = {}; document.querySelectorAll('[data-keep]').forEach(el => keep[el.id] = el.scrollTop);
   navHtml(); const m = $('#main');
   document.querySelector('.top').classList.toggle('home', S.view === 'home'); document.querySelector('.app').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = S.view === 'home' ? '10px' : '16px';
-  document.querySelector('.app').classList.toggle('editing', S.view === 'decks' && S.open && !!cur()); fitWork();
+  document.querySelector('.app').classList.toggle('narrow', isNarrow()); document.querySelector('.app').classList.toggle('editing', S.view === 'decks' && S.open && !!cur()); fitWork();
   for (const id in keep){ const el = document.getElementById(id); if (el && keep[id]) el.scrollTop = keep[id]; }
   ensureTheme(); ensureEdh();
 }
@@ -667,7 +677,22 @@ function ctlHtml(n){
     '<button class="btn' + (e.l ? ' gold' : '') + '" data-act="lock" data-n="' + esc(n) + '" aria-pressed="' + !!e.l + '">' + (e.l ? 'Locked · tap to unlock' : 'Lock card') + '</button><button class="btn danger" data-act="rm" data-n="' + esc(n) + '">Remove from deck</button></div>' +
     '<p class="note" style="margin:0">' + (e.l ? 'Locked cards are never suggested as cuts.' : 'Lock a card to keep it out of the suggested cuts.') + '</p>';
 }
+function switchCommander(d, n){
+  const old = d.commander; delete d.cmdPid; delete d.cmdSet; const keepAims = d.aims.slice(), keepTribe = d.tribe;
+  setCommander(d, n); d.aims = keepAims.length ? keepAims : d.aims; if (keepTribe) d.tribe = keepTribe; const nc = find(n); if (nc) d.colors = nc.ci.slice();
+  if (old && old !== n) d.prevCmd = old; return old;
+}
+function offColor(d, c){ const cmd = d.format === 'commander' ? find(d.commander) : null; return !!(cmd && c && !c.ci.every(x => cmd.ci.includes(x))); }
+// A card outside the commander's colors can't simply be added: show which commanders would allow it.
+function recolorHtml(d, c){
+  const cmd = find(d.commander), missing = c.ci.filter(x => !cmd.ci.includes(x)), need = 'WUBRG'.split('').filter(x => cmd.ci.includes(x) || c.ci.includes(x)), res = findCommanders(d, need, 6);
+  return '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span><div class="gate"><b>This card is outside your commander’s colors</b>' + esc(c.n) + ' needs ' + missing.map(k => COLOR_NAME[k]).join(' and ') + ', and ' + esc(cmd.n) + ' doesn’t allow it. To run it, the deck needs a commander that includes ' + need.map(k => '<i class="pip p' + k + '">' + k + '</i>').join('') + '. Pick one and I will switch commanders; ' + esc(cmd.n.split(',')[0]) + ' then becomes an ordinary card you can add back.</div>' +
+    (res.length ? res.map(x => { const k = find(x.n); return '<div class="pre"><img alt="" src="' + artFor(k) + '"><div style="min-width:0"><b>' + esc(k.n) + '</b> ' + k.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why">' + x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('') + (x.outside ? '<span class="chip warn">' + x.outside + ' of your cards would fall outside its colors</span>' : '<span class="chip good">Every card in the deck stays legal</span>') + '</div></div><div class="acts"><button class="btn pri sm" data-act="cmd-switch" data-n="' + esc(k.n) + '" data-v="' + esc(c.n) + '">Switch</button></div></div>'; }).join('')
+      : '<p class="note" style="margin:0">No commander in the card data covers all of those colors' + (DBINFO.complete ? '.' : ' yet. More appear when the card download finishes.') + '</p>') +
+    '<div class="row"><button class="btn" data-act="close">Cancel</button></div></div>';
+}
 function wantHtml(d, c){
+  if (offColor(d, c)) return recolorHtml(d, c);
   const A = analyze(d), open = A.T.size - A.size, warn = !legalIn(c, d.format) ? 'Not legal in ' + d.format : (A.ctx.ident.length || A.ctx.cmd) && !c.ci.every(x => A.ctx.ident.includes(x)) ? 'Outside this deck’s colors' : '';
   let h = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>' + (warn ? '<div class="row"><span class="chip bad">' + warn + '</span></div>' : '');
   if (open > 0) return h + '<div class="row"><button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add it · ' + open + ' open slot' + (open === 1 ? '' : 's') + '</button></div></div>';
@@ -778,7 +803,7 @@ function handleAct(act, v, n, pArg){
     case 'dec': cutCard(d, n, 1); break;
     case 'rm': cutCard(d, n, 999); break;
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
-    case 'pick-add': { const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } const A = analyze(d); if (A.size >= A.T.size){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } addCard(d, n, 1); toast('Added ' + n + '.'); break; }
+    case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } const A = analyze(d); if (A.size >= A.T.size){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } addCard(d, n, 1); toast('Added ' + n + '.'); break; }
     case 'want': { cutCard(d, v, 1); addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
     case 'add-to-deck': { const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
     case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
@@ -803,8 +828,8 @@ function handleAct(act, v, n, pArg){
     case 'list-all': openList(); return;
     case 'cmd-find': openFindCmd(); return;
     case 'fc-color': { const s = new Set(S.fc.colors); if (s.has(v)) s.delete(v); else s.add(v); S.fc.colors = 'WUBRG'.split('').filter(x => s.has(x)); openFindCmd(); return; }
-    case 'fc-pick': { const old = d.commander; delete d.cmdPid; delete d.cmdSet; const keepAims = d.aims.slice(), keepTribe = d.tribe; setCommander(d, n); d.aims = keepAims.length ? keepAims : d.aims; if (keepTribe) d.tribe = keepTribe; const nc = find(n); if (nc) d.colors = nc.ci.slice();
-      if (old && old !== n) d.prevCmd = old; S.fc = null; $('#modal').hidden = true; toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' can now be suggested as an upgrade.' : '')); break; }
+    case 'fc-pick': { const old = switchCommander(d, n); S.fc = null; $('#modal').hidden = true; toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' can now be suggested as an upgrade.' : '')); break; }
+    case 'cmd-switch': { const old = switchCommander(d, n); touch(); render(); toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' can now be suggested as an upgrade.' : '')); openCard(v); return; }
     case 'buy-open': openBuy(); return;
     case 'buy-copy': copyText(buyText(d), 'Buy list copied.'); return;
     case 'buy-save': saveText(d.name.replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '-buy-list.txt', buyText(d)); toast('Buy list saved to your downloads.'); return;
@@ -836,7 +861,7 @@ let st = 0;
 document.addEventListener('input', ev => {
   const t = ev.target, d = cur();
   if (t.id === 's-q'){ S.search.q = t.value; clearTimeout(st); st = setTimeout(() => { const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }, 160); }
-  else if (t.id === 'add-q' && d){ const A = ctxOf(d); dropdown(t, $('#add-res'), {fmt:d.format, within:A.ident.length || A.cmd ? A.ident : null}, 'pick-add'); }
+  else if (t.id === 'add-q' && d){ const A = ctxOf(d); dropdown(t, $('#add-res'), {fmt:d.format, within:d.format === 'standard' && A.ident.length ? A.ident : null}, 'pick-add'); }
   else if (t.id === 'pre-q'){ const el = $('#pre-list'); if (el) el.innerHTML = preRows(t.value); }
   else if (t.id === 'gen-q') dropdown(t, $('#gen-res'), {fmt:'commander', legend:true}, 'gen-pick');
   else if (t.id === 'cmd-q') dropdown(t, $('#cmd-res'), {fmt:'commander', legend:true}, 'set-cmd');
@@ -855,11 +880,13 @@ document.addEventListener('change', ev => {
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
+addEventListener('orientationchange', () => setTimeout(() => { wasNarrow = isNarrow(); render(); }, 250));
+if (window.visualViewport) visualViewport.addEventListener('resize', () => fitWork());
 addEventListener('pagehide', () => { clearTimeout(saveT); if (!S.profile.example) persist(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && !S.profile.example){ clearTimeout(saveT); persist(); } });
 // ---------- boot ----------
-ornaments(); paintSky(); let rz = 0; let wasNarrow = matchMedia('(max-width:820px)').matches;
-addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 250); const nw = matchMedia('(max-width:820px)').matches; if (nw !== wasNarrow){ wasNarrow = nw; render(); } else fitWork(); });
+ornaments(); paintSky(); let rz = 0; let wasNarrow = isNarrow();
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 250); const nw = isNarrow(); if (nw !== wasNarrow){ wasNarrow = nw; render(); } else fitWork(); });
 loadLocal();
 if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else S.deckId = S.profile.decks[0].id;
 S.view = 'home'; S.open = false;
