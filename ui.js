@@ -61,7 +61,7 @@ const PRINT = {key:'', map:new Map()};
 const imgUrl = (kind, id) => IMG + kind + '/front/' + id[0] + '/' + id[1] + '/' + id + '.jpg';
 function pidOf(c, e){ return (e && e.pid) || (PRINT.map.get(c._n) || {}).id || c.id; }
 // Set and rarity of the printing being shown for a card (the commander-set printing when there is one).
-function printInfo(c){ if (!c) return null; const t = PRINT.map.get(c._n), set = (t && t.set) || c.set || '', rar = (t && t.set ? t.rar : c.rar) || ''; return set || rar ? {set, rar} : null; }
+function printInfo(c){ if (!c) return null; const set = c.set || '', rar = c.rar || ''; return set || rar ? {set, rar} : null; }
 function printTag(c){ const i = printInfo(c); if (!i) return ''; return '<span class="setline">' + (i.set ? '<span class="setn">' + esc(i.set) + '</span>' : '') + (i.rar ? '<span class="rar rar-' + esc(i.rar[0]) + '">' + esc(i.rar[0].toUpperCase() + i.rar.slice(1)) + '</span>' : '') + '</span>'; }
 function priceOf(o){ const pr = o.prices || {}, p = parseFloat(pr.usd || pr.usd_foil || pr.usd_etched); return isNaN(p) ? null : p; }
 async function scry(q, extra, maxPages, each){
@@ -80,7 +80,7 @@ async function ensureTheme(){
   } catch (e) {}
 }
 // Remember which printing a deck entry uses, with its set, rarity and price, so the deck shows that printing everywhere.
-function setPrint(en, x){ en.pid = x.id; en.ps = x.set; en.pr = x.rar || ''; if (x.p != null) en.pp = x.p; else delete en.pp; }
+function setPrint(en, x){ en.pid = x.id; en.ps = x.set; en.pr = x.rar || ''; if (x.p != null) en.pp = x.p; else delete en.pp; if (x.sc) en.psc = x.sc; if (x.cn) en.pcn = x.cn; else delete en.pcn; }
 function rarChip(r){ return r ? '<span class="rar rar-' + esc(r[0]) + '">' + esc(r[0].toUpperCase() + r.slice(1)) + '</span>' : ''; }
 // Set, rarity and price of the printing currently shown in the card pop-up.
 function pickHtml(c){
@@ -96,7 +96,7 @@ function printsHtml(){
 }
 async function loadPrints(c){
   const list = [];
-  try { await scry(c.oid ? 'oracleid:' + c.oid : '!"' + c.n + '"', '&order=released&dir=desc', 4, o => list.push({id:o.id, set:o.set_name, sc:o.set, yr:String(o.released_at || '').slice(0, 4), p:priceOf(o), rar:o.rarity || ''})); }
+  try { await scry(c.oid ? 'oracleid:' + c.oid : '!"' + c.n + '"', '&order=released&dir=desc', 4, o => list.push({id:o.id, set:o.set_name, sc:o.set, cn:o.collector_number || '', yr:String(o.released_at || '').slice(0, 4), p:priceOf(o), rar:o.rarity || ''})); }
   catch (e) { const b = $('#prints'); if (b && S.modalCard === c.n) b.innerHTML = '<p class="note" style="margin:0">Could not load the list of printings.</p>'; return; }
   if (S.modalCard !== c.n) return; S.prints = {n:c.n, list};
   if (S.pick && !S.pick.set){ const m = list.find(x => x.id === S.pick.id); if (m) S.pick = m; }
@@ -229,7 +229,7 @@ function cardLogHtml(){
 }
 async function loadSavedLibrary(){
   let complete = false, hadRows = false;
-  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ hadRows = true; complete = !!v.ts && v.rows.some(r => r.sc) && v.rows.some(r => r.rar) && v.rows.some(r => 'gc' in r); useFull(v.rows, v.when, complete); render(); } } catch (e) {}
+  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ hadRows = true; complete = !!v.ts && v.rows.some(r => r.sc) && v.rows.some(r => r.rar) && v.rows.some(r => 'gc' in r) && v.rows.some(r => 'cn' in r); useFull(v.rows, v.when, complete); render(); } } catch (e) {}
   // Ask the browser to keep the saved card data, so it is not cleared (and downloaded again) when storage runs low.
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
   // The profile keeps a record of each card-data download. After the browser's storage is cleared and a backup is
@@ -282,9 +282,9 @@ const cleanRows = rows => rows.map(c => { const x = Object.assign({}, c); delete
 async function pagedUpdate(){
   // Scryfall's search service, 175 cards a page, most-played first. Progress is saved as it goes, so a dropped
   // connection, a closed tab or a reload picks up where it stopped instead of starting over. It keeps retrying until done.
-  const base = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('(legal:commander or legal:standard) game:paper') + '&unique=cards&order=edhrec';
+  const base = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('(legal:commander or legal:standard) game:paper prefer:usd-low') + '&unique=cards&order=edhrec';
   let st = null; try { st = await idb('readonly', s => s.get('partial')); } catch (e) {}
-  const resume = st && st.url && st.rows && Date.now() - st.ts < 12 * 3600e3;
+  const resume = st && st.url && /usd-low/.test(decodeURIComponent(st.url)) && st.rows && Date.now() - st.ts < 12 * 3600e3;
   let rows = resume ? st.rows : [], url = resume ? st.url : base, page = resume ? st.page : 0, total = resume ? st.total : 0, fails = 0;
   const when = new Date().toISOString().slice(0, 10), first = !(DBINFO.source === 'full' && DBINFO.count > 5000);
   if (resume && first){ useFull(rows.slice(), when); render(); }
@@ -345,11 +345,7 @@ async function checkReleases(){
 async function autoUpdate(sig, reason){
   if (autoUpdate.busy) return; autoUpdate.busy = true; DBINFO.err = ''; let n = 0, why = [];
   setStatus('Checking Scryfall for card updates…');
-  if (Date.now() - (lsGet('dc.noBulk') || 0) > 7 * 864e5) try {
-    const meta = await (await sfetch('https://api.scryfall.com/bulk-data/oracle-cards')).json();
-    const resp = await fetch(meta.download_uri); if (!resp.ok || !resp.body) throw new Error('status ' + resp.status);
-    n = await ingest(resp.body, meta.size || 1.7e8, String(meta.updated_at || '').slice(0, 10));
-  } catch (e) { why.push('daily file: ' + (e && e.message || e)); lsSet('dc.noBulk', Date.now()); }
+  // The card search is used (not Scryfall's daily file) because it can return each card's cheapest printing.
   if (!n) try { n = await pagedUpdate(); } catch (e) { why.push('card search: ' + (e && e.message || e)); }
   if (n){ toast(n.toLocaleString() + ' cards updated from Scryfall.'); lsSet('dc.dlAt', Date.now()); try { lsSet('dc.relSig', sig && sig.latest ? sig : await releaseSignature()); lsSet('dc.relCheck', Date.now()); } catch (e) {}
     // Record the rewrite in the profile (and so in the backup file).
@@ -627,9 +623,26 @@ function exportRows(d, what){
   if (what !== 'deck' && d.plan) d.plan.forEach(x => { const n = x.own || x.seed || x.basic ? x.a : planPick(x, what), r = rows.find(y => y.n === n); if (r) r.q += x.q; else rows.push({n, q:x.q}); });
   return rows;
 }
+// "(SET) number" for a line: the printing chosen for that card in this deck, else the card's default (cheapest) printing.
+async function resolvePrints(d){
+  const todo = d.cards.filter(x => x.psc && !x.pid).slice(0, 150); if (!todo.length) return; let done = 0;
+  for (const en of todo){
+    try { const r = await sfetch('https://api.scryfall.com/cards/' + encodeURIComponent(en.psc) + (en.pcn ? '/' + encodeURIComponent(en.pcn) : '')); if (!r.ok) continue; const o = await r.json(); if (!o || !o.id || norm(String(o.name || '').split(' // ')[0]) !== norm(en.n.split(' // ')[0])) continue;
+      setPrint(en, {id:o.id, set:o.set_name, sc:o.set, cn:o.collector_number, rar:o.rarity, p:priceOf(o)}); done++; if (done % 10 === 0){ persistSoon(); render(); } } catch (err) { break; }
+  }
+  if (done){ persistSoon(); render(); toast('Matched ' + done + ' card' + (done === 1 ? '' : 's') + ' to the printings in your list.'); }
+}
+function persistSoon(){ clearTimeout(saveT); saveT = setTimeout(persist, 700); }
+function printOf(d, n){
+  const c = find(n), en = d.cards.find(x => x.n === n);
+  if (n === d.commander && d.cmdSet) return {sc:d.cmdSet, cn:d.cmdCn || ''};
+  if (en && en.psc) return {sc:en.psc, cn:en.pcn || ''};
+  return c && c.sc ? {sc:c.sc, cn:c.cn || ''} : null;
+}
 function exportText(d, what){
-  const L = []; if (d.format === 'commander' && d.commander){ L.push('Commander', '1 ' + d.commander); if (d.partner) L.push('1 ' + d.partner); L.push('', 'Deck'); }
-  exportRows(d, what).forEach(x => L.push(x.q + ' ' + x.n)); return L.join('\n') + '\n';
+  const pr = S.expPrint !== false, ln = (q, n) => { const p = pr && !isBasic(n) ? printOf(d, n) : null; return q + ' ' + n + (p ? ' (' + p.sc.toUpperCase() + ')' + (p.cn ? ' ' + p.cn : '') : ''); };
+  const L = []; if (d.format === 'commander' && d.commander){ L.push('Commander', ln(1, d.commander)); if (d.partner) L.push(ln(1, d.partner)); L.push('', 'Deck'); }
+  exportRows(d, what).forEach(x => L.push(ln(x.q, x.n))); return L.join('\n') + '\n';
 }
 function exportCsv(d, what){
   const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"', line = (role, n, k) => { const c = find(n), i = printInfo(c) || {}; return [k, q(n), role, q(c ? c.t : ''), q(i.set || ''), q(i.rar || ''), c && c.p != null ? c.p.toFixed(2) : ''].join(','); };
@@ -643,7 +656,7 @@ function openExport(){
   const opts = [['deck', 'Cards in the deck now']].concat(hasPlan ? TIER_KEYS.map(t => [t, 'Full build · ' + TIERS[t].label]) : []);
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Export deck"><div class="ph"><h2>Export</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
     (hasPlan ? '<div class="grp"><span class="lab">What to export</span><div class="seg">' + opts.map(o => '<button data-act="export-what" data-v="' + o[0] + '" class="' + (S.exp === o[0] ? 'on' : '') + '">' + o[1] + '</button>').join('') + '</div><p class="note" style="margin:0">This deck is still a build in progress. A full build includes the cards not yet added, at the tier you choose.</p></div>' : '') +
-    '<div class="grp"><span class="lab">' + n + ' cards · plain text</span><p class="note" style="margin:0">One card per line with a Commander section. Paste it into Moxfield, Archidekt, MTG Arena, TCGplayer or any deck site.</p><textarea id="exp-box" readonly style="min-height:180px">' + esc(exportText(d, S.exp)) + '</textarea>' +
+    '<div class="grp"><span class="lab">' + n + ' cards · plain text</span><div class="seg"><button data-act="export-print" data-v="1" class="' + (S.expPrint !== false ? 'on' : '') + '">With printings<small>1 Sol Ring (C21) 263</small></button><button data-act="export-print" data-v="0" class="' + (S.expPrint === false ? 'on' : '') + '">Names only<small>1 Sol Ring</small></button></div><p class="note" style="margin:0">' + (S.expPrint !== false ? 'Each line carries its set code and collector number: the printing you chose for a card in this deck, or the cheapest printing when you haven’t chosen one. Moxfield, Archidekt and this app’s Import read it and keep those printings.' : 'One card per line with a Commander section. Every deck site accepts this; printings are left for the site to pick.') + '</p><textarea id="exp-box" readonly style="min-height:180px">' + esc(exportText(d, S.exp)) + '</textarea>' +
     '<div class="row"><button class="btn pri" data-act="export-copy">Copy text</button><button class="btn" data-act="export-txt">Save .txt file</button>' + (navigator.share ? '<button class="btn" data-act="export-share">Share…</button>' : '') + '</div></div>' +
     '<div class="grp"><span class="lab">Spreadsheet</span><p class="note" style="margin:0">A .csv file with quantity, name, type, set, rarity and price for each card. Opens in Numbers, Excel or Google Sheets.</p><div class="row"><button class="btn" data-act="export-csv">Save .csv file</button></div></div></div>';
   $('#modal').hidden = false;
@@ -675,7 +688,7 @@ const TIER_KEYS = ['budget', 'mid', 'apex'];
 function tierOfPrice(c){ return !c || c.p == null ? 'apex' : c.p <= 3 ? 'budget' : c.p <= 12 ? 'mid' : 'apex'; }
 function planCost(d, t){ let s = 0; d.plan.forEach(x => { if (x.own || x.basic) return; const c = find(planPick(x, t)); s += (c && c.p || 0) * x.q; }); return s; }
 function planHtml(d){
-  const side = (kind, n, q) => { const c = find(n); return '<button class="sw in" data-act="card" data-n="' + esc(n) + '">' + (c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>') + '<span><small>Add</small>' + (q > 1 ? q + '× ' : '') + esc(n) + printTag(c) + '</span><em>' + money(c) + '</em></button>'; };
+  const side = (kind, n, q) => { const c = find(n); return '<button class="sw in" data-act="card" data-n="' + esc(n) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span><small>Add</small>' + (q > 1 ? q + '× ' : '') + esc(n) + printTag(c) + '</span><em>' + money(c) + '</em></button>'; };
   const P = d.plan, total = P.reduce((s, x) => s + x.q, 0), done = d.cards.reduce((s, x) => s + x.q, 0), nOwn = P.filter(x => x.own).length, est = DBINFO.source === 'starter' ? '~' : '';
   const rank = x => x.seed ? 0 : x.own ? 1 : x.basic ? 4 : x.land ? 3 : 2, slots = P.slice().sort((a, b) => rank(a) - rank(b) || a.id - b.id), show = S.planShow || 16;
   const opt = (x, key, t, n) => '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', n, x.q) + '<div class="row"><button class="btn pri sm" data-act="plan-add" data-v="' + x.id + '|' + key + '" style="margin-left:auto">Add to deck</button></div></div>';
@@ -744,7 +757,7 @@ function upPanel(d, A){
     const need = d.format === 'commander' && !A.ctx.cmd ? 'Choose your commander, then pick' : !d.aims.length ? 'Pick' : d.aims.includes('tribal') && !A.ctx.tribe ? 'Choose a creature type for your tribal aim. Then pick' : 'Choose your land colors, and pick';
     return h + '<div class="gate"><b>Set up the build first</b>' + need + ' at least one mechanic in the Build panel. Upgrade paths are built around your priorities, so two players with the same commander get different lists.</div></div>';
   }
-  const hasPlan = d.plan && d.plan.length, R = hasPlan ? null : recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>'; }, price = n => money(find(n));
+  const hasPlan = d.plan && d.plan.length, R = hasPlan ? null : recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>'; }, price = n => money(find(n));
   const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + (kind === 'in' ? printTag(find(n)) : '') + '</span><em>' + price(n) + '</em></button>';
   const mp = manaPlan(d);
   if (mp.off >= 2) h += '<div class="gate"><b>Mana adjustment suggested</b>The deck’s colors have shifted, so its basic lands no longer match what the spells need. I would change: ' + esc(planText(mp)) + '.<div class="row" style="margin-top:10px"><button class="btn pri" data-act="mana-apply">Accept the change</button></div></div>';
@@ -1060,7 +1073,7 @@ function handleAct(act, v, n, pArg){
       const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id); $('#prints').innerHTML = printsHtml(); { const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(find(S.modalCard)); }
       if (d){ const en = d.cards.find(e2 => e2.n === S.modalCard);
         if (en){ setPrint(en, x); }
-        if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
+        if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; d.cmdCn = x.cn || ''; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
     case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; changed = false; break;
@@ -1118,6 +1131,7 @@ function handleAct(act, v, n, pArg){
     case 'copy-list': copyText(deckToText(d), 'Deck list copied.'); return;
     case 'export-open': openExport(); return;
     case 'export-what': S.exp = v; openExport(); return;
+    case 'export-print': S.expPrint = v === '1'; openExport(); return;
     case 'export-copy': copyText(exportText(d, S.exp), 'Deck list copied.'); return;
     case 'export-txt': saveText(exportName(d) + '.txt', exportText(d, S.exp)); toast('Deck list saved.'); return;
     case 'export-csv': saveText(exportName(d) + '.csv', exportCsv(d, S.exp)); toast('Spreadsheet saved.'); return;
@@ -1165,7 +1179,7 @@ function handleAct(act, v, n, pArg){
       const cmdName = r.commander || (pre && pre.cmd); const hadCmd = v === 'merge' && t.commander; if (fmt === 'commander' && cmdName && !hadCmd) setCommander(t, cmdName);
       if (r.partner){ if (fmt === 'commander' && !hadCmd && r.commander) setPartner(t, r.partner); else addCard(t, r.partner, 1); }
       if (fmt === 'standard' && !t.colors.length){ const s = new Set(); t.cards.forEach(e => { const c = find(e.n); if (c) c.ci.forEach(x => s.add(x)); }); t.colors = 'WUBRG'.split('').filter(x => s.has(x)).slice(0, 3); }
-      const unk = t.cards.filter(e => !find(e.n)).length; $('#modal').hidden = true;
+      const unk = t.cards.filter(e => !find(e.n)).length; $('#modal').hidden = true; resolvePrints(t);
       toast('Imported ' + total + ' cards' + (r.side ? ', skipped ' + r.side + ' sideboard' : '') + (unk ? '. ' + unk + ' not recognized' : '') + '.'); break; }
     default: return;
   }
