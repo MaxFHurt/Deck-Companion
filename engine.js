@@ -212,7 +212,7 @@ function analyze(d){
   [ctx.cmd, ctx.par].forEach(c => { if (c && c.gc) A.gc.push(c.n); });
   for (const e of d.cards){
     A.size += e.q; const c = find(e.n); if (!c){ A.unknown.push(e.n); continue; }
-    const tg = tags(c); if (c.p != null) A.price += c.p * e.q; else A.priced = false;
+    const tg = tags(c), pp = e.pp != null ? e.pp : c.p; if (pp != null) A.price += pp * e.q; else A.priced = false;   // the chosen printing's price when one is set
     const mt = mainType(c); A.types[mt] = (A.types[mt] || 0) + e.q;
     if (tg.land) A.lands += e.q;
     else { A.nonland += e.q; A.cmcSum += c.cmc * e.q; A.curve[Math.min(6, Math.floor(c.cmc))] += e.q;

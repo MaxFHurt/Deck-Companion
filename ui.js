@@ -79,10 +79,13 @@ async function ensureTheme(){
     if (PRINT.key !== code) return; PRINT.map = m; if (lsGet('dc.sets')) lsSet('dc.theme2.' + code, [...m]); render();
   } catch (e) {}
 }
+// Remember which printing a deck entry uses, with its set, rarity and price, so the deck shows that printing everywhere.
+function setPrint(en, x){ en.pid = x.id; en.ps = x.set; en.pr = x.rar || ''; if (x.p != null) en.pp = x.p; else delete en.pp; }
 function rarChip(r){ return r ? '<span class="rar rar-' + esc(r[0]) + '">' + esc(r[0].toUpperCase() + r.slice(1)) + '</span>' : ''; }
 // Set, rarity and price of the printing currently shown in the card pop-up.
 function pickHtml(c){
-  const x = S.pick && S.pick.set ? S.pick : null, i = x ? {set:x.set, rar:x.rar} : (printInfo(c) || {set:'', rar:''});
+  const d0 = cur(), en = S.view === 'decks' && S.open && d0 ? d0.cards.find(y => y.n === c.n) : null;
+  const x = S.pick && S.pick.set ? S.pick : en && en.ps ? {set:en.ps, rar:en.pr, p:en.pp} : null, i = x ? {set:x.set, rar:x.rar} : (printInfo(c) || {set:'', rar:''});
   return '<span class="setline" style="margin:0">' + (i.set ? '<span class="setn">' + esc(i.set) + '</span>' : '') + rarChip(i.rar) + (x && x.p != null ? '<span>$' + x.p.toFixed(2) + '</span>' : '') + '</span>';
 }
 function cheapest(){ const P = S.prints; let b = null; if (P) P.list.forEach(x => { if (x.p != null && (!b || x.p < b.p)) b = x; }); return b; }
@@ -394,7 +397,7 @@ function gcBlocked(){ return false; }   // brackets never refuse a swap
 function gcBlockMsg(){ return ''; }
 function doSwap(d, p, step){
   const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0);
-  const hist = old ? (old.hist || []).concat({n:old.n, q:p.q || 1, step:old.step || 0, pid:old.pid, ps:old.ps, l:!!old.l}) : [];
+  const hist = old ? (old.hist || []).concat({n:old.n, q:p.q || 1, step:old.step || 0, pid:old.pid, ps:old.ps, pr:old.pr, pp:old.pp, l:!!old.l}) : [];
   cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add);
   if (en){ if (keep) en.step = keep; if (hist.length) en.hist = hist.slice(-8); }
 }
@@ -402,7 +405,7 @@ function undoSwap(d, n){
   const en = d.cards.find(x => x.n === n), hh = en && en.hist && en.hist[en.hist.length - 1]; if (!hh) return false;
   if (d.cards.some(x => x.n === hh.n) && copyLimit(d, find(hh.n)) <= 1){ toast(hh.n + ' is already back in the deck.'); delete en.hist; return true; }
   const rest = en.hist.slice(0, -1); cutCard(d, n, hh.q || 1); addCard(d, hh.n, hh.q || 1);
-  const b = d.cards.find(x => x.n === hh.n); if (b){ b.step = hh.step || 0; if (hh.pid){ b.pid = hh.pid; b.ps = hh.ps; } b.l = !!hh.l; if (rest.length) b.hist = rest; else delete b.hist; }
+  const b = d.cards.find(x => x.n === hh.n); if (b){ b.step = hh.step || 0; if (hh.pid){ b.pid = hh.pid; b.ps = hh.ps; b.pr = hh.pr; if (hh.pp != null) b.pp = hh.pp; } b.l = !!hh.l; if (rest.length) b.hist = rest; else delete b.hist; }
   toast('Put ' + hh.n + ' back in place of ' + n + '.'); return true;
 }
 function histHtml(en){
@@ -544,7 +547,7 @@ function listRows(d, q){
   for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
     '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
-    '<span class="pr">' + money(c) + '</span></button>';
+    '<span class="pr">' + (e.pp != null ? '$' + e.pp.toFixed(2) : money(c)) + '</span></button>';
   let h = '';
   if (!d.cards.length) h += '<p class="note">This deck is empty. Add cards from the Upgrades tab, or set the build and fill the open slots there.</p>';
   else if (lq && !shown) h += '<p class="note">No card in this deck matches “' + esc(q) + '”.</p>';
@@ -985,7 +988,8 @@ function openCard(name, pid){
     '<div class="row">' + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.n + '"') + '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';
   $('#modal').hidden = false;
-  if (c.id){ const p = $('#modal .panel'); p.insertAdjacentHTML('beforeend', '<div class="grp"><span class="lab">Printings' + (inDeck || isCmd ? ' · tap one to use it in this deck' : ' · tap one, then add it') + '</span><div id="prints"><p class="note" style="margin:0">Loading printings…</p></div></div>'); loadPrints(c); }
+  if (c.id){ const p = $('#modal .panel'), mine = inDeck || isCmd, box = '<div class="grp"><span class="lab">' + (mine ? 'Printing in this deck · tap another to switch' : 'Printings · tap one, then add it') + '</span><div id="prints"><p class="note" style="margin:0">Loading printings…</p></div></div>';
+    const anchor = mine ? ($('#modal #ctl') || $('#modal .ph')) : null; if (anchor) anchor.insertAdjacentHTML('afterend', box); else p.insertAdjacentHTML('beforeend', box); loadPrints(c); }
 }
 function openImport(preset){
   const d = cur();
@@ -1042,7 +1046,7 @@ function handleAct(act, v, n, pArg){
     case 'print': { const x = S.prints && S.prints.list[+v]; if (!x) return; S.pick = Object.assign({n:S.modalCard}, x);
       const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id); $('#prints').innerHTML = printsHtml(); { const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(find(S.modalCard)); }
       if (d){ const en = d.cards.find(e2 => e2.n === S.modalCard);
-        if (en){ en.pid = x.id; en.ps = x.set; }
+        if (en){ setPrint(en, x); }
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
@@ -1069,8 +1073,8 @@ function handleAct(act, v, n, pArg){
     case 'rm': cutCard(d, n, 999); break;
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
     case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
-    case 'want': { doSwap(d, {cut:v, add:n, q:1}, 0); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
-    case 'add-to-deck': { const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
+    case 'want': { doSwap(d, {cut:v, add:n, q:1}, 0); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
+    case 'add-to-deck': { const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
     case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; if (gcBlocked(d, p)){ toast(gcBlockMsg(d)); return; } doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'swap-all': { const R = recsFor(d); let k = 0; R.paths.forEach(L => { const p = L.opts[v]; if (p && !p.beaten && d.cards.some(x => x.n === p.cut) && !d.cards.some(x => x.n === p.add) && !gcBlocked(d, p)){ doSwap(d, p, TIER_KEYS.indexOf(v) + 1); k++; } }); toast('Made ' + k + ' ' + (v === 'free' ? 'free' : TIERS[v].label) + ' swap' + (k === 1 ? '' : 's') + '.'); break; }
     case 'undo': if (!undoSwap(d, n)) return; break;
