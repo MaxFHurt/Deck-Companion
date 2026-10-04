@@ -480,6 +480,37 @@ function manaPlan(d){
 function applyMana(d, plan){ plan.changes.forEach(x => { if (x.delta > 0) addCard(d, x.n, x.delta); else cutCard(d, x.n, -x.delta); }); }
 function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
 function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.n) === k); if (i < 0) return; d.cards[i].q -= q; if (d.cards[i].q <= 0) d.cards.splice(i, 1); }
+// A generated deck starts as a plan, not a decklist. The plan is the strongest (Apex) build, one slot per card; each
+// expensive slot also gets a Mid (up to $12) and Budget (up to $3) stand-in that does the same job. Nothing is in the
+// deck until the player installs it. Owned cards are marked so they cost nothing.
+function buildPlan(d, seeds, ownOnly, ownAll){
+  const tmp = JSON.parse(JSON.stringify(d)); tmp.tier = 'apex'; tmp.cards = []; delete tmp.plan;
+  const cmd = find(d.commander), okC = c => !cmd || c.ci.every(k => cmd.ci.includes(k));
+  (seeds || []).forEach(c => { if (c.n !== d.commander && okC(c)) addCard(tmp, c.n, 1); });
+  const seedSet = new Set(tmp.cards.map(x => norm(x.n)));
+  if (ownOnly && ownOnly.size){ recommend.own = ownOnly; try { recommend(tmp, 0, true).adds.forEach(a => { if (!isBasic(a.n)) addCard(tmp, a.n, a.q); }); } finally { recommend.own = null; } }
+  fillDeck(tmp);
+  const ctx = ctxOf(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander));
+  const pool = LIB.filter(c => c.p != null && c.p <= 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n))
+    .map(c => ({c, s:baseScore(c, tmp, ctx).s, land:tags(c).land, ty:mainType(c)}));
+  const alt = (x, cap) => { const tx = tags(x), ty = mainType(x); let best = null, bs = -1e9;
+    for (const p of pool){ if (p.used || p.c.p > cap || p.land !== tx.land) continue; let s = p.s + (p.ty === ty ? 3 : 0), share = 0; tags(p.c).roles.forEach(r => { if (tx.roles.has(r)) share++; }); s += share * 2; if (tx.roles.size && !share) s -= 3; if (s > bs){ bs = s; best = p; } }
+    if (best) best.used = true; return best ? best.c.n : null; };
+  const basic = (splitBasics(1, ctx)[0] || {}).n || null, own = ownAll || new Set();
+  return tmp.cards.map((en, i) => {
+    const c = find(en.n), S0 = {id:i + 1, a:en.n, q:en.q}; if (!c) return S0;
+    if (isBasic(c.n)){ S0.basic = true; S0.land = true; return S0; }
+    if (tags(c).land) S0.land = true;
+    if (seedSet.has(c._n)){ S0.seed = true; if (own.has(c._n)) S0.own = true; return S0; }
+    if (own.has(c._n)){ S0.own = true; return S0; }
+    if (c.p == null || c.p <= 3) return S0;
+    if (c.p > 12){ const m = alt(c, 12), mc = m && find(m); if (mc && mc.p <= 3) S0.b = m; else { if (m) S0.m = m; S0.b = alt(c, 3); } }
+    else S0.b = alt(c, 3);
+    if (!S0.b && S0.land && basic) S0.b = basic;
+    if (!S0.b) delete S0.b; return S0;
+  });
+}
+function planPick(s, t){ return t === 'apex' ? s.a : t === 'mid' ? (s.m || s.a) : (s.b || s.m || s.a); }
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }
 function setCommander(d, name){
   const c = find(name); d.commander = c ? c.n : name; cutCard(d, d.commander, 99);
