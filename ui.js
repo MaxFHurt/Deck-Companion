@@ -380,8 +380,8 @@ function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'comm
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; S.draft = null; S.profile.decks.unshift(d); return d; }
 // Every swap remembers what it replaced: the new card carries the slot's history, so nothing is lost and any swap can be undone.
 // A swap that would add a Game Changer past the deck's bracket is refused (several tiers' picks taken together could).
-function gcBlocked(d, p){ if (d.format !== 'commander') return false; const a = find(p.add), c = find(p.cut); if (!a || !a.gc || (c && c.gc)) return false; const x = ctxOf(d); return x.gcIn + (p.q || 1) > x.gcCap; }
-function gcBlockMsg(d){ const x = ctxOf(d); return 'That would be Game Changer ' + (x.gcIn + 1) + ', and Bracket ' + x.bracket + ' allows ' + x.gcCap + '. Raise the deck’s bracket to add it.'; }
+function gcBlocked(){ return false; }   // brackets never refuse a swap
+function gcBlockMsg(){ return ''; }
 function doSwap(d, p, step){
   const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0);
   const hist = old ? (old.hist || []).concat({n:old.n, q:p.q || 1, step:old.step || 0, pid:old.pid, ps:old.ps, l:!!old.l}) : [];
@@ -681,19 +681,20 @@ function startPlan(cmdName, seeds, extraAims, partner){
 function ownToggle(kind){ const n = libCount(); return '<div class="row"><button class="chk' + (S.gen.own && n ? ' on' : '') + '" data-act="gen-own" data-v="' + kind + '"' + (n ? '' : ' disabled') + ' role="checkbox" aria-checked="' + !!(S.gen.own && n) + '"><i></i>Generate a deck with cards I already own</button>' + (n ? '<span class="note">Uses your library of ' + n.toLocaleString() + ' cards first, then fills the gaps.</span>' : '<span class="note">Your library is empty. Add the cards you own on a deck’s Library tab.</span>') + '</div>'; }
 // Commander Brackets: the deck's target bracket, its Game Changers, and anything the bracket leaves out.
 function bracketHtml(d, A){
-  const b = A.ctx.bracket, B = BRACKETS[b], gc = A.gc.length, warn = [];
-  if (gc > B.gc) warn.push(gc + ' Game Changers; Bracket ' + b + ' allows ' + B.gc);
-  if (!B.mld && A.mld.length) warn.push('Mass land denial: ' + A.mld.join(', '));
-  if (A.turns.length > B.turns) warn.push((B.turns ? A.turns.length + ' extra-turn cards; keep to a few' : 'Extra-turn cards: ' + A.turns.join(', ')));
-  return '<div class="grp"><span class="lab">Commander bracket · ' + gc + ' Game Changer' + (gc === 1 ? '' : 's') + (B.gc === Infinity ? '' : B.gc === 0 ? ' · none allowed' : ' of ' + B.gc + ' allowed') + '</span>' +
-    '<div class="seg">' + Object.keys(BRACKETS).map(k => '<button data-act="bracket" data-v="' + k + '" class="' + (+k === b ? 'on' : '') + '" title="' + BRACKETS[k].label + '">' + k + '<small>' + BRACKETS[k].label + '</small></button>').join('') + '</div>' +
-    (warn.length ? '<div class="row">' + warn.map(w => '<span class="chip bad">' + esc(w) + '</span>').join('') + '</div>' : '') +
-    '<p class="note" style="margin:0">' + (d.bracket ? 'You set this bracket.' : 'Set from the deck’s Game Changers; pick one to aim higher or lower.') + ' Upgrades never take the deck past it: Brackets 1 and 2 allow no Game Changers, Bracket 3 up to three, Brackets 4 and 5 any number.' + (d.bracket ? ' <button class="btn sm" data-act="bracket" data-v="">Back to automatic</button>' : '') + '</p></div>';
+  const b = A.ctx.bracket, gc = A.gc.length, mld = A.mld.length, turns = A.turns.length;
+  const track = '<div class="prog" style="grid-template-columns:repeat(5,1fr)" role="img" aria-label="Bracket ' + b + ' of 5">' + Object.keys(BRACKETS).map(k => '<span class="' + (+k <= b ? 'done' : '') + (+k === b ? ' here' : '') + '"><i></i>' + k + ' · ' + BRACKETS[k].label + '</span>').join('') + '</div>';
+  let bar, note;
+  if (b === 2){ bar = '<div class="meter good"><span>Game Changers</span><i><b style="width:0%"></b></i><span>0</span></div>'; note = 'No Game Changers, so the deck sits in Bracket 2. The first Game Changer you add moves it to Bracket 3.'; }
+  else if (b === 3){ bar = '<div class="meter ' + (gc >= 3 ? 'warn' : 'good') + '"><span>Game Changers</span><i><b style="width:' + Math.min(100, gc / 3 * 100) + '%"></b></i><span>' + gc + ' / 3</span></div>'; note = gc >= 3 ? 'The deck is at the top of Bracket 3. One more Game Changer moves it to Bracket 4.' : 'Room for ' + (3 - gc) + ' more Game Changer' + (3 - gc === 1 ? '' : 's') + ' before the deck moves to Bracket 4.'; }
+  else { bar = '<div class="meter good"><span>Game Changers</span><i><b style="width:100%"></b></i><span>' + gc + '</span></div>'; note = (mld && gc <= 3 ? 'Mass land denial puts the deck in Bracket 4. ' : gc + ' Game Changers put the deck in Bracket 4. ') + 'There is no limit from here up.'; }
+  const chips = A.gc.map(n => '<button class="chip gold" data-act="card" data-n="' + esc(n) + '">' + esc(n) + '</button>').concat(A.mld.map(n => '<button class="chip warn" data-act="card" data-n="' + esc(n) + '">Land denial · ' + esc(n) + '</button>'), turns ? ['<span class="chip">' + turns + ' extra-turn card' + (turns === 1 ? '' : 's') + (b < 4 && turns > 2 ? ' · Brackets 2 and 3 expect only a few' : '') + '</span>'] : []);
+  return '<div class="grp"><span class="lab">Commander bracket · ' + b + ' · ' + BRACKETS[b].label + '</span>' + track + bar + (chips.length ? '<div class="row">' + chips.join('') + '</div>' : '') +
+    '<p class="note" style="margin:0">' + note + ' This is a label showing where the deck stands, not a limit: nothing is blocked, and upgrades that would move the deck up a bracket are marked. Brackets 1 and 5 depend on how you intend to play, so the app does not assign them.</p></div>';
 }
 // Label for a Game Changer upgrade: where it leaves the deck.
 function gcChip(p, R){
-  if (!p.gc) return ''; const after = R.gcIn + (p.gcOut ? 0 : p.q);
-  return '<span class="chip warn">Game Changer' + (p.gcOut ? ' · replaces one' : after > 0 && R.gcIn === 0 ? ' · moves deck to Bracket 3' : R.gcCap === Infinity ? '' : ' · ' + after + ' of ' + R.gcCap) + '</span>';
+  if (!p.gc) return ''; const after = R.gcIn + (p.gcOut ? 0 : p.q), nb = bracketOf(after, R.mldIn || 0);
+  return '<span class="chip warn">Game Changer' + (p.gcOut ? ' · replaces one' : nb > R.bracket ? ' · moves deck to Bracket ' + nb : R.bracket === 3 ? ' · ' + after + ' of 3 in Bracket 3' : '') + '</span>';
 }
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
@@ -1045,7 +1046,6 @@ function handleAct(act, v, n, pArg){
     case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v){ S.deckId = (S.profile.decks[0] || {}).id || null; S.open = false; } S.confirmDel = null; break;
     case 'fmt': if (d.format !== v){ d.format = v; if (v === 'standard'){ d.colors = (d.colors || []).slice(0, 3); } else if (find(d.commander)) d.colors = find(d.commander).ci.slice(); } break;
     case 'tier': d.tier = v; break;
-    case 'bracket': if (v) d.bracket = +v; else delete d.bracket; break;
     case 'build-custom': d.custom = true; break;
     case 'lock-aim': d.aimLocked = !d.aimLocked; break;
     case 'aim-up': { const i = +v; [d.aims[i - 1], d.aims[i]] = [d.aims[i], d.aims[i - 1]]; break; }

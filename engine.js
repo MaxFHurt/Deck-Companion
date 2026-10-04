@@ -9,6 +9,9 @@ const TIERS = {budget:{label:'Budget', cap:3}, mid:{label:'Mid', cap:12}, apex:{
 const BRACKETS = {1:{label:'Exhibition', gc:0, mld:false, turns:0}, 2:{label:'Core', gc:0, mld:false, turns:2}, 3:{label:'Upgraded', gc:3, mld:false, turns:2},
   4:{label:'Optimized', gc:Infinity, mld:true, turns:Infinity}, 5:{label:'cEDH', gc:Infinity, mld:true, turns:Infinity}};
 let BTAGS = {mld:new Set(), turns:new Set(), v:0};
+// Where a deck sits: no Game Changers is Bracket 2, one to three is Bracket 3, more (or any mass land denial) is Bracket 4.
+// Brackets 1 and 5 are about how the deck is meant to be played, which the card list alone can't show.
+function bracketOf(gc, mld){ return mld > 0 || gc > 3 ? 4 : gc > 0 ? 3 : 2; }
 const TRIBES = ['Elf','Goblin','Zombie','Dragon','Vampire','Angel','Merfolk','Dinosaur','Wizard','Human','Soldier','Knight','Cat','Sliver','Elemental','Spirit','Pirate','Eldrazi','Squirrel','Rat','Bird','Beast','Demon','Warrior','Cleric','Rogue','Faerie','Giant','Hydra','Dwarf','Myr','Wolf','Werewolf','Skeleton','Insect','Fungus','Snake','Treefolk','Ninja','Samurai','Shaman','Druid','Artificer','Horror','Phyrexian','Kraken','Sphinx','Rabbit','Mouse','Otter','Lizard','Frog','Bat','Raccoon','Dog','Bear','Ooze','Plant','Rebel','Ally','Advisor','God','Construct','Thopter','Golem','Devil','Minotaur','Centaur','Kithkin','Vedalken','Kor','Orc','Halfling','Detective','Assassin','Scout','Monk','Berserker','Barbarian','Noble','Avatar','Shapeshifter','Illusion','Drake','Serpent','Octopus','Fish','Crab','Spider','Boar','Elk','Ox','Unicorn','Pegasus','Griffin','Phoenix','Hellion','Wurm','Leviathan','Turtle','Nightmare','Shade','Specter','Wraith','Imp','Gargoyle','Kobold','Ogre','Troll','Cyclops','Satyr','Dryad','Nymph','Naga','Djinn','Efreet','Archon','Praetor','Mutant','Robot','Astartes','Tyranid','Necron','Time Lord','Doctor','Hero','Villain'];
 
 const THEMES = {
@@ -178,11 +181,12 @@ function ctxOf(d){
   let focus = (d.colors || []).filter(x => ident.includes(x)); if (!focus.length) focus = ident.slice();
   const strat = detectStrategy(cmd, d);
   if (par){ const ps = detectStrategy(par, d); strat.themes = strat.themes.concat(ps.themes.filter(t => !strat.themes.includes(t))); if (!strat.tribe) strat.tribe = ps.tribe; }
-  // Bracket: the one the player chose, or else the lowest one the deck's Game Changers already fit (precons land in 2).
-  let gcIn = (cmd && cmd.gc ? 1 : 0) + (par && par.gc ? 1 : 0); if (d.format === 'commander') (d.cards || []).forEach(e => { const c = find(e.n); if (c && c.gc) gcIn += e.q; });
-  const bracket = d.format !== 'commander' ? 0 : BRACKETS[d.bracket] ? +d.bracket : gcIn === 0 ? 2 : gcIn <= 3 ? 3 : 4;
+  // Bracket: a label only. It is worked out from what is in the deck (Game Changers, mass land denial) and never limits
+  // what the deck may hold or what is recommended; gcCap stays unlimited so no gate downstream ever closes.
+  let gcIn = (cmd && cmd.gc ? 1 : 0) + (par && par.gc ? 1 : 0); let mldIn = 0; if (d.format === 'commander') (d.cards || []).forEach(e => { const c = find(e.n); if (c && c.gc) gcIn += e.q; if (c && BTAGS.mld.has(c._n)) mldIn += e.q; });
+  const bracket = d.format !== 'commander' ? 0 : bracketOf(gcIn, mldIn);
   return {cmd, par, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe,
-    bracket, gcIn, gcCap:bracket ? BRACKETS[bracket].gc : Infinity};
+    bracket, gcIn, mldIn, gcCap:Infinity};
 }
 function isAimed(d){
   if (!d.aims || !d.aims.length) return false;
@@ -272,7 +276,7 @@ function recommend(d, swaps, fillOnly){
   const adds = [], cuts = [], def = {}; for (const r in A.roles) def[r] = T[r] - A.roles[r];
   // Below Bracket 4 mass land denial is never suggested, nor extra-turn cards in Bracket 1. Game Changers are suggested
   // only while the bracket has room (autoSwaps also lets one Game Changer replace another).
-  const BR = ctx.bracket ? BRACKETS[ctx.bracket] : null, gcGate = !!BR && !recommend.raw; let gcLeft = BR ? ctx.gcCap - ctx.gcIn : Infinity;
+  const BR = null, gcGate = false; let gcLeft = Infinity;   // brackets are a label, not a limit
   const brOk = c => !BR || ((BR.mld || !BTAGS.mld.has(c._n)) && (BR.turns > 0 || !BTAGS.turns.has(c._n)));
   const okCard = c => brOk(c) && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
 
@@ -449,7 +453,7 @@ function upgradePaths(d){
     out.drops.forEach(x => { if (dupNames.has(x.n)) return; if (x.s > -40 && spare > 0){ const q = Math.min(spare, x.q); spare -= q; if (x.q - q > 0) rest.push(Object.assign({}, x, {q:x.q - q})); } else rest.push(x); });
     out.drops = dupDrops.concat(rest);
   }
-  { const cx = ctxOf(d); out.bracket = cx.bracket; out.gcIn = cx.gcIn; out.gcCap = cx.gcCap; }
+  { const cx = ctxOf(d); out.bracket = cx.bracket; out.gcIn = cx.gcIn; out.mldIn = cx.mldIn; out.gcCap = cx.gcCap; }
   out.paths = [...by.values()].sort((a, b) => (b.opts.free ? 1 : 0) - (a.opts.free ? 1 : 0) || b.gain - a.gain);
   return out;
 }
@@ -498,10 +502,9 @@ function evalFit(d, c){
       if (A.roles[r] < T[r]){ if (!filled) pts += 2; filled = true; pros.push('The deck is short on ' + RN[r] + ' (' + A.roles[r] + ' of about ' + T[r] + ') and this adds one.'); }
       else pros.push('Adds ' + RN[r] + '; the deck already has enough (' + A.roles[r] + ').'); }
     if (CORE.has(c._n) || (c.r && c.r < 300)){ pts += 1; pros.push('A staple that is good in almost any deck.'); }
-    if (ctx.bracket && c.gc){ const room = ctx.gcCap - ctx.gcIn;
-      if (room > 0) pros.push('A Game Changer. Bracket ' + ctx.bracket + ' allows ' + (ctx.gcCap === Infinity ? 'any number' : ctx.gcCap) + ' and the deck has ' + ctx.gcIn + '.');
-      else { pts -= 2; cons.push('A Game Changer, and Bracket ' + ctx.bracket + ' allows ' + ctx.gcCap + ' (the deck has ' + ctx.gcIn + '). Adding it moves the deck to Bracket ' + (ctx.gcIn + 1 <= 3 ? 3 : 4) + ' unless another Game Changer comes out.'); } }
-    if (ctx.bracket && !BRACKETS[ctx.bracket].mld && BTAGS.mld.has(c._n)){ pts -= 2; cons.push('Mass land denial, which Brackets 1 to 3 leave out.'); }
+    if (ctx.bracket && c.gc){ const nb = bracketOf(ctx.gcIn + 1, ctx.mldIn);
+      cons.push(nb > ctx.bracket ? 'A Game Changer. Adding it moves the deck from Bracket ' + ctx.bracket + ' to Bracket ' + nb + '.' : 'A Game Changer: it would be number ' + (ctx.gcIn + 1) + (ctx.bracket === 3 ? ' of the 3 that Bracket 3 allows.' : ' in the deck.')); }
+    if (ctx.bracket && ctx.bracket < 4 && BTAGS.mld.has(c._n)) cons.push('Mass land denial. Adding it moves the deck from Bracket ' + ctx.bracket + ' to Bracket 4.');
     const big = A.curve[5] + A.curve[6], bigMax = Math.round(A.nonland * 0.18);
     if (c.cmc >= 5 && A.nonland >= 20 && big >= bigMax){ pts -= 1; cons.push('The deck already has ' + big + ' cards costing 5 or more; another expensive card makes slow hands more likely.'); }
     else if (c.cmc <= 2 && A.avg > 3.4) pros.push('Cheap to cast, which helps a deck whose average cost is ' + A.avg.toFixed(1) + '.');
@@ -597,7 +600,7 @@ function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.
 // expensive slot also gets a Mid (up to $12) and Budget (up to $3) stand-in that does the same job. Nothing is in the
 // deck until the player installs it. Owned cards are marked so they cost nothing.
 function buildPlan(d, seeds, ownOnly, ownAll){
-  const tmp = JSON.parse(JSON.stringify(d)); tmp.tier = 'apex'; tmp.cards = []; delete tmp.plan; if (!tmp.bracket) tmp.bracket = 3;   // generated: up to three Game Changers
+  const tmp = JSON.parse(JSON.stringify(d)); tmp.tier = 'apex'; tmp.cards = []; delete tmp.plan;
   const cmd = find(d.commander), id0 = ctxOf(d).ident, okC = c => !cmd || c.ci.every(k => id0.includes(k));
   (seeds || []).forEach(c => { if (c.n !== d.commander && c.n !== d.partner && okC(c)) addCard(tmp, c.n, 1); });
   const seedSet = new Set(tmp.cards.map(x => norm(x.n)));
