@@ -2,7 +2,7 @@
 const BASICS = {Plains:'W', Island:'U', Swamp:'B', Mountain:'R', Forest:'G', Wastes:''};
 const COLOR_BASIC = {W:'Plains', U:'Island', B:'Swamp', R:'Mountain', G:'Forest'};
 const TIERS = {budget:{label:'Budget', cap:3}, mid:{label:'Mid', cap:12}, apex:{label:'Apex', cap:Infinity}};
-const TRIBES = ['Elf','Goblin','Zombie','Dragon','Vampire','Angel','Merfolk','Dinosaur','Wizard','Human','Soldier','Knight','Cat','Sliver','Elemental','Spirit','Pirate','Eldrazi','Squirrel','Rat','Bird','Beast','Demon','Warrior','Cleric','Rogue','Faerie','Giant','Hydra','Dwarf','Myr','Wolf','Werewolf','Skeleton','Insect','Fungus','Snake','Treefolk','Ninja','Samurai','Shaman','Druid','Artificer','Horror','Phyrexian','Kraken','Sphinx','Rabbit','Mouse','Otter','Lizard','Frog','Bat','Raccoon','Dog','Bear','Ooze','Plant','Rebel','Ally','Advisor','God','Construct','Thopter','Golem','Devil','Minotaur','Centaur','Kithkin','Vedalken','Kor','Orc','Halfling','Detective','Assassin','Scout','Monk','Berserker','Barbarian','Noble','Avatar','Shapeshifter','Illusion','Drake','Serpent','Octopus','Fish','Crab','Spider','Boar','Elk','Ox','Unicorn','Pegasus','Griffin','Phoenix','Hellion','Wurm','Leviathan','Turtle','Nightmare','Shade','Specter','Wraith','Imp','Gargoyle','Kobold','Ogre','Troll','Cyclops','Satyr','Dryad','Nymph','Naga','Djinn','Efreet','Archon','Praetor','Mutant','Robot','Astartes','Tyranid','Necron','Time Lord','Doctor'];
+const TRIBES = ['Elf','Goblin','Zombie','Dragon','Vampire','Angel','Merfolk','Dinosaur','Wizard','Human','Soldier','Knight','Cat','Sliver','Elemental','Spirit','Pirate','Eldrazi','Squirrel','Rat','Bird','Beast','Demon','Warrior','Cleric','Rogue','Faerie','Giant','Hydra','Dwarf','Myr','Wolf','Werewolf','Skeleton','Insect','Fungus','Snake','Treefolk','Ninja','Samurai','Shaman','Druid','Artificer','Horror','Phyrexian','Kraken','Sphinx','Rabbit','Mouse','Otter','Lizard','Frog','Bat','Raccoon','Dog','Bear','Ooze','Plant','Rebel','Ally','Advisor','God','Construct','Thopter','Golem','Devil','Minotaur','Centaur','Kithkin','Vedalken','Kor','Orc','Halfling','Detective','Assassin','Scout','Monk','Berserker','Barbarian','Noble','Avatar','Shapeshifter','Illusion','Drake','Serpent','Octopus','Fish','Crab','Spider','Boar','Elk','Ox','Unicorn','Pegasus','Griffin','Phoenix','Hellion','Wurm','Leviathan','Turtle','Nightmare','Shade','Specter','Wraith','Imp','Gargoyle','Kobold','Ogre','Troll','Cyclops','Satyr','Dryad','Nymph','Naga','Djinn','Efreet','Archon','Praetor','Mutant','Robot','Astartes','Tyranid','Necron','Time Lord','Doctor','Hero','Villain'];
 
 const THEMES = {
   tokens:      {label:'Tokens / go wide', re:/\bcreates?\b[^.]*\btokens?\b|tokens? you control|populate|(^|[.—] ?)(other )?creatures you control get \+/i},
@@ -99,23 +99,39 @@ function tags(c){
 function matchAim(c, key, tribe){
   if (key === 'tribal'){
     if (!tribe) return 0;
-    const re = new RegExp('\\b' + tribe.replace(/[^A-Za-z ]/g, '') + '(s|es|ves)?\\b', 'i'), alt = tribe === 'Elf' ? /\bElves\b/i : null;
+    // Creature types are capitalised in rules text; a named Role token ("Young Hero Role") is not the type.
+    const re = new RegExp('\\b' + tribe.replace(/[^A-Za-z ]/g, '') + '(s|es|ves)?\\b'), alt = tribe === 'Elf' ? /\bElves\b/ : null;
     if (re.test(frontType(c).split('—')[1] || '')) return 1;
-    if (re.test(c.o || '') || (alt && alt.test(c.o || ''))) return 1;
+    const o = (c.o || '').replace(/\b(?:[A-Z][\w']* )+Role\b/g, '');
+    if (re.test(o) || (alt && alt.test(o))) return 1;
     return /chosen type|shares a creature type|changeling/i.test(c.o || '') ? 0.7 : 0;
   }
   const tg = tags(c);
   if (key === 'control') return tg.roles.has('counter') || tg.roles.has('removal') || tg.roles.has('wipe') ? 1 : 0;
   return tg.th[key] || 0;
 }
-function detectStrategy(cmd){
+const subtypes = c => ((frontType(c).split('—')[1]) || '').trim().split(/\s+/).filter(Boolean);
+// The creature type a deck is built around. If the commander's text names types ("Mutants, Ninjas, and/or Turtles"),
+// the one the deck runs most wins. If it names none, the commander's own type counts once the deck is full of it
+// (a Dinosaur commander leading a pile of Dinosaurs, a Hero leading Heroes). Human is too common to mean anything.
+function deckTribe(d, cmd, named){
+  const cnt = {}; ((d && d.cards) || []).forEach(e => { const c = find(e.n); if (c && /Creature/.test(frontType(c))) subtypes(c).forEach(t => cnt[t] = (cnt[t] || 0) + e.q); });
+  if (named.length) return named.slice().sort((a, b) => (cnt[b] || 0) - (cnt[a] || 0))[0];
+  let best = '', n = 9; (cmd ? subtypes(cmd) : []).forEach(t => { if (TRIBE_SET.has(t) && t !== 'Human' && (cnt[t] || 0) > n){ n = cnt[t]; best = t; } });
+  return best;
+}
+function detectStrategy(cmd, d){
   if (!cmd) return {themes:[], tribe:''};
   const tg = tags(cmd), o = (cmd.o || '').replace(new RegExp(cmd.n.split(',')[0], 'g'), '');
-  let tribe = '';
   const o2 = o.replace(/[^.]*\bcreates?\b[^.]*tokens?[^.]*\./gi, ' ');
-  for (const t of TRIBES){ if (new RegExp('\\b(' + t + (t === 'Elf' ? '|Elves' : '') + ')s?\\b').test(o2)){ tribe = t; break; } }
+  const tribe = deckTribe(d, cmd, TRIBES.filter(t => new RegExp('\\b(' + t + (t === 'Elf' ? '|Elves' : '') + ')s?\\b').test(o2)));
+  // Read the plan, not the payoff: counters a commander only puts on itself are growth, not a counters deck, and
+  // making Treasure-style artifact tokens is an artifact plan, not going wide.
+  const self = cmd.n.split(',')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const plan = (cmd.o || '').replace(new RegExp('put (a|an|one|two|three|four|x|that many) \\+1/\\+1 counters? on ' + self + '\\b', 'gi'), '')
+    .replace(/\bcreates? [^.]*\b(Treasure|Clue|Food|Blood|Map|Powerstone|Vibranium|Gold|Junk|Incubator) tokens?/gi, ' artifact ');
   const order = ['counters','tokens','graveyard','sacrifice','spells','artifacts','enchantments','lifegain','lands','voltron','blink','burn','aggro'];
-  const themes = order.filter(k => tg.th[k] === 1 && (k !== 'blink' || /whenever (a|another|one or more)|then return/i.test(o)));
+  const themes = order.filter(k => (THEMES[k].re ? THEMES[k].re.test(plan) : tg.th[k] === 1) && (k !== 'blink' || /whenever (a|another|one or more)|then return/i.test(o)));
   return {themes: (tribe ? ['tribal'] : []).concat(themes), tribe};
 }
 
@@ -153,8 +169,8 @@ function ctxOf(d){
   const cmd = d.format === 'commander' ? find(d.commander) : null, par = cmd && d.partner ? find(d.partner) : null;
   const ident = d.format === 'commander' ? (cmd ? 'WUBRG'.split('').filter(k => cmd.ci.includes(k) || (par && par.ci.includes(k))) : []) : (d.colors || []);
   let focus = (d.colors || []).filter(x => ident.includes(x)); if (!focus.length) focus = ident.slice();
-  const strat = detectStrategy(cmd);
-  if (par){ const ps = detectStrategy(par); strat.themes = strat.themes.concat(ps.themes.filter(t => !strat.themes.includes(t))); if (!strat.tribe) strat.tribe = ps.tribe; }
+  const strat = detectStrategy(cmd, d);
+  if (par){ const ps = detectStrategy(par, d); strat.themes = strat.themes.concat(ps.themes.filter(t => !strat.themes.includes(t))); if (!strat.tribe) strat.tribe = ps.tribe; }
   return {cmd, par, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe};
 }
 function isAimed(d){
@@ -194,6 +210,8 @@ function analyze(d){
     }
   }
   A.avg = A.nonland ? A.cmcSum / A.nonland : 0;
+  // An aggro aim means fewer lands only when the spells are cheap; a deck of big creatures still needs its mana.
+  if (d.format === 'commander' && (d.aims || [])[0] === 'aggro' && A.avg > 3.2) T.lands = 37;
   return A;
 }
 
@@ -219,7 +237,11 @@ function baseScore(c, d, ctx){
   else if (ctx.cap > 3) s += Math.min(1, Math.log10((c.p || 0) + 1));
   c.ci.forEach(x => { if (!ctx.focus.includes(x)) s -= 1.5; });
   const ft = foreignTribe(c); if (ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t))){ s -= 5; hit = false; a0 = 0; }
+  // Proven staples: the most-played cards anywhere (Rhystic Study, Teferi's Protection, Swords to Plowshares) earn their
+  // slot in any deck, tapering off by about #400. The top ~250 count as a fit even when they touch no aim.
   if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6;
+  else if (c.r && c.r < 400) s += 6 * Math.log(400 / c.r) / Math.log(400 / 60);
+  if (!hit && (CORE.has(c._n) || (c.r && c.r < 250)) && !(ft && ft !== ctx.tribe)){ hit = true; why.push('Proven staple'); }
   return {s, hit, why, a:a0};
 }
 function splitBasics(k, ctx){
@@ -272,7 +294,7 @@ function recommend(d, swaps, fillOnly){
   // cuts
   if (nCut > 0){
     const landExcess = A.lands - T.lands;
-    if (landExcess > 1){ let k = Math.min(landExcess, nCut);
+    if (landExcess > 2){ let k = Math.min(landExcess, nCut);
       d.cards.filter(e => isBasic(e.n) && !e.l).sort((a, b) => b.q - a.q).forEach(e => { if (k > 0){ const q = Math.min(k, Math.max(0, e.q - 1)); if (q > 0){ cuts.push({n:e.n, q, why:['Above ' + T.lands + ' land target'], s:-10}); k -= q; nCut -= q; } } }); }
     const cand = [];
     for (const e of d.cards){
@@ -312,7 +334,12 @@ function recommend(d, swaps, fillOnly){
 // only by other identity cards. A few may give way to a standout card from outside the theme (one that fills a gap
 // in ramp/draw/removal/wipes or beats the card it replaces by a wide margin), capped at about a tenth of the
 // identity cards so the deck never drifts into a pile of same-mechanic cards.
+// A card that does a job (ramp, draw, removal, wipes, protection, counterspells, tutors) is replaced by one that does
+// the same job, the way a hand-built upgrade list keeps each slot's purpose; only a much stronger card may take a
+// job-holding slot without doing that job.
 // Fixes the deck needs anyway (open slots, too many cards, missing lands, over-cap / off-color / illegal cards) are always included.
+const JOBS = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'];
+function jobsOf(n){ const c = find(n); return c && !tags(c).land ? [...tags(c).roles].filter(r => JOBS.includes(r)) : []; }
 function autoSwaps(d){
   const A0 = analyze(d), ctx = A0.ctx, open = A0.T.size - A0.size, landGap = Math.max(0, A0.T.lands - A0.lands), top = (d.aims || [])[0];
   const isId = n => { const c = find(n); return !!(top && c && matchAim(c, top, ctx.tribe) >= 0.7); };
@@ -324,23 +351,28 @@ function autoSwaps(d){
   const pairs = [], fills = [], drops = [];
   const adds = [], cuts = [], put = (list, x, q) => { const e = list.find(y => y.n === x.n); if (e) e.q += q; else list.push(Object.assign({}, x, {q})); };
   let fill = Math.max(0, open), trim = Math.max(0, -open), swaps = 0;
-  const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n), ty:typeOf(c.n)}));
+  const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n), ty:typeOf(c.n), jobs:jobsOf(c.n), r:(find(c.n) || {}).r || 0}));
   for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); put(drops, c, q); c.q -= q; trim -= q; }
   let landSwaps = open > 0 ? 0 : landGap;
   for (const a of R.adds){
-    let need = a.q; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w)), aTy = typeOf(a.n);
+    let need = a.q; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w)), aTy = typeOf(a.n), aJobs = jobsOf(a.n), aR = (find(a.n) || {}).r || 0;
     if (fill > 0){ const q = Math.min(fill, need); put(adds, a, q); put(fills, a, q); fill -= q; need -= q; }
     if (a.kind === 'land'){ if (landSwaps <= 0) continue; need = Math.min(need, landSwaps); }
     while (need > 0 && swaps < 40){
       let star = false;
       const ok = (c, cross) => { if (c.q <= 0) return false; if (c.s <= -40 || a.kind === 'land') return !cross; if ((c.ty === aTy) === cross) return false;
-        if (!(a.s > c.s + (cross ? 2.5 : 1))) return false; if (cross && !(lossRoom[c.ty] > 0)) return false;
+        const lost = c.jobs.length && !c.jobs.some(j => aJobs.includes(j));
+        // Being on-theme never excuses a weaker card: the add must hold up on its own merits too, and a widely played
+        // card is not traded for one that hardly anyone runs.
+        if (c.s > -40 && a.kind !== 'land' && (a.s - (a.a || 0)) < (c.s - (c.a || 0)) - 1) return false;
+        if (c.s > -40 && c.r && c.r < 2500 && (!aR || aR > c.r * 8)) return false;
+        if (!(a.s > c.s + (cross ? 2.5 : 1) + (lost ? 4 : 0))) return false; if (cross && !(lossRoom[c.ty] > 0)) return false;
         if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3); };
       const c = pool.find(c => ok(c, false)) || pool.find(c => ok(c, true));
       if (!c) break; const q = Math.min(need, c.q);
       if (c.id && !aId && c.s > -40 && a.kind !== 'land'){ outside -= q; star = true; }
       const cross = c.ty !== aTy && a.kind !== 'land' && c.s > -40; if (cross) lossRoom[c.ty] -= q;
-      pairs.push({cut:c.n, add:a.n, q, from:c.ty, to:aTy, cross, why:star ? a.why.concat('Standout pick') : a.why, gain:a.s - c.s, land:a.kind === 'land', fix:c.s <= -40, cutWhy:c.why});
+      pairs.push({cut:c.n, add:a.n, q, from:c.ty, to:aTy, cross, why:star ? a.why.concat('Standout pick') : a.why, gain:a.s - c.s, aq:a.s - (a.a || 0), land:a.kind === 'land', fix:c.s <= -40, cutWhy:c.why});
       put(adds, star ? Object.assign({}, a, {why:a.why.concat('Standout pick')}) : a, q); put(cuts, c, q); c.q -= q; need -= q; swaps += q; if (a.kind === 'land') landSwaps -= q;
     }
   }
@@ -366,11 +398,14 @@ function upgradePaths(d){
         if (p.land || p.fix){ if (t === 'budget'){ out.fixes.push(p); used.add(p.add); } return; }
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
         if (L.opts[t]) return;
-        // Don't force an upgrade: it must clearly beat the card it replaces, and beat the cheaper tier's pick for the same card.
+        // Don't force an upgrade: it must clearly beat the card it replaces, and beat the cheaper tier's pick for the same card,
+        // either as a better fit or, the way a pricier tier should, as a clearly stronger card (Rhystic Study over a budget
+        // draw spell) that fits nearly as well.
         // A paid pick that an owned card already beats is still shown (marked), so the player can force it if the library is wrong;
         // it is left out of the tier totals and the buy list.
-        const prev = Math.max(0, ...Object.keys(L.opts).filter(k => k !== 'free' && !L.opts[k].beaten).map(k => L.opts[k].gain));
-        if (p.gain < (p.cross ? 4 : 2.5) || p.gain < prev + 1) return;
+        const lower = Object.keys(L.opts).filter(k => k !== 'free' && !L.opts[k].beaten).map(k => L.opts[k]);
+        const prev = Math.max(0, ...lower.map(o => o.gain)), prevQ = Math.max(-1e9, ...lower.map(o => o.aq));
+        if (p.gain < (p.cross ? 4 : 2.5) || (p.gain < prev + 1 && !(p.gain >= prev - 1.5 && p.aq >= prevQ + 2))) return;
         if (t !== 'free' && L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); used.add(p.add); return; }
         L.opts[t] = p; used.add(p.add);
         if (p.cross){ out.shift[t][p.from] = (out.shift[t][p.from] || 0) - p.q; out.shift[t][p.to] = (out.shift[t][p.to] || 0) + p.q; } L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
@@ -475,7 +510,7 @@ function canPair(a, b){
 function setPartner(d, name){
   const c = find(name), cmd = find(d.commander);
   if (!c || !cmd || !canPair(cmd, c)){ if (name && norm(name) !== norm(d.commander || '')) addCard(d, c ? c.n : name, 1); return false; }
-  d.partner = c.n; cutCard(d, c.n, 99); const st = detectStrategy(c); if (!d.aimLocked){ st.themes.forEach(a => { if (d.aims.length < 3 && !d.aims.includes(a)) d.aims.push(a); }); if (!d.tribe) d.tribe = st.tribe || ''; d.colors = ctxOf(d).ident.slice(); }
+  d.partner = c.n; cutCard(d, c.n, 99); const st = detectStrategy(c, d); if (!d.aimLocked){ st.themes.forEach(a => { if (d.aims.length < 3 && !d.aims.includes(a)) d.aims.push(a); }); if (!d.tribe) d.tribe = st.tribe || ''; d.colors = ctxOf(d).ident.slice(); }
   return true;
 }
 function canLead(c){ return !!(c && c.cmd && /Legendary/.test(c.t) && /Creature/.test(frontType(c))); }
@@ -560,7 +595,7 @@ function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCa
 function setCommander(d, name){
   const c = find(name); d.commander = c ? c.n : name; cutCard(d, d.commander, 99);
   if (d.partner){ const p = find(d.partner); if (!p || !c || !canPair(c, p)) delete d.partner; }
-  if (c && !d.aimLocked){ const st = detectStrategy(c); d.tribe = st.tribe || d.tribe || ''; if (!d.aims.length) d.aims = st.themes.slice(0, 3); d.colors = c.ci.slice(); }
+  if (c && !d.aimLocked){ const st = detectStrategy(c, d); d.tribe = st.tribe || d.tribe || ''; if (!d.aims.length) d.aims = st.themes.slice(0, 3); d.colors = c.ci.slice(); }
 }
 function searchCards(q, f, limit){
   const nq = norm(q || ''), lq = (q || '').toLowerCase().trim(), res = [];
