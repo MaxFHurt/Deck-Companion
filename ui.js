@@ -173,7 +173,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function pagedUpdate(){
   // Scryfall's search API, 175 cards a page, most-played cards first so the app is useful within seconds
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('(legal:commander or legal:standard) game:paper') + '&unique=cards&order=edhrec', page = 0, total = 0, tries = 0;
-  const rows = [], when = new Date().toISOString().slice(0, 10);
+  const rows = [], when = new Date().toISOString().slice(0, 10), first = !(DBINFO.source === 'full' && DBINFO.count > 5000);  // a refresh keeps the saved cards in use until the new set is complete
   while (url){
     const r = await fetch(url);
     if (r.status === 429 && tries++ < 4){ await sleep(2500); continue; }
@@ -182,8 +182,8 @@ async function pagedUpdate(){
     (j.data || []).forEach(o => { const c = fromScryfall(o); if (c) rows.push(c); });
     setStatus('Downloading cards from Scryfall… ' + (total ? Math.min(99, Math.round(rows.length / total * 100)) + '% · ' : '') + rows.length.toLocaleString() + ' cards');
     url = j.has_more ? j.next_page : null;
-    if (page === 1){ useFull(rows.slice(), when); render(); }
-    else if (page % 40 === 0) await finalize(rows.slice(), when, 0);
+    if (first && page === 1){ useFull(rows.slice(), when); render(); }
+    else if (first && page % 40 === 0) await finalize(rows.slice(), when, 0);
     if (url) await sleep(110);
   }
   if (rows.length < 100) throw new Error('card search returned no cards');
