@@ -5,7 +5,7 @@ const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).sli
 const STARTER = parseStarter(STARTER_RAW);
 buildIndex(STARTER);
 let DBINFO = {source:'starter', count:STARTER.length, when:null};
-const S = {profile:{name:'Planeswalker', decks:[], updatedAt:0, example:true}, view:'decks', open:false, deckId:null, swaps:10, sync:'local',
+const S = {profile:{name:'Planeswalker', decks:[], updatedAt:0, example:true}, view:'home', open:false, deckId:null, swaps:10, sync:'local',
   search:{q:'', color:'', type:'', fmt:'', max:'', theme:''}, gen:{cmd:'', tier:'budget'}, confirmDel:null, busy:''};
 const cur = () => S.profile.decks.find(d => d.id === S.deckId) || null;
 
@@ -62,7 +62,7 @@ function pidOf(c, e){ return (e && e.pid) || (PRINT.map.get(c._n) || {}).id || c
 function priceOf(o){ const pr = o.prices || {}, p = parseFloat(pr.usd || pr.usd_foil || pr.usd_etched); return isNaN(p) ? null : p; }
 async function scry(q, extra, maxPages, each){
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q + ' game:paper') + '&unique=prints' + (extra || ''), pages = 0;
-  while (url && pages++ < maxPages){ const r = await fetch(url); if (r.status === 404) return; if (!r.ok) throw new Error('search ' + r.status); const j = await r.json(); (j.data || []).forEach(each); url = j.has_more ? j.next_page : null; if (url) await sleep(110); }
+  while (url && pages++ < maxPages){ const r = await sfetch(url); if (r.status === 404) return; if (!r.ok) throw new Error('search ' + r.status); const j = await r.json(); (j.data || []).forEach(each); url = j.has_more ? j.next_page : null; }
 }
 async function ensureTheme(){
   const d = cur(), c = d && d.format === 'commander' ? find(d.commander) : null, code = c && c.id ? (d.cmdSet || c.sc || '') : '';
@@ -208,6 +208,9 @@ async function finalize(rows, when, ts){
   return list.length;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Every Scryfall API call goes through one queue, spaced out to stay well inside Scryfall's rate limits.
+let sfQ = Promise.resolve();
+function sfetch(url){ const run = sfQ.then(() => fetch(url)); sfQ = run.catch(() => {}).then(() => sleep(550)); return run; }
 // Wait, but wake early when the phone comes back online or the tab is shown again.
 function sleepOrWake(ms){ return new Promise(res => { let t; const done = () => { clearTimeout(t); removeEventListener('online', done); document.removeEventListener('visibilitychange', vis); res(); }, vis = () => { if (!document.hidden) done(); };
   t = setTimeout(done, ms); addEventListener('online', done); document.addEventListener('visibilitychange', vis); }); }
@@ -224,14 +227,14 @@ async function pagedUpdate(){
   while (url){
     let j;
     try {
-      const r = await fetch(url);
+      const r = await sfetch(url);
       if (r.status === 429 || r.status >= 500) throw {wait:(+r.headers.get('retry-after') || 0) * 1000};
       if (!r.ok) throw new Error('card search returned ' + r.status);
       j = await r.json();
     } catch (e) {
       if (e instanceof Error && /returned 4/.test(e.message)) throw e;
       fails++; setStatus('Connection to Scryfall dropped. Retrying… ' + rows.length.toLocaleString() + ' cards so far');
-      await sleepOrWake(Math.min(30000, e.wait || 2500 * fails)); continue;
+      await sleepOrWake(Math.min(60000, Math.max(e.wait || 0, e.wait !== undefined ? 15000 * fails : 3000 * fails))); continue;
     }
     fails = 0; page++; total = j.total_cards || total;
     (j.data || []).forEach(o => { const c = fromScryfall(o); if (c) rows.push(c); });
@@ -239,7 +242,6 @@ async function pagedUpdate(){
     url = j.has_more ? j.next_page : null;
     if (first && (page === 1 || page % 20 === 0)){ useFull(rows.slice(), when); if (page === 1) render(); }
     if (url && page % 15 === 0) try { await idb('readwrite', s => s.put({rows:cleanRows(rows), url, page, total, ts:Date.now()}, 'partial')); } catch (e) {}
-    if (url) await sleep(130);
   }
   if (rows.length < 100) throw new Error('card search returned no cards');
   const n = await finalize(rows, when, Date.now());
@@ -256,7 +258,7 @@ async function loadBulk(file){
 function lsGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 async function releaseSignature(){
-  const j = await (await fetch('https://api.scryfall.com/sets')).json(), today = new Date().toISOString().slice(0, 10);
+  const j = await (await sfetch('https://api.scryfall.com/sets')).json(), today = new Date().toISOString().slice(0, 10);
   let latest = '', name = '', count = 0; const fam = {}; (j.data || []).forEach(s => { if (s.parent_set_code) fam[s.code] = s.parent_set_code; }); lsSet('dc.sets', fam);
   for (const s of j.data || []){ if (s.digital || !s.released_at || s.released_at > today) continue; count += s.card_count || 0; if (s.released_at > latest){ latest = s.released_at; name = s.name; } }
   if (!latest) throw new Error('no sets'); return {latest, name, count};
@@ -272,7 +274,7 @@ async function autoUpdate(sig){
   if (autoUpdate.busy) return; autoUpdate.busy = true; DBINFO.err = ''; let n = 0, why = [];
   setStatus('Checking Scryfall for card updates…');
   if (Date.now() - (lsGet('dc.noBulk') || 0) > 7 * 864e5) try {
-    const meta = await (await fetch('https://api.scryfall.com/bulk-data/oracle-cards')).json();
+    const meta = await (await sfetch('https://api.scryfall.com/bulk-data/oracle-cards')).json();
     const resp = await fetch(meta.download_uri); if (!resp.ok || !resp.body) throw new Error('status ' + resp.status);
     n = await ingest(resp.body, meta.size || 1.7e8, String(meta.updated_at || '').slice(0, 10));
   } catch (e) { why.push('daily file: ' + (e && e.message || e)); lsSet('dc.noBulk', Date.now()); }
@@ -335,6 +337,17 @@ function navHtml(){
   const b = (v, label) => '<button data-act="nav" data-v="' + v + '"' + (S.view === v ? ' aria-current="page"' : '') + '>' + SVG[v] + label + '</button>';
   $('#nav-l').innerHTML = b('decks', 'Decks') + b('deck', 'Builder') + b('search', '<span class="xs-hide">Card&nbsp;</span>Search');
   $('#nav-r').innerHTML = b('profile', 'Profile');
+}
+function viewHome(){
+  const n = S.profile.decks.filter(d => !d.example).length;
+  const tile = (v, icon, title, text, extra) => '<button class="tile big" data-act="nav" data-v="' + v + '"><div class="tb"><span class="hicon">' + SVG[icon] + '</span><h3>' + title + '</h3><p>' + text + '</p>' + (extra ? '<span class="chip gold">' + extra + '</span>' : '') + '</div></button>';
+  return '<section class="hero"><h1>Bring a deck. See every way to make it better.</h1><p>Deck Companion is a deck builder for Magic: The Gathering, made for Commander and Standard. Start a deck or bring your own, tell it what the deck is about, and it lays out each card’s upgrade path at three budgets, without turning your deck into something else.</p></section>' +
+    '<div class="tiles home3">' +
+    tile('deck', 'deck', 'Builder', 'Start a new deck. Generate one from a commander, load a real precon, import a list you already have, or begin empty.') +
+    tile('decks', 'decks', 'Decks', 'Open a saved deck to edit it, tune its build, and follow its Budget, Mid and Apex upgrade paths.', n ? n + ' saved deck' + (n === 1 ? '' : 's') : '') +
+    tile('search', 'search', 'Card search', 'Look up any card with its full details, price and every printing.') +
+    '</div><div class="row" style="justify-content:center"><button class="btn" data-act="nav" data-v="profile" style="display:inline-flex;gap:8px;align-items:center"><span class="hicon sm">' + SVG.profile + '</span>Profile and backups</button></div>' +
+    '<section class="panel"><div class="ph"><h2>How it works</h2></div><ol class="steps"><li><b>Get a deck in.</b> Generate one, load a precon, or paste your own list.</li><li><b>Set the build.</b> Rank the mechanics that matter and pick your colors. For Commander, the deck follows what your commander does.</li><li><b>Follow the upgrade paths.</b> Every card shows what to swap it for at Budget (up to $3), Mid (up to $12) and Apex, and how far along it already is.</li></ol></section>';
 }
 function viewDecks(){
   const P = S.profile, od = S.open ? cur() : null;
@@ -499,7 +512,8 @@ function viewProfile(){
 }
 function render(){
   navHtml(); const m = $('#main');
-  m.innerHTML = S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
+  document.querySelector('.top').classList.toggle('home', S.view === 'home');
+  m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = '16px';
   ensureTheme();
 }
@@ -647,5 +661,6 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && !S.
 // ---------- boot ----------
 ornaments(); paintSky(); let rz = 0; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 250); });
 loadLocal();
-if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; S.view = 'decks'; S.open = true; } else { S.deckId = S.profile.decks[0].id; S.view = 'decks'; S.open = false; }
+if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else S.deckId = S.profile.decks[0].id;
+S.view = 'home'; S.open = false;
 render(); loadSavedLibrary(); initBackup();

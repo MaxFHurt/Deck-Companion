@@ -42,6 +42,19 @@ h1,h2,h3{margin:0;font-family:var(--display);text-wrap:balance}
 @keyframes pulse{50%{opacity:.45}}
 .brand b{display:block;font:900 30px/1 var(--display);letter-spacing:.12em;margin-right:-.12em;background:linear-gradient(180deg,#fff,#cfc6ee 45%,#8f86b8);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 22px rgba(185,147,255,.35)}
 .brand span{display:block;font:500 13px/1.2 var(--display);letter-spacing:.52em;color:var(--chrome);margin-top:4px;margin-right:-.52em}
+button.brand{background:none;border:0;padding:0;color:inherit;font:inherit}
+.top.home{grid-template-columns:minmax(0,1fr)} .top.home .nav,.top.home .motto{display:none!important}
+.top.home .brand b{font-size:clamp(30px,6vw,46px)} .top.home .brand span{font-size:clamp(12px,2.2vw,17px)} .top.home .brand svg{width:clamp(48px,9vw,76px);height:clamp(48px,9vw,76px)}
+.hero{text-align:center;max-width:760px;margin:6px auto 0;display:flex;flex-direction:column;gap:10px}
+.hero h1{font-size:clamp(24px,4.6vw,40px);font-weight:700;line-height:1.15;background:linear-gradient(180deg,#fff,#cfc6ee 55%,#9d90d6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0;color:var(--chrome);font-size:clamp(15px,2vw,17px);line-height:1.5}
+.tiles.home3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tile.big{background:linear-gradient(180deg,rgba(30,18,62,.96),rgba(11,6,23,.96));border-color:var(--chrome2);box-shadow:0 0 0 1px #05020a,0 0 22px rgba(141,92,255,.22)}
+.tile.big .tb{padding:18px 16px;gap:8px;align-items:flex-start} .tile.big h3{font-size:21px} .tile.big p{font-size:14.5px}
+.hicon{display:grid;place-items:center;width:46px;height:46px;border-radius:10px;background:linear-gradient(180deg,#5a35c9,#2b1368);border:1px solid var(--glow);box-shadow:0 0 16px rgba(141,92,255,.55);color:#fff}
+.hicon svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.hicon.sm{width:24px;height:24px;border-radius:6px;box-shadow:none} .hicon.sm svg{width:15px;height:15px}
+.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;color:var(--chrome);max-width:75ch} .steps b{color:var(--ink)}
 .nav{display:flex;gap:8px;flex-wrap:wrap}
 .nav.right{justify-content:flex-end}
 .nav button{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:74px;padding:7px 10px 6px;font:600 13px var(--label);letter-spacing:.1em;text-transform:uppercase;
@@ -219,7 +232,8 @@ a{color:var(--glow)}
   .detail{grid-template-columns:minmax(0,1fr)} .detail .card{max-width:290px;margin:0 auto;width:100%}
   .dl{grid-template-columns:40px 26px minmax(0,1fr) 14px auto;gap:6px} .dl .cost{display:none} .dl .pr{min-width:0} .dl img{width:40px;height:28px}
   .cards{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
-  .tiles{grid-template-columns:minmax(0,1fr)}
+  .tiles,.tiles.home3{grid-template-columns:minmax(0,1fr)}
+  .top.home{grid-template-columns:minmax(0,1fr)} .top.home .brand b{font-size:30px} .top.home .brand span{font-size:12px} .top.home .brand svg{width:48px;height:48px}
   .rec{grid-template-columns:minmax(0,1fr) auto} .rec>img{display:none}
   .pre{grid-template-columns:minmax(0,1fr) auto} .pre>img{display:none}
   .meter{grid-template-columns:74px minmax(0,1fr) 50px} .cmdbox{grid-template-columns:72px minmax(0,1fr)} .cmdbox img{width:72px;height:52px}
@@ -235,7 +249,7 @@ a{color:var(--glow)}
 <div class="app">
   <header class="top">
     <nav class="nav" id="nav-l" aria-label="Main"></nav>
-    <div class="brand">
+    <button class="brand" data-act="nav" data-v="home" aria-label="Deck Companion home">
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#b993ff"/><stop offset="1" stop-color="#4a2aa8"/></linearGradient></defs>
         <g class="spin"><circle cx="32" cy="32" r="27" fill="none" stroke="url(#g1)" stroke-width="1.5" stroke-dasharray="3 5"/></g>
@@ -244,19 +258,19 @@ a{color:var(--glow)}
         <path class="pulse" d="M32 16 L35 29 L48 32 L35 35 L32 48 L29 35 L16 32 L29 29 Z" fill="#fff"/>
       </svg>
       <div><b>DECK</b><span>COMPANION</span></div>
-    </div>
+    </button>
     <nav class="nav right" id="nav-r" aria-label="Library and profile"></nav>
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists from EDHREC. Build 18.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists from EDHREC. Build 19.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
 
-<script src="data.js?v=18"></script>
-<script src="lists.js?v=18"></script>
-<script src="engine.js?v=18"></script>
-<script src="ui.js?v=18"></script>
+<script src="data.js?v=19"></script>
+<script src="lists.js?v=19"></script>
+<script src="engine.js?v=19"></script>
+<script src="ui.js?v=19"></script>
 </body>
 </html>
