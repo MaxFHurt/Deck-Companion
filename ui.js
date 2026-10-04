@@ -7,7 +7,8 @@ buildIndex(STARTER);
 let DBINFO = {source:'starter', count:STARTER.length, when:null};
 const S = {profile:{name:'Planeswalker', decks:[], updatedAt:0, example:true}, view:'home', open:false, deckId:null, swaps:10, sync:'local',
   search:{q:'', color:'', type:'', fmt:'', max:'', theme:''}, gen:{cmd:'', tier:'budget'}, confirmDel:null, busy:''};
-const cur = () => S.profile.decks.find(d => d.id === S.deckId) || null;
+// A new deck is a draft until the player saves it; cur() is whichever deck is open, draft or saved.
+const cur = () => (S.draft && S.draft.id === S.deckId ? S.draft : S.profile.decks.find(d => d.id === S.deckId)) || null;
 
 // ---------- painted sky ----------
 function rng(seed){ let h = 2166136261; for (const ch of String(seed)){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return () => { h += 0x6D2B79F5; let t = Math.imul(h ^ h >>> 15, 1 | h); t ^= t + Math.imul(t ^ t >>> 7, 61 | t); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -178,11 +179,12 @@ function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = fals
 
 // ---------- storage ----------
 let cloud = null, saving = false, dirty = false, saveT = 0;
-function loadLocal(){ try { const p = JSON.parse(localStorage.getItem('dc.profile') || 'null'); if (p && Array.isArray(p.decks)) S.profile = p; } catch (e) {} }
+function loadLocal(){ try { const p = JSON.parse(localStorage.getItem('dc.profile') || 'null'); if (p && Array.isArray(p.decks)) S.profile = p; } catch (e) {} const dr = lsGet('dc.draft'); if (dr && Array.isArray(dr.cards)) S.draft = dr; }
 function touch(){ S.profile.updatedAt = Date.now(); S.profile.example = false; clearTimeout(saveT); saveT = setTimeout(persist, 700); }
 async function persist(){
   const json = JSON.stringify(S.profile);
   try { localStorage.setItem('dc.profile', json); } catch (e) {}
+  lsSet('dc.draft', S.draft || null);
   if (S.autoBackup) writeLinked();
   if (!cloud) return; if (saving){ dirty = true; return; }
   saving = true; try { await cloud.set({json, updatedAt:S.profile.updatedAt}); S.sync = 'cloud'; } catch (e) { S.sync = 'local'; if (e && e.code === 'quota_exceeded') toast('Profile storage is full. Delete a deck to keep saving to your account.'); }
@@ -347,9 +349,9 @@ function backupPanel(){
 }
 
 // ---------- deck helpers ----------
-function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.profile.decks.unshift(d); S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; return d; }
+function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; return d; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
-function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; return d; }
+function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; S.draft = null; S.profile.decks.unshift(d); return d; }
 function doSwap(d, p, step){ const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0); cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add); if (en && keep) en.step = keep; }
 function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = upgradePaths(d); } return recsFor.v; }
 
@@ -372,10 +374,14 @@ function viewHome(){
 }
 function viewDecks(){
   const P = S.profile, od = S.open ? cur() : null;
-  if (od){ const A = analyze(od); return '<div class="row"><button class="btn" data-act="deck-back">← All decks</button></div><div class="work">' + aimPanel(od, A.ctx) + listPanel(od, A) + upPanel(od, A) + '</div>'; }
+  if (od){ const A = analyze(od), isDraft = od === S.draft;
+    return '<div class="row"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
+      ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
+      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div><div class="work">' + aimPanel(od, A.ctx) + listPanel(od, A) + upPanel(od, A) + '</div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
-    return '<button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row"><span class="chip gold">' + TIERS[d.tier].label + '</span><span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button>'; }).join('');
+    return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row"><span class="chip gold">' + TIERS[d.tier].label + '</span><span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
   return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
+    (S.draft ? '<div class="gate"><b>Unsaved deck: ' + esc(S.draft.name) + '</b>You started this deck but haven’t saved it to your profile.<div class="row" style="margin-top:10px"><button class="btn" data-act="draft-open">Keep editing</button><button class="btn pri" data-act="draft-save">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button></div></div>' : '') +
     (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>';
 }
 function aimPanel(d, ctx){
@@ -590,6 +596,16 @@ function ctlHtml(n){
     '<button class="btn' + (e.l ? ' gold' : '') + '" data-act="lock" data-n="' + esc(n) + '" aria-pressed="' + !!e.l + '">' + (e.l ? 'Locked · tap to unlock' : 'Lock card') + '</button><button class="btn danger" data-act="rm" data-n="' + esc(n) + '">Remove from deck</button></div>' +
     '<p class="note" style="margin:0">' + (e.l ? 'Locked cards are never suggested as cuts.' : 'Lock a card to keep it out of the suggested cuts.') + '</p>';
 }
+function wantHtml(d, c){
+  const A = analyze(d), open = A.T.size - A.size, warn = !legalIn(c, d.format) ? 'Not legal in ' + d.format : (A.ctx.ident.length || A.ctx.cmd) && !c.ci.every(x => A.ctx.ident.includes(x)) ? 'Outside this deck’s colors' : '';
+  let h = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>' + (warn ? '<div class="row"><span class="chip bad">' + warn + '</span></div>' : '');
+  if (open > 0) return h + '<div class="row"><button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add it · ' + open + ' open slot' + (open === 1 ? '' : 's') + '</button></div></div>';
+  const cuts = bestCuts(d, c.n, 3);
+  if (!cuts.length) return h + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div></div>';
+  h += '<p class="note" style="margin:0">The deck is full, so something has to come out. These are the cards it can best do without:</p>' +
+    cuts.map((x, i) => { const cc = find(x.n); return '<div class="path"><button class="sw out" data-act="card" data-n="' + esc(x.n) + '">' + (cc ? '<img alt="" src="' + artFor(cc) + '">' : '<span></span>') + '<span><small>Take out</small>' + esc(x.n) + '</span><em>' + money(cc) + '</em></button><div class="row">' + (i === 0 ? '<span class="chip good">Best swap</span>' : '') + '<span class="chip">' + esc(x.why[0]) + '</span><button class="btn ' + (i === 0 ? 'pri ' : '') + 'sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>'; }).join('');
+  return h + '<div class="row"><button class="btn sm" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add without removing anything</button></div></div>';
+}
 function openEntry(n){
   S.modalCard = n; S.prints = null; S.pick = null;
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(n) + '"><div class="ph"><h2>' + esc(n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">This card isn’t in the card data yet, so there are no details to show. It stays in your list.</p><div class="grp" id="ctl">' + ctlHtml(n) + '</div></div>';
@@ -599,14 +615,14 @@ function openCard(name, pid){
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
   const legend = /Legendary/.test(c.t) && /Creature/.test(frontType(c)), isCmd = d && d.format === 'commander' && d.commander === c.n;
   S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set ? '<dt>Printing</dt><dd>' + esc(c.set) + '</dd>' : '') +
     '<dt>Does</dt><dd>' + ([...tg.roles].map(r => ROLE_LABEL[r] || ({counter:'Counterspell', tutor:'Tutor', protect:'Protection'})[r]).concat(tg.land ? ['Land'] : []).join(', ') || 'Threat / synergy piece') + '</dd>' +
     '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' +
-    '<div class="row">' + (d && !inDeck ? '<button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">' + (inDeck ? 'Add another copy' : 'Add to ' + esc(d.name)) + '</button>' : '') + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
+    '<div class="row">' + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.n + '"') + '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';
   $('#modal').hidden = false;
   if (c.id){ const p = $('#modal .panel'); p.insertAdjacentHTML('beforeend', '<div class="grp"><span class="lab">Printings' + (inDeck || isCmd ? ' · tap one to use it in this deck' : ' · tap one, then add it') + '</span><div id="prints"><p class="note" style="margin:0">Loading printings…</p></div></div>'); loadPrints(c); }
@@ -644,7 +660,10 @@ document.addEventListener('click', ev => {
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
     case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; changed = false; break;
-    case 'deck-back': S.open = false; changed = false; break;
+    case 'deck-back': S.open = false; S.confirmDel = null; changed = false; break;
+    case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; } changed = false; break;
+    case 'draft-save': if (S.draft){ const nd = S.draft; S.profile.decks.unshift(nd); S.draft = null; S.deckId = nd.id; toast('Saved ' + nd.name + ' to your decks.'); } break;
+    case 'draft-discard': if (S.draft){ const nm = S.draft.name; S.draft = null; S.open = false; S.deckId = (S.profile.decks[0] || {}).id || null; lsSet('dc.draft', null); toast('Discarded ' + nm + '.'); } changed = false; break;
     case 'new-deck': newDeck({format:v, name:v === 'commander' ? 'New Commander deck' : 'New Standard deck'}); break;
     case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v){ S.deckId = (S.profile.decks[0] || {}).id || null; S.open = false; } S.confirmDel = null; break;
     case 'fmt': if (d.format !== v){ d.format = v; if (v === 'standard'){ d.colors = (d.colors || []).slice(0, 3); } else if (find(d.commander)) d.colors = find(d.commander).ci.slice(); } break;
@@ -661,7 +680,8 @@ document.addEventListener('click', ev => {
     case 'dec': cutCard(d, n, 1); break;
     case 'rm': cutCard(d, n, 999); break;
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
-    case 'pick-add': addCard(d, n, 1); toast('Added ' + n + '.'); break;
+    case 'pick-add': { const A = analyze(d); if (A.size >= A.T.size){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } addCard(d, n, 1); toast('Added ' + n + '.'); break; }
+    case 'want': { cutCard(d, v, 1); addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
     case 'add-to-deck': addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
     case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'swap-all': { const R = recsFor(d); let k = 0; R.paths.forEach(L => { const p = L.opts[v]; if (p && d.cards.some(x => x.n === p.cut) && !d.cards.some(x => x.n === p.add)){ doSwap(d, p, TIER_KEYS.indexOf(v) + 1); k++; } }); toast('Made ' + k + ' ' + TIERS[v].label + ' swap' + (k === 1 ? '' : 's') + '.'); break; }

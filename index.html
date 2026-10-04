@@ -209,6 +209,7 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .tile{position:relative;text-align:left;border:1px solid var(--line);border-radius:9px;background:var(--well);padding:0;overflow:hidden;display:flex;flex-direction:column;color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.5)}
 .tile:hover{border-color:var(--glow);box-shadow:0 0 22px rgba(141,92,255,.55)}
 .tile h3{font-size:17px}
+.tilewrap{display:flex;flex-direction:column;gap:6px;min-width:0} .tilewrap .tile{flex:1} .tilewrap>.btn{align-self:flex-end}
 .tile img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;object-position:50% 16%;display:block;border-bottom:1px solid var(--line)}
 .dl img,.sw img,.cmdbox img,.ddl img,.pre>img{object-position:50% 20%}
 .tile .tb{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
@@ -273,7 +274,7 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 25.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 26.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
@@ -281,7 +282,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 25;
+window.BUILD = 26;
 (function(){
   var last = 0;
   function check(){
@@ -293,9 +294,9 @@ window.BUILD = 25;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=25"></script>
-<script src="lists.js?v=25"></script>
-<script src="engine.js?v=25"></script>
-<script src="ui.js?v=25"></script>
+<script src="data.js?v=26"></script>
+<script src="lists.js?v=26"></script>
+<script src="engine.js?v=26"></script>
+<script src="ui.js?v=26"></script>
 </body>
 </html>

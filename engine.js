@@ -353,6 +353,25 @@ function upgradePaths(d){
   out.paths = [...by.values()].sort((a, b) => b.gain - a.gain);
   return out;
 }
+// "I want this card in my deck": rank what the deck can best do without. A land replaces a land, a spell a spell.
+// Cards that would leave ramp/draw/removal/wipes short, or identity cards making way for an off-theme card, are
+// held back; a card with a similar mana cost is preferred so the curve stays put. Locked cards are never offered.
+function bestCuts(d, addName, k){
+  const add = find(addName); if (!add) return [];
+  const A = analyze(d), ctx = A.ctx, T = A.T, top = (d.aims || [])[0], addLand = tags(add).land, roles = Object.assign({}, A.roles);
+  if (!addLand) tags(add).roles.forEach(r => { if (r in roles) roles[r]++; });
+  const isId = c => !!(top && matchAim(c, top, ctx.tribe) >= 0.7), addId = !addLand && isId(add), out = [];
+  for (const e of d.cards){
+    if (e.l || norm(e.n) === add._n) continue; const c = find(e.n); if (!c) continue; const land = tags(c).land; if (land !== addLand) continue;
+    if (land){ out.push(isBasic(c.n) ? {n:e.n, s:-e.q, why:['You run ' + e.q + ' of these']} : {n:e.n, s:baseScore(c, d, ctx).s + 3, why:['Least useful land']}); continue; }
+    const b = baseScore(c, d, ctx); let s = b.s, why = b.hit ? 'Weakest fit for the build' : "Doesn't serve the build";
+    tags(c).roles.forEach(r => { if (r in roles) s += roles[r] - 1 < T[r] ? 2.5 : 0.6; });
+    s += 0.2 * Math.abs(c.cmc - add.cmc); if (isId(c) && !addId) s += 2;
+    if (!legalIn(c, d.format)){ s = -90; why = 'Not legal in ' + d.format; } else if (!c.ci.every(x => ctx.ident.includes(x))){ s = -80; why = 'Outside your colors'; }
+    out.push({n:e.n, s, why:[why]});
+  }
+  return out.sort((a, b) => a.s - b.s).slice(0, k || 3);
+}
 function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
 function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.n) === k); if (i < 0) return; d.cards[i].q -= q; if (d.cards[i].q <= 0) d.cards.splice(i, 1); }
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }
