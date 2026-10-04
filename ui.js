@@ -733,8 +733,8 @@ document.addEventListener('click', ev => {
     case 'aim-down': { const i = +v; [d.aims[i + 1], d.aims[i]] = [d.aims[i], d.aims[i + 1]]; break; }
     case 'aim-rm': d.aims.splice(+v, 1); break;
     case 'color': { const s = new Set(d.colors || []); if (s.has(v)){ if (s.size > 1 || d.format === 'standard') s.delete(v); } else { if (d.format === 'standard' && s.size >= 3){ toast('Standard decks here focus on up to three colors.'); return; } s.add(v); } d.colors = 'WUBRG'.split('').filter(x => s.has(x)); break; }
-    case 'clear-cmd': d.commander = ''; delete d.cmdPid; delete d.cmdSet; break;
-    case 'set-cmd': delete d.cmdPid; delete d.cmdSet; setCommander(d, n); if (S.pick && S.pick.n === n && S.pick.sc){ d.cmdPid = S.pick.id; d.cmdSet = S.pick.sc; } $('#modal').hidden = true; toast(n + ' is now your commander.'); break;
+    case 'clear-cmd': if (d.commander) d.prevCmd = d.commander; d.commander = ''; delete d.cmdPid; delete d.cmdSet; break;
+    case 'set-cmd': if (d.commander && d.commander !== n) d.prevCmd = d.commander; delete d.cmdPid; delete d.cmdSet; setCommander(d, n); if (S.pick && S.pick.n === n && S.pick.sc){ d.cmdPid = S.pick.id; d.cmdSet = S.pick.sc; } $('#modal').hidden = true; toast(n + ' is now your commander.'); break;
     case 'inc': { const en = d.cards.find(x => x.n === n); if (en && en.q >= copyLimit(d, find(n))){ toast(d.format === 'commander' ? 'Commander decks run one copy of each card.' : 'Four copies is the limit.'); return; } addCard(d, n, 1); break; }
     case 'dec': cutCard(d, n, 1); break;
     case 'rm': cutCard(d, n, 999); break;
@@ -762,7 +762,7 @@ document.addEventListener('click', ev => {
     case 'cmd-find': openFindCmd(); return;
     case 'fc-color': { const s = new Set(S.fc.colors); if (s.has(v)) s.delete(v); else s.add(v); S.fc.colors = 'WUBRG'.split('').filter(x => s.has(x)); openFindCmd(); return; }
     case 'fc-pick': { const old = d.commander; delete d.cmdPid; delete d.cmdSet; const keepAims = d.aims.slice(), keepTribe = d.tribe; setCommander(d, n); d.aims = keepAims.length ? keepAims : d.aims; if (keepTribe) d.tribe = keepTribe; const nc = find(n); if (nc) d.colors = nc.ci.slice();
-      if (old && old !== n && find(old) && !d.cards.some(x => x.n === old)) addCard(d, old, 1); S.fc = null; $('#modal').hidden = true; toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' moved into the deck.' : '')); break; }
+      if (old && old !== n) d.prevCmd = old; S.fc = null; $('#modal').hidden = true; toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' can now be suggested as an upgrade.' : '')); break; }
     case 'buy-open': openBuy(); return;
     case 'buy-copy': copyText(buyText(d), 'Buy list copied.'); return;
     case 'buy-save': saveText(d.name.replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '-buy-list.txt', buyText(d)); toast('Buy list saved to your downloads.'); return;

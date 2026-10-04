@@ -209,6 +209,7 @@ function baseScore(c, d, ctx){
   (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : THEMES[a].label); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
   if (ctx.edh){ const x = ctx.edh.map.get(c._n); if (x){ s += 4 * x.inc + 4 * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); } }
+  if (d.prevCmd && d.prevCmd === c.n){ s += 3; hit = true; why.unshift('Your previous commander'); }
   a0 = s;
   s += c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.2);
   if (ctx.cap === Infinity) s += Math.min(2.5, Math.log10((c.p || 0) + 1) * 1.5);
