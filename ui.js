@@ -452,42 +452,47 @@ function listPanel(d, A){
     '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn" data-act="copy-list">Copy list</button></div>' +
     '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + '</div>';
 }
-// Buy list: what to buy for each tier's upgrades, grouped by color then A–Z.
+// Buy list: grouped by the card being replaced. Each group lists every card that could take its place,
+// weakest to strongest. Groups are ordered by the replaced card's color, then A–Z.
 const BUY_GROUPS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolor'], ['C', 'Colorless'], ['L', 'Land']];
 function buyData(d){
   const R = recsFor(d), grp = c => !c ? 'C' : tags(c).land ? 'L' : c.ci.length > 1 ? 'M' : c.ci[0] || 'C', order = BUY_GROUPS.map(g => g[0]);
-  return TIER_KEYS.map(t => {
-    const m = new Map(), put = (n, q) => { if (isBasic(n)) return; const c = find(n); if (m.has(n)) m.get(n).q += q; else m.set(n, {n, q, p:c ? c.p : null, g:grp(c)}); };
-    R.paths.forEach(L => { const p = L.opts[t]; if (p) put(p.add, p.q); }); if (t === 'budget') R.fixes.forEach(p => put(p.add, p.q));
-    const items = [...m.values()].sort((a, b) => order.indexOf(a.g) - order.indexOf(b.g) || a.n.localeCompare(b.n));
-    return {t, items, count:items.reduce((s, x) => s + x.q, 0), cost:items.reduce((s, x) => s + (x.p || 0) * x.q, 0)};
-  });
+  const item = (p, t) => { const c = find(p.add); return {n:p.add, q:p.q, p:c ? c.p : null, t, gain:p.gain || 0}; };
+  const groups = R.paths.map(L => ({cut:L.cut, g:grp(find(L.cut)), opts:TIER_KEYS.filter(t => L.opts[t]).map(t => item(L.opts[t], t)).sort((a, b) => a.gain - b.gain)}))
+    .sort((a, b) => order.indexOf(a.g) - order.indexOf(b.g) || a.cut.localeCompare(b.cut));
+  const fixes = R.fixes.filter(p => !isBasic(p.add)).map(p => ({cut:p.cut, why:p.fix ? p.cutWhy[0] : p.why[0], opts:[item(p, '')]}));
+  const count = groups.reduce((s, G) => s + G.opts.length, 0) + fixes.length;
+  return {groups, fixes, count};
 }
 function buyText(d){
-  const L = ['// ' + d.name + ' · buy list'];
-  buyData(d).forEach(T => { L.push('', '// ' + TIERS[T.t].label + ' (' + T.count + ' cards' + (T.count ? ', about $' + T.cost.toFixed(2) : '') + ')'); if (!T.items.length) L.push('// nothing to buy at this tier'); T.items.forEach(x => L.push(x.q + ' ' + x.n)); });
+  const B = buyData(d), L = ['// ' + d.name + ' · buy list', '// Grouped by the card each one replaces. Options run weakest to strongest; buy one per group.'];
+  if (!B.count) L.push('// nothing to buy right now');
+  B.fixes.forEach(G => { L.push('', '// Fix: replaces ' + G.cut); G.opts.forEach(x => L.push(x.q + ' ' + x.n)); });
+  B.groups.forEach(G => { L.push('', '// Replaces ' + G.cut); G.opts.forEach(x => L.push(x.q + ' ' + x.n)); });
   return L.join('\n') + '\n';
+}
+function buyHtml(d){
+  const B = buyData(d), est = DBINFO.source === 'starter' ? '~' : '';
+  const row = x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + printTag(find(x.n)) + '</span>' + (x.t ? '<span class="chip gold">' + TIERS[x.t].label + '</span>' : '<span></span>') + '<span class="pr">' + money(find(x.n)) + '</span></button>';
+  const box = (G, fix) => { const c = find(G.cut); return '<div class="buygrp"><button class="sw out" data-act="card" data-n="' + esc(G.cut) + '">' + (c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>') + '<span><small>' + (fix ? esc(G.why || 'Needs replacing') : 'Replaces') + '</small>' + esc(G.cut) + '</span><em>' + (G.opts.length > 1 ? G.opts.length + ' options' : '1 option') + '</em></button>' + G.opts.map(row).join('') + '</div>'; };
+  if (!B.count) return '<p class="note" style="margin:0">Nothing to buy right now: no card in this deck has a worthwhile upgrade' + (DBINFO.complete ? '.' : ' yet. Card data is still downloading, so this list will grow.') + '</p>';
+  return '<p class="note" style="margin:0">Grouped by the card being replaced. Each group lists the cards that could take its place, weakest to strongest, so you only need one per group.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
+    (B.fixes.length ? '<div class="grp"><span class="lab">Fixes this deck needs</span>' + B.fixes.map(G => box(G, true)).join('') + '</div>' : '') +
+    BUY_GROUPS.map(([k, label]) => { const gs = B.groups.filter(G => G.g === k); return gs.length ? '<div class="grp"><span class="lab">' + label + '</span>' + gs.map(G => box(G)).join('') + '</div>' : ''; }).join('');
 }
 // Deck value chip: the total price of the cards in the deck ("+" when some cards have no price yet).
 function priceChip(A){ return A.price > 0 ? '<span class="chip gold" title="Total price of the cards in this deck">' + (DBINFO.source === 'starter' ? '~' : '') + '$' + Math.round(A.price).toLocaleString() + (A.priced ? '' : '+') + '</span>' : ''; }
 function buyPanel(d){
   if (!isAimed(d)) return '<div class="scroll"><div class="gate"><b>Set up the build first</b>The buy list comes from the deck’s upgrade paths, which need the build to be set.</div></div>';
-  const data = buyData(d);
-  return '<div class="row"><span class="lab" style="flex:1">What each tier’s upgrades would add</span><button class="btn pri sm" data-act="buy-copy">Copy as text</button><button class="btn sm" data-act="buy-save">Save text file</button></div>' +
-    '<div class="scroll" id="buyscroll" data-keep><p class="note" style="margin:0">One list per tier, sorted by color, then A to Z. Basic lands are left off.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
-    data.map(T => '<div class="grp"><div class="gh" style="font-size:15px"><span>' + TIERS[T.t].label + '</span><span>' + T.count + ' card' + (T.count === 1 ? '' : 's') + (T.count ? ' · ' + (DBINFO.source === 'starter' ? '~' : '') + '$' + T.cost.toFixed(2) : '') + '</span></div>' +
-      (T.items.length ? BUY_GROUPS.map(([k, label]) => { const xs = T.items.filter(x => x.g === k); return xs.length ? '<div><span class="lab">' + label + '</span>' + xs.map(x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + printTag(find(x.n)) + '</span><span class="pr">' + money(find(x.n)) + '</span></button>').join('') + '</div>' : ''; }).join('') : '<p class="note" style="margin:0">Nothing to buy at this tier.</p>') + '</div>').join('') + '</div>';
+  return '<div class="row"><span class="lab" style="flex:1">What to buy, by the card it replaces</span><button class="btn pri sm" data-act="buy-copy">Copy as text</button><button class="btn sm" data-act="buy-save">Save text file</button></div>' +
+    '<div class="scroll" id="buyscroll" data-keep>' + buyHtml(d) + '</div>';
 }
 function openBuy(){
   const d = cur(); if (!d) return; S.modalCard = null;
   let h = '<div class="panel" role="dialog" aria-label="Buy list"><div class="ph"><h2>Buy list</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>';
   if (!isAimed(d)) h += '<p class="note" style="margin:0">Set up the build first. The buy list comes from the deck’s upgrade paths.</p>';
   else {
-    const data = buyData(d);
-    h += '<div class="row"><button class="btn pri" data-act="buy-copy">Copy as text</button><button class="btn" data-act="buy-save">Save text file</button></div>' +
-      '<p class="note" style="margin:0">The cards each tier’s upgrades would add to this deck. Sorted by color, then A to Z.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
-      data.map(T => '<div class="grp"><div class="gh" style="font-size:15px"><span>' + TIERS[T.t].label + '</span><span>' + T.count + ' card' + (T.count === 1 ? '' : 's') + (T.count ? ' · ' + (DBINFO.source === 'starter' ? '~' : '') + '$' + T.cost.toFixed(2) : '') + '</span></div>' +
-        (T.items.length ? BUY_GROUPS.map(([k, label]) => { const xs = T.items.filter(x => x.g === k); return xs.length ? '<div><span class="lab">' + label + '</span>' + xs.map(x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + '</span><span class="pr">' + money(find(x.n)) + '</span></button>').join('') + '</div>' : ''; }).join('') : '<p class="note" style="margin:0">Nothing to buy at this tier.</p>') + '</div>').join('');
+    h += '<div class="row"><button class="btn pri" data-act="buy-copy">Copy as text</button><button class="btn" data-act="buy-save">Save text file</button></div>' + buyHtml(d);
   }
   $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
 }
