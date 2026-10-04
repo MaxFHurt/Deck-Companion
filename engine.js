@@ -34,6 +34,8 @@ const ROLE_RE = {
 };
 
 let LIB = [], IDX = new Map();
+// What players actually run with one commander (from EDHREC): key = commander name, map = card name -> {inc, syn}.
+let EDH = {key:'', map:null, decks:0, state:''};
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 const frontType = c => (c.t || '').split(' // ')[0];
 const isBasic = n => Object.prototype.hasOwnProperty.call(BASICS, n) || /^Snow-Covered /.test(n);
@@ -151,7 +153,7 @@ function ctxOf(d){
   const ident = d.format === 'commander' ? (cmd ? cmd.ci : []) : (d.colors || []);
   let focus = (d.colors || []).filter(x => ident.includes(x)); if (!focus.length) focus = ident.slice();
   const strat = detectStrategy(cmd);
-  return {cmd, ident, focus, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe};
+  return {cmd, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe};
 }
 function isAimed(d){
   if (!d.aims || !d.aims.length) return false;
@@ -201,6 +203,7 @@ function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
   (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : THEMES[a].label); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
+  if (ctx.edh){ const x = ctx.edh.map.get(c._n); if (x){ s += 4 * x.inc + 4 * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); } }
   a0 = s;
   s += c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.2);
   if (ctx.cap === Infinity) s += Math.min(2.5, Math.log10((c.p || 0) + 1) * 1.5);

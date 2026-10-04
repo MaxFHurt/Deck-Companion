@@ -93,6 +93,27 @@ async function printSearch(q){
   catch (e) { S.printRes = {q, out, err:true}; }
   S.printPending = ''; if (S.search.q.trim() === q && S.search.prints){ const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }
 }
+const edhSlug = n => String(n).split(' // ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-');
+async function loadEdh(name){
+  if (!name) return; if (EDH.key === name && EDH.state) return EDH.wait;
+  EDH = {key:name, map:null, decks:0, state:'loading'};
+  const mine = EDH, apply = rows => { mine.map = new Map(rows.map(r => [norm(r[0]), {inc:r[1], syn:r[2]}])); mine.state = 'ok'; };
+  mine.wait = (async () => {
+    const slug = edhSlug(name), cached = lsGet('dc.edh.' + slug);
+    if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length){ mine.decks = cached.decks; apply(cached.rows); return; }
+    try {
+      const r = await fetch('https://json.edhrec.com/pages/commanders/' + slug + '.json'); if (!r.ok) throw new Error('status ' + r.status);
+      const j = await r.json(), seen = new Map(); let decks = 0;
+      ((j.container && j.container.json_dict && j.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => {
+        if (!v.name || !v.potential_decks) return; decks = Math.max(decks, v.potential_decks);
+        const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, +inc.toFixed(3), +(v.synergy || 0).toFixed(3)]); }));
+      if (!seen.size) throw new Error('no cards'); mine.decks = decks; apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()]});
+    } catch (e) { mine.state = 'fail'; }
+  })();
+  return mine.wait;
+}
+function ensureEdh(){ const d = S.view === 'decks' && S.open ? cur() : null, c = d && d.format === 'commander' ? find(d.commander) : null; if (!c || EDH.key === c.n) return; loadEdh(c.n).then(() => { if (EDH.key === c.n) render(); }); }
+function edhNote(c){ if (!c || EDH.key !== c.n) return ''; return EDH.state === 'ok' ? '<span class="chip good">Using what ' + EDH.decks.toLocaleString() + ' ' + esc(c.n.split(',')[0]) + ' decks play (EDHREC)</span>' : EDH.state === 'loading' ? '<span class="chip">Loading what ' + esc(c.n.split(',')[0]) + ' players run…</span>' : '<span class="chip warn">Commander-specific data unavailable · using general popularity</span>'; }
 function artFor(c, e){
   if (c && c.id) return imgUrl('art_crop', pidOf(c, e));
   const key = c ? c.n : '?'; if (ART.has(key)) return ART.get(key);
@@ -185,10 +206,10 @@ function idb(mode, fn){ return new Promise((res, rej) => { let rq; try { rq = in
   rq.onsuccess = () => { const tx = rq.result.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); }; }); }
 async function loadSavedLibrary(){
   let complete = false;
-  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ useFull(v.rows, v.when); complete = !!v.ts && v.rows.some(r => r.sc); render(); } } catch (e) {}
+  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ complete = !!v.ts && v.rows.some(r => r.sc); useFull(v.rows, v.when, complete); render(); } } catch (e) {}
   if (!complete) autoUpdate(); else checkReleases();
 }
-function useFull(rows, when){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when}; ART.clear(); }
+function useFull(rows, when, complete){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when, complete:!!complete}; ART.clear(); }
 function setStatus(t){ const el = $('#status'); if (el){ el.textContent = t; el.hidden = !t; } }
 async function ingest(stream, size, when){
   const rows = []; let buf = '', read = 0, lines = 0;
@@ -203,7 +224,7 @@ async function ingest(stream, size, when){
 }
 async function finalize(rows, when, ts){
   const best = new Map(); for (const c of rows){ const k = norm(c.n), o = best.get(k); if (!o || (o.p == null && c.p != null)) best.set(k, c); }
-  const list = [...best.values()]; useFull(list, when);
+  const list = [...best.values()]; useFull(list, when, !!ts);
   try { await idb('readwrite', s => s.put({rows:list.map(c => { const x = Object.assign({}, c); delete x._n; delete x._t; delete x._ft; return x; }), when, ts}, 'cards')); } catch (e) {}
   return list.length;
 }
@@ -282,7 +303,7 @@ async function autoUpdate(sig){
   if (n){ toast(n.toLocaleString() + ' cards updated from Scryfall.'); try { lsSet('dc.relSig', sig && sig.latest ? sig : await releaseSignature()); lsSet('dc.relCheck', Date.now()); } catch (e) {} }
   else toast('Scryfall refused the card download. Open Profile for details.');
   DBINFO.err = n ? '' : why.join(' · ');
-  autoUpdate.busy = false; setStatus(''); render();
+  autoUpdate.busy = false; setStatus(''); render(); if (!$('#modal').hidden && $('#gen-q')) openGenerate();
 }
 
 // ---------- backup file ----------
@@ -330,7 +351,7 @@ function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; return d; }
 function doSwap(d, p, step){ const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0); cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add); if (en && keep) en.step = keep; }
-function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = upgradePaths(d); } return recsFor.v; }
+function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = upgradePaths(d); } return recsFor.v; }
 
 // ---------- views ----------
 function navHtml(){
@@ -415,6 +436,7 @@ const TIER_KEYS = ['budget', 'mid', 'apex'];
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
   let h = '<section class="panel up"><div class="ph"><h2>Upgrades</h2><small>Budget · Mid · Apex</small></div>';
+  if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
   const mx = Math.max(1, ...A.curve);
   h += '<div class="grp"><span class="lab">Mana curve · average ' + A.avg.toFixed(2) + '</span><div class="curve">' + A.curve.map((v, i) => '<div><span>' + v + '</span><i style="height:' + (v / mx * 44) + 'px"></i><span>' + (i === 6 ? '6+' : i) + '</span></div>').join('') + '</div></div>';
@@ -503,7 +525,10 @@ function openGenerate(){
     '<div class="grp"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search legendary creatures" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
   if (c) h += '<div class="detail">' + cardHtml(c, false) + '<div class="grp"><span class="lab">Strategy it will follow</span><div class="row">' + (st.themes.length ? st.themes.map(k => '<span class="chip gold">' + (k === 'tribal' ? st.tribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. The deck opens in the Builder so you can pick the mechanics, then fill it.</span>') + '</div>' +
     '<span class="lab">Tier</span><div class="seg">' + Object.keys(TIERS).map(k => '<button data-act="gen-tier" data-v="' + k + '" class="' + (g.tier === k ? 'on' : '') + '">' + TIERS[k].label + '<small>' + (TIERS[k].cap === Infinity ? 'no price cap' : 'cards ≤ $' + TIERS[k].cap) + '</small></button>').join('') + '</div>' +
-    '<div class="row"><button class="btn pri" data-act="gen-go">Generate this deck</button></div>' + (DBINFO.source === 'starter' ? '<p class="note" style="margin:0">Built from the ' + DBINFO.count + '-card starter library until the full card data finishes downloading.</p>' : '') + '</div></div>';
+    '<div class="row">' + edhNote(c) + '</div>' +
+    (DBINFO.complete ? '<div class="row"><button class="btn pri" data-act="gen-go"' + (EDH.key === c.n && EDH.state === 'loading' ? ' disabled' : '') + '>Generate this deck</button></div>'
+      : '<div class="gate"><b>Card data is still downloading</b>' + (DBINFO.source === 'full' ? 'Only ' + DBINFO.count.toLocaleString() + ' cards are loaded so far' : 'Only the ' + DBINFO.count + '-card starter list is loaded') + ', so a deck generated now would miss most of what fits this commander. This button unlocks by itself when the download finishes.<div class="row" style="margin-top:10px"><button class="btn pri" disabled>Generate this deck</button><button class="btn" data-act="gen-go">Generate anyway</button></div></div>') +
+    '</div></div>';
   h += '<div class="grp"><span class="lab">Or a 60-card Standard deck from a theme</span>' + STD_STARTERS.map((p, i) => '<div class="pre" style="grid-template-columns:minmax(0,1fr) auto"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + p.colors.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') + '<div class="note">' + esc(p.note) + '</div></div><div><button class="btn pri sm" data-act="std-starter" data-v="' + i + '">Generate</button></div></div>').join('') + '</div></div>';
   $('#modal').innerHTML = h; $('#modal').hidden = false;
 }
@@ -523,7 +548,7 @@ function render(){
   document.querySelector('.top').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = '16px';
-  ensureTheme();
+  ensureTheme(); ensureEdh();
 }
 function ctlHtml(n){
   const d = cur(), e = d && d.cards.find(x => x.n === n); if (!e) return '';
@@ -623,7 +648,7 @@ document.addEventListener('click', ev => {
     case 'precon-open': openPrecons(); return;
     case 'gen-open': openGenerate(); return;
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
-    case 'gen-pick': S.gen.cmd = n; openGenerate(); return;
+    case 'gen-pick': S.gen.cmd = n; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
     case 'gen-tier': S.gen.tier = v; openGenerate(); return;
     case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier, auto:'commander'}); setCommander(nd, c.n);
       if (nd.aims.length){ fillDeck(nd); toast('Generated a ' + TIERS[nd.tier].label + ' deck for ' + c.n + '.'); } else toast('Pick your mechanics in the Build panel, then press Fill.'); break; }
