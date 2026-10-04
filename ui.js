@@ -514,10 +514,44 @@ function loadPrecon(p){
   const cards = PRECON_LISTS[p.name].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x), n = m ? m[2] : x, c = find(n); return {n:c ? c.n : n, q:m ? +m[1] : 1, l:false}; });
   const d = newDeck({name:p.name, format:'commander', cards, aims:p.aims.slice(), tribe:p.tribe || '', auto:'precon'}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; return d;
 }
+// Precon picker: the 16 built-in decks are always there; the full catalogue and other decklists come live from EDHREC.
+let PRE = {state:'', list:[]};
+async function loadPreIndex(){
+  if (PRE.state) return; PRE.state = 'loading';
+  const c = lsGet('dc.preidx'); if (c && Date.now() - c.ts < 7 * 864e5 && c.list.length){ PRE = {state:'ok', list:c.list}; return; }
+  try {
+    const j = await (await fetch('https://json.edhrec.com/pages/precon.json')).json(), list = [], seen = new Set();
+    ((j.container && j.container.json_dict && j.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => { const slug = String(v.url || '').split('/').pop(); if (v.label && slug && !seen.has(slug)){ seen.add(slug); list.push([v.label, v.name || '', String(v.set || '').toUpperCase(), slug]); } }));
+    if (!list.length) throw new Error('empty'); PRE = {state:'ok', list}; lsSet('dc.preidx', {ts:Date.now(), list});
+  } catch (e) { PRE.state = 'fail'; }
+}
+function preRows(q){
+  const nq = norm(q || ''), have = new Set(PRECONS.map(p => norm(p.name)));
+  const all = PRECONS.map((p, i) => ({i, name:p.name, cmd:p.cmd, note:p.note, tag:p.level, set:p.set + ' · ' + p.year}))
+    .concat(PRE.list.filter(x => !have.has(norm(x[0]))).map(x => ({slug:x[3], name:x[0], cmd:x[1], set:x[2]})))
+    .filter(x => !nq || norm(x.name + ' ' + x.cmd + ' ' + x.set).includes(nq));
+  const rows = all.slice(0, 50).map(x => { const c = find(x.cmd); return '<div class="pre"><img alt="" src="' + artFor(c || {n:x.name, t:'Creature', o:'', ci:[]}) + '"><div style="min-width:0"><b>' + esc(x.name) + '</b> ' + (c ? c.ci.map(k => '<i class="pip p' + k + '">' + k + '</i>').join('') : '') + '<div class="note">' + esc(x.cmd) + (x.note ? ' · ' + esc(x.note) : '') + '</div><div class="why">' + (x.tag ? '<span class="chip gold">' + esc(x.tag) + '</span>' : '') + '<span class="chip">' + esc(x.set) + '</span></div></div><div class="acts"><button class="btn pri sm" ' + (x.slug ? 'data-act="precon-live" data-v="' + esc(x.slug) + '" data-n="' + esc(x.name) + '"' : 'data-act="precon" data-v="' + x.i + '"') + '>Load</button></div></div>'; }).join('');
+  const status = PRE.state === 'ok' ? all.length + ' of ' + (PRECONS.length + PRE.list.filter(x => !have.has(norm(x[0]))).length) + ' precons' + (all.length > 50 ? ' · showing 50, type to narrow down' : '') : PRE.state === 'loading' ? 'Loading the full precon catalogue…' : 'Showing the ' + PRECONS.length + ' built-in precons. The full catalogue could not be loaded.';
+  return '<p class="note" style="margin:0">' + status + '</p>' + (rows || '<p class="note">No precon matches that search.</p>');
+}
 function openPrecons(){
-  const rows = PRECONS.map((p, i) => { const c = find(p.cmd); return '<div class="pre"><img alt="" src="' + artFor(c) + '"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + (c ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : '') + '<div class="note">' + esc(p.cmd) + ' · ' + esc(p.note) + '</div><div class="why"><span class="chip gold">' + esc(p.level) + '</span><span class="chip">' + esc(p.set) + ' · ' + p.year + '</span></div></div><div class="acts"><button class="btn pri sm" data-act="precon" data-v="' + i + '">Load</button></div></div>'; }).join('');
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Load a precon"><div class="ph"><h2>Load a precon</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Real preconstructed Commander decks with their official 100-card lists, picked because they are easy to learn. Loading one adds it as a new deck; your other decks are untouched.' + (DBINFO.source === 'starter' ? ' Card details for most of these appear once the full card data has finished downloading.' : '') + '</p><div class="grp">' + rows + '</div><p class="note" style="margin:0">Decklists from EDHREC’s precon pages.</p></div>';
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Load a precon"><div class="ph"><h2>Load a precon</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><input type="search" id="pre-q" placeholder="Search by deck name, commander or set code" autocomplete="off"><div class="grp" id="pre-list">' + preRows('') + '</div><p class="note" style="margin:0">Official decklists from EDHREC’s precon pages. Loading one adds it as a new deck.</p></div>';
   $('#modal').hidden = false;
+  loadPreIndex().then(() => { const el = $('#pre-list'), q = $('#pre-q'); if (el && q) el.innerHTML = preRows(q.value); });
+}
+async function loadPreconLive(slug, label){
+  toast('Loading ' + label + '…');
+  try {
+    const j = await (await fetch('https://json.edhrec.com/pages/precon/' + slug + '.json')).json(), dk = j.deck || {}, cmds = dk.commander || [], map = new Map();
+    const put = (n, q) => { const c = find(n), name = c ? c.n : n, k = norm(name); if (map.has(k)) map.get(k).q += q; else map.set(k, {n:name, q, l:false}); };
+    Object.values(dk.cards || {}).forEach(arr => (arr || []).forEach(t => { if (t && t[0]) put(t[0], +t[1] || 1); })); cmds.slice(1).forEach(n => put(n, 1));
+    if (!map.size) throw new Error('empty');
+    const d = newDeck({name:dk.name || label, format:'commander', cards:[...map.values()]});
+    if (cmds[0]){ setCommander(d, cmds[0]); const v2 = (dk.commander_v2 || [])[0]; if (v2 && v2[2] && find(cmds[0])) d.cmdSet = v2[2]; }
+    if (d.aims.length) d.auto = 'precon';
+    touch(); render(); const unk = d.cards.filter(e => !find(e.n)).length;
+    toast('Loaded ' + d.name + ' (' + analyze(d).size + ' cards).' + (unk ? ' ' + unk + ' need the full card data to show details.' : ''));
+  } catch (e) { toast('That decklist could not be loaded from EDHREC.'); }
 }
 function openGenerate(){
   const g = S.gen, c = find(g.cmd), st = detectStrategy(c);
@@ -646,6 +680,7 @@ document.addEventListener('click', ev => {
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
     case 'precon-open': openPrecons(); return;
+    case 'precon-live': $('#modal').hidden = true; loadPreconLive(v, n); return;
     case 'gen-open': openGenerate(); return;
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
     case 'gen-pick': S.gen.cmd = n; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
@@ -673,6 +708,7 @@ document.addEventListener('input', ev => {
   const t = ev.target, d = cur();
   if (t.id === 's-q'){ S.search.q = t.value; clearTimeout(st); st = setTimeout(() => { const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }, 160); }
   else if (t.id === 'add-q' && d){ const A = ctxOf(d); dropdown(t, $('#add-res'), {fmt:d.format, within:A.ident.length || A.cmd ? A.ident : null}, 'pick-add'); }
+  else if (t.id === 'pre-q'){ const el = $('#pre-list'); if (el) el.innerHTML = preRows(t.value); }
   else if (t.id === 'gen-q') dropdown(t, $('#gen-res'), {fmt:'commander', legend:true}, 'gen-pick');
   else if (t.id === 'cmd-q') dropdown(t, $('#cmd-res'), {fmt:'commander', legend:true}, 'set-cmd');
 });
