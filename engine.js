@@ -250,7 +250,7 @@ function baseScore(c, d, ctx){
   if (ctx.edh){ const x = ctx.edh.map.get(c._n); if (x){ s += 4 * x.inc + 4 * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); } }
   if (d.prevCmd && d.prevCmd === c.n){ s += 3; hit = true; why.unshift('Your previous commander'); }
   a0 = s;
-  s += c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.2);
+  s += c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.8);   // no rank usually means a new card, not a bad one
   if (ctx.cap === Infinity) s += Math.min(2.5, Math.log10((c.p || 0) + 1) * 1.5);
   else if (ctx.cap > 3) s += Math.min(1, Math.log10((c.p || 0) + 1));
   c.ci.forEach(x => { if (!ctx.focus.includes(x)) s -= 1.5; });
@@ -279,7 +279,7 @@ function recommend(d, swaps, fillOnly){
   // only while the bracket has room (autoSwaps also lets one Game Changer replace another).
   const BR = null, gcGate = false; let gcLeft = Infinity;   // brackets are a label, not a limit
   const brOk = c => !BR || ((BR.mld || !BTAGS.mld.has(c._n)) && (BR.turns > 0 || !BTAGS.turns.has(c._n)));
-  const okCard = c => brOk(c) && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
+  const okCard = c => brOk(c) && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && !(recommend.usedN && recommend.usedN.has(c._n)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
 
   // lands first
   let landNeed = Math.min(nAdd, Math.max(0, T.lands - A.lands));
@@ -393,7 +393,7 @@ function autoSwaps(d){
         // Being on-theme never excuses a weaker card: the add must hold up on its own merits too, and a widely played
         // card is not traded for one that hardly anyone runs.
         if (c.s > -40 && a.kind !== 'land' && (a.s - (a.a || 0)) < (c.s - (c.a || 0)) - 1) return false;
-        if (c.s > -40 && c.r && c.r < 2500 && (!aR || aR > c.r * 8)) return false;
+        if (c.s > -40 && c.r && c.r < 2500 && aR && aR > c.r * 8) return false;   // an unranked add is usually just new, so it isn't blocked
         if (!(a.s > c.s + (cross ? 2.5 : 1) + (lost ? 4 : 0))) return false; if (cross && !(lossRoom[c.ty] > 0)) return false;
         if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3); };
       const c = pool.find(c => ok(c, false)) || pool.find(c => ok(c, true));
@@ -414,21 +414,24 @@ function autoSwaps(d){
 }
 // "Here is my deck" -> every card's upgrade options at once, one per tier. Budget looks at cards up to $3, Mid at
 // cards over $3 up to $12, Apex at cards over $12, so the three options for a card are genuinely different steps.
-const TIER_STEPS = [['budget', 0], ['mid', 3], ['apex', 12]];
+// Tiers are steps up in strength under a price ceiling (Budget $3, Mid $12, Apex none), not price bands: a $1 card can be
+// the Mid pick if it clearly beats the Budget pick. A card already suggested at a cheaper tier is left out of the next.
+const TIER_STEPS = [['budget', 0], ['mid', 0], ['apex', 0]];
 function upgradePaths(d){
   const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{free:0, budget:0, mid:0, apex:0}, cost:{free:0, budget:0, mid:0, apex:0}, shift:{free:{}, budget:{}, mid:{}, apex:{}}};
   // Free swaps come first: cards the player already owns (their library). Paid tiers never suggest an owned card,
   // and must beat the free swap for the same slot to be shown at all.
+  const usedN = new Set();
   const own = upgradePaths.own && upgradePaths.own.size ? upgradePaths.own : null, steps = (own ? [['free', 0]] : []).concat(TIER_STEPS);
   recommend.paths = true;
   try {
     steps.forEach(([t, minP]) => {
-      recommend.minP = minP; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
+      recommend.minP = minP; recommend.usedN = usedN; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
       const R = autoSwaps(Object.assign({}, d, {tier:t === 'free' ? 'apex' : t}));
       if (t === 'budget'){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
       R.pairs.forEach(p => {
         if (used.has(p.add) && !isBasic(p.add)) return;   // a card is only ever suggested once
-        if (p.land || p.fix){ if (t === 'budget'){ out.fixes.push(p); used.add(p.add); } return; }
+        if (p.land || p.fix){ if (t === 'budget'){ out.fixes.push(p); used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add)); } return; }
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
         if (L.opts[t]) return;
         // Don't force an upgrade: it must clearly beat the card it replaces, and beat the cheaper tier's pick for the same card,
@@ -439,13 +442,13 @@ function upgradePaths(d){
         const lower = Object.keys(L.opts).filter(k => k !== 'free' && !L.opts[k].beaten).map(k => L.opts[k]);
         const prev = Math.max(0, ...lower.map(o => o.gain)), prevQ = Math.max(-1e9, ...lower.map(o => o.aq));
         if (p.gain < (p.cross ? 4 : 2.5) || (p.gain < prev + 1 && !(p.gain >= prev - 1.5 && p.aq >= prevQ + 2))) return;
-        if (t !== 'free' && L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); used.add(p.add); return; }
-        L.opts[t] = p; used.add(p.add);
+        if (t !== 'free' && L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add)); return; }
+        L.opts[t] = p; used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add));
         if (p.cross){ out.shift[t][p.from] = (out.shift[t][p.from] || 0) - p.q; out.shift[t][p.to] = (out.shift[t][p.to] || 0) + p.q; } L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
       });
     });
-  } finally { recommend.paths = false; recommend.minP = 0; recommend.own = null; recommend.skip = null; }
+  } finally { recommend.paths = false; recommend.minP = 0; recommend.usedN = null; recommend.own = null; recommend.skip = null; }
   for (const [k, L] of by) if (!Object.keys(L.opts).length) by.delete(k);
   // singleton / copy-limit breaches are fixes too
   const dupDrops = []; d.cards.forEach(en => { const c = find(en.n), lim = copyLimit(d, c); if (c && en.q > lim) dupDrops.push({n:en.n, q:en.q - lim, s:-95, why:[d.format === 'commander' ? 'Commander allows one copy' : 'More than four copies']}); });
