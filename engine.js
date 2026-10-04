@@ -167,15 +167,18 @@ function targetsOf(d, ctx){
 }
 // Copies allowed: one in Commander (singleton), four in Standard; basics and "any number of cards named" cards are unlimited.
 function copyLimit(d, c){ if (c && (isBasic(c.n) || /a deck can have any number of cards named/i.test(c.o || ''))) return Infinity; return d.format === 'commander' ? 1 : 4; }
+const TYPE_ORDER = ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land'];
+function mainType(c){ const t = c ? frontType(c) : ''; if (/\bLand\b/.test(t) && !/Creature/.test(t)) return 'Land'; return TYPE_ORDER.find(k => new RegExp('\\b' + k + '\\b').test(t)) || 'Artifact'; }
 function legalIn(c, fmt){ return fmt === 'commander' ? c.cmd : c.std; }
 function analyze(d){
   const ctx = ctxOf(d), T = targetsOf(d, ctx);
   const A = {ctx, T, size:ctx.cmd || (d.format === 'commander' && d.commander) ? 1 : 0, lands:0, nonland:0, cmcSum:0, curve:[0,0,0,0,0,0,0], roles:{ramp:0, draw:0, removal:0, wipe:0},
-    unknown:[], over:[], offColor:[], illegal:[], dupes:[], aim:(d.aims || []).map(() => 0), price:0, priced:true};
+    unknown:[], over:[], offColor:[], illegal:[], dupes:[], types:{}, aim:(d.aims || []).map(() => 0), price:0, priced:true};
   if (ctx.cmd && ctx.cmd.p != null) A.price += ctx.cmd.p;
   for (const e of d.cards){
     A.size += e.q; const c = find(e.n); if (!c){ A.unknown.push(e.n); continue; }
     const tg = tags(c); if (c.p != null) A.price += c.p * e.q; else A.priced = false;
+    const mt = mainType(c); A.types[mt] = (A.types[mt] || 0) + e.q;
     if (tg.land) A.lands += e.q;
     else { A.nonland += e.q; A.cmcSum += c.cmc * e.q; A.curve[Math.min(6, Math.floor(c.cmc))] += e.q;
       for (const r in A.roles) if (tg.roles.has(r)) A.roles[r] += e.q;
@@ -310,24 +313,30 @@ function autoSwaps(d){
   const A0 = analyze(d), ctx = A0.ctx, open = A0.T.size - A0.size, landGap = Math.max(0, A0.T.lands - A0.lands), top = (d.aims || [])[0];
   const isId = n => { const c = find(n); return !!(top && c && matchAim(c, top, ctx.tribe) >= 0.7); };
   let outside = Math.max(2, Math.round((A0.aim[0] || 0) * 0.1));
+  // Card-type balance: like-for-like swaps are preferred. A swap that changes type (a creature for an artifact, say)
+  // needs a bigger improvement, and each type can lose only about a tenth of its cards that way (at least two).
+  const typeOf = n => mainType(find(n)), lossRoom = {}; TYPE_ORDER.forEach(k => lossRoom[k] = Math.max(2, Math.round((A0.types[k] || 0) * 0.1)));
   recommend.raw = true; let R; try { R = recommend(d, 45, false); } finally { recommend.raw = false; }
   const pairs = [], fills = [], drops = [];
   const adds = [], cuts = [], put = (list, x, q) => { const e = list.find(y => y.n === x.n); if (e) e.q += q; else list.push(Object.assign({}, x, {q})); };
   let fill = Math.max(0, open), trim = Math.max(0, -open), swaps = 0;
-  const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n)}));
+  const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n), ty:typeOf(c.n)}));
   for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); put(drops, c, q); c.q -= q; trim -= q; }
   let landSwaps = open > 0 ? 0 : landGap;
   for (const a of R.adds){
-    let need = a.q; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w));
+    let need = a.q; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w)), aTy = typeOf(a.n);
     if (fill > 0){ const q = Math.min(fill, need); put(adds, a, q); put(fills, a, q); fill -= q; need -= q; }
     if (a.kind === 'land'){ if (landSwaps <= 0) continue; need = Math.min(need, landSwaps); }
     while (need > 0 && swaps < 40){
       let star = false;
-      const c = pool.find(c => { if (c.q <= 0) return false; if (c.s <= -40 || a.kind === 'land') return true; if (!(a.s > c.s + 1)) return false;
-        if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3); });
+      const ok = (c, cross) => { if (c.q <= 0) return false; if (c.s <= -40 || a.kind === 'land') return !cross; if ((c.ty === aTy) === cross) return false;
+        if (!(a.s > c.s + (cross ? 2.5 : 1))) return false; if (cross && !(lossRoom[c.ty] > 0)) return false;
+        if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3); };
+      const c = pool.find(c => ok(c, false)) || pool.find(c => ok(c, true));
       if (!c) break; const q = Math.min(need, c.q);
       if (c.id && !aId && c.s > -40 && a.kind !== 'land'){ outside -= q; star = true; }
-      pairs.push({cut:c.n, add:a.n, q, why:star ? a.why.concat('Standout pick') : a.why, gain:a.s - c.s, land:a.kind === 'land', fix:c.s <= -40, cutWhy:c.why});
+      const cross = c.ty !== aTy && a.kind !== 'land' && c.s > -40; if (cross) lossRoom[c.ty] -= q;
+      pairs.push({cut:c.n, add:a.n, q, from:c.ty, to:aTy, cross, why:star ? a.why.concat('Standout pick') : a.why, gain:a.s - c.s, land:a.kind === 'land', fix:c.s <= -40, cutWhy:c.why});
       put(adds, star ? Object.assign({}, a, {why:a.why.concat('Standout pick')}) : a, q); put(cuts, c, q); c.q -= q; need -= q; swaps += q; if (a.kind === 'land') landSwaps -= q;
     }
   }
@@ -338,7 +347,7 @@ function autoSwaps(d){
 // cards over $3 up to $12, Apex at cards over $12, so the three options for a card are genuinely different steps.
 const TIER_STEPS = [['budget', 0], ['mid', 3], ['apex', 12]];
 function upgradePaths(d){
-  const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{budget:0, mid:0, apex:0}, cost:{budget:0, mid:0, apex:0}};
+  const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{budget:0, mid:0, apex:0}, cost:{budget:0, mid:0, apex:0}, shift:{budget:{}, mid:{}, apex:{}}};
   recommend.paths = true;
   try {
     TIER_STEPS.forEach(([t, minP], i) => {
@@ -348,7 +357,8 @@ function upgradePaths(d){
         if (used.has(p.add) && !isBasic(p.add)) return;   // a card is only ever suggested once
         if (p.land || p.fix){ if (i === 0){ out.fixes.push(p); used.add(p.add); } return; }
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
-        if (L.opts[t]) return; L.opts[t] = p; used.add(p.add); L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
+        if (L.opts[t]) return; L.opts[t] = p; used.add(p.add);
+        if (p.cross){ out.shift[t][p.from] = (out.shift[t][p.from] || 0) - p.q; out.shift[t][p.to] = (out.shift[t][p.to] || 0) + p.q; } L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
       });
     });
@@ -377,7 +387,7 @@ function bestCuts(d, addName, k){
     if (land){ out.push(isBasic(c.n) ? {n:e.n, s:-e.q, why:['You run ' + e.q + ' of these']} : {n:e.n, s:baseScore(c, d, ctx).s + 3, why:['Least useful land']}); continue; }
     const b = baseScore(c, d, ctx); let s = b.s, why = b.hit ? 'Weakest fit for the build' : "Doesn't serve the build";
     tags(c).roles.forEach(r => { if (r in roles) s += roles[r] - 1 < T[r] ? 2.5 : 0.6; });
-    s += 0.2 * Math.abs(c.cmc - add.cmc); if (isId(c) && !addId) s += 2;
+    s += 0.2 * Math.abs(c.cmc - add.cmc); if (isId(c) && !addId) s += 2; if (mainType(c) !== mainType(add)) s += 1.5;
     if (!legalIn(c, d.format)){ s = -90; why = 'Not legal in ' + d.format; } else if (!c.ci.every(x => ctx.ident.includes(x))){ s = -80; why = 'Outside your colors'; }
     out.push({n:e.n, s, why:[why]});
   }
