@@ -203,7 +203,8 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .tile{position:relative;text-align:left;border:1px solid var(--line);border-radius:9px;background:var(--well);padding:0;overflow:hidden;display:flex;flex-direction:column;color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.5)}
 .tile:hover{border-color:var(--glow);box-shadow:0 0 22px rgba(141,92,255,.55)}
 .tile h3{font-size:17px}
-.tile img{width:100%;height:120px;object-fit:cover;display:block;border-bottom:1px solid var(--line)}
+.tile img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;object-position:50% 16%;display:block;border-bottom:1px solid var(--line)}
+.dl img,.sw img,.cmdbox img,.ddl img,.pre>img{object-position:50% 20%}
 .tile .tb{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
 .tile h3{font-size:17px}
 .tile p{margin:0;color:var(--mute);font-size:13.5px}
@@ -263,14 +264,14 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists from EDHREC. Build 19.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists from EDHREC. Build 20.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
 
-<script src="data.js?v=19"></script>
-<script src="lists.js?v=19"></script>
-<script src="engine.js?v=19"></script>
-<script src="ui.js?v=19"></script>
+<script src="data.js?v=20"></script>
+<script src="lists.js?v=20"></script>
+<script src="engine.js?v=20"></script>
+<script src="ui.js?v=20"></script>
 </body>
 </html>
