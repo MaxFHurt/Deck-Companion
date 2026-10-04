@@ -220,6 +220,8 @@ function idb(mode, fn){ return new Promise((res, rej) => { let rq; try { rq = in
 async function loadSavedLibrary(){
   let complete = false;
   try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ complete = !!v.ts && v.rows.some(r => r.sc) && v.rows.some(r => r.rar) && v.rows.some(r => 'gc' in r); useFull(v.rows, v.when, complete); render(); } } catch (e) {}
+  // Ask the browser to keep the saved card data, so it is not cleared (and downloaded again) when storage runs low.
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
   if (!complete) autoUpdate(); else checkReleases();
   bracketTags();
 }
@@ -308,15 +310,23 @@ function lsGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 async function releaseSignature(){
   const j = await (await sfetch('https://api.scryfall.com/sets')).json(), today = new Date().toISOString().slice(0, 10);
+  // Only real releases count: a new set people play with, or new Secret Lair cards. Scryfall adds promos, tokens and
+  // other odds and ends to old sets almost daily, and those must not set off a full download.
+  const REL = /^(core|expansion|masters|commander|draft_innovation|eternal|funny|starter|duel_deck|planechase|archenemy|premium_deck|from_the_vault|spellbook|arsenal|box)$/;
   let latest = '', name = '', count = 0; const fam = {}; (j.data || []).forEach(s => { if (s.parent_set_code) fam[s.code] = s.parent_set_code; }); lsSet('dc.sets', fam);
-  for (const s of j.data || []){ if (s.digital || !s.released_at || s.released_at > today) continue; count += s.card_count || 0; if (s.released_at > latest){ latest = s.released_at; name = s.name; } }
-  if (!latest) throw new Error('no sets'); return {latest, name, count};
+  for (const s of j.data || []){ if (s.digital || !s.released_at || s.released_at > today) continue; if (s.code === 'sld') count = s.card_count || 0; if (!REL.test(s.set_type || '') || s.code === 'sld') continue; if (s.released_at > latest){ latest = s.released_at; name = s.name; } }
+  if (!latest) throw new Error('no sets'); return {latest, name, sld:count, v:2};
 }
 async function checkReleases(){
   try {
     if (Date.now() - (lsGet('dc.relCheck') || 0) < 20 * 3600e3) return;
     const sig = await releaseSignature(), saved = lsGet('dc.relSig'); lsSet('dc.relCheck', Date.now());
-    if (!saved || saved.latest !== sig.latest || saved.count !== sig.count) autoUpdate(sig);
+    // Download again only for a newly released set, for new Secret Lair cards (at most once a week), or when the saved
+    // data is over a month old. A signature saved by an older build is replaced without downloading anything.
+    const age = Date.now() - (lsGet('dc.dlAt') || 0), week = 7 * 864e5;
+    if (!saved || saved.v !== 2){ lsSet('dc.relSig', sig); if (!lsGet('dc.dlAt')) lsSet('dc.dlAt', Date.now()); return; }
+    const newSet = sig.latest > saved.latest, newLair = sig.sld > saved.sld + 3 && age > week, stale = age > 30 * 864e5;
+    if (newSet || newLair || stale) autoUpdate(sig);
   } catch (e) {}
 }
 async function autoUpdate(sig){
@@ -328,7 +338,7 @@ async function autoUpdate(sig){
     n = await ingest(resp.body, meta.size || 1.7e8, String(meta.updated_at || '').slice(0, 10));
   } catch (e) { why.push('daily file: ' + (e && e.message || e)); lsSet('dc.noBulk', Date.now()); }
   if (!n) try { n = await pagedUpdate(); } catch (e) { why.push('card search: ' + (e && e.message || e)); }
-  if (n){ toast(n.toLocaleString() + ' cards updated from Scryfall.'); try { lsSet('dc.relSig', sig && sig.latest ? sig : await releaseSignature()); lsSet('dc.relCheck', Date.now()); } catch (e) {} }
+  if (n){ toast(n.toLocaleString() + ' cards updated from Scryfall.'); lsSet('dc.dlAt', Date.now()); try { lsSet('dc.relSig', sig && sig.latest ? sig : await releaseSignature()); lsSet('dc.relCheck', Date.now()); } catch (e) {} }
   else toast('Scryfall refused the card download. Open Profile for details.');
   DBINFO.err = n ? '' : why.join(' · ');
   autoUpdate.busy = false; setStatus(''); render(); if (!$('#modal').hidden && $('#gen-q')) openGenerate();
