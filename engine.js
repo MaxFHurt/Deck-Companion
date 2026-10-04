@@ -198,16 +198,17 @@ function foreignTribe(c){
   return c._ft = r;
 }
 function baseScore(c, d, ctx){
-  let s = 0, hit = false; const why = [];
+  let s = 0, hit = false, a0 = 0; const why = [];
   (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : THEMES[a].label); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
+  a0 = s;
   s += c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.2);
   if (ctx.cap === Infinity) s += Math.min(2.5, Math.log10((c.p || 0) + 1) * 1.5);
   else if (ctx.cap > 3) s += Math.min(1, Math.log10((c.p || 0) + 1));
   c.ci.forEach(x => { if (!ctx.focus.includes(x)) s -= 1.5; });
-  const ft = foreignTribe(c); if (ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t))){ s -= 5; hit = false; }
+  const ft = foreignTribe(c); if (ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t))){ s -= 5; hit = false; a0 = 0; }
   if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6;
-  return {s, hit, why};
+  return {s, hit, why, a:a0};
 }
 function splitBasics(k, ctx){
   const cols = ctx.ident.length ? ctx.ident : []; if (!cols.length) return k > 0 ? [{n:'Wastes', q:k}] : [];
@@ -253,7 +254,7 @@ function recommend(d, swaps, fillOnly){
       if (!best) break; best.used = true;
       const q = std ? Math.min(nAdd, /Legendary/.test(best.c.t) ? 2 : 4) : 1;
       const why = best.b.why.slice(0, 2); if (bw) why.push('Fills ' + ROLE_LABEL[bw].toLowerCase() + ' gap'); if (!why.length) why.push('Solid staple');
-      adds.push({n:best.c.n, q, kind:'spell', why, s:bs}); nAdd -= q; tags(best.c).roles.forEach(r => { if (r in def) def[r] -= q; });
+      adds.push({n:best.c.n, q, kind:'spell', why, s:bs, a:best.b.a}); nAdd -= q; tags(best.c).roles.forEach(r => { if (r in def) def[r] -= q; });
     }
   }
   // cuts
@@ -270,17 +271,17 @@ function recommend(d, swaps, fillOnly){
       else if (!legalIn(c, d.format)){ s = -90; why = ['Not legal in ' + d.format]; }
       else if (c.p != null && c.p > ctx.cap){ s = -50; why = ['Over the $' + ctx.cap + ' cap']; }
       else if (!b.hit) why = ["Doesn't serve your aims"]; else why = ['Weakest fit for your aims'];
-      cand.push({n:e.n, q:e.q, why, s});
+      cand.push({n:e.n, q:e.q, why, s, a:b.a});
     }
     cand.sort((a, b) => a.s - b.s);
     const cur = Object.assign({}, A.roles);
     for (const x of cand){ if (nCut <= 0) break; const q = Math.min(x.q, nCut), rs = [...tags(find(x.n)).roles].filter(r => r in cur);
       if (x.s > -40 && rs.some(r => cur[r] - q < T[r])) continue;
-      rs.forEach(r => cur[r] -= q); cuts.push({n:x.n, q, why:x.why, s:x.s}); nCut -= q; }
+      rs.forEach(r => cur[r] -= q); cuts.push({n:x.n, q, why:x.why, s:x.s, a:x.a}); nCut -= q; }
   }
   // stop swapping when the deck's worst card already beats the best addition
   let tuned = false;
-  if (!fillOnly && open === 0){
+  if (!fillOnly && open === 0 && !recommend.raw){
     const sp = adds.filter(a => a.kind === 'spell'), opt = cuts.filter(c => c.s > -40);
     if (sp.length && opt.length){
       let keep = 0, ci = 0, ai = 0, cq = 0;
@@ -293,6 +294,31 @@ function recommend(d, swaps, fillOnly){
     }
   }
   return {adds, cuts, A, tuned};
+}
+// The app decides how many swaps to suggest. A swap is offered only when the new card scores clearly higher than the
+// card it replaces AND is at least as on-theme, so the deck's theme never gets diluted. Fixes the deck needs anyway
+// (open slots, too many cards, missing lands, cards over the price cap / off-color / not legal) are always included.
+function autoSwaps(d){
+  const A0 = analyze(d), open = A0.T.size - A0.size, landGap = Math.max(0, A0.T.lands - A0.lands);
+  recommend.raw = true; let R; try { R = recommend(d, 45, false); } finally { recommend.raw = false; }
+  const adds = [], cuts = [], put = (list, x, q) => { const e = list.find(y => y.n === x.n); if (e) e.q += q; else list.push(Object.assign({}, x, {q})); };
+  let fill = Math.max(0, open), trim = Math.max(0, -open), swaps = 0;
+  const pool = R.cuts.map(c => Object.assign({}, c));
+  for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); c.q -= q; trim -= q; }
+  let landSwaps = open > 0 ? 0 : landGap;
+  for (const a of R.adds){
+    let need = a.q;
+    if (fill > 0){ const q = Math.min(fill, need); put(adds, a, q); fill -= q; need -= q; }
+    if (a.kind === 'land'){ if (landSwaps <= 0) continue; need = Math.min(need, landSwaps); }
+    while (need > 0 && swaps < 40){
+      const c = pool.find(c => c.q > 0 && (c.s <= -40 || a.kind === 'land' || (a.s > c.s + 1 && (a.a || 0) >= (c.a || 0))));
+      if (!c) break; const q = Math.min(need, c.q);
+      put(adds, a, q); put(cuts, c, q); c.q -= q; need -= q; swaps += q; if (a.kind === 'land') landSwaps -= q;
+    }
+  }
+  // anything the deck must lose regardless of whether a replacement was found
+  pool.forEach(c => { if (c.q > 0 && c.s <= -40) put(cuts, c, c.q); });
+  return {adds, cuts, A:R.A, swaps};
 }
 function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
 function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.n) === k); if (i < 0) return; d.cards[i].q -= q; if (d.cards[i].q <= 0) d.cards.splice(i, 1); }

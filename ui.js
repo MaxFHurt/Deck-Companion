@@ -270,7 +270,7 @@ function backupPanel(){
 function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.profile.decks.unshift(d); S.deckId = d.id; S.view = 'deck'; return d; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; return d; }
-function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = recommend(d, S.swaps, false); } return recsFor.v; }
+function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = autoSwaps(d); } return recsFor.v; }
 
 // ---------- views ----------
 function navHtml(){
@@ -353,9 +353,10 @@ function upPanel(d, A){
   }
   const R = recsFor(d), rec = (x, i, kind) => { const c = find(x.n); return '<div class="rec ' + kind + '"><img alt="" src="' + artFor(c) + '" style="width:44px;height:31px;object-fit:cover;border-radius:3px"><div style="min-width:0"><button class="nm" data-act="card" data-n="' + esc(x.n) + '">' + (x.q > 1 ? x.q + '× ' : '') + esc(x.n) + '</button> <span class="note">' + money(c) + '</span><div class="why">' + x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div></div><div class="acts">' +
     (kind === 'add' ? '<button class="btn sm pri" data-act="add-rec" data-v="' + i + '">Add</button><button class="ico" data-act="dismiss" data-v="' + i + '" title="Don’t suggest this again">×</button>' : '<button class="btn sm danger" data-act="cut-rec" data-v="' + i + '">Cut</button><button class="ico" data-act="lock" data-n="' + esc(x.n) + '" title="Keep and lock this card">' + SVG.lock + '</button>') + '</div></div>'; };
-  h += '<div class="row"><label class="lab" for="swaps">Swaps to suggest</label><select id="swaps" style="width:auto">' + [5, 10, 15, 20].map(n => '<option' + (n === S.swaps ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button class="btn pri" data-act="apply-all"' + (R.adds.length || R.cuts.length ? '' : ' disabled') + '>Apply all</button></div>';
-  if (R.tuned && R.adds.length) h += '<p class="note" style="margin:0">Fewer swaps shown: the rest of your list already beats what this tier can offer for these aims.</p>';
-  if (!R.adds.length && !R.cuts.length) h += '<p class="note">Nothing to change at this tier for these aims. Try another tier, reorder your mechanics, or load the full card database for a wider pool.</p>';
+  const nA = R.adds.reduce((s, a) => s + a.q, 0), nC = R.cuts.reduce((s, a) => s + a.q, 0);
+  h += '<div class="row"><span class="lab" style="flex:1">' + (nA || nC ? (R.swaps ? R.swaps + ' swap' + (R.swaps === 1 ? '' : 's') + ' that improve this deck' : 'Fixes this deck needs') : 'No changes to suggest') + '</span><button class="btn pri" data-act="apply-all"' + (nA || nC ? '' : ' disabled') + '>Apply all</button></div>';
+  if (nA || nC) h += '<p class="note" style="margin:0">Every swap brings in a card that does more for your aims than the one it replaces, and never trades a theme card for an off-theme one.</p>';
+  else h += '<p class="note" style="margin:0">Nothing at this tier would improve the deck without weakening its theme. Try a higher tier or change your aims' + (DBINFO.source === 'starter' ? ', or wait for the full card data to finish loading' : '') + '.</p>';
   if (R.adds.length) h += '<div class="grp"><span class="lab">Add · ' + R.adds.reduce((s, a) => s + a.q, 0) + '</span>' + R.adds.map((x, i) => rec(x, i, 'add')).join('') + '</div>';
   if (R.cuts.length) h += '<div class="grp"><span class="lab">Cut · ' + R.cuts.reduce((s, a) => s + a.q, 0) + '</span>' + R.cuts.map((x, i) => rec(x, i, 'cut')).join('') + '</div>';
   if (DBINFO.source === 'starter') h += '<p class="note" style="margin:0">Suggestions come from the ' + DBINFO.count + '-card starter library with estimated prices. Load the full card database in Profile for every legal card and current prices.</p>';
