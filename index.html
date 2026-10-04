@@ -112,14 +112,16 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .ddl img,.dl img{width:44px;height:31px;object-fit:cover;border-radius:3px;border:1px solid var(--chrome2)}
 .ddl small{color:var(--mute);display:block;font-size:12px}
 .gh{display:flex;justify-content:space-between;font:600 13px var(--label);letter-spacing:.14em;text-transform:uppercase;color:var(--glow);padding:8px 2px 3px;border-bottom:1px solid var(--line)}
-.dl{display:grid;grid-template-columns:44px auto minmax(0,1fr) auto auto auto;gap:8px;align-items:center;padding:4px 2px;border-bottom:1px solid #1d1340}
-.dl:hover{background:rgba(141,92,255,.08)}
-.dl .nm{background:none;border:0;padding:0;text-align:left;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.dl .nm:hover{color:var(--glow);text-decoration:underline}
+.dl{display:grid;grid-template-columns:44px 30px minmax(0,1fr) auto 16px auto;gap:8px;align-items:center;width:100%;padding:5px 2px;border:0;border-bottom:1px solid #1d1340;background:none;color:inherit;text-align:left;font:inherit}
+.dl:hover{background:rgba(141,92,255,.12)}
+.dl .q{font:700 14px var(--label);color:var(--mute);font-variant-numeric:tabular-nums;text-align:right}
+.dl .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.dl .lk{color:var(--gold);display:grid;place-items:center} .dl .lk svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .dl .pr{font:600 13px var(--label);color:var(--mute);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
 .dl .pr.over{color:var(--bad)}
-.qty{display:flex;align-items:center;gap:3px;font:700 15px var(--label);font-variant-numeric:tabular-nums}
-.qty button{width:20px;height:22px;border:1px solid var(--line);border-radius:4px;background:#150c2e;color:var(--mute);padding:0;line-height:1}
+.btn.gold{border-color:#ffe6a6;color:#1a1205;background:linear-gradient(180deg,#f3d27e,#b98a2c)}
+.qty{display:flex;align-items:center;gap:6px;font:700 18px var(--label);font-variant-numeric:tabular-nums}
+.qty button{width:34px;height:34px;font-size:20px;border:1px solid var(--line);border-radius:4px;background:#150c2e;color:var(--mute);padding:0;line-height:1}
 .qty span{min-width:16px;text-align:center}
 .unk{color:var(--warn)}
 .meter{display:grid;grid-template-columns:92px 1fr 56px;gap:8px;align-items:center;font:600 13px var(--label);letter-spacing:.06em;text-transform:uppercase}
@@ -195,7 +197,7 @@ a{color:var(--glow)}
   .work{grid-template-columns:minmax(0,1fr)}
   .filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .filters>:first-child{grid-column:1/-1}
   .detail{grid-template-columns:minmax(0,1fr)} .detail .card{max-width:290px;margin:0 auto;width:100%}
-  .dl{grid-template-columns:auto minmax(0,1fr) auto auto;gap:5px} .dl img,.dl .cost{display:none} .dl .pr{min-width:0}
+  .dl{grid-template-columns:40px 26px minmax(0,1fr) 14px auto;gap:6px} .dl .cost{display:none} .dl .pr{min-width:0} .dl img{width:40px;height:28px}
   .cards{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
   .tiles{grid-template-columns:minmax(0,1fr)}
   .rec{grid-template-columns:minmax(0,1fr) auto} .rec>img{display:none}
@@ -227,14 +229,14 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists from EDHREC. Build 14.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists from EDHREC. Build 15.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
 
-<script src="data.js?v=14"></script>
-<script src="lists.js?v=14"></script>
-<script src="engine.js?v=14"></script>
-<script src="ui.js?v=14"></script>
+<script src="data.js?v=15"></script>
+<script src="lists.js?v=15"></script>
+<script src="engine.js?v=15"></script>
+<script src="ui.js?v=15"></script>
 </body>
 </html>

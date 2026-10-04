@@ -377,10 +377,9 @@ const GROUPS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['
 function listPanel(d, A){
   const buckets = {}, unknown = [];
   for (const e of d.cards){ const c = find(e.n); if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
-  const rowH = (e, c) => '<div class="dl">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="qty"><button data-act="dec" data-n="' + esc(e.n) + '" aria-label="Remove one">−</button><span>' + e.q + '</span><button data-act="inc" data-n="' + esc(e.n) + '" aria-label="Add one">+</button></span>' +
-    (c ? '<button class="nm" data-act="card" data-n="' + esc(e.n) + '">' + esc(e.n) + '</button>' : '<span class="nm unk" title="Not in the card library">' + esc(e.n) + '</span>') +
-    '<span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="pr' + (c && c.p != null && c.p > A.ctx.cap && !isBasic(c.n) ? ' over' : '') + '">' + money(c) + '</span>' +
-    '<span class="row" style="gap:3px;flex-wrap:nowrap"><button class="ico' + (e.l ? ' on' : '') + '" data-act="lock" data-n="' + esc(e.n) + '" title="' + (e.l ? 'Unlock: allow this card to be cut' : 'Lock: never suggest cutting this card') + '" aria-pressed="' + !!e.l + '">' + SVG.lock + '</button><button class="ico" data-act="rm" data-n="' + esc(e.n) + '" title="Remove from deck">×</button></span></div>';
+  const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
+    '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
+    '<span class="pr' + (c && c.p != null && c.p > A.ctx.cap && !isBasic(c.n) ? ' over' : '') + '">' + money(c) + '</span></button>';
   let h = '<section class="panel list"><div class="ph"><h2>Decklist</h2><small>' + A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0') + '</small></div>';
   h += '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
     '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your aims and tier">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>';
@@ -486,18 +485,29 @@ function render(){
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = '16px';
   ensureTheme();
 }
+function ctlHtml(n){
+  const d = cur(), e = d && d.cards.find(x => x.n === n); if (!e) return '';
+  return '<span class="lab">In this deck</span><div class="row"><span class="qty"><button data-act="dec" data-n="' + esc(n) + '" aria-label="Remove one copy">−</button><span>' + e.q + '</span><button data-act="inc" data-n="' + esc(n) + '" aria-label="Add one copy">+</button></span>' +
+    '<button class="btn' + (e.l ? ' gold' : '') + '" data-act="lock" data-n="' + esc(n) + '" aria-pressed="' + !!e.l + '">' + (e.l ? 'Locked · tap to unlock' : 'Lock card') + '</button><button class="btn danger" data-act="rm" data-n="' + esc(n) + '">Remove from deck</button></div>' +
+    '<p class="note" style="margin:0">' + (e.l ? 'Locked cards are never suggested as cuts.' : 'Lock a card to keep it out of the suggested cuts.') + '</p>';
+}
+function openEntry(n){
+  S.modalCard = n; S.prints = null; S.pick = null;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(n) + '"><div class="ph"><h2>' + esc(n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">This card isn’t in the card data yet, so there are no details to show. It stays in your list.</p><div class="grp" id="ctl">' + ctlHtml(n) + '</div></div>';
+  $('#modal').hidden = false;
+}
 function openCard(name, pid){
-  const c = find(name); if (!c) return; const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
+  const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
   const legend = /Legendary/.test(c.t) && /Creature/.test(frontType(c)), isCmd = d && d.format === 'commander' && d.commander === c.n;
   S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set ? '<dt>Printing</dt><dd>' + esc(c.set) + '</dd>' : '') +
     '<dt>Does</dt><dd>' + ([...tg.roles].map(r => ROLE_LABEL[r] || ({counter:'Counterspell', tutor:'Tutor', protect:'Protection'})[r]).concat(tg.land ? ['Land'] : []).join(', ') || 'Threat / synergy piece') + '</dd>' +
     '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' +
-    '<div class="row">' + (d ? '<button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">' + (inDeck ? 'Add another copy' : 'Add to ' + esc(d.name)) + '</button>' : '') + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
+    '<div class="row">' + (d && !inDeck ? '<button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">' + (inDeck ? 'Add another copy' : 'Add to ' + esc(d.name)) + '</button>' : '') + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.n + '"') + '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';
   $('#modal').hidden = false;
   if (c.id){ const p = $('#modal .panel'); p.insertAdjacentHTML('beforeend', '<div class="grp"><span class="lab">Printings' + (inDeck || isCmd ? ' · tap one to use it in this deck' : ' · tap one, then add it') + '</span><div id="prints"><p class="note" style="margin:0">Loading printings…</p></div></div>'); loadPrints(c); }
@@ -588,6 +598,7 @@ document.addEventListener('click', ev => {
     default: return;
   }
   if (changed) touch(); render();
+  if (!$('#modal').hidden && S.modalCard && /^(inc|dec|lock|rm)$/.test(act)){ const box = $('#ctl'), still = cur() && cur().cards.some(e => e.n === S.modalCard); if (!still) $('#modal').hidden = true; else if (box) box.innerHTML = ctlHtml(S.modalCard); }
 });
 let st = 0;
 document.addEventListener('input', ev => {
