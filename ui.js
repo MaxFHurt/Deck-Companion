@@ -208,24 +208,43 @@ async function finalize(rows, when, ts){
   return list.length;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Wait, but wake early when the phone comes back online or the tab is shown again.
+function sleepOrWake(ms){ return new Promise(res => { let t; const done = () => { clearTimeout(t); removeEventListener('online', done); document.removeEventListener('visibilitychange', vis); res(); }, vis = () => { if (!document.hidden) done(); };
+  t = setTimeout(done, ms); addEventListener('online', done); document.addEventListener('visibilitychange', vis); }); }
+const cleanRows = rows => rows.map(c => { const x = Object.assign({}, c); delete x._n; delete x._t; delete x._ft; return x; });
 async function pagedUpdate(){
-  // Scryfall's search API, 175 cards a page, most-played cards first so the app is useful within seconds
-  let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('(legal:commander or legal:standard) game:paper') + '&unique=cards&order=edhrec', page = 0, total = 0, tries = 0;
-  const rows = [], when = new Date().toISOString().slice(0, 10), first = !(DBINFO.source === 'full' && DBINFO.count > 5000);  // a refresh keeps the saved cards in use until the new set is complete
+  // Scryfall's search service, 175 cards a page, most-played first. Progress is saved as it goes, so a dropped
+  // connection, a closed tab or a reload picks up where it stopped instead of starting over. It keeps retrying until done.
+  const base = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('(legal:commander or legal:standard) game:paper') + '&unique=cards&order=edhrec';
+  let st = null; try { st = await idb('readonly', s => s.get('partial')); } catch (e) {}
+  const resume = st && st.url && st.rows && Date.now() - st.ts < 12 * 3600e3;
+  let rows = resume ? st.rows : [], url = resume ? st.url : base, page = resume ? st.page : 0, total = resume ? st.total : 0, fails = 0;
+  const when = new Date().toISOString().slice(0, 10), first = !(DBINFO.source === 'full' && DBINFO.count > 5000);
+  if (resume && first){ useFull(rows.slice(), when); render(); }
   while (url){
-    const r = await fetch(url);
-    if (r.status === 429 && tries++ < 4){ await sleep(2500); continue; }
-    if (!r.ok) throw new Error('card search returned ' + r.status);
-    const j = await r.json(); tries = 0; page++; total = j.total_cards || total;
+    let j;
+    try {
+      const r = await fetch(url);
+      if (r.status === 429 || r.status >= 500) throw {wait:(+r.headers.get('retry-after') || 0) * 1000};
+      if (!r.ok) throw new Error('card search returned ' + r.status);
+      j = await r.json();
+    } catch (e) {
+      if (e instanceof Error && /returned 4/.test(e.message)) throw e;
+      fails++; setStatus('Connection to Scryfall dropped. Retrying… ' + rows.length.toLocaleString() + ' cards so far');
+      await sleepOrWake(Math.min(30000, e.wait || 2500 * fails)); continue;
+    }
+    fails = 0; page++; total = j.total_cards || total;
     (j.data || []).forEach(o => { const c = fromScryfall(o); if (c) rows.push(c); });
     setStatus('Downloading cards from Scryfall… ' + (total ? Math.min(99, Math.round(rows.length / total * 100)) + '% · ' : '') + rows.length.toLocaleString() + ' cards');
     url = j.has_more ? j.next_page : null;
-    if (first && page === 1){ useFull(rows.slice(), when); render(); }
-    else if (first && page % 40 === 0) await finalize(rows.slice(), when, 0);
-    if (url) await sleep(110);
+    if (first && (page === 1 || page % 20 === 0)){ useFull(rows.slice(), when); if (page === 1) render(); }
+    if (url && page % 15 === 0) try { await idb('readwrite', s => s.put({rows:cleanRows(rows), url, page, total, ts:Date.now()}, 'partial')); } catch (e) {}
+    if (url) await sleep(130);
   }
   if (rows.length < 100) throw new Error('card search returned no cards');
-  return finalize(rows, when, Date.now());
+  const n = await finalize(rows, when, Date.now());
+  try { await idb('readwrite', s => s.delete('partial')); } catch (e) {}
+  return n;
 }
 async function loadBulk(file){
   try { const n = await ingest(file.stream(), file.size, new Date().toISOString().slice(0, 10)); toast(n.toLocaleString() + ' cards loaded.'); }
@@ -252,14 +271,14 @@ async function checkReleases(){
 async function autoUpdate(sig){
   if (autoUpdate.busy) return; autoUpdate.busy = true; DBINFO.err = ''; let n = 0, why = [];
   setStatus('Checking Scryfall for card updates…');
-  try {
+  if (Date.now() - (lsGet('dc.noBulk') || 0) > 7 * 864e5) try {
     const meta = await (await fetch('https://api.scryfall.com/bulk-data/oracle-cards')).json();
     const resp = await fetch(meta.download_uri); if (!resp.ok || !resp.body) throw new Error('status ' + resp.status);
     n = await ingest(resp.body, meta.size || 1.7e8, String(meta.updated_at || '').slice(0, 10));
-  } catch (e) { why.push('daily file: ' + (e && e.message || e)); }
+  } catch (e) { why.push('daily file: ' + (e && e.message || e)); lsSet('dc.noBulk', Date.now()); }
   if (!n) try { n = await pagedUpdate(); } catch (e) { why.push('card search: ' + (e && e.message || e)); }
   if (n){ toast(n.toLocaleString() + ' cards updated from Scryfall.'); try { lsSet('dc.relSig', sig && sig.latest ? sig : await releaseSignature()); lsSet('dc.relCheck', Date.now()); } catch (e) {} }
-  else { toast(DBINFO.source === 'full' ? 'Could not finish the Scryfall update. Using the cards downloaded so far.' : 'Could not reach Scryfall. Using the starter library for now.'); }
+  else toast('Scryfall refused the card download. Open Profile for details.');
   DBINFO.err = n ? '' : why.join(' · ');
   autoUpdate.busy = false; setStatus(''); render();
 }
