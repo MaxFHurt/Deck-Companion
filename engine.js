@@ -165,6 +165,8 @@ function targetsOf(d, ctx){
   if (d.format === 'commander') return {size:100, lands:a[0] === 'lands' ? 39 : a[0] === 'aggro' ? 35 : 37, ramp:10, draw:10, removal:8, wipe:a.includes('control') ? 4 : 3};
   return {size:60, lands:a.includes('control') ? 26 : (a[0] === 'aggro' || a[0] === 'burn') ? 22 : 24, ramp:ctx.ident.includes('G') ? 4 : 0, draw:4, removal:6, wipe:a.includes('control') ? 2 : 0};
 }
+// Copies allowed: one in Commander (singleton), four in Standard; basics and "any number of cards named" cards are unlimited.
+function copyLimit(d, c){ if (c && (isBasic(c.n) || /a deck can have any number of cards named/i.test(c.o || ''))) return Infinity; return d.format === 'commander' ? 1 : 4; }
 function legalIn(c, fmt){ return fmt === 'commander' ? c.cmd : c.std; }
 function analyze(d){
   const ctx = ctxOf(d), T = targetsOf(d, ctx);
@@ -182,7 +184,7 @@ function analyze(d){
       if (c.p != null && c.p > ctx.cap) A.over.push(c.n);
       if (ctx.ident.length || ctx.cmd) { if (!c.ci.every(x => ctx.ident.includes(x))) A.offColor.push(c.n); }
       if (!legalIn(c, d.format)) A.illegal.push(c.n);
-      if (e.q > (d.format === 'commander' ? 1 : 4)) A.dupes.push(c.n);
+      if (e.q > copyLimit(d, c)) A.dupes.push(c.n);
     }
   }
   A.avg = A.nonland ? A.cmcSum / A.nonland : 0;
@@ -336,20 +338,29 @@ function autoSwaps(d){
 // cards over $3 up to $12, Apex at cards over $12, so the three options for a card are genuinely different steps.
 const TIER_STEPS = [['budget', 0], ['mid', 3], ['apex', 12]];
 function upgradePaths(d){
-  const by = new Map(), out = {fixes:[], drops:[], fills:0, count:{budget:0, mid:0, apex:0}, cost:{budget:0, mid:0, apex:0}};
+  const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{budget:0, mid:0, apex:0}, cost:{budget:0, mid:0, apex:0}};
   recommend.paths = true;
   try {
     TIER_STEPS.forEach(([t, minP], i) => {
       recommend.minP = minP; const R = autoSwaps(Object.assign({}, d, {tier:t}));
       if (i === 0){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
       R.pairs.forEach(p => {
-        if (p.land || p.fix){ if (i === 0) out.fixes.push(p); return; }
+        if (used.has(p.add) && !isBasic(p.add)) return;   // a card is only ever suggested once
+        if (p.land || p.fix){ if (i === 0){ out.fixes.push(p); used.add(p.add); } return; }
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
-        if (L.opts[t]) return; L.opts[t] = p; L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
+        if (L.opts[t]) return; L.opts[t] = p; used.add(p.add); L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
       });
     });
   } finally { recommend.paths = false; recommend.minP = 0; }
+  for (const [k, L] of by) if (!Object.keys(L.opts).length) by.delete(k);
+  // singleton / copy-limit breaches are fixes too
+  const dupDrops = []; d.cards.forEach(en => { const c = find(en.n), lim = copyLimit(d, c); if (c && en.q > lim) dupDrops.push({n:en.n, q:en.q - lim, s:-95, why:[d.format === 'commander' ? 'Commander allows one copy' : 'More than four copies']}); });
+  if (dupDrops.length){ // removing the extra copies comes first; only trim other cards if the deck is still over size after that
+    let spare = dupDrops.reduce((s, x) => s + x.q, 0); const dupNames = new Set(dupDrops.map(x => x.n)), rest = [];
+    out.drops.forEach(x => { if (dupNames.has(x.n)) return; if (x.s > -40 && spare > 0){ const q = Math.min(spare, x.q); spare -= q; if (x.q - q > 0) rest.push(Object.assign({}, x, {q:x.q - q})); } else rest.push(x); });
+    out.drops = dupDrops.concat(rest);
+  }
   out.paths = [...by.values()].sort((a, b) => b.gain - a.gain);
   return out;
 }
