@@ -358,6 +358,14 @@ function viewDecks(){
     (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>';
 }
 function aimPanel(d, ctx){
+  if (d.auto && !d.custom && isAimed(d)){
+    return '<section class="panel aimp"><div class="ph"><h2>Build</h2><small>' + (d.auto === 'precon' ? 'Precon theme' : 'Set from the commander') + '</small></div>' +
+      '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' +
+      (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button></div></div></div>' : '') +
+      '<div class="grp"><span class="lab">This deck is built around</span><div class="row">' + d.aims.map((a, i) => '<span class="chip gold">' + (i + 1) + ' · ' + (a === 'tribal' ? esc(ctx.tribe) + ' tribal' : THEMES[a].label) + '</span>').join('') + '</div></div>' +
+      '<p class="note" style="margin:0">' + (d.auto === 'precon' ? 'This precon already has a theme, so its upgrade paths are ready below.' : 'The build was set from what this commander does, so its upgrade paths are ready below.') + ' Change the mechanics, their order or the color focus only if you want to take the deck somewhere else.</p>' +
+      '<div class="row"><button class="btn" data-act="build-custom">Customize the build</button></div></section>';
+  }
   const lock = d.aimLocked, dis = lock ? ' disabled' : '', aimed = isAimed(d);
   let h = '<section class="panel aimp"><div class="ph"><h2>Build</h2><button class="ico' + (lock ? ' on' : '') + '" data-act="lock-aim" title="' + (lock ? 'Unlock the build settings' : 'Lock the build settings') + '" aria-pressed="' + lock + '">' + SVG.lock + '</button></div>';
   h += '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>';
@@ -482,7 +490,7 @@ function viewSearch(){
 }
 function loadPrecon(p){
   const cards = PRECON_LISTS[p.name].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x), n = m ? m[2] : x, c = find(n); return {n:c ? c.n : n, q:m ? +m[1] : 1, l:false}; });
-  const d = newDeck({name:p.name, format:'commander', cards, aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; return d;
+  const d = newDeck({name:p.name, format:'commander', cards, aims:p.aims.slice(), tribe:p.tribe || '', auto:'precon'}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; return d;
 }
 function openPrecons(){
   const rows = PRECONS.map((p, i) => { const c = find(p.cmd); return '<div class="pre"><img alt="" src="' + artFor(c) + '"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + (c ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : '') + '<div class="note">' + esc(p.cmd) + ' · ' + esc(p.note) + '</div><div class="why"><span class="chip gold">' + esc(p.level) + '</span><span class="chip">' + esc(p.set) + ' · ' + p.year + '</span></div></div><div class="acts"><button class="btn pri sm" data-act="precon" data-v="' + i + '">Load</button></div></div>'; }).join('');
@@ -582,6 +590,7 @@ document.addEventListener('click', ev => {
     case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v){ S.deckId = (S.profile.decks[0] || {}).id || null; S.open = false; } S.confirmDel = null; break;
     case 'fmt': if (d.format !== v){ d.format = v; if (v === 'standard'){ d.colors = (d.colors || []).slice(0, 3); } else if (find(d.commander)) d.colors = find(d.commander).ci.slice(); } break;
     case 'tier': d.tier = v; break;
+    case 'build-custom': d.custom = true; break;
     case 'lock-aim': d.aimLocked = !d.aimLocked; break;
     case 'aim-up': { const i = +v; [d.aims[i - 1], d.aims[i]] = [d.aims[i], d.aims[i - 1]]; break; }
     case 'aim-down': { const i = +v; [d.aims[i + 1], d.aims[i]] = [d.aims[i], d.aims[i + 1]]; break; }
@@ -616,7 +625,7 @@ document.addEventListener('click', ev => {
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
     case 'gen-pick': S.gen.cmd = n; openGenerate(); return;
     case 'gen-tier': S.gen.tier = v; openGenerate(); return;
-    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier}); setCommander(nd, c.n);
+    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier, auto:'commander'}); setCommander(nd, c.n);
       if (nd.aims.length){ fillDeck(nd); toast('Generated a ' + TIERS[nd.tier].label + ' deck for ' + c.n + '.'); } else toast('Pick your mechanics in the Build panel, then press Fill.'); break; }
     case 'std-starter': { $('#modal').hidden = true; const p = STD_STARTERS[+v], nd = newDeck({name:p.name, format:'standard', aims:p.aims.slice(), tribe:p.tribe || '', colors:p.colors.slice()}); fillDeck(nd); toast('Standard deck generated.'); break; }
     case 'import-go': {
