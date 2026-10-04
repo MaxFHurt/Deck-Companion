@@ -1,0 +1,34 @@
+name: Card data snapshot
+# Saves the card data the app uses (Scryfall cards, sets, bracket tags, EDHREC commander pages) to the card-data
+# branch, so recommendation changes can be tested against real cards. It never touches main or the live site.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * 1'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/card-data.yml', 'tools/fetch-card-data.mjs', 'tools/commanders.txt']
+permissions:
+  contents: write
+concurrency:
+  group: card-data
+  cancel-in-progress: true
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node tools/fetch-card-data.mjs
+      - name: Publish to the card-data branch
+        run: |
+          cd out
+          git init -q -b card-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Card data snapshot $(date -u +%F)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" card-data
