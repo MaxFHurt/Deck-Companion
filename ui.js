@@ -160,11 +160,34 @@ async function ingest(stream, size, when){
     while ((i = buf.indexOf('\n')) >= 0){ take(buf.slice(0, i)); buf = buf.slice(i + 1); }
     setStatus('Updating card data… ' + Math.min(99, Math.round(read / size * 100)) + '% · ' + rows.length.toLocaleString() + ' cards'); }
   if (lines <= 1 && buf.length > 2){ const arr = JSON.parse(buf); (arr.data || arr).forEach(o => { const c = fromScryfall(o); if (c) rows.push(c); }); } else take(buf);
-  if (rows.length < 100) throw new Error('no cards');
+  if (rows.length < 100) throw new Error('no cards in file');
+  return finalize(rows, when, Date.now());
+}
+async function finalize(rows, when, ts){
   const best = new Map(); for (const c of rows){ const k = norm(c.n), o = best.get(k); if (!o || (o.p == null && c.p != null)) best.set(k, c); }
   const list = [...best.values()]; useFull(list, when);
-  try { await idb('readwrite', s => s.put({rows:list.map(c => { const x = Object.assign({}, c); delete x._n; delete x._t; delete x._ft; return x; }), when, ts:Date.now()}, 'cards')); } catch (e) {}
+  try { await idb('readwrite', s => s.put({rows:list.map(c => { const x = Object.assign({}, c); delete x._n; delete x._t; delete x._ft; return x; }), when, ts}, 'cards')); } catch (e) {}
   return list.length;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function pagedUpdate(){
+  // Scryfall's search API, 175 cards a page, most-played cards first so the app is useful within seconds
+  let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('(legal:commander or legal:standard) game:paper') + '&unique=cards&order=edhrec', page = 0, total = 0, tries = 0;
+  const rows = [], when = new Date().toISOString().slice(0, 10);
+  while (url){
+    const r = await fetch(url);
+    if (r.status === 429 && tries++ < 4){ await sleep(2500); continue; }
+    if (!r.ok) throw new Error('card search returned ' + r.status);
+    const j = await r.json(); tries = 0; page++; total = j.total_cards || total;
+    (j.data || []).forEach(o => { const c = fromScryfall(o); if (c) rows.push(c); });
+    setStatus('Downloading cards from Scryfall… ' + (total ? Math.min(99, Math.round(rows.length / total * 100)) + '% · ' : '') + rows.length.toLocaleString() + ' cards');
+    url = j.has_more ? j.next_page : null;
+    if (page === 1){ useFull(rows.slice(), when); render(); }
+    else if (page % 40 === 0) await finalize(rows.slice(), when, 0);
+    if (url) await sleep(110);
+  }
+  if (rows.length < 100) throw new Error('card search returned no cards');
+  return finalize(rows, when, Date.now());
 }
 async function loadBulk(file){
   try { const n = await ingest(file.stream(), file.size, new Date().toISOString().slice(0, 10)); toast(n.toLocaleString() + ' cards loaded.'); }
@@ -172,14 +195,17 @@ async function loadBulk(file){
   setStatus(''); render();
 }
 async function autoUpdate(){
-  if (autoUpdate.busy) return; autoUpdate.busy = true; DBINFO.err = false;
+  if (autoUpdate.busy) return; autoUpdate.busy = true; DBINFO.err = ''; let n = 0, why = [];
+  setStatus('Checking Scryfall for card updates…');
   try {
-    setStatus('Checking Scryfall for card updates…');
-    const meta = await (await fetch('https://api.scryfall.com/bulk-data/oracle-cards', {headers:{Accept:'application/json'}})).json();
-    const resp = await fetch(meta.download_uri); if (!resp.ok || !resp.body) throw new Error('download');
-    const n = await ingest(resp.body, meta.size || 1.7e8, String(meta.updated_at || '').slice(0, 10));
-    toast(n.toLocaleString() + ' cards updated from Scryfall.');
-  } catch (e) { DBINFO.err = true; toast(DBINFO.source === 'full' ? 'Could not reach Scryfall. Using the card data saved earlier.' : 'Could not reach Scryfall. Using the starter library for now.'); }
+    const meta = await (await fetch('https://api.scryfall.com/bulk-data/oracle-cards')).json();
+    const resp = await fetch(meta.download_uri); if (!resp.ok || !resp.body) throw new Error('status ' + resp.status);
+    n = await ingest(resp.body, meta.size || 1.7e8, String(meta.updated_at || '').slice(0, 10));
+  } catch (e) { why.push('daily file: ' + (e && e.message || e)); }
+  if (!n) try { n = await pagedUpdate(); } catch (e) { why.push('card search: ' + (e && e.message || e)); }
+  if (n) toast(n.toLocaleString() + ' cards updated from Scryfall.');
+  else { toast(DBINFO.source === 'full' ? 'Could not finish the Scryfall update. Using the cards downloaded so far.' : 'Could not reach Scryfall. Using the starter library for now.'); }
+  DBINFO.err = n ? '' : why.join(' · ');
   autoUpdate.busy = false; setStatus(''); render();
 }
 
@@ -363,7 +389,7 @@ function viewProfile(){
     '<div class="grp"><span class="lab">Saved decks · ' + P.decks.length + '</span>' + (P.decks.map(d => '<div class="row" style="border-bottom:1px solid var(--line);padding-bottom:6px"><b style="flex:1;min-width:140px">' + esc(d.name) + '</b><span class="chip">' + d.format + '</span><span class="chip gold">' + TIERS[d.tier].label + '</span><button class="btn sm" data-act="open-deck" data-v="' + d.id + '">Open</button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>').join('') || '<p class="note">No decks saved.</p>') + '</div>' +
     '</section>' + backupPanel() +
     '<section class="panel"><div class="ph"><h2>Card database</h2><small>' + (DBINFO.source === 'full' ? DBINFO.count.toLocaleString() + ' cards · Scryfall data from ' + esc(DBINFO.when) : DBINFO.count + '-card starter library') + '</small></div>' +
-    '<p class="note" style="margin:0;max-width:75ch">' + (DBINFO.source === 'full' ? 'Card text, prices, legality and artwork come from Scryfall. The app checks for a fresh copy about once a day when you open it.' : 'The app downloads the full card list from Scryfall the first time it opens, then refreshes it about once a day. Until that finishes it uses a small built-in starter library with estimated prices.') + (DBINFO.err ? ' <span class="unk">The last update could not reach Scryfall.</span>' : '') + '</p>' +
+    '<p class="note" style="margin:0;max-width:75ch">' + (DBINFO.source === 'full' ? 'Card text, prices, legality and artwork come from Scryfall. The app checks for a fresh copy about once a day when you open it.' : 'The app downloads the full card list from Scryfall the first time it opens, then refreshes it about once a day. Until that finishes it uses a small built-in starter library with estimated prices.') + (DBINFO.err ? ' <span class="unk">The last update failed (' + esc(DBINFO.err) + ').</span>' : '') + '</p>' +
     '<div class="row"><button class="btn pri" data-act="db-update">Update card data now</button></div>' +
     '<p class="note" style="margin:0">If the automatic update keeps failing, download <b>Oracle Cards</b> from <a href="https://scryfall.com/docs/api/bulk-data" target="_blank" rel="noopener">scryfall.com/docs/api/bulk-data</a> and load the file here:</p><div class="row"><input type="file" id="db-file" accept=".json,application/json" style="max-width:340px"></div></section>';
 }
