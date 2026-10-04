@@ -433,7 +433,7 @@ function upPanel(d, A){
 function viewDeck(){
   const d = cur(); if (!d) return '<section class="panel"><div class="ph"><h2>Builder</h2></div><p class="note">Open a deck from Decks, or start one.</p><div class="row"><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="precon-open">Load a precon</button><button class="btn" data-act="gen-open">Generate from a commander</button></div></section>';
   const A = analyze(d);
-  return (d.example ? '<p class="note" style="margin:0 2px">This is an example deck so you can see the builder working. Edit it freely, or start your own from Decks.</p>' : '') + '<div class="row"><button class="btn pri" data-act="import-open">Import a text list</button><button class="btn pri" data-act="precon-open">Load a precon</button><button class="btn pri" data-act="gen-open">Generate from a commander</button></div><div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
+  return '<div class="row"><button class="btn pri" data-act="import-open">Import a text list</button><button class="btn pri" data-act="precon-open">Load a precon</button><button class="btn pri" data-act="gen-open">Generate from a commander</button></div><div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
 }
 function searchResults(){
   const f = S.search, filt = {fmt:f.fmt, color:f.color, type:f.type, max:+f.max || 0, theme:f.theme}, q = f.q.trim();
