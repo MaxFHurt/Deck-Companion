@@ -443,6 +443,39 @@ function listPanel(d, A){
     '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>' +
     '<div class="rows" id="rows">' + listRows(d) + '</div></section>';
 }
+// Buy list: what to buy for each tier's upgrades, grouped by color then A–Z.
+const BUY_GROUPS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolor'], ['C', 'Colorless'], ['L', 'Land']];
+function buyData(d){
+  const R = recsFor(d), grp = c => !c ? 'C' : tags(c).land ? 'L' : c.ci.length > 1 ? 'M' : c.ci[0] || 'C', order = BUY_GROUPS.map(g => g[0]);
+  return TIER_KEYS.map(t => {
+    const m = new Map(), put = (n, q) => { if (isBasic(n)) return; const c = find(n); if (m.has(n)) m.get(n).q += q; else m.set(n, {n, q, p:c ? c.p : null, g:grp(c)}); };
+    R.paths.forEach(L => { const p = L.opts[t]; if (p) put(p.add, p.q); }); if (t === 'budget') R.fixes.forEach(p => put(p.add, p.q));
+    const items = [...m.values()].sort((a, b) => order.indexOf(a.g) - order.indexOf(b.g) || a.n.localeCompare(b.n));
+    return {t, items, count:items.reduce((s, x) => s + x.q, 0), cost:items.reduce((s, x) => s + (x.p || 0) * x.q, 0)};
+  });
+}
+function buyText(d){
+  const L = ['// ' + d.name + ' · buy list'];
+  buyData(d).forEach(T => { L.push('', '// ' + TIERS[T.t].label + ' (' + T.count + ' cards' + (T.count ? ', about $' + T.cost.toFixed(2) : '') + ')'); if (!T.items.length) L.push('// nothing to buy at this tier'); T.items.forEach(x => L.push(x.q + ' ' + x.n)); });
+  return L.join('\n') + '\n';
+}
+function openBuy(){
+  const d = cur(); if (!d) return; S.modalCard = null;
+  let h = '<div class="panel" role="dialog" aria-label="Buy list"><div class="ph"><h2>Buy list</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>';
+  if (!isAimed(d)) h += '<p class="note" style="margin:0">Set up the build first. The buy list comes from the deck’s upgrade paths.</p>';
+  else {
+    const data = buyData(d);
+    h += '<div class="row"><button class="btn pri" data-act="buy-copy">Copy as text</button><button class="btn" data-act="buy-save">Save text file</button></div>' +
+      '<p class="note" style="margin:0">The cards each tier’s upgrades would add to this deck. Sorted by color, then A to Z.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
+      data.map(T => '<div class="grp"><div class="gh" style="font-size:15px"><span>' + TIERS[T.t].label + '</span><span>' + T.count + ' card' + (T.count === 1 ? '' : 's') + (T.count ? ' · ' + (DBINFO.source === 'starter' ? '~' : '') + '$' + T.cost.toFixed(2) : '') + '</span></div>' +
+        (T.items.length ? BUY_GROUPS.map(([k, label]) => { const xs = T.items.filter(x => x.g === k); return xs.length ? '<div><span class="lab">' + label + '</span>' + xs.map(x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + '</span><span class="pr">' + money(find(x.n)) + '</span></button>').join('') + '</div>' : ''; }).join('') : '<p class="note" style="margin:0">Nothing to buy at this tier.</p>') + '</div>').join('');
+  }
+  $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
+}
+function saveText(name, text){
+  const a = document.createElement('a'), url = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
 function openList(){
   const d = cur(); if (!d) return; const A = analyze(d); S.modalCard = null; S.listOpen = true;
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Full decklist"><div class="ph"><h2>' + esc(d.name) + '</h2><small>' + deckStat(d, A) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="allrows">' + listRows(d) + '</div></div>';
@@ -451,7 +484,7 @@ function openList(){
 const TIER_KEYS = ['budget', 'mid', 'apex'];
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
-  let h = '<section class="panel up"><div class="ph"><h2>Upgrades</h2><small>Budget · Mid · Apex</small></div>';
+  let h = '<section class="panel up"><div class="ph"><h2>Upgrades</h2><small>Budget · Mid · Apex</small><button class="btn sm" data-act="buy-open">Buy list</button></div>';
   if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
   const mx = Math.max(1, ...A.curve);
@@ -712,6 +745,9 @@ document.addEventListener('click', ev => {
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
     case 'list-all': openList(); return;
+    case 'buy-open': openBuy(); return;
+    case 'buy-copy': copyText(buyText(d), 'Buy list copied.'); return;
+    case 'buy-save': saveText(d.name.replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '-buy-list.txt', buyText(d)); toast('Buy list saved to your downloads.'); return;
     case 'precon-open': openPrecons(); return;
     case 'precon-live': $('#modal').hidden = true; loadPreconLive(v, n); return;
     case 'gen-open': openGenerate(); return;
