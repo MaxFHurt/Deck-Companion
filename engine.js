@@ -393,6 +393,19 @@ function bestCuts(d, addName, k){
   }
   return out.sort((a, b) => a.s - b.s).slice(0, k || 3);
 }
+// Find a commander for an existing deck: legendary creatures that include the colors the player asks for, ranked by
+// how well they fit the deck's build, how popular they are, and how few of the deck's cards they would strand.
+function findCommanders(d, colors, k){
+  const ctx = ctxOf(d), out = [];
+  for (const c of LIB){
+    if (!c.cmd || c.n === d.commander || !/Legendary/.test(c.t) || !/Creature/.test(frontType(c))) continue;
+    if (!colors.every(x => c.ci.includes(x))) continue;
+    const b = baseScore(c, d, Object.assign({}, ctx, {focus:c.ci, ident:c.ci, edh:null}));
+    let outside = 0; d.cards.forEach(en => { const x = find(en.n); if (x && !x.ci.every(y => c.ci.includes(y))) outside += en.q; });
+    out.push({n:c.n, s:b.s - 1.2 * (c.ci.length - colors.length) - 0.6 * outside, why:b.why.slice(0, 2), outside});
+  }
+  return out.sort((a, b) => b.s - a.s).slice(0, k || 12);
+}
 function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
 function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.n) === k); if (i < 0) return; d.cards[i].q -= q; if (d.cards[i].q <= 0) d.cards.splice(i, 1); }
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }

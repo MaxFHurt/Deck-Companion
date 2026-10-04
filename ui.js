@@ -388,7 +388,7 @@ function aimPanel(d, ctx){
   if (d.auto && !d.custom && isAimed(d)){
     return '<section class="panel aimp"><div class="ph"><h2>Build</h2><small>' + (d.auto === 'precon' ? 'Precon theme' : 'Set from the commander') + '</small></div>' +
       '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' +
-      (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button></div></div></div>' : '') +
+      (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button><button class="btn sm" data-act="cmd-find">Find a commander</button></div></div></div>' : '') +
       '<div class="grp"><span class="lab">This deck is built around</span><div class="row">' + d.aims.map((a, i) => '<span class="chip gold">' + (i + 1) + ' · ' + (a === 'tribal' ? esc(ctx.tribe) + ' tribal' : THEMES[a].label) + '</span>').join('') + '</div></div>' +
       '<p class="note" style="margin:0">' + (d.auto === 'precon' ? 'This precon already has a theme, so its upgrade paths are ready below.' : 'The build was set from what this commander does, so its upgrade paths are ready below.') + ' Change the mechanics, their order or the color focus only if you want to take the deck somewhere else.</p>' +
       '<div class="row"><button class="btn" data-act="build-custom">Customize the build</button></div></section>';
@@ -399,7 +399,7 @@ function aimPanel(d, ctx){
   h += '<div class="grp"><span class="lab">Format</span><div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></div>';
   if (d.format === 'commander'){
     h += '<div class="grp"><span class="lab">Commander</span>';
-    if (ctx.cmd){ h += '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="clear-cmd">Change</button>') + '</div></div></div>';
+    if (ctx.cmd){ h += '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="clear-cmd">Change</button><button class="btn sm" data-act="cmd-find">Find a commander</button>') + '</div></div></div>';
       h += '<div class="row">' + (ctx.cmdThemes.length ? ctx.cmdThemes.map(k => '<span class="chip gold">' + (k === 'tribal' ? ctx.cmdTribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. Your aims decide the direction.</span>') + '</div>' +
         (ctx.cmdThemes.length ? '<p class="note" style="margin:0">Upgrades always lean toward what this commander does, on top of the aims you set.</p>' : ''); }
     else { const leg = d.cards.map(e => find(e.n)).filter(c => c && /Legendary/.test(c.t) && /Creature/.test(frontType(c))).slice(0, 6);
@@ -475,6 +475,19 @@ function openBuy(){
 function saveText(name, text){
   const a = document.createElement('a'), url = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function deckColors(d){ const s = new Set(); const c0 = find(d.commander); if (c0) c0.ci.forEach(x => s.add(x)); d.cards.forEach(e => { const c = find(e.n); if (c) c.ci.forEach(x => s.add(x)); }); return 'WUBRG'.split('').filter(x => s.has(x)); }
+function openFindCmd(){
+  const d = cur(); if (!d) return; S.modalCard = null; if (!S.fc || S.fc.id !== d.id) S.fc = {id:d.id, colors:deckColors(d)};
+  const cols = S.fc.colors, res = findCommanders(d, cols, 12), now = find(d.commander);
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Find a commander"><div class="ph"><h2>Find a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<p class="note" style="margin:0">Steer this deck toward a different commander. Pick the colors the commander must have: the deck’s current colors are selected, so add one to open the deck up to new cards. Results are ranked by how well they fit this deck’s build.</p>' +
+    '<div class="grp"><span class="lab">Commander must include</span><div class="row">' + 'WUBRG'.split('').map(c => '<button class="pip p' + c + (cols.includes(c) ? ' on' : '') + '" data-act="fc-color" data-v="' + c + '" aria-pressed="' + cols.includes(c) + '">' + c + '</button>').join('') + '</div>' +
+    (now ? '<p class="note" style="margin:0">Current commander: ' + esc(now.n) + ' ' + now.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') + '</p>' : '') + '</div>' +
+    '<div class="grp">' + (res.length ? res.map(x => { const c = find(x.n); return '<div class="pre"><img alt="" src="' + artFor(c) + '"><div style="min-width:0"><button class="nm" data-act="card" data-n="' + esc(c.n) + '" style="background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:700;text-align:left">' + esc(c.n) + '</button> ' + c.ci.map(k => '<i class="pip p' + k + '">' + k + '</i>').join('') + '<div class="why">' + x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('') + (x.outside ? '<span class="chip warn">' + x.outside + ' of your cards would fall outside its colors</span>' : '<span class="chip good">Every card in the deck stays legal</span>') + '</div></div><div class="acts"><button class="btn pri sm" data-act="fc-pick" data-n="' + esc(c.n) + '">Use</button></div></div>'; }).join('')
+      : '<p class="note">No legendary creature in the card data has all of those colors' + (DBINFO.complete ? '.' : ' yet. More appear when the card download finishes.') + '</p>') + '</div>' +
+    (DBINFO.complete ? '' : '<p class="note" style="margin:0">Card data is still downloading, so this list is incomplete.</p>') + '</div>';
+  $('#modal').hidden = false;
 }
 function openList(){
   const d = cur(); if (!d) return; const A = analyze(d); S.modalCard = null; S.listOpen = true;
@@ -746,6 +759,10 @@ document.addEventListener('click', ev => {
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
     case 'list-all': openList(); return;
+    case 'cmd-find': openFindCmd(); return;
+    case 'fc-color': { const s = new Set(S.fc.colors); if (s.has(v)) s.delete(v); else s.add(v); S.fc.colors = 'WUBRG'.split('').filter(x => s.has(x)); openFindCmd(); return; }
+    case 'fc-pick': { const old = d.commander; delete d.cmdPid; delete d.cmdSet; const keepAims = d.aims.slice(), keepTribe = d.tribe; setCommander(d, n); d.aims = keepAims.length ? keepAims : d.aims; if (keepTribe) d.tribe = keepTribe; const nc = find(n); if (nc) d.colors = nc.ci.slice();
+      if (old && old !== n && find(old) && !d.cards.some(x => x.n === old)) addCard(d, old, 1); S.fc = null; $('#modal').hidden = true; toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' moved into the deck.' : '')); break; }
     case 'buy-open': openBuy(); return;
     case 'buy-copy': copyText(buyText(d), 'Buy list copied.'); return;
     case 'buy-save': saveText(d.name.replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '-buy-list.txt', buyText(d)); toast('Buy list saved to your downloads.'); return;
