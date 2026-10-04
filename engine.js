@@ -223,7 +223,7 @@ function recommend(d, swaps, fillOnly){
   const open = T.size - A.size;
   let nAdd = Math.max(0, open) + (fillOnly ? 0 : swaps), nCut = Math.max(0, -open) + (fillOnly ? 0 : swaps);
   const adds = [], cuts = [], def = {}; for (const r in A.roles) def[r] = T[r] - A.roles[r];
-  const okCard = c => legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && !dismissed.has(c._n);
+  const okCard = c => legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && !dismissed.has(c._n);
 
   // lands first
   let landNeed = Math.min(nAdd, Math.max(0, T.lands - A.lands));
@@ -269,7 +269,7 @@ function recommend(d, swaps, fillOnly){
       tags(c).roles.forEach(r => { if (r in A.roles) s += A.roles[r] <= T[r] ? 2.5 : 0.6; });
       if (!c.ci.every(x => ctx.ident.includes(x))){ s = -80; why = ['Outside your colors']; }
       else if (!legalIn(c, d.format)){ s = -90; why = ['Not legal in ' + d.format]; }
-      else if (c.p != null && c.p > ctx.cap){ s = -50; why = ['Over the $' + ctx.cap + ' cap']; }
+      else if (c.p != null && c.p > ctx.cap && !recommend.paths){ s = -50; why = ['Over the $' + ctx.cap + ' cap']; }
       else if (!b.hit) why = ["Doesn't serve your aims"]; else why = ['Weakest fit for your aims'];
       cand.push({n:e.n, q:e.q, why, s, a:b.a});
     }
@@ -306,14 +306,15 @@ function autoSwaps(d){
   const isId = n => { const c = find(n); return !!(top && c && matchAim(c, top, ctx.tribe) >= 0.7); };
   let outside = Math.max(2, Math.round((A0.aim[0] || 0) * 0.1));
   recommend.raw = true; let R; try { R = recommend(d, 45, false); } finally { recommend.raw = false; }
+  const pairs = [], fills = [], drops = [];
   const adds = [], cuts = [], put = (list, x, q) => { const e = list.find(y => y.n === x.n); if (e) e.q += q; else list.push(Object.assign({}, x, {q})); };
   let fill = Math.max(0, open), trim = Math.max(0, -open), swaps = 0;
   const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n)}));
-  for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); c.q -= q; trim -= q; }
+  for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); put(drops, c, q); c.q -= q; trim -= q; }
   let landSwaps = open > 0 ? 0 : landGap;
   for (const a of R.adds){
     let need = a.q; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w));
-    if (fill > 0){ const q = Math.min(fill, need); put(adds, a, q); fill -= q; need -= q; }
+    if (fill > 0){ const q = Math.min(fill, need); put(adds, a, q); put(fills, a, q); fill -= q; need -= q; }
     if (a.kind === 'land'){ if (landSwaps <= 0) continue; need = Math.min(need, landSwaps); }
     while (need > 0 && swaps < 40){
       let star = false;
@@ -321,11 +322,33 @@ function autoSwaps(d){
         if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3); });
       if (!c) break; const q = Math.min(need, c.q);
       if (c.id && !aId && c.s > -40 && a.kind !== 'land'){ outside -= q; star = true; }
+      pairs.push({cut:c.n, add:a.n, q, why:star ? a.why.concat('Standout pick') : a.why, gain:a.s - c.s, land:a.kind === 'land', fix:c.s <= -40, cutWhy:c.why});
       put(adds, star ? Object.assign({}, a, {why:a.why.concat('Standout pick')}) : a, q); put(cuts, c, q); c.q -= q; need -= q; swaps += q; if (a.kind === 'land') landSwaps -= q;
     }
   }
-  pool.forEach(c => { if (c.q > 0 && c.s <= -40) put(cuts, c, c.q); });
-  return {adds, cuts, A:R.A, swaps};
+  pool.forEach(c => { if (c.q > 0 && c.s <= -40){ put(cuts, c, c.q); put(drops, c, c.q); } });
+  return {adds, cuts, A:R.A, swaps, pairs, fills, drops};
+}
+// "Here is my deck" -> every card's upgrade options at once, one per tier. Budget looks at cards up to $3, Mid at
+// cards over $3 up to $12, Apex at cards over $12, so the three options for a card are genuinely different steps.
+const TIER_STEPS = [['budget', 0], ['mid', 3], ['apex', 12]];
+function upgradePaths(d){
+  const by = new Map(), out = {fixes:[], drops:[], fills:0, count:{budget:0, mid:0, apex:0}, cost:{budget:0, mid:0, apex:0}};
+  recommend.paths = true;
+  try {
+    TIER_STEPS.forEach(([t, minP], i) => {
+      recommend.minP = minP; const R = autoSwaps(Object.assign({}, d, {tier:t}));
+      if (i === 0){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
+      R.pairs.forEach(p => {
+        if (p.land || p.fix){ if (i === 0) out.fixes.push(p); return; }
+        let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
+        if (L.opts[t]) return; L.opts[t] = p; L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
+        const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
+      });
+    });
+  } finally { recommend.paths = false; recommend.minP = 0; }
+  out.paths = [...by.values()].sort((a, b) => b.gain - a.gain);
+  return out;
 }
 function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
 function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.n) === k); if (i < 0) return; d.cards[i].q -= q; if (d.cards[i].q <= 0) d.cards.splice(i, 1); }

@@ -327,7 +327,8 @@ function backupPanel(){
 function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.profile.decks.unshift(d); S.deckId = d.id; S.view = 'deck'; return d; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; return d; }
-function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = autoSwaps(d); } return recsFor.v; }
+function doSwap(d, p, step){ const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0); cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add); if (en && keep) en.step = keep; }
+function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = upgradePaths(d); } return recsFor.v; }
 
 // ---------- views ----------
 function navHtml(){
@@ -358,7 +359,6 @@ function aimPanel(d, ctx){
         (leg.length ? '<div class="row"><span class="note">From your list:</span>' + leg.map(c => '<button class="btn sm" data-act="set-cmd" data-n="' + esc(c.n) + '">' + esc(c.n) + '</button>').join('') + '</div>' : ''); }
     h += '</div>';
   }
-  h += '<div class="grp"><span class="lab">Optimization tier</span><div class="seg">' + Object.keys(TIERS).map(k => '<button data-act="tier" data-v="' + k + '" class="' + (d.tier === k ? 'on' : '') + '">' + TIERS[k].label + '<small>' + (TIERS[k].cap === Infinity ? 'no price cap' : 'cards ≤ $' + TIERS[k].cap) + '</small></button>').join('') + '</div></div>';
   h += '<div class="grp"><span class="lab">Mechanics, in priority order</span>';
   h += d.aims.map((a, i) => '<div class="aim"><span class="n">' + (i + 1) + '</span><span class="t">' + (a === 'tribal' ? esc(ctx.tribe || 'Pick a creature type') + ' tribal' : THEMES[a].label) + (ctx.cmdThemes.includes(a) ? '<small>Commander strategy</small>' : '') + '</span><span class="row" style="gap:3px">' +
     (lock ? '' : '<button class="ico" data-act="aim-up" data-v="' + i + '" title="Raise priority"' + (i ? '' : ' disabled') + '>↑</button><button class="ico" data-act="aim-down" data-v="' + i + '" title="Lower priority"' + (i < d.aims.length - 1 ? '' : ' disabled') + '>↓</button><button class="ico" data-act="aim-rm" data-v="' + i + '" title="Remove">×</button>') + '</span></div>').join('');
@@ -379,7 +379,7 @@ function listPanel(d, A){
   for (const e of d.cards){ const c = find(e.n); if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
     '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
-    '<span class="pr' + (c && c.p != null && c.p > A.ctx.cap && !isBasic(c.n) ? ' over' : '') + '">' + money(c) + '</span></button>';
+    '<span class="pr">' + money(c) + '</span></button>';
   let h = '<section class="panel list"><div class="ph"><h2>Decklist</h2><small>' + A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0') + '</small></div>';
   h += '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
     '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your aims and tier">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>';
@@ -389,14 +389,14 @@ function listPanel(d, A){
   if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card library</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These are kept in your list but can’t be analyzed. Load the full card database in Profile to recognize them.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
   return h + '</section>';
 }
+const TIER_KEYS = ['budget', 'mid', 'apex'];
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
-  let h = '<section class="panel up"><div class="ph"><h2>Upgrades</h2><small>' + TIERS[d.tier].label + ' tier</small></div>';
+  let h = '<section class="panel up"><div class="ph"><h2>Upgrades</h2><small>Budget · Mid · Apex</small></div>';
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
   const mx = Math.max(1, ...A.curve);
   h += '<div class="grp"><span class="lab">Mana curve · average ' + A.avg.toFixed(2) + '</span><div class="curve">' + A.curve.map((v, i) => '<div><span>' + v + '</span><i style="height:' + (v / mx * 44) + 'px"></i><span>' + (i === 6 ? '6+' : i) + '</span></div>').join('') + '</div></div>';
   const flags = [];
-  if (A.over.length) flags.push('<span class="chip bad">' + A.over.length + ' over $' + A.ctx.cap + '</span>');
   if (A.offColor.length) flags.push('<span class="chip bad">' + A.offColor.length + ' outside colors</span>');
   if (A.illegal.length) flags.push('<span class="chip bad">' + A.illegal.length + ' not ' + d.format + '-legal</span>');
   if (A.dupes.length) flags.push('<span class="chip bad">' + A.dupes.length + ' over copy limit</span>');
@@ -405,17 +405,29 @@ function upPanel(d, A){
   if (flags.length) h += '<div class="row">' + flags.join('') + '</div>';
   if (!isAimed(d)){
     const need = d.format === 'commander' && !A.ctx.cmd ? 'Choose your commander, then pick' : !d.aims.length ? 'Pick' : d.aims.includes('tribal') && !A.ctx.tribe ? 'Choose a creature type for your tribal aim. Then pick' : 'Choose your land colors, and pick';
-    return h + '<div class="gate"><b>Aim the deck first</b>' + need + ' at least one mechanic in the Build panel. Recommendations are built around your priorities, so two players with the same commander get different lists.</div></section>';
+    return h + '<div class="gate"><b>Set up the build first</b>' + need + ' at least one mechanic in the Build panel. Upgrade paths are built around your priorities, so two players with the same commander get different lists.</div></section>';
   }
-  const R = recsFor(d), rec = (x, i, kind) => { const c = find(x.n); return '<div class="rec ' + kind + '"><img alt="" src="' + artFor(c) + '" style="width:44px;height:31px;object-fit:cover;border-radius:3px"><div style="min-width:0"><button class="nm" data-act="card" data-n="' + esc(x.n) + '">' + (x.q > 1 ? x.q + '× ' : '') + esc(x.n) + '</button> <span class="note">' + money(c) + '</span><div class="why">' + x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div></div><div class="acts">' +
-    (kind === 'add' ? '<button class="btn sm pri" data-act="add-rec" data-v="' + i + '">Add</button><button class="ico" data-act="dismiss" data-v="' + i + '" title="Don’t suggest this again">×</button>' : '<button class="btn sm danger" data-act="cut-rec" data-v="' + i + '">Cut</button><button class="ico" data-act="lock" data-n="' + esc(x.n) + '" title="Keep and lock this card">' + SVG.lock + '</button>') + '</div></div>'; };
-  const nA = R.adds.reduce((s, a) => s + a.q, 0), nC = R.cuts.reduce((s, a) => s + a.q, 0);
-  h += '<div class="row"><span class="lab" style="flex:1">' + (nA || nC ? (R.swaps ? R.swaps + ' swap' + (R.swaps === 1 ? '' : 's') + ' that improve this deck' : 'Fixes this deck needs') : 'No changes to suggest') + '</span><button class="btn pri" data-act="apply-all"' + (nA || nC ? '' : ' disabled') + '>Apply all</button></div>';
-  if (nA || nC) h += '<p class="note" style="margin:0">Every swap brings in a card that does more for the deck than the one it replaces. Cards from your top aim are mostly swapped for better cards of the same kind; a few standout cards from outside it can come in, so the deck keeps its identity.</p>';
-  else h += '<p class="note" style="margin:0">Nothing at this tier would clearly improve the deck while keeping its identity. Try a higher tier or change your aims' + (DBINFO.source === 'starter' ? ', or wait for the full card data to finish loading' : '') + '.</p>';
-  if (R.adds.length) h += '<div class="grp"><span class="lab">Add · ' + R.adds.reduce((s, a) => s + a.q, 0) + '</span>' + R.adds.map((x, i) => rec(x, i, 'add')).join('') + '</div>';
-  if (R.cuts.length) h += '<div class="grp"><span class="lab">Cut · ' + R.cuts.reduce((s, a) => s + a.q, 0) + '</span>' + R.cuts.map((x, i) => rec(x, i, 'cut')).join('') + '</div>';
-  if (DBINFO.source === 'starter') h += '<p class="note" style="margin:0">Suggestions come from the ' + DBINFO.count + '-card starter library with estimated prices. Load the full card database in Profile for every legal card and current prices.</p>';
+  const R = recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>'; }, price = n => money(find(n));
+  const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + '</span><em>' + price(n) + '</em></button>';
+  if (R.fixes.length || R.drops.length){
+    h += '<div class="grp"><span class="lab">Fixes this deck needs</span>' +
+      R.fixes.map((p, i) => '<div class="path">' + side('out', p.cut, p.q) + side('in', p.add, p.q) + '<div class="row"><span class="chip warn">' + esc(p.fix ? p.cutWhy[0] : p.why[0]) + '</span><button class="btn pri sm" data-act="fix" data-v="' + i + '" style="margin-left:auto">Swap</button></div></div>').join('') +
+      R.drops.map((c, i) => '<div class="path">' + side('out', c.n, c.q) + '<div class="row"><span class="chip warn">' + esc(c.why[0]) + '</span><button class="btn danger sm" data-act="drop" data-v="' + i + '" style="margin-left:auto">Remove</button></div></div>').join('') + '</div>';
+  }
+  const any = R.paths.length;
+  h += '<div class="grp"><span class="lab">Upgrade paths' + (any ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
+  if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
+  else {
+    h += '<div class="tiers">' + TIER_KEYS.map(t => '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>' + (R.count[t] ? R.count[t] + ' swap' + (R.count[t] === 1 ? '' : 's') : 'none') + '</span><span>' + (R.count[t] ? (R.cost[t] >= 0 ? '+' : '−') + '$' + Math.abs(R.cost[t]).toFixed(0) : '') + '</span><button class="btn sm" data-act="swap-all" data-v="' + t + '"' + (R.count[t] ? '' : ' disabled') + '>Apply all</button></div>').join('') + '</div>' +
+      '<p class="note" style="margin:0">Each card below shows what to swap it for at each tier. Budget options cost up to $3, Mid over $3 up to $12, Apex over $12. The bar marks how far along its path the card already is.</p>';
+    const show = S.pathShow || 12;
+    h += R.paths.slice(0, show).map((L, i) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
+      return '<div class="path">' + side('out', L.cut, 1) +
+        '<div class="prog" role="img" aria-label="Upgrade progress: ' + (step ? TIERS[TIER_KEYS[step - 1]].label : 'not started') + '">' + ['Now'].concat(TIER_KEYS.map(t => TIERS[t].label)).map((lab, k) => '<span class="' + (k <= step ? 'done' : '') + (k === step ? ' here' : '') + (k > 0 && L.opts[TIER_KEYS[k - 1]] ? ' has' : '') + '"><i></i>' + lab + '</span>').join('') + '</div>' +
+        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>' : ''; }).join('') + '</div>'; }).join('');
+    if (any > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, any - show) + ' more</button>';
+  }
+  h += '</div>';
   return h + '</section>';
 }
 function viewDeck(){
@@ -544,7 +556,7 @@ document.addEventListener('click', ev => {
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
-    case 'open-deck': S.deckId = v; S.view = 'deck'; changed = false; break;
+    case 'open-deck': S.deckId = v; S.view = 'deck'; S.pathShow = 0; changed = false; break;
     case 'new-deck': newDeck({format:v, name:v === 'commander' ? 'New Commander deck' : 'New Standard deck'}); break;
     case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v) S.deckId = (S.profile.decks[0] || {}).id || null; S.confirmDel = null; break;
     case 'fmt': if (d.format !== v){ d.format = v; if (v === 'standard'){ d.colors = (d.colors || []).slice(0, 3); } else if (find(d.commander)) d.colors = find(d.commander).ci.slice(); } break;
@@ -562,10 +574,11 @@ document.addEventListener('click', ev => {
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
     case 'pick-add': addCard(d, n, 1); toast('Added ' + n + '.'); break;
     case 'add-to-deck': addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
-    case 'add-rec': { const a = recsFor(d).adds[+v]; if (a) addCard(d, a.n, a.q); break; }
-    case 'cut-rec': { const a = recsFor(d).cuts[+v]; if (a) cutCard(d, a.n, a.q); break; }
-    case 'dismiss': { const a = recsFor(d).adds[+v]; if (a) (d.dismissed = d.dismissed || []).push(a.n); break; }
-    case 'apply-all': { const R = recsFor(d); R.cuts.forEach(a => cutCard(d, a.n, a.q)); R.adds.forEach(a => addCard(d, a.n, a.q)); toast('Applied ' + R.adds.length + ' additions and ' + R.cuts.length + ' cuts.'); break; }
+    case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'swap-all': { const R = recsFor(d); let k = 0; R.paths.forEach(L => { const p = L.opts[v]; if (p && d.cards.some(x => x.n === p.cut) && !d.cards.some(x => x.n === p.add)){ doSwap(d, p, TIER_KEYS.indexOf(v) + 1); k++; } }); toast('Made ' + k + ' ' + TIERS[v].label + ' swap' + (k === 1 ? '' : 's') + '.'); break; }
+    case 'fix': { const p = recsFor(d).fixes[+v]; if (!p) return; doSwap(d, p, 0); break; }
+    case 'drop': { const c = recsFor(d).drops[+v]; if (!c) return; cutCard(d, c.n, c.q); break; }
+    case 'path-more': S.pathShow = (S.pathShow || 12) + 12; changed = false; break;
     case 'fill': { const k = fillDeck(d); const left = analyze(d); toast(k ? 'Filled ' + k + ' slots.' + (left.size < left.T.size ? ' The card library ran out of fits for the last ' + (left.T.size - left.size) + '.' : '') : 'No fitting cards left in the library for this aim and tier.'); break; }
     case 'backup-save': downloadBackup(); return;
     case 'backup-link': linkBackup(); return;
