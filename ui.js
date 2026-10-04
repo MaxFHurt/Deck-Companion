@@ -146,9 +146,9 @@ function idb(mode, fn){ return new Promise((res, rej) => { let rq; try { rq = in
   rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => rej(rq.error);
   rq.onsuccess = () => { const tx = rq.result.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); }; }); }
 async function loadSavedLibrary(){
-  let fresh = false;
-  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ useFull(v.rows, v.when); fresh = Date.now() - (v.ts || 0) < 20 * 3600e3; render(); } } catch (e) {}
-  if (!fresh) autoUpdate();
+  let complete = false;
+  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ useFull(v.rows, v.when); complete = !!v.ts; render(); } } catch (e) {}
+  if (!complete) autoUpdate(); else checkReleases();
 }
 function useFull(rows, when){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when}; ART.clear(); }
 function setStatus(t){ const el = $('#status'); if (el){ el.textContent = t; el.hidden = !t; } }
@@ -194,7 +194,24 @@ async function loadBulk(file){
   catch (e) { toast('That file could not be read. Use the "Oracle Cards" file from Scryfall bulk data.'); }
   setStatus(''); render();
 }
-async function autoUpdate(){
+// Releases: one small request lists every set with its release date and size. A newer release date, or more cards in
+// released sets (how Secret Lair drops show up), means there is something new to download.
+function lsGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+async function releaseSignature(){
+  const j = await (await fetch('https://api.scryfall.com/sets')).json(), today = new Date().toISOString().slice(0, 10);
+  let latest = '', name = '', count = 0;
+  for (const s of j.data || []){ if (s.digital || !s.released_at || s.released_at > today) continue; count += s.card_count || 0; if (s.released_at > latest){ latest = s.released_at; name = s.name; } }
+  if (!latest) throw new Error('no sets'); return {latest, name, count};
+}
+async function checkReleases(){
+  try {
+    if (Date.now() - (lsGet('dc.relCheck') || 0) < 20 * 3600e3) return;
+    const sig = await releaseSignature(), saved = lsGet('dc.relSig'); lsSet('dc.relCheck', Date.now());
+    if (!saved || saved.latest !== sig.latest || saved.count !== sig.count) autoUpdate(sig);
+  } catch (e) {}
+}
+async function autoUpdate(sig){
   if (autoUpdate.busy) return; autoUpdate.busy = true; DBINFO.err = ''; let n = 0, why = [];
   setStatus('Checking Scryfall for card updates…');
   try {
@@ -203,7 +220,7 @@ async function autoUpdate(){
     n = await ingest(resp.body, meta.size || 1.7e8, String(meta.updated_at || '').slice(0, 10));
   } catch (e) { why.push('daily file: ' + (e && e.message || e)); }
   if (!n) try { n = await pagedUpdate(); } catch (e) { why.push('card search: ' + (e && e.message || e)); }
-  if (n) toast(n.toLocaleString() + ' cards updated from Scryfall.');
+  if (n){ toast(n.toLocaleString() + ' cards updated from Scryfall.'); try { lsSet('dc.relSig', sig && sig.latest ? sig : await releaseSignature()); lsSet('dc.relCheck', Date.now()); } catch (e) {} }
   else { toast(DBINFO.source === 'full' ? 'Could not finish the Scryfall update. Using the cards downloaded so far.' : 'Could not reach Scryfall. Using the starter library for now.'); }
   DBINFO.err = n ? '' : why.join(' · ');
   autoUpdate.busy = false; setStatus(''); render();
@@ -389,7 +406,7 @@ function viewProfile(){
     '<div class="grp"><span class="lab">Saved decks · ' + P.decks.length + '</span>' + (P.decks.map(d => '<div class="row" style="border-bottom:1px solid var(--line);padding-bottom:6px"><b style="flex:1;min-width:140px">' + esc(d.name) + '</b><span class="chip">' + d.format + '</span><span class="chip gold">' + TIERS[d.tier].label + '</span><button class="btn sm" data-act="open-deck" data-v="' + d.id + '">Open</button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>').join('') || '<p class="note">No decks saved.</p>') + '</div>' +
     '</section>' + backupPanel() +
     '<section class="panel"><div class="ph"><h2>Card database</h2><small>' + (DBINFO.source === 'full' ? DBINFO.count.toLocaleString() + ' cards · Scryfall data from ' + esc(DBINFO.when) : DBINFO.count + '-card starter library') + '</small></div>' +
-    '<p class="note" style="margin:0;max-width:75ch">' + (DBINFO.source === 'full' ? 'Card text, prices, legality and artwork come from Scryfall. The app checks for a fresh copy about once a day when you open it.' : 'The app downloads the full card list from Scryfall the first time it opens, then refreshes it about once a day. Until that finishes it uses a small built-in starter library with estimated prices.') + (DBINFO.err ? ' <span class="unk">The last update failed (' + esc(DBINFO.err) + ').</span>' : '') + '</p>' +
+    '<p class="note" style="margin:0;max-width:75ch">' + (DBINFO.source === 'full' ? 'Card text, prices, legality and artwork come from Scryfall. Once a day the app checks Magic’s release calendar and downloads fresh card data only when a new set or Secret Lair drop has released' + ((lsGet('dc.relSig') || {}).name ? ' (latest seen: ' + esc(lsGet('dc.relSig').name) + ', ' + esc(lsGet('dc.relSig').latest) + ')' : '') + '. Prices refresh at the same time; press Update now whenever you want today’s prices.' : 'The app downloads the full card list from Scryfall the first time it opens, then refreshes it whenever a new set or Secret Lair drop releases. Until that finishes it uses a small built-in starter library with estimated prices.') + (DBINFO.err ? ' <span class="unk">The last update failed (' + esc(DBINFO.err) + ').</span>' : '') + '</p>' +
     '<div class="row"><button class="btn pri" data-act="db-update">Update card data now</button></div>' +
     '<p class="note" style="margin:0">If the automatic update keeps failing, download <b>Oracle Cards</b> from <a href="https://scryfall.com/docs/api/bulk-data" target="_blank" rel="noopener">scryfall.com/docs/api/bulk-data</a> and load the file here:</p><div class="row"><input type="file" id="db-file" accept=".json,application/json" style="max-width:340px"></div></section>';
 }
@@ -466,7 +483,7 @@ document.addEventListener('click', ev => {
     case 'restore-cancel': S.pendingRestore = null; changed = false; break;
     case 'restore-replace': case 'restore-merge': { const R = S.pendingRestore; if (!R) return; const keep = act === 'restore-merge' ? S.profile.decks.filter(x => !x.example) : [], ids = new Set(keep.map(x => x.id));
       R.p.decks.forEach(x => { if (ids.has(x.id)) x.id = uid(); }); S.profile = Object.assign({name:'Planeswalker'}, R.p, {decks:keep.concat(R.p.decks)}); S.deckId = (S.profile.decks[0] || {}).id || null; S.pendingRestore = null; toast('Restored ' + R.p.decks.length + ' decks from your backup.'); break; }
-    case 'db-update': autoUpdate(); return;
+    case 'db-update': if (autoUpdate.busy) toast('An update is already running.'); else autoUpdate(); return;
     case 'copy-list': copyText(deckToText(d), 'Deck list copied.'); return;
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
