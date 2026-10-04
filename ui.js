@@ -363,8 +363,74 @@ function backupPanel(){
 function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; return d; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; S.draft = null; S.profile.decks.unshift(d); return d; }
-function doSwap(d, p, step){ const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0); cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add); if (en && keep) en.step = keep; }
-function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state]); if (recsFor.k !== key){ recsFor.k = key; recsFor.v = upgradePaths(d); } return recsFor.v; }
+// Every swap remembers what it replaced: the new card carries the slot's history, so nothing is lost and any swap can be undone.
+function doSwap(d, p, step){
+  const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0);
+  const hist = old ? (old.hist || []).concat({n:old.n, q:p.q || 1, step:old.step || 0, pid:old.pid, ps:old.ps, l:!!old.l}) : [];
+  cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add);
+  if (en){ if (keep) en.step = keep; if (hist.length) en.hist = hist.slice(-8); }
+}
+function undoSwap(d, n){
+  const en = d.cards.find(x => x.n === n), hh = en && en.hist && en.hist[en.hist.length - 1]; if (!hh) return false;
+  if (d.cards.some(x => x.n === hh.n) && copyLimit(d, find(hh.n)) <= 1){ toast(hh.n + ' is already back in the deck.'); delete en.hist; return true; }
+  const rest = en.hist.slice(0, -1); cutCard(d, n, hh.q || 1); addCard(d, hh.n, hh.q || 1);
+  const b = d.cards.find(x => x.n === hh.n); if (b){ b.step = hh.step || 0; if (hh.pid){ b.pid = hh.pid; b.ps = hh.ps; } b.l = !!hh.l; if (rest.length) b.hist = rest; else delete b.hist; }
+  toast('Put ' + hh.n + ' back in place of ' + n + '.'); return true;
+}
+function histHtml(en){
+  if (!en || !en.hist || !en.hist.length) return '<div></div>';
+  const prev = en.hist[en.hist.length - 1];
+  return '<div class="hist"><span><small>History</small>' + en.hist.map(x => '<button data-act="card" data-n="' + esc(x.n) + '">' + esc(x.n) + '</button> → ').join('') + '<b>' + esc(en.n) + '</b></span><button class="btn sm" data-act="undo" data-n="' + esc(en.n) + '">Undo · bring back ' + esc(prev.n) + '</button></div>';
+}
+// ---------- library: the cards the player owns ----------
+function lib(){ const P = S.profile; if (!P.library || typeof P.library !== 'object') P.library = {}; return P.library; }
+function ownSet(){ if (ownSet.v !== S.libV || !ownSet.s){ ownSet.v = S.libV; ownSet.s = new Set(Object.keys(lib()).map(norm)); } return ownSet.s; }
+function libAdd(name, q){ const c = find(name), n = c ? c.n : String(name || '').trim(); if (!n || isBasic(n)) return 0; const L = lib(), k = Object.keys(L).find(x => norm(x) === norm(n)) || n; L[k] = Math.max(0, (L[k] || 0) + q); if (!L[k]) delete L[k]; S.libV = (S.libV || 0) + 1; return 1; }
+function libCount(){ return Object.keys(lib()).length; }
+async function ensureSets(){
+  if (S.setList || ensureSets.busy) return; ensureSets.busy = true;
+  try { const j = await (await sfetch('https://api.scryfall.com/sets')).json(), today = new Date().toISOString().slice(0, 10);
+    S.setList = (j.data || []).filter(s => !s.digital && s.card_count && s.released_at && s.released_at <= today && !/^(token|memorabilia|minigame|vanguard)$/.test(s.set_type)).map(s => ({code:s.code, name:s.name, yr:s.released_at.slice(0, 4), n:s.card_count}));
+    const dl = $('#lib-sets'); if (dl) dl.innerHTML = setOpts(); const st = $('#lib-set'); if (st) st.placeholder = 'Set name or code, e.g. Bloomburrow';
+  } catch (err) { S.setList = null; S.setErr = true; const st = $('#lib-set'); if (st) st.placeholder = 'Set list unavailable · type a set code, e.g. blb'; }
+  ensureSets.busy = false;
+}
+function setOpts(){ return (S.setList || []).map(s => '<option value="' + esc(s.name + ' (' + s.code.toUpperCase() + ')') + '">' + s.yr + ' · ' + s.n + ' cards</option>').join(''); }
+async function libAddSet(text){
+  const t = String(text || '').trim(); if (!t) return; const m = /\(([A-Za-z0-9]{2,6})\)\s*$/.exec(t), list = S.setList || [];
+  const s = m ? list.find(x => x.code === m[1].toLowerCase()) || {code:m[1].toLowerCase(), name:m[1].toUpperCase()} : list.find(x => x.code === t.toLowerCase()) || list.find(x => x.name.toLowerCase() === t.toLowerCase()) || list.find(x => x.name.toLowerCase().includes(t.toLowerCase())) || (/^[A-Za-z0-9]{2,6}$/.test(t) ? {code:t.toLowerCase(), name:t.toUpperCase()} : null);
+  if (!s){ toast('No set matches “' + t + '”.'); return; }
+  if (S.libBusy) return; S.libBusy = s.name; render();
+  const names = new Set();
+  try { await scry('e:' + s.code, '', 12, o => names.add(o.name)); } catch (err) { S.libBusy = ''; render(); toast('Could not load ' + s.name + ' from Scryfall. Try again.'); return; }
+  let k = 0; names.forEach(n => { const c = find(n); if (!(lib()[c ? c.n : n])) k += libAdd(n, 1); });
+  S.libBusy = ''; touch(); render(); toast(names.size ? 'Added ' + k + ' new card' + (k === 1 ? '' : 's') + ' from ' + s.name + ' (' + (names.size - k) + ' already owned or basic lands).' : 'No cards found for ' + s.name + '.');
+}
+function libAddList(cards, cmd){ let k = 0; if (cmd) k += libAdd(cmd, 1); cards.forEach(x => { k += libAdd(x.n, x.q || 1); }); return k; }
+function libRows(q){
+  const L = lib(), f = norm(q || ''), d = cur(), inDeck = new Set(d ? d.cards.map(x => norm(x.n)).concat(norm(d.commander || '')) : []);
+  const names = Object.keys(L).filter(n => !f || norm(n).includes(f)).sort((a, b) => a.localeCompare(b));
+  if (!names.length) return '<p class="note" style="margin:0">' + (Object.keys(L).length ? 'No owned card matches that search.' : 'Your library is empty. Add the cards you own above: single cards, a whole deck, or a whole set.') + '</p>';
+  return names.slice(0, 150).map(n => { const c = find(n); return '<div class="dl libr"><button class="nm" data-act="card" data-n="' + esc(n) + '">' + esc(n) + (inDeck.has(norm(n)) ? ' <span class="chip">In this deck</span>' : '') + (c ? '' : ' <span class="chip warn">Not in card data</span>') + '</button><span class="pr">' + money(c) + '</span><span class="qty"><button class="ico" data-act="lib-dec" data-n="' + esc(n) + '" aria-label="Own one fewer">−</button><b>' + L[n] + '</b><button class="ico" data-act="lib-inc" data-n="' + esc(n) + '" aria-label="Own one more">+</button></span></div>'; }).join('') +
+    (names.length > 150 ? '<p class="note" style="margin:6px 0 0">Showing 150 of ' + names.length.toLocaleString() + '. Search to narrow the list.</p>' : '');
+}
+function libPanel(d){
+  const P = S.profile, n = libCount(), tot = Object.values(lib()).reduce((s, x) => s + x, 0); ensureSets();
+  const deckOpts = P.decks.concat(S.draft && !P.decks.includes(S.draft) ? [S.draft] : []).map(x => '<option value="d:' + esc(x.id) + '"' + (x.id === d.id ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
+  const preOpts = typeof PRECON_LISTS === 'object' ? Object.keys(PRECON_LISTS).sort().map(k => '<option value="p:' + esc(k) + '">' + esc(k) + '</option>').join('') : '';
+  return '<div class="scroll" id="libscroll" data-keep><p class="note" style="margin:0">Your library is every card you own, shared by all your decks. Cards here that would improve a deck show up on its Upgrades tab as free swaps, and never appear on a buy list.</p>' +
+    '<div class="grp"><span class="lab">Add single cards</span><div class="dd"><input type="search" id="lib-q" placeholder="Search for a card you own" autocomplete="off"><div class="ddl" id="lib-res" hidden></div></div></div>' +
+    '<div class="grp"><span class="lab">Add a deck</span><div class="row"><select id="lib-deck" style="flex:1 1 180px;min-width:0"><optgroup label="Your decks">' + deckOpts + '</optgroup>' + (preOpts ? '<optgroup label="Precons">' + preOpts + '</optgroup>' : '') + '</select><button class="btn" data-act="lib-add-deck">Add deck</button><button class="btn" data-act="lib-paste">Paste a list</button></div></div>' +
+    '<div class="grp"><span class="lab">Add a set</span><div class="row"><input type="text" id="lib-set" list="lib-sets" style="flex:1 1 180px;min-width:0" placeholder="' + (S.setList ? 'Set name or code, e.g. Bloomburrow' : S.setErr ? 'Set list unavailable · type a set code, e.g. blb' : 'Loading the list of sets…') + '" autocomplete="off"><datalist id="lib-sets">' + setOpts() + '</datalist><button class="btn" data-act="lib-add-set"' + (S.libBusy ? ' disabled' : '') + '>' + (S.libBusy ? 'Adding ' + esc(S.libBusy) + '…' : 'Add set') + '</button></div><p class="note" style="margin:0">Adds one copy of every card in the set.</p></div>' +
+    '<div class="grp"><div class="row"><span class="lab" style="flex:1">Cards you own · ' + n.toLocaleString() + (tot !== n ? ' (' + tot.toLocaleString() + ' copies)' : '') + '</span>' + (n ? '<button class="btn sm danger" data-act="lib-clear">' + (S.confirmLib ? 'Confirm: empty the library' : 'Empty library') + '</button>' : '') + '</div>' +
+    (n ? '<input type="search" id="lib-f" placeholder="Search your library" value="' + esc(S.libF || '') + '" autocomplete="off">' : '') + '<div id="librows">' + libRows(S.libF) + '</div></div></div>';
+}
+function openLibPaste(){
+  S.modalCard = null;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Add a list to your library"><div class="ph"><h2>Add a list to your library</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Paste a decklist or any list of cards you own, one per line, like “1 Sol Ring”.</p><textarea id="lib-text" placeholder="1 Sol Ring&#10;1 Cultivate&#10;2 Llanowar Elves"></textarea><div class="row"><button class="btn pri" data-act="lib-paste-go">Add to library</button><button class="btn" data-act="close">Cancel</button></div></div>';
+  $('#modal').hidden = false;
+}
+function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state, S.libV || 0, libCount()]); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d); } return recsFor.v; }
 
 // ---------- views ----------
 function navHtml(){
@@ -393,8 +459,8 @@ function viewDecks(){
     return '<div class="row bar"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
       ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
       : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
-      '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + tb('buy', 'Buy list') + '</div>' +
-      (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : listPanel(od, A)) + '</section></div>'; }
+      '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
+      (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
     return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
   return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
@@ -557,17 +623,22 @@ function upPanel(d, A){
       R.fixes.map((p, i) => '<div class="path">' + side('out', p.cut, p.q) + side('in', p.add, p.q) + '<div class="row"><span class="chip warn">' + esc(p.fix ? p.cutWhy[0] : p.why[0]) + '</span><button class="btn pri sm" data-act="fix" data-v="' + i + '" style="margin-left:auto">Swap</button></div></div>').join('') +
       R.drops.map((c, i) => '<div class="path">' + side('out', c.n, c.q) + '<div class="row"><span class="chip warn">' + esc(c.why[0]) + '</span><button class="btn danger sm" data-act="drop" data-v="' + i + '" style="margin-left:auto">Remove</button></div></div>').join('') + '</div>';
   }
+  { const hs = d.cards.filter(x => x.hist && x.hist.length);
+    if (hs.length) h += '<div class="grp"><span class="lab">Swaps you’ve made · ' + hs.length + '</span><p class="note" style="margin:0">Nothing is lost when a card is swapped out. Each slot keeps its history, and Undo puts the previous card back.</p>' + hs.map(histHtml).join('') + '</div>'; }
   const any = R.paths.length;
   h += '<div class="grp"><span class="lab">Upgrade paths' + (any ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
   if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
   else {
+    if (R.count.free) h += '<div class="tip good"><b><small>Tip</small>' + R.count.free + ' free swap' + (R.count.free === 1 ? '' : 's') + ' from your library</b><ul><li class="pro"><i>+</i>You already own ' + (R.count.free === 1 ? 'a card' : 'cards') + ' that would improve this deck, so there is nothing to buy. They are listed first below.</li></ul><div class="row" style="margin-top:8px"><button class="btn sm" data-act="swap-all" data-v="free">Make all free swaps</button></div></div>';
     h += '<div class="tiers">' + TIER_KEYS.map(t => '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>' + (R.count[t] ? R.count[t] + ' swap' + (R.count[t] === 1 ? '' : 's') : 'No worthwhile upgrades') + '</span><span>' + (R.count[t] ? (R.cost[t] >= 0 ? '+' : '−') + '$' + Math.abs(R.cost[t]).toFixed(0) : '') + '</span><button class="btn sm" data-act="swap-all" data-v="' + t + '"' + (R.count[t] ? '' : ' disabled') + '>Apply all</button><em>' + (R.count[t] ? (Object.keys(R.shift[t]).length ? TYPE_ORDER.filter(k => R.shift[t][k]).map(k => (R.shift[t][k] > 0 ? '+' : '−') + Math.abs(R.shift[t][k]) + ' ' + k.toLowerCase()).join(', ') : 'same card types') : '') + '</em></div>').join('') + '</div>' +
       '<p class="note" style="margin:0">Each card below shows what to swap it for at each tier. Budget options cost up to $3, Mid over $3 up to $12, Apex over $12. The bar marks how far along its path the card already is. Swaps keep the same card type where they can; one that changes type is marked, and each tier shows what applying it all would do to the deck’s mix.</p>';
     const show = S.pathShow || 12;
     h += '<div class="paths">' + R.paths.slice(0, show).map((L, i) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
-      return '<div class="path">' + side('out', L.cut, 1) +
+      const fp = L.opts.free;
+      return '<div class="path">' + side('out', L.cut, 1) + histHtml(en) +
         '<div class="prog" role="img" aria-label="Upgrade progress: ' + (step ? TIERS[TIER_KEYS[step - 1]].label : 'not started') + '">' + ['Now'].concat(TIER_KEYS.map(t => TIERS[t].label)).map((lab, k) => '<span class="' + (k <= step ? 'done' : '') + (k === step ? ' here' : '') + (k > 0 && L.opts[TIER_KEYS[k - 1]] ? ' has' : '') + '"><i></i>' + lab + '</span>').join('') + '</div>' +
-        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.cross ? '<span class="chip warn">' + p.from + ' → ' + p.to + '</span>' : '') + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>' : '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>No worthwhile upgrade</p></div>'; }).join('') + '</div>'; }).join('') + '</div>';
+        (fp ? '<div class="tip good free"><b><small>Tip</small>Free swap · you already own this</b>' + side('in', fp.add, fp.q) + '<div class="row">' + (fp.cross ? '<span class="chip warn">' + fp.from + ' → ' + fp.to + '</span>' : '') + fp.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|free" style="margin-left:auto">Swap</button></div></div>' : '<div></div>') +
+        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.cross ? '<span class="chip warn">' + p.from + ' → ' + p.to + '</span>' : '') + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>' : '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + (fp ? 'Not better than the card you own' : 'No worthwhile upgrade') + '</p></div>'; }).join('') + '</div>'; }).join('') + '</div>';
     if (any > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, any - show) + ' more</button>';
   }
   h += '</div>';
@@ -711,7 +782,7 @@ function recolorHtml(d, c){
     '<div class="row"><button class="btn" data-act="close">Cancel</button></div></div>';
 }
 function tipHtml(d, c){
-  const f = evalFit(d, c), li = (xs, k, m) => xs.map(x => '<li class="' + k + '"><i>' + m + '</i>' + esc(x) + '</li>').join('');
+  const f = evalFit(d, c); if (ownSet().has(c._n)) f.pros.unshift('You already own this card, so it costs nothing to add.'); const li = (xs, k, m) => xs.map(x => '<li class="' + k + '"><i>' + m + '</i>' + esc(x) + '</li>').join('');
   return '<div class="tip ' + f.level + '"><b><small>Tip</small>' + esc(f.title) + '</b><ul>' + li(f.pros, 'pro', '+') + li(f.cons, 'con', '–') + '</ul></div>';
 }
 function wantHtml(d, c){
@@ -828,10 +899,22 @@ function handleAct(act, v, n, pArg){
     case 'rm': cutCard(d, n, 999); break;
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
     case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
-    case 'want': { cutCard(d, v, 1); addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
+    case 'want': { doSwap(d, {cut:v, add:n, q:1}, 0); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
     case 'add-to-deck': { const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
     case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
-    case 'swap-all': { const R = recsFor(d); let k = 0; R.paths.forEach(L => { const p = L.opts[v]; if (p && d.cards.some(x => x.n === p.cut) && !d.cards.some(x => x.n === p.add)){ doSwap(d, p, TIER_KEYS.indexOf(v) + 1); k++; } }); toast('Made ' + k + ' ' + TIERS[v].label + ' swap' + (k === 1 ? '' : 's') + '.'); break; }
+    case 'swap-all': { const R = recsFor(d); let k = 0; R.paths.forEach(L => { const p = L.opts[v]; if (p && d.cards.some(x => x.n === p.cut) && !d.cards.some(x => x.n === p.add)){ doSwap(d, p, TIER_KEYS.indexOf(v) + 1); k++; } }); toast('Made ' + k + ' ' + (v === 'free' ? 'free' : TIERS[v].label) + ' swap' + (k === 1 ? '' : 's') + '.'); break; }
+    case 'undo': if (!undoSwap(d, n)) return; break;
+    case 'lib-add': { document.querySelectorAll('.ddl').forEach(x => x.hidden = true); const q0 = $('#lib-q'); if (q0) q0.value = ''; libAdd(n, 1); toast('Added ' + n + ' to your library.'); break; }
+    case 'lib-inc': libAdd(n, 1); break;
+    case 'lib-dec': libAdd(n, -1); break;
+    case 'lib-clear': if (S.confirmLib){ S.profile.library = {}; S.libV = (S.libV || 0) + 1; S.confirmLib = false; toast('Library emptied.'); } else { S.confirmLib = true; changed = false; } break;
+    case 'lib-add-deck': { const val = ($('#lib-deck') || {}).value || ''; let k = 0, nm = '';
+      if (val.slice(0, 2) === 'd:'){ const x = S.profile.decks.concat(S.draft ? [S.draft] : []).find(y => y.id === val.slice(2)); if (x){ nm = x.name; k = libAddList(x.cards, x.format === 'commander' ? x.commander : ''); } }
+      else if (val.slice(0, 2) === 'p:' && PRECON_LISTS[val.slice(2)]){ nm = val.slice(2); const pc = PRECONS.find(y => y.name === nm); k = libAddList(PRECON_LISTS[nm].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x); return {n:m ? m[2] : x, q:m ? +m[1] : 1}; }), pc && (pc.cmd || pc.commander) || ''); }
+      if (!nm) return; toast('Added ' + k + ' cards from ' + nm + ' to your library.'); break; }
+    case 'lib-paste': openLibPaste(); return;
+    case 'lib-paste-go': { const txt = ($('#lib-text') || {}).value || ''; const r = parseDeckText(txt), k = libAddList(r.cards, r.commander); $('#modal').hidden = true; toast('Added ' + k + ' cards to your library.'); break; }
+    case 'lib-add-set': libAddSet(($('#lib-set') || {}).value); return;
     case 'fix': { const p = recsFor(d).fixes[+v]; if (!p) return; doSwap(d, p, 0); break; }
     case 'drop': { const c = recsFor(d).drops[+v]; if (!c) return; cutCard(d, c.n, c.q); break; }
     case 'path-more': S.pathShow = (S.pathShow || 12) + 12; changed = false; break;
@@ -887,6 +970,8 @@ document.addEventListener('input', ev => {
   if (t.id === 'deck-q'){ S.deckQ = t.value; const el = $('#rows'), dk = cur(); if (el && dk) el.innerHTML = listRows(dk, S.deckQ); return; }
   if (t.id === 's-q'){ S.search.q = t.value; clearTimeout(st); st = setTimeout(() => { const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }, 160); }
   else if (t.id === 'add-q' && d){ const A = ctxOf(d); dropdown(t, $('#add-res'), {fmt:d.format, within:d.format === 'standard' && A.ident.length ? A.ident : null}, 'pick-add'); }
+  else if (t.id === 'lib-q') dropdown(t, $('#lib-res'), {}, 'lib-add');
+  else if (t.id === 'lib-f'){ S.libF = t.value; const el = $('#librows'); if (el) el.innerHTML = libRows(S.libF); }
   else if (t.id === 'pre-q'){ const el = $('#pre-list'); if (el) el.innerHTML = preRows(t.value); }
   else if (t.id === 'gen-q') dropdown(t, $('#gen-res'), {fmt:'commander', legend:true}, 'gen-pick');
   else if (t.id === 'cmd-q') dropdown(t, $('#cmd-res'), {fmt:'commander', legend:true}, 'set-cmd');

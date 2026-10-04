@@ -232,7 +232,7 @@ function recommend(d, swaps, fillOnly){
   const open = T.size - A.size;
   let nAdd = Math.max(0, open) + (fillOnly ? 0 : swaps), nCut = Math.max(0, -open) + (fillOnly ? 0 : swaps);
   const adds = [], cuts = [], def = {}; for (const r in A.roles) def[r] = T[r] - A.roles[r];
-  const okCard = c => legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && !dismissed.has(c._n);
+  const okCard = c => legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
 
   // lands first
   let landNeed = Math.min(nAdd, Math.max(0, T.lands - A.lands));
@@ -348,15 +348,19 @@ function autoSwaps(d){
 // cards over $3 up to $12, Apex at cards over $12, so the three options for a card are genuinely different steps.
 const TIER_STEPS = [['budget', 0], ['mid', 3], ['apex', 12]];
 function upgradePaths(d){
-  const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{budget:0, mid:0, apex:0}, cost:{budget:0, mid:0, apex:0}, shift:{budget:{}, mid:{}, apex:{}}};
+  const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{free:0, budget:0, mid:0, apex:0}, cost:{free:0, budget:0, mid:0, apex:0}, shift:{free:{}, budget:{}, mid:{}, apex:{}}};
+  // Free swaps come first: cards the player already owns (their library). Paid tiers never suggest an owned card,
+  // and must beat the free swap for the same slot to be shown at all.
+  const own = upgradePaths.own && upgradePaths.own.size ? upgradePaths.own : null, steps = (own ? [['free', 0]] : []).concat(TIER_STEPS);
   recommend.paths = true;
   try {
-    TIER_STEPS.forEach(([t, minP], i) => {
-      recommend.minP = minP; const R = autoSwaps(Object.assign({}, d, {tier:t}));
-      if (i === 0){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
+    steps.forEach(([t, minP]) => {
+      recommend.minP = minP; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
+      const R = autoSwaps(Object.assign({}, d, {tier:t === 'free' ? 'apex' : t}));
+      if (t === 'budget'){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
       R.pairs.forEach(p => {
         if (used.has(p.add) && !isBasic(p.add)) return;   // a card is only ever suggested once
-        if (p.land || p.fix){ if (i === 0){ out.fixes.push(p); used.add(p.add); } return; }
+        if (p.land || p.fix){ if (t === 'budget'){ out.fixes.push(p); used.add(p.add); } return; }
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
         if (L.opts[t]) return;
         // Don't force an upgrade: it must clearly beat the card it replaces, and beat the cheaper tier's pick for the same card.
@@ -367,7 +371,7 @@ function upgradePaths(d){
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
       });
     });
-  } finally { recommend.paths = false; recommend.minP = 0; }
+  } finally { recommend.paths = false; recommend.minP = 0; recommend.own = null; recommend.skip = null; }
   for (const [k, L] of by) if (!Object.keys(L.opts).length) by.delete(k);
   // singleton / copy-limit breaches are fixes too
   const dupDrops = []; d.cards.forEach(en => { const c = find(en.n), lim = copyLimit(d, c); if (c && en.q > lim) dupDrops.push({n:en.n, q:en.q - lim, s:-95, why:[d.format === 'commander' ? 'Commander allows one copy' : 'More than four copies']}); });
@@ -376,7 +380,7 @@ function upgradePaths(d){
     out.drops.forEach(x => { if (dupNames.has(x.n)) return; if (x.s > -40 && spare > 0){ const q = Math.min(spare, x.q); spare -= q; if (x.q - q > 0) rest.push(Object.assign({}, x, {q:x.q - q})); } else rest.push(x); });
     out.drops = dupDrops.concat(rest);
   }
-  out.paths = [...by.values()].sort((a, b) => b.gain - a.gain);
+  out.paths = [...by.values()].sort((a, b) => (b.opts.free ? 1 : 0) - (a.opts.free ? 1 : 0) || b.gain - a.gain);
   return out;
 }
 // "I want this card in my deck": rank what the deck can best do without. A land replaces a land, a spell a spell.
