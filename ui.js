@@ -314,13 +314,13 @@ function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if 
 function navHtml(){
   const b = (v, label) => '<button data-act="nav" data-v="' + v + '"' + (S.view === v ? ' aria-current="page"' : '') + '>' + SVG[v] + label + '</button>';
   $('#nav-l').innerHTML = b('decks', 'Decks') + b('deck', 'Builder') + b('search', '<span class="xs-hide">Card&nbsp;</span>Search');
-  $('#nav-r').innerHTML = b('generate', 'Generate') + b('profile', 'Profile');
+  $('#nav-r').innerHTML = b('profile', 'Profile');
 }
 function viewDecks(){
   const P = S.profile;
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
     return '<button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row"><span class="chip gold">' + TIERS[d.tier].label + '</span><span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button>'; }).join('');
-  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="import-open">Import a text list</button><button class="btn" data-act="precon-open">Load a precon</button></div>' +
+  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="import-open">Import a text list</button><button class="btn" data-act="precon-open">Load a precon</button><button class="btn" data-act="gen-open">Generate from a commander</button></div>' +
     (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Start a new one, import a text list, or load a precon from the Builder.</p>') + '</section>';
 }
 function aimPanel(d, ctx){
@@ -401,9 +401,9 @@ function upPanel(d, A){
   return h + '</section>';
 }
 function viewDeck(){
-  const d = cur(); if (!d) return '<section class="panel"><div class="ph"><h2>Builder</h2></div><p class="note">Open a deck from Decks, or start one.</p><div class="row"><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="precon-open">Load a precon</button></div></section>';
+  const d = cur(); if (!d) return '<section class="panel"><div class="ph"><h2>Builder</h2></div><p class="note">Open a deck from Decks, or start one.</p><div class="row"><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="precon-open">Load a precon</button><button class="btn" data-act="gen-open">Generate from a commander</button></div></section>';
   const A = analyze(d);
-  return (d.example ? '<p class="note" style="margin:0 2px">This is an example deck so you can see the builder working. Edit it freely, or start your own from Decks.</p>' : '') + '<div class="row"><button class="btn pri" data-act="import-open">Import a text list</button><button class="btn pri" data-act="precon-open">Load a precon</button></div><div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
+  return (d.example ? '<p class="note" style="margin:0 2px">This is an example deck so you can see the builder working. Edit it freely, or start your own from Decks.</p>' : '') + '<div class="row"><button class="btn pri" data-act="import-open">Import a text list</button><button class="btn pri" data-act="precon-open">Load a precon</button><button class="btn pri" data-act="gen-open">Generate from a commander</button></div><div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
 }
 function searchResults(){
   const f = S.search, filt = {fmt:f.fmt, color:f.color, type:f.type, max:+f.max || 0, theme:f.theme}, q = f.q.trim();
@@ -440,15 +440,15 @@ function openPrecons(){
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Load a precon"><div class="ph"><h2>Load a precon</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Real preconstructed Commander decks with their official 100-card lists, picked because they are easy to learn. Loading one adds it as a new deck; your other decks are untouched.' + (DBINFO.source === 'starter' ? ' Card details for most of these appear once the full card data has finished downloading.' : '') + '</p><div class="grp">' + rows + '</div><p class="note" style="margin:0">Decklists from EDHREC’s precon pages.</p></div>';
   $('#modal').hidden = false;
 }
-function viewGenerate(){
+function openGenerate(){
   const g = S.gen, c = find(g.cmd), st = detectStrategy(c);
-  let h = '<section class="panel"><div class="ph"><h2>Generate from a commander</h2><small>A new deck built around one card</small></div><p class="note" style="margin:0;max-width:75ch">Pick any legendary creature. Deck Companion reads what the commander does, sets the aims to match, and builds a full 100-card list at the tier you choose. You can re-aim and upgrade it afterwards in the Builder.</p>' +
-    '<div class="grp" style="max-width:520px"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search legendary creatures" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
+  let h = '<div class="panel" role="dialog" aria-label="Generate from a commander"><div class="ph"><h2>Generate from a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Pick any legendary creature. Deck Companion reads what the commander does, sets the build to match, and makes a full 100-card list at the tier you choose. It is added as a new deck.</p>' +
+    '<div class="grp"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search legendary creatures" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
   if (c) h += '<div class="detail">' + cardHtml(c, false) + '<div class="grp"><span class="lab">Strategy it will follow</span><div class="row">' + (st.themes.length ? st.themes.map(k => '<span class="chip gold">' + (k === 'tribal' ? st.tribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. The deck opens in the Builder so you can pick the mechanics, then fill it.</span>') + '</div>' +
-    '<span class="lab">Tier</span><div class="seg" style="max-width:420px">' + Object.keys(TIERS).map(k => '<button data-act="gen-tier" data-v="' + k + '" class="' + (g.tier === k ? 'on' : '') + '">' + TIERS[k].label + '<small>' + (TIERS[k].cap === Infinity ? 'no price cap' : 'cards ≤ $' + TIERS[k].cap) + '</small></button>').join('') + '</div>' +
-    '<div class="row"><button class="btn pri" data-act="gen-go">Generate this deck</button></div>' + (DBINFO.source === 'starter' ? '<p class="note" style="margin:0">Built from the ' + DBINFO.count + '-card starter library. Load the full card database in Profile for a much wider pool.</p>' : '') + '</div></div>';
-  const st2 = STD_STARTERS.map((p, i) => '<div class="tile"><img alt="" src="' + artFor({n:p.name, t:'Sorcery', o:'', ci:p.colors}) + '"><div class="tb"><h3>' + esc(p.name) + '</h3><p>' + p.colors.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') + ' ' + esc(p.note) + '</p><div class="row">' + p.aims.map(a => '<span class="chip">' + (a === 'tribal' ? p.tribe : THEMES[a].label.split(' / ')[0]) + '</span>').join('') + '</div><div class="row" style="margin-top:auto"><button class="btn pri sm" data-act="std-starter" data-v="' + i + '">Generate this deck</button></div></div></div>').join('');
-  return h + '</section><section class="panel"><div class="ph"><h2>Generate a Standard deck from a theme</h2><small>60 cards · Budget tier</small></div><div class="tiles">' + st2 + '</div></section>';
+    '<span class="lab">Tier</span><div class="seg">' + Object.keys(TIERS).map(k => '<button data-act="gen-tier" data-v="' + k + '" class="' + (g.tier === k ? 'on' : '') + '">' + TIERS[k].label + '<small>' + (TIERS[k].cap === Infinity ? 'no price cap' : 'cards ≤ $' + TIERS[k].cap) + '</small></button>').join('') + '</div>' +
+    '<div class="row"><button class="btn pri" data-act="gen-go">Generate this deck</button></div>' + (DBINFO.source === 'starter' ? '<p class="note" style="margin:0">Built from the ' + DBINFO.count + '-card starter library until the full card data finishes downloading.</p>' : '') + '</div></div>';
+  h += '<div class="grp"><span class="lab">Or a 60-card Standard deck from a theme</span>' + STD_STARTERS.map((p, i) => '<div class="pre" style="grid-template-columns:minmax(0,1fr) auto"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + p.colors.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') + '<div class="note">' + esc(p.note) + '</div></div><div><button class="btn pri sm" data-act="std-starter" data-v="' + i + '">Generate</button></div></div>').join('') + '</div></div>';
+  $('#modal').innerHTML = h; $('#modal').hidden = false;
 }
 function viewProfile(){
   const P = S.profile;
@@ -463,7 +463,7 @@ function viewProfile(){
 }
 function render(){
   navHtml(); const m = $('#main');
-  m.innerHTML = S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() : S.view === 'generate' ? viewGenerate() : S.view === 'profile' ? viewProfile() : viewDeck();
+  m.innerHTML = S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = '16px';
   ensureTheme();
 }
@@ -549,12 +549,13 @@ document.addEventListener('click', ev => {
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
     case 'precon-open': openPrecons(); return;
+    case 'gen-open': openGenerate(); return;
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
-    case 'gen-pick': S.gen.cmd = n; changed = false; break;
-    case 'gen-tier': S.gen.tier = v; changed = false; break;
-    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier}); setCommander(nd, c.n);
+    case 'gen-pick': S.gen.cmd = n; openGenerate(); return;
+    case 'gen-tier': S.gen.tier = v; openGenerate(); return;
+    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier}); setCommander(nd, c.n);
       if (nd.aims.length){ fillDeck(nd); toast('Generated a ' + TIERS[nd.tier].label + ' deck for ' + c.n + '.'); } else toast('Pick your mechanics in the Build panel, then press Fill.'); break; }
-    case 'std-starter': { const p = STD_STARTERS[+v], nd = newDeck({name:p.name, format:'standard', aims:p.aims.slice(), tribe:p.tribe || '', colors:p.colors.slice()}); fillDeck(nd); toast('Standard deck generated.'); break; }
+    case 'std-starter': { $('#modal').hidden = true; const p = STD_STARTERS[+v], nd = newDeck({name:p.name, format:'standard', aims:p.aims.slice(), tribe:p.tribe || '', colors:p.colors.slice()}); fillDeck(nd); toast('Standard deck generated.'); break; }
     case 'import-go': {
       const txt = $('#imp-text').value; if (!txt.trim()){ toast('Paste a list or choose a text file first.'); return; }
       const r = parseDeckText(txt), fmt = $('#imp-fmt').value, total = r.cards.reduce((s, e) => s + e.q, 0); if (!total && !r.commander){ toast('No cards found in that text.'); return; }
