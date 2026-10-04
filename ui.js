@@ -60,6 +60,9 @@ const PAL = {W:['#fff6d0','#d9b65a','#5a4a2a'], U:['#9fe0ff','#2d6fd6','#0a1a4a'
 const PRINT = {key:'', map:new Map()};
 const imgUrl = (kind, id) => IMG + kind + '/front/' + id[0] + '/' + id[1] + '/' + id + '.jpg';
 function pidOf(c, e){ return (e && e.pid) || (PRINT.map.get(c._n) || {}).id || c.id; }
+// Set and rarity of the printing being shown for a card (the commander-set printing when there is one).
+function printInfo(c){ if (!c) return null; const t = PRINT.map.get(c._n), set = (t && t.set) || c.set || '', rar = (t && t.set ? t.rar : c.rar) || ''; return set || rar ? {set, rar} : null; }
+function printTag(c){ const i = printInfo(c); if (!i) return ''; return '<span class="setline">' + (i.set ? '<span class="setn">' + esc(i.set) + '</span>' : '') + (i.rar ? '<span class="rar rar-' + esc(i.rar[0]) + '">' + esc(i.rar[0].toUpperCase() + i.rar.slice(1)) + '</span>' : '') + '</span>'; }
 function priceOf(o){ const pr = o.prices || {}, p = parseFloat(pr.usd || pr.usd_foil || pr.usd_etched); return isNaN(p) ? null : p; }
 async function scry(q, extra, maxPages, each){
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q + ' game:paper') + '&unique=prints' + (extra || ''), pages = 0;
@@ -68,12 +71,12 @@ async function scry(q, extra, maxPages, each){
 async function ensureTheme(){
   const d = cur(), c = d && d.format === 'commander' ? find(d.commander) : null, code = c && c.id ? (d.cmdSet || c.sc || '') : '';
   if (code === PRINT.key) return; PRINT.key = code; PRINT.map = new Map(); if (!code) return;
-  const cached = lsGet('dc.theme.' + code); if (cached){ PRINT.map = new Map(cached); render(); return; }
+  const cached = lsGet('dc.theme2.' + code); if (cached){ PRINT.map = new Map(cached); render(); return; }
   try {
     const sets = lsGet('dc.sets') || {}, fam = [code]; if (sets[code]) fam.push(sets[code]); for (const k in sets) if (sets[k] === code && fam.length < 6) fam.push(k);
     const m = new Map();
-    await scry('(' + fam.map(s => 'e:' + s).join(' or ') + ')', '', 8, o => { const k = norm(o.name), old = m.get(k); if (!old || (o.set === code && old.sc !== code)) m.set(k, {id:o.id, sc:o.set}); });
-    if (PRINT.key !== code) return; PRINT.map = m; if (lsGet('dc.sets')) lsSet('dc.theme.' + code, [...m]); render();
+    await scry('(' + fam.map(s => 'e:' + s).join(' or ') + ')', '', 8, o => { const k = norm(o.name), old = m.get(k); if (!old || (o.set === code && old.sc !== code)) m.set(k, {id:o.id, sc:o.set, set:o.set_name || '', rar:o.rarity || ''}); });
+    if (PRINT.key !== code) return; PRINT.map = m; if (lsGet('dc.sets')) lsSet('dc.theme2.' + code, [...m]); render();
   } catch (e) {}
 }
 function printsHtml(){
@@ -208,7 +211,7 @@ function idb(mode, fn){ return new Promise((res, rej) => { let rq; try { rq = in
   rq.onsuccess = () => { const tx = rq.result.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); }; }); }
 async function loadSavedLibrary(){
   let complete = false;
-  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ complete = !!v.ts && v.rows.some(r => r.sc); useFull(v.rows, v.when, complete); render(); } } catch (e) {}
+  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ complete = !!v.ts && v.rows.some(r => r.sc) && v.rows.some(r => r.rar); useFull(v.rows, v.when, complete); render(); } } catch (e) {}
   if (!complete) autoUpdate(); else checkReleases();
 }
 function useFull(rows, when, complete){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when, complete:!!complete}; ART.clear(); }
@@ -471,7 +474,7 @@ function buyPanel(d){
   return '<div class="row"><span class="lab" style="flex:1">What each tier’s upgrades would add</span><button class="btn pri sm" data-act="buy-copy">Copy as text</button><button class="btn sm" data-act="buy-save">Save text file</button></div>' +
     '<div class="scroll" id="buyscroll" data-keep><p class="note" style="margin:0">One list per tier, sorted by color, then A to Z. Basic lands are left off.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
     data.map(T => '<div class="grp"><div class="gh" style="font-size:15px"><span>' + TIERS[T.t].label + '</span><span>' + T.count + ' card' + (T.count === 1 ? '' : 's') + (T.count ? ' · ' + (DBINFO.source === 'starter' ? '~' : '') + '$' + T.cost.toFixed(2) : '') + '</span></div>' +
-      (T.items.length ? BUY_GROUPS.map(([k, label]) => { const xs = T.items.filter(x => x.g === k); return xs.length ? '<div><span class="lab">' + label + '</span>' + xs.map(x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + '</span><span class="pr">' + money(find(x.n)) + '</span></button>').join('') + '</div>' : ''; }).join('') : '<p class="note" style="margin:0">Nothing to buy at this tier.</p>') + '</div>').join('') + '</div>';
+      (T.items.length ? BUY_GROUPS.map(([k, label]) => { const xs = T.items.filter(x => x.g === k); return xs.length ? '<div><span class="lab">' + label + '</span>' + xs.map(x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + printTag(find(x.n)) + '</span><span class="pr">' + money(find(x.n)) + '</span></button>').join('') + '</div>' : ''; }).join('') : '<p class="note" style="margin:0">Nothing to buy at this tier.</p>') + '</div>').join('') + '</div>';
 }
 function openBuy(){
   const d = cur(); if (!d) return; S.modalCard = null;
@@ -530,7 +533,7 @@ function upPanel(d, A){
     return h + '<div class="gate"><b>Set up the build first</b>' + need + ' at least one mechanic in the Build panel. Upgrade paths are built around your priorities, so two players with the same commander get different lists.</div></div>';
   }
   const R = recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>'; }, price = n => money(find(n));
-  const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + '</span><em>' + price(n) + '</em></button>';
+  const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + (kind === 'in' ? printTag(find(n)) : '') + '</span><em>' + price(n) + '</em></button>';
   const mp = manaPlan(d);
   if (mp.off >= 2) h += '<div class="gate"><b>Mana adjustment suggested</b>The deck’s colors have shifted, so its basic lands no longer match what the spells need. I would change: ' + esc(planText(mp)) + '.<div class="row" style="margin-top:10px"><button class="btn pri" data-act="mana-apply">Accept the change</button></div></div>';
   if (R.fixes.length || R.drops.length){
