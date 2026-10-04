@@ -391,11 +391,16 @@ async function ensureSets(){
   if (S.setList || ensureSets.busy) return; ensureSets.busy = true;
   try { const j = await (await sfetch('https://api.scryfall.com/sets')).json(), today = new Date().toISOString().slice(0, 10);
     S.setList = (j.data || []).filter(s => !s.digital && s.card_count && s.released_at && s.released_at <= today && !/^(token|memorabilia|minigame|vanguard)$/.test(s.set_type)).map(s => ({code:s.code, name:s.name, yr:s.released_at.slice(0, 4), n:s.card_count}));
-    const dl = $('#lib-sets'); if (dl) dl.innerHTML = setOpts(); const st = $('#lib-set'); if (st) st.placeholder = 'Set name or code, e.g. Bloomburrow';
+    const st = $('#lib-set'); if (st) st.placeholder = 'Set name or code, e.g. Bloomburrow';
   } catch (err) { S.setList = null; S.setErr = true; const st = $('#lib-set'); if (st) st.placeholder = 'Set list unavailable · type a set code, e.g. blb'; }
   ensureSets.busy = false;
 }
-function setOpts(){ return (S.setList || []).map(s => '<option value="' + esc(s.name + ' (' + s.code.toUpperCase() + ')') + '">' + s.yr + ' · ' + s.n + ' cards</option>').join(''); }
+function setDrop(input, box){
+  const q = input.value.trim().toLowerCase(); if (q.length < 2 || !S.setList){ box.hidden = true; return; }
+  const hit = S.setList.filter(s => s.code === q).concat(S.setList.filter(s => s.code !== q && s.name.toLowerCase().startsWith(q)), S.setList.filter(s => s.code !== q && !s.name.toLowerCase().startsWith(q) && s.name.toLowerCase().includes(q))).slice(0, 8);
+  box.innerHTML = hit.map(s => '<button style="grid-template-columns:1fr auto" data-act="lib-set-pick" data-v="' + esc(s.name + ' (' + s.code.toUpperCase() + ')') + '"><span>' + esc(s.name) + '<small>' + s.yr + ' · ' + s.n + ' cards</small></span><span class="chip">' + esc(s.code.toUpperCase()) + '</span></button>').join('') || '<p class="note" style="margin:8px">No set matches that.</p>';
+  box.hidden = false;
+}
 async function libAddSet(text){
   const t = String(text || '').trim(); if (!t) return; const m = /\(([A-Za-z0-9]{2,6})\)\s*$/.exec(t), list = S.setList || [];
   const s = m ? list.find(x => x.code === m[1].toLowerCase()) || {code:m[1].toLowerCase(), name:m[1].toUpperCase()} : list.find(x => x.code === t.toLowerCase()) || list.find(x => x.name.toLowerCase() === t.toLowerCase()) || list.find(x => x.name.toLowerCase().includes(t.toLowerCase())) || (/^[A-Za-z0-9]{2,6}$/.test(t) ? {code:t.toLowerCase(), name:t.toUpperCase()} : null);
@@ -421,7 +426,7 @@ function libPanel(d){
   return '<div class="scroll" id="libscroll" data-keep><p class="note" style="margin:0">Your library is every card you own, shared by all your decks. Cards here that would improve a deck show up on its Upgrades tab as free swaps, and never appear on a buy list.</p>' +
     '<div class="grp"><span class="lab">Add single cards</span><div class="dd"><input type="search" id="lib-q" placeholder="Search for a card you own" autocomplete="off"><div class="ddl" id="lib-res" hidden></div></div></div>' +
     '<div class="grp"><span class="lab">Add a deck</span><div class="row"><select id="lib-deck" style="flex:1 1 180px;min-width:0"><optgroup label="Your decks">' + deckOpts + '</optgroup>' + (preOpts ? '<optgroup label="Precons">' + preOpts + '</optgroup>' : '') + '</select><button class="btn" data-act="lib-add-deck">Add deck</button><button class="btn" data-act="lib-paste">Paste a list</button></div></div>' +
-    '<div class="grp"><span class="lab">Add a set</span><div class="row"><input type="text" id="lib-set" list="lib-sets" style="flex:1 1 180px;min-width:0" placeholder="' + (S.setList ? 'Set name or code, e.g. Bloomburrow' : S.setErr ? 'Set list unavailable · type a set code, e.g. blb' : 'Loading the list of sets…') + '" autocomplete="off"><datalist id="lib-sets">' + setOpts() + '</datalist><button class="btn" data-act="lib-add-set"' + (S.libBusy ? ' disabled' : '') + '>' + (S.libBusy ? 'Adding ' + esc(S.libBusy) + '…' : 'Add set') + '</button></div><p class="note" style="margin:0">Adds one copy of every card in the set.</p></div>' +
+    '<div class="grp"><span class="lab">Add a set</span><div class="row"><div class="dd" style="flex:1 1 180px;min-width:0"><input type="search" id="lib-set" placeholder="' + (S.setList ? 'Set name or code, e.g. Bloomburrow' : S.setErr ? 'Set list unavailable · type a set code, e.g. blb' : 'Loading the list of sets…') + '" autocomplete="off"><div class="ddl" id="set-res" hidden></div></div><button class="btn" data-act="lib-add-set"' + (S.libBusy ? ' disabled' : '') + '>' + (S.libBusy ? 'Adding ' + esc(S.libBusy) + '…' : 'Add set') + '</button></div><p class="note" style="margin:0">Adds one copy of every card in the set.</p></div>' +
     '<div class="grp"><div class="row"><span class="lab" style="flex:1">Cards you own · ' + n.toLocaleString() + (tot !== n ? ' (' + tot.toLocaleString() + ' copies)' : '') + '</span>' + (n ? '<button class="btn sm danger" data-act="lib-clear">' + (S.confirmLib ? 'Confirm: empty the library' : 'Empty library') + '</button>' : '') + '</div>' +
     (n ? '<input type="search" id="lib-f" placeholder="Search your library" value="' + esc(S.libF || '') + '" autocomplete="off">' : '') + '<div id="librows">' + libRows(S.libF) + '</div></div></div>';
 }
@@ -914,6 +919,7 @@ function handleAct(act, v, n, pArg){
       if (!nm) return; toast('Added ' + k + ' cards from ' + nm + ' to your library.'); break; }
     case 'lib-paste': openLibPaste(); return;
     case 'lib-paste-go': { const txt = ($('#lib-text') || {}).value || ''; const r = parseDeckText(txt), k = libAddList(r.cards, r.commander); $('#modal').hidden = true; toast('Added ' + k + ' cards to your library.'); break; }
+    case 'lib-set-pick': { const i = $('#lib-set'), bx = $('#set-res'); if (i) i.value = v; if (bx) bx.hidden = true; return; }
     case 'lib-add-set': libAddSet(($('#lib-set') || {}).value); return;
     case 'fix': { const p = recsFor(d).fixes[+v]; if (!p) return; doSwap(d, p, 0); break; }
     case 'drop': { const c = recsFor(d).drops[+v]; if (!c) return; cutCard(d, c.n, c.q); break; }
@@ -971,6 +977,7 @@ document.addEventListener('input', ev => {
   if (t.id === 's-q'){ S.search.q = t.value; clearTimeout(st); st = setTimeout(() => { const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }, 160); }
   else if (t.id === 'add-q' && d){ const A = ctxOf(d); dropdown(t, $('#add-res'), {fmt:d.format, within:d.format === 'standard' && A.ident.length ? A.ident : null}, 'pick-add'); }
   else if (t.id === 'lib-q') dropdown(t, $('#lib-res'), {}, 'lib-add');
+  else if (t.id === 'lib-set') setDrop(t, $('#set-res'));
   else if (t.id === 'lib-f'){ S.libF = t.value; const el = $('#librows'); if (el) el.innerHTML = libRows(S.libF); }
   else if (t.id === 'pre-q'){ const el = $('#pre-list'); if (el) el.innerHTML = preRows(t.value); }
   else if (t.id === 'gen-q') dropdown(t, $('#gen-res'), {fmt:'commander', legend:true}, 'gen-pick');
