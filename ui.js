@@ -55,8 +55,46 @@ function ornaments(){
 // ---------- procedural card art ----------
 const ART = new Map(), IMG = 'https://cards.scryfall.io/';
 const PAL = {W:['#fff6d0','#d9b65a','#5a4a2a'], U:['#9fe0ff','#2d6fd6','#0a1a4a'], B:['#c7a6ff','#5a2a8a','#0c0616'], R:['#ffd08a','#e0452a','#3a0a0a'], G:['#c8ffb0','#2f9a55','#06200f'], C:['#e6e0ff','#8a84a8','#191528'], L:['#ffe2b0','#a8763a','#1c1208']};
-function artFor(c){
-  if (c && c.id) return IMG + 'art_crop/front/' + c.id[0] + '/' + c.id[1] + '/' + c.id + '.jpg';
+// Printings: PRINT.map holds, for the open deck's commander set (and its sister sets), which printing of each card to show.
+const PRINT = {key:'', map:new Map()};
+const imgUrl = (kind, id) => IMG + kind + '/front/' + id[0] + '/' + id[1] + '/' + id + '.jpg';
+function pidOf(c, e){ return (e && e.pid) || (PRINT.map.get(c._n) || {}).id || c.id; }
+function priceOf(o){ const pr = o.prices || {}, p = parseFloat(pr.usd || pr.usd_foil || pr.usd_etched); return isNaN(p) ? null : p; }
+async function scry(q, extra, maxPages, each){
+  let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q + ' game:paper') + '&unique=prints' + (extra || ''), pages = 0;
+  while (url && pages++ < maxPages){ const r = await fetch(url); if (r.status === 404) return; if (!r.ok) throw new Error('search ' + r.status); const j = await r.json(); (j.data || []).forEach(each); url = j.has_more ? j.next_page : null; if (url) await sleep(110); }
+}
+async function ensureTheme(){
+  const d = cur(), c = d && d.format === 'commander' ? find(d.commander) : null, code = c && c.id ? (d.cmdSet || c.sc || '') : '';
+  if (code === PRINT.key) return; PRINT.key = code; PRINT.map = new Map(); if (!code) return;
+  const cached = lsGet('dc.theme.' + code); if (cached){ PRINT.map = new Map(cached); render(); return; }
+  try {
+    const sets = lsGet('dc.sets') || {}, fam = [code]; if (sets[code]) fam.push(sets[code]); for (const k in sets) if (sets[k] === code && fam.length < 6) fam.push(k);
+    const m = new Map();
+    await scry('(' + fam.map(s => 'e:' + s).join(' or ') + ')', '', 8, o => { const k = norm(o.name), old = m.get(k); if (!old || (o.set === code && old.sc !== code)) m.set(k, {id:o.id, sc:o.set}); });
+    if (PRINT.key !== code) return; PRINT.map = m; if (lsGet('dc.sets')) lsSet('dc.theme.' + code, [...m]); render();
+  } catch (e) {}
+}
+function printsHtml(){
+  const P = S.prints; if (!P || !P.list.length) return '<p class="note" style="margin:0">No other printings found.</p>';
+  return '<div class="prints">' + P.list.map((x, i) => '<button data-act="print" data-v="' + i + '" class="' + (S.pick && S.pick.id === x.id ? 'on' : '') + '"><img loading="lazy" alt="" src="' + imgUrl('small', x.id) + '"><span>' + esc(x.set) + '</span><small>' + esc(x.yr) + (x.p != null ? ' · $' + x.p.toFixed(2) : '') + '</small></button>').join('') + '</div>';
+}
+async function loadPrints(c){
+  const list = [];
+  try { await scry(c.oid ? 'oracleid:' + c.oid : '!"' + c.n + '"', '&order=released&dir=desc', 4, o => list.push({id:o.id, set:o.set_name, sc:o.set, yr:String(o.released_at || '').slice(0, 4), p:priceOf(o)})); }
+  catch (e) { const b = $('#prints'); if (b && S.modalCard === c.n) b.innerHTML = '<p class="note" style="margin:0">Could not load the list of printings.</p>'; return; }
+  if (S.modalCard !== c.n) return; S.prints = {n:c.n, list};
+  if (S.pick && !S.pick.set){ const m = list.find(x => x.id === S.pick.id); if (m) S.pick = m; }
+  const b = $('#prints'); if (b) b.innerHTML = printsHtml();
+}
+async function printSearch(q){
+  const out = []; S.printPending = q;
+  try { await scry(q, '&order=name', 3, o => { const c = find(o.name); if (c) out.push({c, id:o.id, set:o.set_name, sc:o.set, yr:String(o.released_at || '').slice(0, 4), p:priceOf(o)}); }); S.printRes = {q, out}; }
+  catch (e) { S.printRes = {q, out, err:true}; }
+  S.printPending = ''; if (S.search.q.trim() === q && S.search.prints){ const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }
+}
+function artFor(c, e){
+  if (c && c.id) return imgUrl('art_crop', pidOf(c, e));
   const key = c ? c.n : '?'; if (ART.has(key)) return ART.get(key);
   const W = 240, H = 168, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'), r = rng(key);
   const t = c ? frontType(c) : '', o = c ? c.o || '' : '', ci = c ? c.ci : [];
@@ -110,9 +148,9 @@ const SVG = {
 function pips(text){ return esc(text || '').replace(/\{([^}]+)\}/g, (m, k) => { const cls = 'WUBRG'.includes(k) && k.length === 1 ? 'p' + k : 'pN'; return '<i class="pip ' + cls + '">' + (k === 'T' ? '↷' : k) + '</i>'; }); }
 function money(c){ return !c || c.p == null ? '—' : (c.src === 'starter' ? '~' : '') + '$' + c.p.toFixed(2); }
 function frameCls(c){ if (!c) return ''; if (/\bLand\b/.test(frontType(c))) return 'fL'; return c.ci.length > 1 ? 'fM' : c.ci.length ? 'f' + c.ci[0] : ''; }
-function cardHtml(c, mini){
-  const tag = mini ? 'button' : 'div', attrs = mini ? ' data-act="card" data-n="' + esc(c.n) + '"' : '';
-  if (c.id) return '<' + tag + ' class="card real"' + attrs + '><img loading="lazy" alt="' + esc(c.n) + '" src="' + IMG + 'normal/front/' + c.id[0] + '/' + c.id[1] + '/' + c.id + '.jpg"><div class="ft"><span>' + esc(mini ? c.n : '') + '</span><span>' + money(c) + (c.std ? ' · STD' : '') + '</span></div></' + tag + '>';
+function cardHtml(c, mini, pr){
+  const tag = mini ? 'button' : 'div', attrs = mini ? ' data-act="card" data-n="' + esc(c.n) + '"' + (pr ? ' data-p="' + pr.id + '"' : '') : '';
+  if (c.id) return '<' + tag + ' class="card real"' + attrs + '><img loading="lazy" alt="' + esc(c.n) + '" src="' + imgUrl('normal', pr ? pr.id : pidOf(c)) + '"><div class="ft"><span>' + esc(pr && pr.set ? pr.set + (pr.yr ? ' · ' + pr.yr : '') : mini ? c.n : '') + '</span><span>' + (pr && pr.set ? (pr.p != null ? '$' + pr.p.toFixed(2) : '—') : money(c) + (c.std ? ' · STD' : '')) + '</span></div></' + tag + '>';
   return '<' + tag + ' class="card ' + frameCls(c) + (mini ? ' mini' : '') + '"' + attrs + '><div class="ct"><span>' + esc(c.n) + '</span><span>' + pips(c.m) + '</span></div><img alt="" src="' + artFor(c) + '"><div class="ty">' + esc(c.t) + '</div><div class="tx">' + pips(c.o) + '</div><div class="ft"><span>' + money(c) + (c.std ? ' · STD' : '') + '</span>' + (c.pt ? '<span class="pt">' + esc(c.pt) + '</span>' : '') + '</div></' + tag + '>';
 }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3200); }
@@ -147,7 +185,7 @@ function idb(mode, fn){ return new Promise((res, rej) => { let rq; try { rq = in
   rq.onsuccess = () => { const tx = rq.result.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); }; }); }
 async function loadSavedLibrary(){
   let complete = false;
-  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ useFull(v.rows, v.when); complete = !!v.ts; render(); } } catch (e) {}
+  try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ useFull(v.rows, v.when); complete = !!v.ts && v.rows.some(r => r.sc); render(); } } catch (e) {}
   if (!complete) autoUpdate(); else checkReleases();
 }
 function useFull(rows, when){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when}; ART.clear(); }
@@ -200,7 +238,7 @@ function lsGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 async function releaseSignature(){
   const j = await (await fetch('https://api.scryfall.com/sets')).json(), today = new Date().toISOString().slice(0, 10);
-  let latest = '', name = '', count = 0;
+  let latest = '', name = '', count = 0; const fam = {}; (j.data || []).forEach(s => { if (s.parent_set_code) fam[s.code] = s.parent_set_code; }); lsSet('dc.sets', fam);
   for (const s of j.data || []){ if (s.digital || !s.released_at || s.released_at > today) continue; count += s.card_count || 0; if (s.released_at > latest){ latest = s.released_at; name = s.name; } }
   if (!latest) throw new Error('no sets'); return {latest, name, count};
 }
@@ -292,7 +330,7 @@ function aimPanel(d, ctx){
   h += '<div class="grp"><span class="lab">Format</span><div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></div>';
   if (d.format === 'commander'){
     h += '<div class="grp"><span class="lab">Commander</span>';
-    if (ctx.cmd){ h += '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="clear-cmd">Change</button>') + '</div></div></div>';
+    if (ctx.cmd){ h += '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="clear-cmd">Change</button>') + '</div></div></div>';
       h += '<div class="row">' + (ctx.cmdThemes.length ? ctx.cmdThemes.map(k => '<span class="chip gold">' + (k === 'tribal' ? ctx.cmdTribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. Your aims decide the direction.</span>') + '</div>' +
         (ctx.cmdThemes.length ? '<p class="note" style="margin:0">Upgrades always lean toward what this commander does, on top of the aims you set.</p>' : ''); }
     else { const leg = d.cards.map(e => find(e.n)).filter(c => c && /Legendary/.test(c.t) && /Creature/.test(frontType(c))).slice(0, 6);
@@ -320,7 +358,7 @@ const GROUPS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['
 function listPanel(d, A){
   const buckets = {}, unknown = [];
   for (const e of d.cards){ const c = find(e.n); if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
-  const rowH = (e, c) => '<div class="dl">' + (c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>') + '<span class="qty"><button data-act="dec" data-n="' + esc(e.n) + '" aria-label="Remove one">−</button><span>' + e.q + '</span><button data-act="inc" data-n="' + esc(e.n) + '" aria-label="Add one">+</button></span>' +
+  const rowH = (e, c) => '<div class="dl">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="qty"><button data-act="dec" data-n="' + esc(e.n) + '" aria-label="Remove one">−</button><span>' + e.q + '</span><button data-act="inc" data-n="' + esc(e.n) + '" aria-label="Add one">+</button></span>' +
     (c ? '<button class="nm" data-act="card" data-n="' + esc(e.n) + '">' + esc(e.n) + '</button>' : '<span class="nm unk" title="Not in the card library">' + esc(e.n) + '</span>') +
     '<span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="pr' + (c && c.p != null && c.p > A.ctx.cap && !isBasic(c.n) ? ' over' : '') + '">' + money(c) + '</span>' +
     '<span class="row" style="gap:3px;flex-wrap:nowrap"><button class="ico' + (e.l ? ' on' : '') + '" data-act="lock" data-n="' + esc(e.n) + '" title="' + (e.l ? 'Unlock: allow this card to be cut' : 'Lock: never suggest cutting this card') + '" aria-pressed="' + !!e.l + '">' + SVG.lock + '</button><button class="ico" data-act="rm" data-n="' + esc(e.n) + '" title="Remove from deck">×</button></span></div>';
@@ -368,13 +406,24 @@ function viewDeck(){
   return (d.example ? '<p class="note" style="margin:0 2px">This is an example deck so you can see the builder working. Edit it freely, or start your own from Decks.</p>' : '') + '<div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
 }
 function searchResults(){
-  const f = S.search, r = searchCards(f.q, {fmt:f.fmt, color:f.color, type:f.type, max:+f.max || 0, theme:f.theme}, 60);
-  return '<p class="note" style="margin:0">' + r.total.toLocaleString() + ' card' + (r.total === 1 ? '' : 's') + (r.total > 60 ? ' · showing the first 60' : '') + ' · ' + (DBINFO.source === 'starter' ? 'starter library' : 'full database') + '</p><div class="cards">' + r.cards.map(c => cardHtml(c, true)).join('') + '</div>';
+  const f = S.search, filt = {fmt:f.fmt, color:f.color, type:f.type, max:+f.max || 0, theme:f.theme}, q = f.q.trim();
+  if (f.prints){
+    if (DBINFO.source !== 'full') return '<p class="note" style="margin:0">Every-printing search needs the full card data, which is still downloading.</p>';
+    if (q.length < 3) return '<p class="note" style="margin:0">Type at least three letters of a card name to see every printing.</p>';
+    if (!S.printRes || S.printRes.q !== q){ if (S.printPending !== q) printSearch(q); return '<p class="note" style="margin:0">Searching Scryfall for every printing…</p>'; }
+    const ok = new Set(searchCards('', filt, 1e6).cards.map(c => c._n));
+    const rows = S.printRes.out.filter(x => ok.has(x.c._n) && (!filt.max || (x.p != null && x.p <= filt.max)))
+      .sort((a, b) => (b.sc === PRINT.key) - (a.sc === PRINT.key) || a.c.n.localeCompare(b.c.n) || b.yr.localeCompare(a.yr));
+    return '<p class="note" style="margin:0">' + (S.printRes.err ? 'Scryfall could not be reached. ' : '') + rows.length + ' printing' + (rows.length === 1 ? '' : 's') + (rows.length > 120 ? ' · showing the first 120' : '') + (PRINT.key && rows.some(x => x.sc === PRINT.key) ? ' · your commander’s set first' : '') + '</p><div class="cards">' + rows.slice(0, 120).map(x => cardHtml(x.c, true, x)).join('') + '</div>';
+  }
+  const r = searchCards(f.q, filt, 60);
+  return '<p class="note" style="margin:0">' + r.total.toLocaleString() + ' card' + (r.total === 1 ? '' : 's') + (r.total > 60 ? ' · showing the first 60' : '') + ' · ' + (DBINFO.source === 'starter' ? 'starter library' : 'full database') + (PRINT.key && PRINT.map.size ? ' · showing your commander’s set printing where one exists' : '') + '</p><div class="cards">' + r.cards.map(c => cardHtml(c, true)).join('') + '</div>';
 }
 function viewSearch(){
   const f = S.search, opt = (v, l, curv) => '<option value="' + v + '"' + (v === curv ? ' selected' : '') + '>' + l + '</option>';
   return '<section class="panel"><div class="ph"><h2>Card search</h2><small>Tap a card for full details</small></div><div class="filters">' +
     '<input type="search" id="s-q" placeholder="Name, type or rules text" value="' + esc(f.q) + '" autocomplete="off">' +
+    '<select id="s-prints" aria-label="Printings">' + opt('', 'One per card', f.prints ? '1' : '') + opt('1', 'Every printing', f.prints ? '1' : '') + '</select>' +
     '<select id="s-fmt" aria-label="Format">' + opt('', 'Any format', f.fmt) + opt('commander', 'Commander', f.fmt) + opt('standard', 'Standard', f.fmt) + '</select>' +
     '<select id="s-color" aria-label="Color">' + opt('', 'Any color', f.color) + [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['C', 'Colorless']].map(x => opt(x[0], x[1], f.color)).join('') + '</select>' +
     '<select id="s-type" aria-label="Card type">' + opt('', 'Any type', f.type) + ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Legendary'].map(x => opt(x, x, f.type)).join('') + '</select>' +
@@ -416,11 +465,13 @@ function render(){
   navHtml(); const m = $('#main');
   m.innerHTML = S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() : S.view === 'generate' ? viewGenerate() : S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = '16px';
+  ensureTheme();
 }
-function openCard(name){
+function openCard(name, pid){
   const c = find(name); if (!c) return; const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
-  const legend = /Legendary/.test(c.t) && /Creature/.test(frontType(c));
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="detail">' + cardHtml(c, false) + '<div class="grp"><dl class="kv">' +
+  const legend = /Legendary/.test(c.t) && /Creature/.test(frontType(c)), isCmd = d && d.format === 'commander' && d.commander === c.n;
+  S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
@@ -430,6 +481,7 @@ function openCard(name){
     '<div class="row">' + (d ? '<button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">' + (inDeck ? 'Add another copy' : 'Add to ' + esc(d.name)) + '</button>' : '') + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.n + '"') + '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';
   $('#modal').hidden = false;
+  if (c.id){ const p = $('#modal .panel'); p.insertAdjacentHTML('beforeend', '<div class="grp"><span class="lab">Printings' + (inDeck || isCmd ? ' · tap one to use it in this deck' : ' · tap one, then add it') + '</span><div id="prints"><p class="note" style="margin:0">Loading printings…</p></div></div>'); loadPrints(c); }
 }
 function openImport(preset){
   const d = cur();
@@ -455,7 +507,14 @@ document.addEventListener('click', ev => {
   switch (act){
     case 'nav': S.view = v; S.confirmDel = null; changed = false; break;
     case 'close': $('#modal').hidden = true; return;
-    case 'card': openCard(n); return;
+    case 'card': openCard(n, b.dataset.p); return;
+    case 'print': { const x = S.prints && S.prints.list[+v]; if (!x) return; S.pick = Object.assign({n:S.modalCard}, x);
+      const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id); $('#prints').innerHTML = printsHtml();
+      if (d){ const en = d.cards.find(e2 => e2.n === S.modalCard);
+        if (en){ en.pid = x.id; en.ps = x.set; }
+        if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
+        if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
+      return; }
     case 'open-deck': S.deckId = v; S.view = 'deck'; changed = false; break;
     case 'new-deck': newDeck({format:v, name:v === 'commander' ? 'New Commander deck' : 'New Standard deck'}); break;
     case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v) S.deckId = (S.profile.decks[0] || {}).id || null; S.confirmDel = null; break;
@@ -466,14 +525,14 @@ document.addEventListener('click', ev => {
     case 'aim-down': { const i = +v; [d.aims[i + 1], d.aims[i]] = [d.aims[i], d.aims[i + 1]]; break; }
     case 'aim-rm': d.aims.splice(+v, 1); break;
     case 'color': { const s = new Set(d.colors || []); if (s.has(v)){ if (s.size > 1 || d.format === 'standard') s.delete(v); } else { if (d.format === 'standard' && s.size >= 3){ toast('Standard decks here focus on up to three colors.'); return; } s.add(v); } d.colors = 'WUBRG'.split('').filter(x => s.has(x)); break; }
-    case 'clear-cmd': d.commander = ''; break;
-    case 'set-cmd': setCommander(d, n); $('#modal').hidden = true; toast(n + ' is now your commander.'); break;
+    case 'clear-cmd': d.commander = ''; delete d.cmdPid; delete d.cmdSet; break;
+    case 'set-cmd': delete d.cmdPid; delete d.cmdSet; setCommander(d, n); if (S.pick && S.pick.n === n && S.pick.sc){ d.cmdPid = S.pick.id; d.cmdSet = S.pick.sc; } $('#modal').hidden = true; toast(n + ' is now your commander.'); break;
     case 'inc': addCard(d, n, 1); break;
     case 'dec': cutCard(d, n, 1); break;
     case 'rm': cutCard(d, n, 999); break;
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
     case 'pick-add': addCard(d, n, 1); toast('Added ' + n + '.'); break;
-    case 'add-to-deck': addCard(d, n, 1); $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
+    case 'add-to-deck': addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
     case 'add-rec': { const a = recsFor(d).adds[+v]; if (a) addCard(d, a.n, a.q); break; }
     case 'cut-rec': { const a = recsFor(d).cuts[+v]; if (a) cutCard(d, a.n, a.q); break; }
     case 'dismiss': { const a = recsFor(d).adds[+v]; if (a) (d.dismissed = d.dismissed || []).push(a.n); break; }
@@ -525,7 +584,7 @@ document.addEventListener('change', ev => {
   else if (t.id === 'aim-add' && t.value && d){ d.aims.push(t.value); touch(); render(); }
   else if (t.id === 'tribe' && d){ d.tribe = t.value; touch(); render(); }
   else if (t.id === 'swaps'){ S.swaps = +t.value; render(); }
-  else if (/^s-(fmt|color|type|max|theme)$/.test(t.id)){ S.search[t.id.slice(2)] = t.value; $('#s-res').innerHTML = searchResults(); }
+  else if (/^s-(fmt|color|type|max|theme|prints)$/.test(t.id)){ S.search[t.id.slice(2)] = t.value; $('#s-res').innerHTML = searchResults(); }
   else if (t.id === 'imp-file' && t.files[0]){ t.files[0].text().then(x => { $('#imp-text').value = x; if (!$('#imp-name').value) $('#imp-name').value = t.files[0].name.replace(/\.[^.]+$/, ''); }).catch(() => toast('That file could not be read as text.')); }
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
