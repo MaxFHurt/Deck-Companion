@@ -261,6 +261,7 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .tile p{margin:0;color:var(--mute);font-size:13.5px}
 .modal{position:fixed;inset:0;z-index:50;background:rgba(3,1,8,.8);backdrop-filter:blur(3px);display:grid;place-items:center;padding:16px;overflow:auto}
 .modal .panel{width:min(760px,100%);max-height:calc(100% - 8px);overflow:auto}
+.modal .panel.full{width:100%;height:100%;max-height:none;align-self:stretch;justify-self:stretch;align-content:start}
 .detail{display:grid;grid-template-columns:270px 1fr;gap:16px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:14px;align-content:start}
 .kv dt{font:600 12px var(--label);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);padding-top:2px}
@@ -339,7 +340,7 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 49.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC. Build 50.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
@@ -347,7 +348,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 49;
+window.BUILD = 50;
 (function(){
   var last = 0;
   function check(){
@@ -359,9 +360,9 @@ window.BUILD = 49;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=49"></script>
-<script src="lists.js?v=49"></script>
-<script src="engine.js?v=49"></script>
-<script src="ui.js?v=49"></script>
+<script src="data.js?v=50"></script>
+<script src="lists.js?v=50"></script>
+<script src="engine.js?v=50"></script>
+<script src="ui.js?v=50"></script>
 </body>
 </html>
