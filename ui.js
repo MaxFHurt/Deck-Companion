@@ -276,14 +276,14 @@ function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if 
 function navHtml(){
   const b = (v, label) => '<button data-act="nav" data-v="' + v + '"' + (S.view === v ? ' aria-current="page"' : '') + '>' + SVG[v] + label + '</button>';
   $('#nav-l').innerHTML = b('decks', 'Decks') + b('deck', 'Builder') + b('search', '<span class="xs-hide">Card&nbsp;</span>Search');
-  $('#nav-r').innerHTML = b('generate', 'Generate') + b('precons', 'Precons') + b('profile', 'Profile');
+  $('#nav-r').innerHTML = b('generate', 'Generate') + b('profile', 'Profile');
 }
 function viewDecks(){
   const P = S.profile;
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
     return '<button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row"><span class="chip gold">' + TIERS[d.tier].label + '</span><span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button>'; }).join('');
-  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="import-open">Import a text list</button></div>' +
-    (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Start a new one, import a text list, or pick a starter from the Precon library.</p>') + '</section>';
+  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="import-open">Import a text list</button><button class="btn" data-act="precon-open">Load a precon</button></div>' +
+    (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Start a new one, import a text list, or load a precon from the Builder.</p>') + '</section>';
 }
 function aimPanel(d, ctx){
   const lock = d.aimLocked, dis = lock ? ' disabled' : '', aimed = isAimed(d);
@@ -325,7 +325,7 @@ function listPanel(d, A){
     '<span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="pr' + (c && c.p != null && c.p > A.ctx.cap && !isBasic(c.n) ? ' over' : '') + '">' + money(c) + '</span>' +
     '<span class="row" style="gap:3px;flex-wrap:nowrap"><button class="ico' + (e.l ? ' on' : '') + '" data-act="lock" data-n="' + esc(e.n) + '" title="' + (e.l ? 'Unlock: allow this card to be cut' : 'Lock: never suggest cutting this card') + '" aria-pressed="' + !!e.l + '">' + SVG.lock + '</button><button class="ico" data-act="rm" data-n="' + esc(e.n) + '" title="Remove from deck">×</button></span></div>';
   let h = '<section class="panel list"><div class="ph"><h2>Decklist</h2><small>' + A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0') + '</small></div>';
-  h += '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div><button class="btn" data-act="import-open">Import text</button>' +
+  h += '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div><button class="btn" data-act="import-open">Import text</button><button class="btn" data-act="precon-open">Load a precon</button>' +
     '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your aims and tier">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>';
   if (!d.cards.length) h += '<p class="note">This deck is empty. Import a text list, search for cards, or aim the deck and fill the open slots.</p>';
   for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; b.sort((x, y) => x[1].cmc - y[1].cmc || x[1].n.localeCompare(y[1].n));
@@ -363,7 +363,7 @@ function upPanel(d, A){
   return h + '</section>';
 }
 function viewDeck(){
-  const d = cur(); if (!d) return '<section class="panel"><div class="ph"><h2>Builder</h2></div><p class="note">Open a deck from Decks, or start one.</p><div class="row"><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button></div></section>';
+  const d = cur(); if (!d) return '<section class="panel"><div class="ph"><h2>Builder</h2></div><p class="note">Open a deck from Decks, or start one.</p><div class="row"><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="precon-open">Load a precon</button></div></section>';
   const A = analyze(d);
   return (d.example ? '<p class="note" style="margin:0 2px">This is an example deck so you can see the builder working. Edit it freely, or start your own from Decks.</p>' : '') + '<div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
 }
@@ -386,9 +386,10 @@ function loadPrecon(p){
   const cards = PRECON_LISTS[p.name].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x), n = m ? m[2] : x, c = find(n); return {n:c ? c.n : n, q:m ? +m[1] : 1, l:false}; });
   const d = newDeck({name:p.name, format:'commander', cards, aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; return d;
 }
-function viewPrecons(){
-  const pc = PRECONS.map((p, i) => { const c = find(p.cmd); return '<div class="tile"><img alt="" src="' + artFor(c) + '"><div class="tb"><h3>' + esc(p.name) + '</h3><p><b style="color:var(--ink)">' + esc(p.cmd) + '</b> ' + (c ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : '') + '</p><p>' + esc(p.note) + '</p><div class="row"><span class="chip gold">' + esc(p.level) + '</span><span class="chip">' + esc(p.set) + ' · ' + p.year + '</span><span class="chip good">Official 100-card list</span></div><div class="row" style="margin-top:auto"><button class="btn pri sm" data-act="precon" data-v="' + i + '">Load this deck</button></div></div></div>'; }).join('');
-  return '<section class="panel"><div class="ph"><h2>Precon library</h2><small>For new players</small></div><p class="note" style="margin:0;max-width:75ch">Real preconstructed Commander decks with their official card lists, picked because they are easy to learn. Load one to see the full deck, then aim it and upgrade it tier by tier.' + (DBINFO.source === 'starter' ? ' Most precon cards are outside the built-in starter library, so load the full card database in Profile to see every card’s details and get upgrade advice on the whole list.' : '') + '</p><div class="tiles">' + pc + '</div><p class="note" style="margin:0">Decklists from EDHREC’s precon pages.</p></section>';
+function openPrecons(){
+  const rows = PRECONS.map((p, i) => { const c = find(p.cmd); return '<div class="pre"><img alt="" src="' + artFor(c) + '"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + (c ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : '') + '<div class="note">' + esc(p.cmd) + ' · ' + esc(p.note) + '</div><div class="why"><span class="chip gold">' + esc(p.level) + '</span><span class="chip">' + esc(p.set) + ' · ' + p.year + '</span></div></div><div class="acts"><button class="btn pri sm" data-act="precon" data-v="' + i + '">Load</button></div></div>'; }).join('');
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Load a precon"><div class="ph"><h2>Load a precon</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Real preconstructed Commander decks with their official 100-card lists, picked because they are easy to learn. Loading one adds it as a new deck; your other decks are untouched.' + (DBINFO.source === 'starter' ? ' Card details for most of these appear once the full card data has finished downloading.' : '') + '</p><div class="grp">' + rows + '</div><p class="note" style="margin:0">Decklists from EDHREC’s precon pages.</p></div>';
+  $('#modal').hidden = false;
 }
 function viewGenerate(){
   const g = S.gen, c = find(g.cmd), st = detectStrategy(c);
@@ -413,7 +414,7 @@ function viewProfile(){
 }
 function render(){
   navHtml(); const m = $('#main');
-  m.innerHTML = S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() : S.view === 'precons' ? viewPrecons() : S.view === 'generate' ? viewGenerate() : S.view === 'profile' ? viewProfile() : viewDeck();
+  m.innerHTML = S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() : S.view === 'generate' ? viewGenerate() : S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = '16px';
 }
 function openCard(name){
@@ -488,7 +489,8 @@ document.addEventListener('click', ev => {
     case 'copy-list': copyText(deckToText(d), 'Deck list copied.'); return;
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
-        case 'precon': { const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
+    case 'precon-open': openPrecons(); return;
+        case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
     case 'gen-pick': S.gen.cmd = n; changed = false; break;
     case 'gen-tier': S.gen.tier = v; changed = false; break;
     case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:S.gen.tier}); setCommander(nd, c.n);
