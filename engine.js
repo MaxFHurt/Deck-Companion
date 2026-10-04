@@ -295,28 +295,35 @@ function recommend(d, swaps, fillOnly){
   }
   return {adds, cuts, A, tuned};
 }
-// The app decides how many swaps to suggest. A swap is offered only when the new card scores clearly higher than the
-// card it replaces AND is at least as on-theme, so the deck's theme never gets diluted. Fixes the deck needs anyway
-// (open slots, too many cards, missing lands, cards over the price cap / off-color / not legal) are always included.
+// The app decides how many swaps to suggest. A swap must bring in a card that scores clearly higher than the one it
+// replaces. The deck's identity is its #1 aim (for a Dinosaur deck, Dinosaurs): identity cards are normally replaced
+// only by other identity cards. A few may give way to a standout card from outside the theme (one that fills a gap
+// in ramp/draw/removal/wipes or beats the card it replaces by a wide margin), capped at about a tenth of the
+// identity cards so the deck never drifts into a pile of same-mechanic cards.
+// Fixes the deck needs anyway (open slots, too many cards, missing lands, over-cap / off-color / illegal cards) are always included.
 function autoSwaps(d){
-  const A0 = analyze(d), open = A0.T.size - A0.size, landGap = Math.max(0, A0.T.lands - A0.lands);
+  const A0 = analyze(d), ctx = A0.ctx, open = A0.T.size - A0.size, landGap = Math.max(0, A0.T.lands - A0.lands), top = (d.aims || [])[0];
+  const isId = n => { const c = find(n); return !!(top && c && matchAim(c, top, ctx.tribe) >= 0.7); };
+  let outside = Math.max(2, Math.round((A0.aim[0] || 0) * 0.1));
   recommend.raw = true; let R; try { R = recommend(d, 45, false); } finally { recommend.raw = false; }
   const adds = [], cuts = [], put = (list, x, q) => { const e = list.find(y => y.n === x.n); if (e) e.q += q; else list.push(Object.assign({}, x, {q})); };
   let fill = Math.max(0, open), trim = Math.max(0, -open), swaps = 0;
-  const pool = R.cuts.map(c => Object.assign({}, c));
+  const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n)}));
   for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); c.q -= q; trim -= q; }
   let landSwaps = open > 0 ? 0 : landGap;
   for (const a of R.adds){
-    let need = a.q;
+    let need = a.q; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w));
     if (fill > 0){ const q = Math.min(fill, need); put(adds, a, q); fill -= q; need -= q; }
     if (a.kind === 'land'){ if (landSwaps <= 0) continue; need = Math.min(need, landSwaps); }
     while (need > 0 && swaps < 40){
-      const c = pool.find(c => c.q > 0 && (c.s <= -40 || a.kind === 'land' || (a.s > c.s + 1 && (a.a || 0) >= (c.a || 0))));
+      let star = false;
+      const c = pool.find(c => { if (c.q <= 0) return false; if (c.s <= -40 || a.kind === 'land') return true; if (!(a.s > c.s + 1)) return false;
+        if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3); });
       if (!c) break; const q = Math.min(need, c.q);
-      put(adds, a, q); put(cuts, c, q); c.q -= q; need -= q; swaps += q; if (a.kind === 'land') landSwaps -= q;
+      if (c.id && !aId && c.s > -40 && a.kind !== 'land'){ outside -= q; star = true; }
+      put(adds, star ? Object.assign({}, a, {why:a.why.concat('Standout pick')}) : a, q); put(cuts, c, q); c.q -= q; need -= q; swaps += q; if (a.kind === 'land') landSwaps -= q;
     }
   }
-  // anything the deck must lose regardless of whether a replacement was found
   pool.forEach(c => { if (c.q > 0 && c.s <= -40) put(cuts, c, c.q); });
   return {adds, cuts, A:R.A, swaps};
 }
