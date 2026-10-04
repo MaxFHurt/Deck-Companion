@@ -784,10 +784,11 @@ async function loadPreconLive(slug, label){
   try {
     const j = await (await fetch('https://json.edhrec.com/pages/precon/' + slug + '.json')).json(), dk = j.deck || {}, cmds = dk.commander || [], map = new Map();
     const put = (n, q) => { const c = find(n), name = c ? c.n : n, k = norm(name); if (map.has(k)) map.get(k).q += q; else map.set(k, {n:name, q, l:false}); };
-    Object.values(dk.cards || {}).forEach(arr => (arr || []).forEach(t => { if (t && t[0]) put(t[0], +t[1] || 1); })); cmds.slice(1).forEach(n => put(n, 1));
+    Object.values(dk.cards || {}).forEach(arr => (arr || []).forEach(t => { if (t && t[0]) put(t[0], +t[1] || 1); })); cmds.slice(2).forEach(n => put(n, 1));
+    if (cmds[1] && !(find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1])))) put(cmds[1], 1);
     if (!map.size) throw new Error('empty');
     const d = newDeck({name:dk.name || label, format:'commander', cards:[...map.values()]});
-    if (cmds[0]){ setCommander(d, cmds[0]); const v2 = (dk.commander_v2 || [])[0]; if (v2 && v2[2] && find(cmds[0])) d.cmdSet = v2[2]; }
+    if (cmds[0]){ setCommander(d, cmds[0]); if (cmds[1] && find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1]))) setPartner(d, cmds[1]); const v2 = (dk.commander_v2 || [])[0]; if (v2 && v2[2] && find(cmds[0])) d.cmdSet = v2[2]; }
     if (d.aims.length) d.auto = 'precon';
     touch(); render(); const unk = d.cards.filter(e => !find(e.n)).length;
     toast('Loaded ' + d.name + ' (' + analyze(d).size + ' cards).' + (unk ? ' ' + unk + ' need the full card data to show details.' : ''));
@@ -895,8 +896,10 @@ function switchCommander(d, n){
 function offColor(d, c){ const cmd = d.format === 'commander' ? find(d.commander) : null, id = cmd ? ctxOf(d).ident : []; return !!(cmd && c && !c.ci.every(x => id.includes(x))); }
 // A card outside the commander's colors can't simply be added: show which commanders would allow it.
 function recolorHtml(d, c){
-  const cmd = find(d.commander), missing = c.ci.filter(x => !cmd.ci.includes(x)), need = 'WUBRG'.split('').filter(x => cmd.ci.includes(x) || c.ci.includes(x)), res = findCommanders(d, need, 6);
+  const cmd = find(d.commander), id = ctxOf(d).ident, missing = c.ci.filter(x => !id.includes(x)), need = 'WUBRG'.split('').filter(x => id.includes(x) || c.ci.includes(x)), res = findCommanders(d, need, 6);
+  const pars = pairKind(cmd) && !d.partner ? LIB.filter(p => p.cmd && canPair(cmd, p) && missing.every(k => p.ci.includes(k))).map(p => ({p, s:baseScore(p, d, Object.assign({}, ctxOf(d), {focus:p.ci, ident:p.ci, edh:null})).s})).sort((a, b) => b.s - a.s).slice(0, 4) : [];
   return '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span><div class="gate"><b>This card is outside your commander’s colors</b>' + esc(c.n) + ' needs ' + missing.map(k => COLOR_NAME[k]).join(' and ') + ', and ' + esc(cmd.n) + ' doesn’t allow it. To run it, the deck needs a commander that includes ' + need.map(k => '<i class="pip p' + k + '">' + k + '</i>').join('') + '. Pick one and I will switch commanders; ' + esc(cmd.n.split(',')[0]) + ' then becomes an ordinary card you can add back.</div>' +
+    (pars.length ? '<span class="lab">Or keep ' + esc(cmd.n.split(',')[0]) + ' and add a second commander</span><p class="note" style="margin:0">' + esc(cmd.n.split(',')[0]) + ' has ' + esc(pairLabel(cmd)) + ', so a second commander can bring the missing color. Nothing else in the deck changes.</p>' + pars.map(x => '<div class="pre"><img alt="" src="' + artFor(x.p) + '"><div style="min-width:0"><b>' + esc(x.p.n) + '</b> ' + x.p.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why"><span class="chip good">Second commander · ' + esc(pairLabel(cmd)) + '</span></div></div><div class="acts"><button class="btn pri sm" data-act="partner-set" data-n="' + esc(x.p.n) + '">Add</button></div></div>').join('') + '<span class="lab">Or switch to a different commander</span>' : '') +
     (res.length ? res.map(x => { const k = find(x.n); return '<div class="pre"><img alt="" src="' + artFor(k) + '"><div style="min-width:0"><b>' + esc(k.n) + '</b> ' + k.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why">' + x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('') + (x.outside ? '<span class="chip warn">' + x.outside + ' of your cards would fall outside its colors</span>' : '<span class="chip good">Every card in the deck stays legal</span>') + '</div></div><div class="acts"><button class="btn pri sm" data-act="cmd-switch" data-n="' + esc(k.n) + '" data-v="' + esc(c.n) + '">Switch</button></div></div>'; }).join('')
       : '<p class="note" style="margin:0">No commander in the card data covers all of those colors' + (DBINFO.complete ? '.' : ' yet. More appear when the card download finishes.') + '</p>') +
     '<div class="row"><button class="btn" data-act="close">Cancel</button></div></div>';
@@ -1030,11 +1033,11 @@ function handleAct(act, v, n, pArg){
     case 'lib-dec': libAdd(n, -1); break;
     case 'lib-clear': if (S.confirmLib){ S.profile.library = {}; S.libV = (S.libV || 0) + 1; S.confirmLib = false; toast('Library emptied.'); } else { S.confirmLib = true; changed = false; } break;
     case 'lib-add-deck': { const val = ($('#lib-deck') || {}).value || ''; let k = 0, nm = '';
-      if (val.slice(0, 2) === 'd:'){ const x = S.profile.decks.concat(S.draft ? [S.draft] : []).find(y => y.id === val.slice(2)); if (x){ nm = x.name; k = libAddList(x.cards, x.format === 'commander' ? x.commander : ''); } }
+      if (val.slice(0, 2) === 'd:'){ const x = S.profile.decks.concat(S.draft ? [S.draft] : []).find(y => y.id === val.slice(2)); if (x){ nm = x.name; k = libAddList(x.cards, x.format === 'commander' ? x.commander : ''); if (x.format === 'commander' && x.partner) k += libAdd(x.partner, 1); } }
       else if (val.slice(0, 2) === 'p:' && PRECON_LISTS[val.slice(2)]){ nm = val.slice(2); const pc = PRECONS.find(y => y.name === nm); k = libAddList(PRECON_LISTS[nm].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x); return {n:m ? m[2] : x, q:m ? +m[1] : 1}; }), pc && (pc.cmd || pc.commander) || ''); }
       if (!nm) return; toast('Added ' + k + ' cards from ' + nm + ' to your library.'); break; }
     case 'lib-paste': openLibPaste(); return;
-    case 'lib-paste-go': { const txt = ($('#lib-text') || {}).value || ''; const r = parseDeckText(txt), k = libAddList(r.cards, r.commander); $('#modal').hidden = true; toast('Added ' + k + ' cards to your library.'); break; }
+    case 'lib-paste-go': { const txt = ($('#lib-text') || {}).value || ''; const r = parseDeckText(txt), k = libAddList(r.cards, r.commander) + (r.partner ? libAdd(r.partner, 1) : 0); $('#modal').hidden = true; toast('Added ' + k + ' cards to your library.'); break; }
     case 'lib-set-pick': { const i = $('#lib-set'), bx = $('#set-res'); if (i) i.value = v; if (bx) bx.hidden = true; return; }
     case 'lib-add-set': libAddSet(($('#lib-set') || {}).value); return;
     case 'fix': { const p = recsFor(d).fixes[+v]; if (!p) return; doSwap(d, p, 0); break; }
@@ -1078,7 +1081,7 @@ function handleAct(act, v, n, pArg){
     case 'seed-add': { const c = find(n); if (c && !S.seed.cards.includes(c.n)) S.seed.cards.push(c.n); openSeed(); const q = $('#seed-q'); if (q) q.focus(); return; }
     case 'seed-del': S.seed.cards = S.seed.cards.filter(x => x !== n); openSeed(); return;
     case 'seed-paste': S.seed.paste = true; openSeed(); return;
-    case 'seed-paste-go': { const r = parseDeckText(($('#seed-text') || {}).value || ''); let k = 0, miss = 0; (r.commander ? [{n:r.commander}] : []).concat(r.cards).forEach(x => { const c = find(x.n); if (!c){ miss++; return; } if (!S.seed.cards.includes(c.n)){ S.seed.cards.push(c.n); k++; } }); S.seed.paste = false; openSeed(); toast('Added ' + k + ' card' + (k === 1 ? '' : 's') + (miss ? ' · ' + miss + ' not recognised' : '') + '.'); return; }
+    case 'seed-paste-go': { const r = parseDeckText(($('#seed-text') || {}).value || ''); let k = 0, miss = 0; (r.commander ? [{n:r.commander}] : []).concat(r.partner ? [{n:r.partner}] : [], r.cards).forEach(x => { const c = find(x.n); if (!c){ miss++; return; } if (!S.seed.cards.includes(c.n)){ S.seed.cards.push(c.n); k++; } }); S.seed.paste = false; openSeed(); toast('Added ' + k + ' card' + (k === 1 ? '' : 's') + (miss ? ' · ' + miss + ' not recognised' : '') + '.'); return; }
     case 'seed-go': { $('#modal').hidden = true; toast('Building your deck…'); const go = () => seedBuild(n, v); loadEdh(n).then(go, go); return; }
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
     case 'gen-pick': S.gen.cmd = n; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
@@ -1095,7 +1098,8 @@ function handleAct(act, v, n, pArg){
       const pre = openImport.preset && openImport.preset.precon; let t = d;
       if (v === 'merge' && d) r.cards.forEach(e => addCard(d, e.n, e.q));
       else t = newDeck({name:$('#imp-name').value.trim() || r.name || 'Imported deck', format:fmt, cards:r.cards, aims:pre ? pre.aims.slice() : [], tribe:pre && pre.tribe || ''});
-      const cmdName = r.commander || (pre && pre.cmd); if (fmt === 'commander' && cmdName && !(v === 'merge' && t.commander)) setCommander(t, cmdName);
+      const cmdName = r.commander || (pre && pre.cmd); const hadCmd = v === 'merge' && t.commander; if (fmt === 'commander' && cmdName && !hadCmd) setCommander(t, cmdName);
+      if (r.partner){ if (fmt === 'commander' && !hadCmd && r.commander) setPartner(t, r.partner); else addCard(t, r.partner, 1); }
       if (fmt === 'standard' && !t.colors.length){ const s = new Set(); t.cards.forEach(e => { const c = find(e.n); if (c) c.ci.forEach(x => s.add(x)); }); t.colors = 'WUBRG'.split('').filter(x => s.has(x)).slice(0, 3); }
       const unk = t.cards.filter(e => !find(e.n)).length; $('#modal').hidden = true;
       toast('Imported ' + total + ' cards' + (r.side ? ', skipped ' + r.side + ' sideboard' : '') + (unk ? '. ' + unk + ' not recognized' : '') + '.'); break; }

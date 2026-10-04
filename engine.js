@@ -471,6 +471,13 @@ function canPair(a, b){
   if (x === 'isbg' || x === 'doctor' || y === 'isbg' || y === 'doctor') return false;
   return x === y;
 }
+// Make a card the deck's second commander if the rules allow the pairing; otherwise it stays an ordinary card.
+function setPartner(d, name){
+  const c = find(name), cmd = find(d.commander);
+  if (!c || !cmd || !canPair(cmd, c)){ if (name && norm(name) !== norm(d.commander || '')) addCard(d, c ? c.n : name, 1); return false; }
+  d.partner = c.n; cutCard(d, c.n, 99); const st = detectStrategy(c); if (!d.aimLocked){ st.themes.forEach(a => { if (d.aims.length < 3 && !d.aims.includes(a)) d.aims.push(a); }); if (!d.tribe) d.tribe = st.tribe || ''; d.colors = ctxOf(d).ident.slice(); }
+  return true;
+}
 function canLead(c){ return !!(c && c.cmd && /Legendary/.test(c.t) && /Creature/.test(frontType(c))); }
 // Commander pairs that together cover a set of colors, ranked by fit.
 function findPairs(d, colors, k){
@@ -503,7 +510,7 @@ function manaPlan(d){
   const count = (c, w) => (c.m.match(/\{[^}]+\}/g) || []).forEach(s => { for (const k of 'WUBRG') if (s.includes(k)) pips[k] += w; });
   d.cards.forEach(e => { const c = find(e.n); if (!c) return; if (tags(c).land){ if (BASICS[c.n]){ have[BASICS[c.n]] += e.q; basics += e.q; } return; } count(c, e.q); });
   const spell = Object.assign({}, pips);   // what the 99 need, before the commander's own cost is weighed in
-  if (ctx.cmd) count(ctx.cmd, 2);
+  if (ctx.cmd) count(ctx.cmd, 2); if (ctx.par) count(ctx.par, 2);
   const cols = 'WUBRG'.split('').filter(k => pips[k] > 0 && (d.format !== 'commander' || !ctx.cmd || ctx.ident.includes(k))), tot = cols.reduce((s, k) => s + pips[k], 0), want = {W:0, U:0, B:0, R:0, G:0};
   if (basics && tot){
     const min = basics >= 20 && cols.length <= 4 ? 2 : 1, f = cols.map(k => basics * pips[k] / tot); cols.forEach((k, i) => want[k] = Math.max(min, Math.floor(f[i])));
