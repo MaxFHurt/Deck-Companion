@@ -528,7 +528,7 @@ function listRows(d, q){
 const deckStat = (d, A) => A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0');
 function listPanel(d, A){
   return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="list-all">View all</button></div>' +
-    '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn" data-act="copy-list">Copy list</button></div>' +
+    '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn pri" data-act="export-open">Export</button></div>' +
     '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + '</div>';
 }
 // Buy list: grouped by the card being replaced. Each group lists every card that could take its place,
@@ -577,6 +577,33 @@ function openBuy(){
     h += '<div class="row"><button class="btn pri" data-act="buy-copy">Copy as text</button><button class="btn" data-act="buy-save">Save text file</button></div>' + buyHtml(d);
   }
   $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
+}
+// Export: the decklist (or, for a build in progress, the full build at a tier) as text or a spreadsheet file.
+function exportRows(d, what){
+  const rows = d.cards.map(x => ({n:x.n, q:x.q}));
+  if (what !== 'deck' && d.plan) d.plan.forEach(x => { const n = x.own || x.seed || x.basic ? x.a : planPick(x, what), r = rows.find(y => y.n === n); if (r) r.q += x.q; else rows.push({n, q:x.q}); });
+  return rows;
+}
+function exportText(d, what){
+  const L = []; if (d.format === 'commander' && d.commander){ L.push('Commander', '1 ' + d.commander); if (d.partner) L.push('1 ' + d.partner); L.push('', 'Deck'); }
+  exportRows(d, what).forEach(x => L.push(x.q + ' ' + x.n)); return L.join('\n') + '\n';
+}
+function exportCsv(d, what){
+  const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"', line = (role, n, k) => { const c = find(n), i = printInfo(c) || {}; return [k, q(n), role, q(c ? c.t : ''), q(i.set || ''), q(i.rar || ''), c && c.p != null ? c.p.toFixed(2) : ''].join(','); };
+  const L = ['Quantity,Name,Role,Type,Set,Rarity,Price (USD)']; if (d.format === 'commander' && d.commander){ L.push(line('Commander', d.commander, 1)); if (d.partner) L.push(line('Commander', d.partner, 1)); }
+  exportRows(d, what).forEach(x => L.push(line('Deck', x.n, x.q))); return L.join('\n') + '\n';
+}
+function exportName(d){ return (d.name.replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'deck') + (S.exp && S.exp !== 'deck' ? '-' + S.exp : ''); }
+function openExport(){
+  const d = cur(); if (!d) return; S.modalCard = null; const hasPlan = d.plan && d.plan.length; if (!hasPlan || !S.exp) S.exp = 'deck';
+  const rows = exportRows(d, S.exp), n = rows.reduce((s, x) => s + x.q, 0) + (d.format === 'commander' && d.commander ? 1 : 0) + (d.partner ? 1 : 0);
+  const opts = [['deck', 'Cards in the deck now']].concat(hasPlan ? TIER_KEYS.map(t => [t, 'Full build · ' + TIERS[t].label]) : []);
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Export deck"><div class="ph"><h2>Export</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    (hasPlan ? '<div class="grp"><span class="lab">What to export</span><div class="seg">' + opts.map(o => '<button data-act="export-what" data-v="' + o[0] + '" class="' + (S.exp === o[0] ? 'on' : '') + '">' + o[1] + '</button>').join('') + '</div><p class="note" style="margin:0">This deck is still a build in progress. A full build includes the cards not yet added, at the tier you choose.</p></div>' : '') +
+    '<div class="grp"><span class="lab">' + n + ' cards · plain text</span><p class="note" style="margin:0">One card per line with a Commander section. Paste it into Moxfield, Archidekt, MTG Arena, TCGplayer or any deck site.</p><textarea id="exp-box" readonly style="min-height:180px">' + esc(exportText(d, S.exp)) + '</textarea>' +
+    '<div class="row"><button class="btn pri" data-act="export-copy">Copy text</button><button class="btn" data-act="export-txt">Save .txt file</button>' + (navigator.share ? '<button class="btn" data-act="export-share">Share…</button>' : '') + '</div></div>' +
+    '<div class="grp"><span class="lab">Spreadsheet</span><p class="note" style="margin:0">A .csv file with quantity, name, type, set, rarity and price for each card. Opens in Numbers, Excel or Google Sheets.</p><div class="row"><button class="btn" data-act="export-csv">Save .csv file</button></div></div></div>';
+  $('#modal').hidden = false;
 }
 function saveText(name, text){
   const a = document.createElement('a'), url = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
@@ -1022,6 +1049,12 @@ function handleAct(act, v, n, pArg){
       R.p.decks.forEach(x => { if (ids.has(x.id)) x.id = uid(); }); S.profile = Object.assign({name:'Planeswalker'}, R.p, {decks:keep.concat(R.p.decks)}); S.deckId = (S.profile.decks[0] || {}).id || null; S.pendingRestore = null; toast('Restored ' + R.p.decks.length + ' decks from your backup.'); break; }
     case 'db-update': if (autoUpdate.busy) toast('An update is already running.'); else autoUpdate(); return;
     case 'copy-list': copyText(deckToText(d), 'Deck list copied.'); return;
+    case 'export-open': openExport(); return;
+    case 'export-what': S.exp = v; openExport(); return;
+    case 'export-copy': copyText(exportText(d, S.exp), 'Deck list copied.'); return;
+    case 'export-txt': saveText(exportName(d) + '.txt', exportText(d, S.exp)); toast('Deck list saved.'); return;
+    case 'export-csv': saveText(exportName(d) + '.csv', exportCsv(d, S.exp)); toast('Spreadsheet saved.'); return;
+    case 'export-share': navigator.share({title:d.name, text:exportText(d, S.exp)}).catch(() => {}); return;
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
     case 'mana-accept': case 'mana-skip': { const pd = S.pend; S.pend = null; if (!pd) return; $('#modal').hidden = true; S.manaOK = true; try { handleAct(pd.act, pd.v, pd.n); } finally { S.manaOK = false; }
