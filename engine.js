@@ -364,8 +364,11 @@ function upgradePaths(d){
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
         if (L.opts[t]) return;
         // Don't force an upgrade: it must clearly beat the card it replaces, and beat the cheaper tier's pick for the same card.
-        const prev = Math.max(0, ...Object.values(L.opts).map(o => o.gain));
+        // A paid pick that an owned card already beats is still shown (marked), so the player can force it if the library is wrong;
+        // it is left out of the tier totals and the buy list.
+        const prev = Math.max(0, ...Object.keys(L.opts).filter(k => k !== 'free' && !L.opts[k].beaten).map(k => L.opts[k].gain));
         if (p.gain < (p.cross ? 4 : 2.5) || p.gain < prev + 1) return;
+        if (t !== 'free' && L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); used.add(p.add); return; }
         L.opts[t] = p; used.add(p.add);
         if (p.cross){ out.shift[t][p.from] = (out.shift[t][p.from] || 0) - p.q; out.shift[t][p.to] = (out.shift[t][p.to] || 0) + p.q; } L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
