@@ -79,17 +79,25 @@ async function ensureTheme(){
     if (PRINT.key !== code) return; PRINT.map = m; if (lsGet('dc.sets')) lsSet('dc.theme2.' + code, [...m]); render();
   } catch (e) {}
 }
+function rarChip(r){ return r ? '<span class="rar rar-' + esc(r[0]) + '">' + esc(r[0].toUpperCase() + r.slice(1)) + '</span>' : ''; }
+// Set, rarity and price of the printing currently shown in the card pop-up.
+function pickHtml(c){
+  const x = S.pick && S.pick.set ? S.pick : null, i = x ? {set:x.set, rar:x.rar} : (printInfo(c) || {set:'', rar:''});
+  return '<span class="setline" style="margin:0">' + (i.set ? '<span class="setn">' + esc(i.set) + '</span>' : '') + rarChip(i.rar) + (x && x.p != null ? '<span>$' + x.p.toFixed(2) + '</span>' : '') + '</span>';
+}
+function cheapest(){ const P = S.prints; let b = null; if (P) P.list.forEach(x => { if (x.p != null && (!b || x.p < b.p)) b = x; }); return b; }
 function printsHtml(){
   const P = S.prints; if (!P || !P.list.length) return '<p class="note" style="margin:0">No other printings found.</p>';
-  return '<div class="prints">' + P.list.map((x, i) => '<button data-act="print" data-v="' + i + '" class="' + (S.pick && S.pick.id === x.id ? 'on' : '') + '"><img loading="lazy" alt="" src="' + imgUrl('small', x.id) + '"><span>' + esc(x.set) + '</span><small>' + esc(x.yr) + (x.p != null ? ' · $' + x.p.toFixed(2) : '') + '</small></button>').join('') + '</div>';
+  const ch = cheapest();
+  return (ch ? '<div class="row"><button class="btn sm' + (S.pick && S.pick.id === ch.id ? '' : ' pri') + '" data-act="print-cheap"' + (S.pick && S.pick.id === ch.id ? ' disabled' : '') + '>' + (S.pick && S.pick.id === ch.id ? 'Showing the cheapest printing' : 'Use cheapest printing') + ' · $' + ch.p.toFixed(2) + '</button></div>' : '') + '<div class="prints">' + P.list.map((x, i) => '<button data-act="print" data-v="' + i + '" class="' + (S.pick && S.pick.id === x.id ? 'on' : '') + '"><img loading="lazy" alt="" src="' + imgUrl('small', x.id) + '"><span>' + esc(x.set) + '</span><small>' + esc(x.yr) + (x.rar ? ' · ' + esc(x.rar[0].toUpperCase() + x.rar.slice(1)) : '') + (x.p != null ? ' · $' + x.p.toFixed(2) : '') + '</small></button>').join('') + '</div>';
 }
 async function loadPrints(c){
   const list = [];
-  try { await scry(c.oid ? 'oracleid:' + c.oid : '!"' + c.n + '"', '&order=released&dir=desc', 4, o => list.push({id:o.id, set:o.set_name, sc:o.set, yr:String(o.released_at || '').slice(0, 4), p:priceOf(o)})); }
+  try { await scry(c.oid ? 'oracleid:' + c.oid : '!"' + c.n + '"', '&order=released&dir=desc', 4, o => list.push({id:o.id, set:o.set_name, sc:o.set, yr:String(o.released_at || '').slice(0, 4), p:priceOf(o), rar:o.rarity || ''})); }
   catch (e) { const b = $('#prints'); if (b && S.modalCard === c.n) b.innerHTML = '<p class="note" style="margin:0">Could not load the list of printings.</p>'; return; }
   if (S.modalCard !== c.n) return; S.prints = {n:c.n, list};
   if (S.pick && !S.pick.set){ const m = list.find(x => x.id === S.pick.id); if (m) S.pick = m; }
-  const b = $('#prints'); if (b) b.innerHTML = printsHtml();
+  const b = $('#prints'); if (b) b.innerHTML = printsHtml(); const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(c);
 }
 async function printSearch(q){
   const out = []; S.printPending = q;
@@ -730,7 +738,7 @@ function openCard(name, pid){
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
-    (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set ? '<dt>Printing</dt><dd>' + esc(c.set) + '</dd>' : '') +
+    (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +
     '<dt>Does</dt><dd>' + ([...tg.roles].map(r => ROLE_LABEL[r] || ({counter:'Counterspell', tutor:'Tutor', protect:'Protection'})[r]).concat(tg.land ? ['Land'] : []).join(', ') || 'Threat / synergy piece') + '</dd>' +
     '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' +
     '<div class="row">' + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
@@ -789,8 +797,9 @@ function handleAct(act, v, n, pArg){
     case 'nav': S.view = v; S.open = false; S.confirmDel = null; changed = false; break;
     case 'close': $('#modal').hidden = true; return;
     case 'card': openCard(n, b.dataset.p); return;
+    case 'print-cheap': { const ch = cheapest(); if (ch) handleAct('print', S.prints.list.indexOf(ch)); return; }
     case 'print': { const x = S.prints && S.prints.list[+v]; if (!x) return; S.pick = Object.assign({n:S.modalCard}, x);
-      const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id); $('#prints').innerHTML = printsHtml();
+      const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id); $('#prints').innerHTML = printsHtml(); { const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(find(S.modalCard)); }
       if (d){ const en = d.cards.find(e2 => e2.n === S.modalCard);
         if (en){ en.pid = x.id; en.ps = x.set; }
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
