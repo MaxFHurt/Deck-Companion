@@ -394,6 +394,46 @@ function bestCuts(d, addName, k){
   }
   return out.sort((a, b) => a.s - b.s).slice(0, k || 3);
 }
+// Player tip for a card being added by hand: how well does it fit this deck, and why?
+function evalFit(d, c){
+  const A = analyze(d), ctx = A.ctx, T = A.T, tg = tags(c), b = baseScore(c, d, ctx), pros = [], cons = [], cmdName = ctx.cmd ? ctx.cmd.n.split(',')[0] : '';
+  let pts = 0;
+  if (!legalIn(c, d.format)) return {level:'bad', title:'Not legal here', pros, cons:[c.n + ' is not legal in ' + (d.format === 'commander' ? 'Commander' : 'Standard') + ', so the deck could not be played with it.']};
+  if (tg.land){
+    if (A.lands < T.lands){ pts += 2; pros.push('The deck has ' + A.lands + ' lands and wants about ' + T.lands + ', so another land helps.'); }
+    else cons.push('The deck already has ' + A.lands + ' lands (target ' + T.lands + '), so it should replace one of them rather than a spell.');
+    if (!isBasic(c.n)){ if (c.r && c.r < 1500){ pts += 2; pros.push('A widely played land.'); } else pts += 1; }
+    if (/enters (the battlefield )?tapped/i.test(c.o || '')) cons.push('It enters tapped, which slows you down a turn.');
+  } else {
+    const aims = [];
+    (d.aims || []).forEach(a => { if (matchAim(c, a, ctx.tribe) >= 0.7) aims.push(a === 'tribal' ? ctx.tribe + ' tribal' : THEMES[a].label); });
+    const ft = foreignTribe(c), wrongTribe = ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t));
+    if (wrongTribe){ pts -= 3; cons.push('It rewards ' + ft + ' cards' + (ctx.tribe ? ', and this is a ' + ctx.tribe + ' deck' : ', which this deck is not built around') + ', so most of its text would do nothing.'); }
+    else if (aims.length){ pts += 2; pros.push('Supports what the deck is built to do: ' + aims.slice(0, 3).join(', ') + '.'); }
+    else if (ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)){ pts += 2; pros.push('Works with ' + cmdName + '’s own strategy.'); }
+    else if ((d.aims || []).length || ctx.cmdThemes.length) { pts -= 1; cons.push('It doesn’t feed the deck’s main plan' + ((d.aims || []).length ? ' (' + (d.aims[0] === 'tribal' ? ctx.tribe + ' tribal' : THEMES[d.aims[0]].label) + ')' : '') + '.'); }
+    if (ctx.edh){ const x = ctx.edh.map.get(c._n);
+      if (x){ const pc = Math.round(x.inc * 100); if (x.inc >= 0.25){ pts += 2; pros.push('Played in ' + pc + '% of ' + cmdName + ' decks.'); } else { pts += 1; pros.push('Shows up in ' + Math.max(1, pc) + '% of ' + cmdName + ' decks' + (x.syn > 0.1 ? ', far more than in other decks' : '') + '.'); } }
+      else if (ctx.edh.map.size > 80){ pts -= 1; cons.push(cmdName + ' players rarely run it.'); } }
+    const RN = {ramp:'mana ramp', draw:'card draw', removal:'removal', wipe:'board wipes'}; let filled = false;
+    for (const r in RN) if (tg.roles.has(r)){
+      if (A.roles[r] < T[r]){ if (!filled) pts += 2; filled = true; pros.push('The deck is short on ' + RN[r] + ' (' + A.roles[r] + ' of about ' + T[r] + ') and this adds one.'); }
+      else pros.push('Adds ' + RN[r] + '; the deck already has enough (' + A.roles[r] + ').'); }
+    if (CORE.has(c._n) || (c.r && c.r < 300)){ pts += 1; pros.push('A staple that is good in almost any deck.'); }
+    const big = A.curve[5] + A.curve[6], bigMax = Math.round(A.nonland * 0.18);
+    if (c.cmc >= 5 && A.nonland >= 20 && big >= bigMax){ pts -= 1; cons.push('The deck already has ' + big + ' cards costing 5 or more; another expensive card makes slow hands more likely.'); }
+    else if (c.cmc <= 2 && A.avg > 3.4) pros.push('Cheap to cast, which helps a deck whose average cost is ' + A.avg.toFixed(1) + '.');
+    const offF = c.ci.filter(x => !ctx.focus.includes(x) && ctx.ident.includes(x));
+    if (offF.length) cons.push('It needs ' + offF.map(k => ({W:'white', U:'blue', B:'black', R:'red', G:'green'})[k]).join(' and ') + ' mana, which is not one of your focus colors.');
+    const sc = []; d.cards.forEach(en => { const x = find(en.n); if (x && !tags(x).land) sc.push(baseScore(x, d, ctx).s); });
+    if (sc.length >= 10){ const below = sc.filter(v => v < b.s).length, pc = below / sc.length;
+      if (pc >= 0.6){ pts += 1; pros.push('By my scoring it beats ' + below + ' of the ' + sc.length + ' spells already in the deck.'); }
+      else if (pc <= 0.15){ pts -= 1; cons.push('By my scoring it ranks below nearly every spell already in the deck.'); } }
+  }
+  const level = pts >= 4 ? 'great' : pts >= 2 ? 'good' : pts >= -1 ? 'ok' : 'poor';
+  if (!pros.length && !cons.length) cons.push('Nothing in its text connects to the deck’s plan, but nothing clashes with it.');
+  return {level, title:{great:'Great fit', good:'Good fit', ok:'Playable, not a natural fit', poor:'Poor fit'}[level], pros, cons};
+}
 // Find a commander for an existing deck: legendary creatures that include the colors the player asks for, ranked by
 // how well they fit the deck's build, how popular they are, and how few of the deck's cards they would strand.
 function findCommanders(d, colors, k){

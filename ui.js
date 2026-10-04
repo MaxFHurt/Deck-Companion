@@ -695,10 +695,14 @@ function recolorHtml(d, c){
       : '<p class="note" style="margin:0">No commander in the card data covers all of those colors' + (DBINFO.complete ? '.' : ' yet. More appear when the card download finishes.') + '</p>') +
     '<div class="row"><button class="btn" data-act="close">Cancel</button></div></div>';
 }
+function tipHtml(d, c){
+  const f = evalFit(d, c), li = (xs, k, m) => xs.map(x => '<li class="' + k + '"><i>' + m + '</i>' + esc(x) + '</li>').join('');
+  return '<div class="tip ' + f.level + '"><b><small>Tip</small>' + esc(f.title) + '</b><ul>' + li(f.pros, 'pro', '+') + li(f.cons, 'con', '–') + '</ul></div>';
+}
 function wantHtml(d, c){
   if (offColor(d, c)) return recolorHtml(d, c);
   const A = analyze(d), open = A.T.size - A.size, warn = !legalIn(c, d.format) ? 'Not legal in ' + d.format : (A.ctx.ident.length || A.ctx.cmd) && !c.ci.every(x => A.ctx.ident.includes(x)) ? 'Outside this deck’s colors' : '';
-  let h = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>' + (warn ? '<div class="row"><span class="chip bad">' + warn + '</span></div>' : '');
+  let h = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>' + tipHtml(d, c);
   if (open > 0) return h + '<div class="row"><button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add it · ' + open + ' open slot' + (open === 1 ? '' : 's') + '</button></div></div>';
   const cuts = bestCuts(d, c.n, 3);
   if (!cuts.length) return h + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div></div>';
@@ -751,7 +755,7 @@ const planText = plan => plan.changes.slice().sort((a, b) => a.delta - b.delta).
 function manaCheck(d, act, v, n){
   if (S.manaOK || !d || !/^(add-to-deck|pick-add|want|swap)$/.test(act)) return false;
   let add = n, cut = null;
-  if (act === 'pick-add'){ const A = analyze(d); if (A.size >= A.T.size) return false; }   // a full deck goes to the swap chooser first
+  if (act === 'pick-add') return false;   // picking opens the card with its tip; the check runs when it is actually added
   if (act === 'want') cut = v;
   if (act === 'swap'){ const [i, t] = String(v).split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return false; add = p.add; cut = p.cut; }
   const c = find(add); if (!c || tags(c).land) return false;
@@ -807,7 +811,7 @@ function handleAct(act, v, n, pArg){
     case 'dec': cutCard(d, n, 1); break;
     case 'rm': cutCard(d, n, 999); break;
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
-    case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } const A = analyze(d); if (A.size >= A.T.size){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } addCard(d, n, 1); toast('Added ' + n + '.'); break; }
+    case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
     case 'want': { cutCard(d, v, 1); addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
     case 'add-to-deck': { const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ en.pid = S.pick.id; en.ps = S.pick.set; } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
     case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
