@@ -5,6 +5,7 @@ A Magic: The Gathering deck builder for Commander and Standard.
 - Import a plain-text decklist or pick cards through search
 - Aim the deck: ranked mechanics and land-color focus
 - Upgrade recommendations in three tiers: Budget (cards up to $3), Mid (up to $12), Apex (no cap)
+- Commander Brackets: upgrades stay within the deck's bracket (Game Changers, mass land denial, extra turns). The card lists come from Scryfall and update on their own
 - Official preconstructed Commander decklists for new players
 - Generate a deck from any commander
 - Card text, prices, legality and artwork from Scryfall, refreshed about once a day
