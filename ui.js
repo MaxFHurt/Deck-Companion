@@ -5,7 +5,7 @@ const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).sli
 const STARTER = parseStarter(STARTER_RAW);
 buildIndex(STARTER);
 let DBINFO = {source:'starter', count:STARTER.length, when:null};
-const S = {profile:{name:'Planeswalker', decks:[], updatedAt:0, example:true}, view:'deck', deckId:null, swaps:10, sync:'local',
+const S = {profile:{name:'Planeswalker', decks:[], updatedAt:0, example:true}, view:'decks', open:false, deckId:null, swaps:10, sync:'local',
   search:{q:'', color:'', type:'', fmt:'', max:'', theme:''}, gen:{cmd:'', tier:'budget'}, confirmDel:null, busy:''};
 const cur = () => S.profile.decks.find(d => d.id === S.deckId) || null;
 
@@ -324,7 +324,7 @@ function backupPanel(){
 }
 
 // ---------- deck helpers ----------
-function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.profile.decks.unshift(d); S.deckId = d.id; S.view = 'deck'; return d; }
+function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.profile.decks.unshift(d); S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; return d; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example: Lathril elves (generated)'; d.example = true; d.tier = 'mid'; return d; }
 function doSwap(d, p, step){ const old = d.cards.find(x => x.n === p.cut), keep = step ? Math.max(step, old && old.step || 0) : (old && old.step || 0); cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add); if (en && keep) en.step = keep; }
@@ -337,11 +337,12 @@ function navHtml(){
   $('#nav-r').innerHTML = b('profile', 'Profile');
 }
 function viewDecks(){
-  const P = S.profile;
+  const P = S.profile, od = S.open ? cur() : null;
+  if (od){ const A = analyze(od); return '<div class="row"><button class="btn" data-act="deck-back">← All decks</button></div><div class="work">' + aimPanel(od, A.ctx) + listPanel(od, A) + upPanel(od, A) + '</div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
     return '<button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row"><span class="chip gold">' + TIERS[d.tier].label + '</span><span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button>'; }).join('');
-  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="import-open">Import a text list</button><button class="btn" data-act="precon-open">Load a precon</button><button class="btn" data-act="gen-open">Generate from a commander</button></div>' +
-    (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Start a new one, import a text list, or load a precon from the Builder.</p>') + '</section>';
+  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
+    (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>';
 }
 function aimPanel(d, ctx){
   const lock = d.aimLocked, dis = lock ? ' disabled' : '', aimed = isAimed(d);
@@ -431,9 +432,14 @@ function upPanel(d, A){
   return h + '</section>';
 }
 function viewDeck(){
-  const d = cur(); if (!d) return '<section class="panel"><div class="ph"><h2>Builder</h2></div><p class="note">Open a deck from Decks, or start one.</p><div class="row"><button class="btn pri" data-act="new-deck" data-v="commander">New Commander deck</button><button class="btn pri" data-act="new-deck" data-v="standard">New Standard deck</button><button class="btn" data-act="precon-open">Load a precon</button><button class="btn" data-act="gen-open">Generate from a commander</button></div></section>';
-  const A = analyze(d);
-  return '<div class="row"><button class="btn pri" data-act="import-open">Import a text list</button><button class="btn pri" data-act="precon-open">Load a precon</button><button class="btn pri" data-act="gen-open">Generate from a commander</button></div><div class="work">' + aimPanel(d, A.ctx) + listPanel(d, A) + upPanel(d, A) + '</div>';
+  const opt = (act, v, title, text) => '<button class="tile" data-act="' + act + '"' + (v ? ' data-v="' + v + '"' : '') + '><div class="tb"><h3>' + title + '</h3><p>' + text + '</p></div></button>';
+  return '<section class="panel"><div class="ph"><h2>Build a new deck</h2><small>Saved to Decks when created</small></div><div class="tiles">' +
+    opt('gen-open', '', 'Generate from a commander', 'Pick a legendary creature and a tier. The app builds a full 100-card deck around what that commander does.') +
+    opt('precon-open', '', 'Load a precon', 'Start from a real preconstructed Commander deck with its official card list.') +
+    opt('import-open', '', 'Import a text list', 'Paste or load a decklist you already have, from Arena, Moxfield, Archidekt or a plain text file.') +
+    opt('new-deck', 'commander', 'Empty Commander deck', 'Start from nothing: choose a commander, set the build, and add cards yourself.') +
+    opt('new-deck', 'standard', 'Empty Standard deck', 'Start a 60-card Standard deck: pick colors and mechanics, then add cards or fill it.') +
+    '</div></section>';
 }
 function searchResults(){
   const f = S.search, filt = {fmt:f.fmt, color:f.color, type:f.type, max:+f.max || 0, theme:f.theme}, q = f.q.trim();
@@ -530,7 +536,7 @@ function openImport(preset){
     '<p class="note" style="margin:0">One card per line, like <code>1 Sol Ring</code> or <code>4x Llanowar Elves</code>. Lists exported from Arena, Moxfield, Archidekt and MTGO work, including a “Commander” heading. Sideboards are skipped.</p>' +
     '<div class="row"><input type="file" id="imp-file" accept=".txt,.dek,.dec,text/plain" style="max-width:300px"><select id="imp-fmt" style="width:auto" aria-label="Format"><option value="commander">Commander</option><option value="standard"' + (preset && preset.format === 'standard' ? ' selected' : '') + '>Standard</option></select></div>' +
     '<input type="text" id="imp-name" placeholder="Deck name" value="' + esc(preset && preset.name || '') + '" maxlength="60"><textarea id="imp-text" placeholder="Commander&#10;1 Lathril, Blade of the Elves&#10;&#10;Deck&#10;1 Sol Ring&#10;1 Elvish Archdruid&#10;12 Forest"></textarea>' +
-    '<div class="row"><button class="btn pri" data-act="import-go" data-v="new">Import as a new deck</button>' + (d ? '<button class="btn" data-act="import-go" data-v="merge">Add to ' + esc(d.name) + '</button>' : '') + '</div></div>';
+    '<div class="row"><button class="btn pri" data-act="import-go" data-v="new">Import as a new deck</button></div></div>';
   $('#modal').hidden = false; openImport.preset = preset || null;
 }
 function dropdown(input, box, filter, act){
@@ -546,7 +552,7 @@ document.addEventListener('click', ev => {
   if (ev.target.id === 'modal'){ $('#modal').hidden = true; return; }
   const b = ev.target.closest('[data-act]'); if (!b) return; const act = b.dataset.act, v = b.dataset.v, n = b.dataset.n, d = cur(); let changed = true;
   switch (act){
-    case 'nav': S.view = v; S.confirmDel = null; changed = false; break;
+    case 'nav': S.view = v; S.open = false; S.confirmDel = null; changed = false; break;
     case 'close': $('#modal').hidden = true; return;
     case 'card': openCard(n, b.dataset.p); return;
     case 'print': { const x = S.prints && S.prints.list[+v]; if (!x) return; S.pick = Object.assign({n:S.modalCard}, x);
@@ -556,9 +562,10 @@ document.addEventListener('click', ev => {
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
-    case 'open-deck': S.deckId = v; S.view = 'deck'; S.pathShow = 0; changed = false; break;
+    case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; changed = false; break;
+    case 'deck-back': S.open = false; changed = false; break;
     case 'new-deck': newDeck({format:v, name:v === 'commander' ? 'New Commander deck' : 'New Standard deck'}); break;
-    case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v) S.deckId = (S.profile.decks[0] || {}).id || null; S.confirmDel = null; break;
+    case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v){ S.deckId = (S.profile.decks[0] || {}).id || null; S.open = false; } S.confirmDel = null; break;
     case 'fmt': if (d.format !== v){ d.format = v; if (v === 'standard'){ d.colors = (d.colors || []).slice(0, 3); } else if (find(d.commander)) d.colors = find(d.commander).ci.slice(); } break;
     case 'tier': d.tier = v; break;
     case 'lock-aim': d.aimLocked = !d.aimLocked; break;
@@ -635,8 +642,10 @@ document.addEventListener('change', ev => {
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
+addEventListener('pagehide', () => { clearTimeout(saveT); if (!S.profile.example) persist(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && !S.profile.example){ clearTimeout(saveT); persist(); } });
 // ---------- boot ----------
 ornaments(); paintSky(); let rz = 0; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 250); });
 loadLocal();
-if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else { S.deckId = S.profile.decks[0].id; }
+if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; S.view = 'decks'; S.open = true; } else { S.deckId = S.profile.decks[0].id; S.view = 'decks'; S.open = false; }
 render(); loadSavedLibrary(); initBackup();
