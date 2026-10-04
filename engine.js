@@ -358,7 +358,11 @@ function upgradePaths(d){
         if (used.has(p.add) && !isBasic(p.add)) return;   // a card is only ever suggested once
         if (p.land || p.fix){ if (i === 0){ out.fixes.push(p); used.add(p.add); } return; }
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
-        if (L.opts[t]) return; L.opts[t] = p; used.add(p.add);
+        if (L.opts[t]) return;
+        // Don't force an upgrade: it must clearly beat the card it replaces, and beat the cheaper tier's pick for the same card.
+        const prev = Math.max(0, ...Object.values(L.opts).map(o => o.gain));
+        if (p.gain < (p.cross ? 4 : 2.5) || p.gain < prev + 1) return;
+        L.opts[t] = p; used.add(p.add);
         if (p.cross){ out.shift[t][p.from] = (out.shift[t][p.from] || 0) - p.q; out.shift[t][p.to] = (out.shift[t][p.to] || 0) + p.q; } L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
       });
