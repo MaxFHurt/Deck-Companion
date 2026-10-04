@@ -362,13 +362,13 @@ function navHtml(){
 function viewHome(){
   const n = S.profile.decks.filter(d => !d.example).length;
   const tile = (v, icon, title, text, extra) => '<button class="tile big" data-act="nav" data-v="' + v + '"><div class="tb"><span class="hicon">' + SVG[icon] + '</span><h3>' + title + '</h3><p>' + text + '</p>' + (extra ? '<span class="chip gold">' + extra + '</span>' : '') + '</div></button>';
-  return '<section class="hero"><h1>Bring a deck. See every way to make it better.</h1><p>Deck Companion is a deck builder for Magic: The Gathering, made for Commander and Standard. Start a deck or bring your own, tell it what the deck is about, and it lays out each card’s upgrade path at three budgets, without turning your deck into something else.</p></section>' +
+  return '<section class="hero"><h1>Bring a deck. See every way to make it better.</h1><p class="narrow">A Magic: The Gathering deck builder for Commander and Standard that shows each card’s upgrade path at three budgets.</p><p class="wide">Deck Companion is a deck builder for Magic: The Gathering, made for Commander and Standard. Start a deck or bring your own, tell it what the deck is about, and it lays out each card’s upgrade path at three budgets, without turning your deck into something else.</p></section>' +
     '<div class="tiles home3">' +
     tile('deck', 'deck', 'Builder', 'Start a new deck. Generate one from a commander, load a real precon, import a list you already have, or begin empty.') +
     tile('decks', 'decks', 'Decks', 'Open a saved deck to edit it, tune its build, and follow its Budget, Mid and Apex upgrade paths.', n ? n + ' saved deck' + (n === 1 ? '' : 's') : '') +
     tile('search', 'search', 'Card search', 'Look up any card with its full details, price and every printing.') +
     '</div><div class="row" style="justify-content:center"><button class="btn" data-act="nav" data-v="profile" style="display:inline-flex;gap:8px;align-items:center"><span class="hicon sm">' + SVG.profile + '</span>Profile and backups</button></div>' +
-    '<section class="panel"><div class="ph"><h2>How it works</h2></div><ol class="steps"><li><b>Get a deck in.</b> Generate one, load a precon, or paste your own list.</li><li><b>Set the build.</b> Rank the mechanics that matter and pick your colors. For Commander, the deck follows what your commander does.</li><li><b>Follow the upgrade paths.</b> Every card shows what to swap it for at Budget (up to $3), Mid (up to $12) and Apex, and how far along it already is.</li></ol></section>';
+    '<ol class="steps"><li><b>Get a deck in.</b> Generate one, load a precon, or paste your own list.</li><li><b>Set the build.</b> Rank the mechanics that matter and pick your colors. For Commander, the deck follows what your commander does.</li><li><b>Follow the upgrade paths.</b> Every card shows what to swap it for at Budget (up to $3), Mid (up to $12) and Apex, and how far along it already is.</li></ol>';
 }
 function viewDecks(){
   const P = S.profile, od = S.open ? cur() : null;
@@ -545,9 +545,9 @@ function viewProfile(){
 }
 function render(){
   navHtml(); const m = $('#main');
-  document.querySelector('.top').classList.toggle('home', S.view === 'home');
+  document.querySelector('.top').classList.toggle('home', S.view === 'home'); document.querySelector('.app').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
-  m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = '16px';
+  m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = S.view === 'home' ? '10px' : '16px';
   ensureTheme(); ensureEdh();
 }
 function ctlHtml(n){
