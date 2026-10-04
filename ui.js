@@ -423,20 +423,30 @@ function aimPanel(d, ctx){
   return h;
 }
 const GROUPS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['Instant', 'Instants'], ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
-function listPanel(d, A){
+function listRows(d){
   const buckets = {}, unknown = [];
   for (const e of d.cards){ const c = find(e.n); if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
     '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
     '<span class="pr">' + money(c) + '</span></button>';
-  let h = '<section class="panel list"><div class="ph"><h2>Decklist</h2><small>' + A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0') + '</small></div>';
-  h += '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
-    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your aims and tier">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>';
-  if (!d.cards.length) h += '<p class="note">This deck is empty. Import a text list, search for cards, or aim the deck and fill the open slots.</p>';
+  let h = '';
+  if (!d.cards.length) h += '<p class="note">This deck is empty. Search for cards above, or set the build and fill the open slots.</p>';
   for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; b.sort((x, y) => x[1].cmc - y[1].cmc || x[1].n.localeCompare(y[1].n));
     h += '<div><div class="gh"><span>' + label + '</span><span>' + b.reduce((s, x) => s + x[0].q, 0) + '</span></div>' + b.map(x => rowH(x[0], x[1])).join('') + '</div>'; }
-  if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card library</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These are kept in your list but can’t be analyzed. Load the full card database in Profile to recognize them.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
-  return h + '</section>';
+  if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card data yet</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These stay in your list but can’t be analyzed until the full card data has loaded.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
+  return h;
+}
+const deckStat = (d, A) => A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0');
+function listPanel(d, A){
+  return '<section class="panel list"><div class="ph"><h2>Decklist</h2><small>' + deckStat(d, A) + '</small><button class="btn sm" data-act="list-all">View all</button></div>' +
+    '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
+    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="copy-list">Copy list</button></div>' +
+    '<div class="rows" id="rows">' + listRows(d) + '</div></section>';
+}
+function openList(){
+  const d = cur(); if (!d) return; const A = analyze(d); S.modalCard = null; S.listOpen = true;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Full decklist"><div class="ph"><h2>' + esc(d.name) + '</h2><small>' + deckStat(d, A) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="allrows">' + listRows(d) + '</div></div>';
+  $('#modal').hidden = false;
 }
 const TIER_KEYS = ['budget', 'mid', 'apex'];
 function upPanel(d, A){
@@ -471,10 +481,10 @@ function upPanel(d, A){
     h += '<div class="tiers">' + TIER_KEYS.map(t => '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>' + (R.count[t] ? R.count[t] + ' swap' + (R.count[t] === 1 ? '' : 's') : 'none') + '</span><span>' + (R.count[t] ? (R.cost[t] >= 0 ? '+' : '−') + '$' + Math.abs(R.cost[t]).toFixed(0) : '') + '</span><button class="btn sm" data-act="swap-all" data-v="' + t + '"' + (R.count[t] ? '' : ' disabled') + '>Apply all</button></div>').join('') + '</div>' +
       '<p class="note" style="margin:0">Each card below shows what to swap it for at each tier. Budget options cost up to $3, Mid over $3 up to $12, Apex over $12. The bar marks how far along its path the card already is.</p>';
     const show = S.pathShow || 12;
-    h += R.paths.slice(0, show).map((L, i) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
+    h += '<div class="paths">' + R.paths.slice(0, show).map((L, i) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
       return '<div class="path">' + side('out', L.cut, 1) +
         '<div class="prog" role="img" aria-label="Upgrade progress: ' + (step ? TIERS[TIER_KEYS[step - 1]].label : 'not started') + '">' + ['Now'].concat(TIER_KEYS.map(t => TIERS[t].label)).map((lab, k) => '<span class="' + (k <= step ? 'done' : '') + (k === step ? ' here' : '') + (k > 0 && L.opts[TIER_KEYS[k - 1]] ? ' has' : '') + '"><i></i>' + lab + '</span>').join('') + '</div>' +
-        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>' : ''; }).join('') + '</div>'; }).join('');
+        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>' : ''; }).join('') + '</div>'; }).join('') + '</div>';
     if (any > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, any - show) + ' more</button>';
   }
   h += '</div>';
@@ -584,10 +594,12 @@ function viewProfile(){
     '<p class="note" style="margin:0">If the automatic update keeps failing, download <b>Oracle Cards</b> from <a href="https://scryfall.com/docs/api/bulk-data" target="_blank" rel="noopener">scryfall.com/docs/api/bulk-data</a> and load the file here:</p><div class="row"><input type="file" id="db-file" accept=".json,application/json" style="max-width:340px"></div></section>';
 }
 function render(){
+  const keepRows = $('#rows') ? $('#rows').scrollTop : 0;
   navHtml(); const m = $('#main');
   document.querySelector('.top').classList.toggle('home', S.view === 'home'); document.querySelector('.app').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = S.view === 'home' ? '10px' : '16px';
+  if (keepRows && $('#rows')) $('#rows').scrollTop = keepRows;
   ensureTheme(); ensureEdh();
 }
 function ctlHtml(n){
@@ -699,6 +711,7 @@ document.addEventListener('click', ev => {
     case 'copy-list': copyText(deckToText(d), 'Deck list copied.'); return;
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
+    case 'list-all': openList(); return;
     case 'precon-open': openPrecons(); return;
     case 'precon-live': $('#modal').hidden = true; loadPreconLive(v, n); return;
     case 'gen-open': openGenerate(); return;
