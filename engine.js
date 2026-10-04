@@ -138,22 +138,24 @@ function parseDeckText(txt){
     if (sb || section === 'side'){ out.side += q; continue; }
     const c = find(name); if (c) name = c.n;
     if ((section === 'commander' || isCmd) && !out.commander){ out.commander = name; continue; }
+    if ((section === 'commander' || isCmd) && !out.partner){ out.partner = name; continue; }
     const k = norm(name); if (map.has(k)) map.get(k).q += q; else { const e = {n:name, q, l:false}; map.set(k, e); out.cards.push(e); }
   }
   return out;
 }
 function deckToText(d){
-  const L = []; if (d.format === 'commander' && d.commander) L.push('Commander', '1 ' + d.commander, '', 'Deck');
+  const L = []; if (d.format === 'commander' && d.commander){ L.push('Commander', '1 ' + d.commander); if (d.partner) L.push('1 ' + d.partner); L.push('', 'Deck'); }
   d.cards.forEach(e => L.push(e.q + ' ' + e.n)); return L.join('\n');
 }
 
 // ----- analysis -----
 function ctxOf(d){
-  const cmd = d.format === 'commander' ? find(d.commander) : null;
-  const ident = d.format === 'commander' ? (cmd ? cmd.ci : []) : (d.colors || []);
+  const cmd = d.format === 'commander' ? find(d.commander) : null, par = cmd && d.partner ? find(d.partner) : null;
+  const ident = d.format === 'commander' ? (cmd ? 'WUBRG'.split('').filter(k => cmd.ci.includes(k) || (par && par.ci.includes(k))) : []) : (d.colors || []);
   let focus = (d.colors || []).filter(x => ident.includes(x)); if (!focus.length) focus = ident.slice();
   const strat = detectStrategy(cmd);
-  return {cmd, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe};
+  if (par){ const ps = detectStrategy(par); strat.themes = strat.themes.concat(ps.themes.filter(t => !strat.themes.includes(t))); if (!strat.tribe) strat.tribe = ps.tribe; }
+  return {cmd, par, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe};
 }
 function isAimed(d){
   if (!d.aims || !d.aims.length) return false;
@@ -172,9 +174,10 @@ function mainType(c){ const t = c ? frontType(c) : ''; if (/\bLand\b/.test(t) &&
 function legalIn(c, fmt){ return fmt === 'commander' ? c.cmd : c.std; }
 function analyze(d){
   const ctx = ctxOf(d), T = targetsOf(d, ctx);
-  const A = {ctx, T, size:ctx.cmd || (d.format === 'commander' && d.commander) ? 1 : 0, lands:0, nonland:0, cmcSum:0, curve:[0,0,0,0,0,0,0], roles:{ramp:0, draw:0, removal:0, wipe:0},
+  const A = {ctx, T, size:(ctx.cmd || (d.format === 'commander' && d.commander) ? 1 : 0) + (ctx.par ? 1 : 0), lands:0, nonland:0, cmcSum:0, curve:[0,0,0,0,0,0,0], roles:{ramp:0, draw:0, removal:0, wipe:0},
     unknown:[], over:[], offColor:[], illegal:[], dupes:[], types:{}, aim:(d.aims || []).map(() => 0), price:0, priced:true};
   if (ctx.cmd && ctx.cmd.p != null) A.price += ctx.cmd.p;
+  if (ctx.par && ctx.par.p != null) A.price += ctx.par.p;
   for (const e of d.cards){
     A.size += e.q; const c = find(e.n); if (!c){ A.unknown.push(e.n); continue; }
     const tg = tags(c); if (c.p != null) A.price += c.p * e.q; else A.priced = false;
@@ -239,7 +242,7 @@ function recommend(d, swaps, fillOnly){
   if (landNeed > 0){
     let nonbasic = 0; d.cards.forEach(e => { const c = find(e.n); if (c && tags(c).land && !isBasic(c.n)) nonbasic += e.q; });
     let room = std ? (ctx.ident.length > 1 ? 4 : 0) : Math.max(0, Math.min(12, 4 + ctx.ident.length * 3) - nonbasic);
-    const pool = LIB.filter(c => tags(c).land && !isBasic(c.n) && okCard(c) && !have.has(c._n) && c.n !== d.commander)
+    const pool = LIB.filter(c => tags(c).land && !isBasic(c.n) && okCard(c) && !have.has(c._n) && c.n !== d.commander && c.n !== d.partner)
       .map(c => ({c, b:baseScore(c, d, ctx)})).sort((x, y) => y.b.s - x.b.s);
     for (const p of pool){
       if (room <= 0 || landNeed <= 0) break;
@@ -251,7 +254,7 @@ function recommend(d, swaps, fillOnly){
   }
   // spells
   if (nAdd > 0){
-    const pool = LIB.filter(c => !tags(c).land && okCard(c) && !have.has(c._n) && c.n !== d.commander).map(c => ({c, b:baseScore(c, d, ctx), used:false}));
+    const pool = LIB.filter(c => !tags(c).land && okCard(c) && !have.has(c._n) && c.n !== d.commander && c.n !== d.partner).map(c => ({c, b:baseScore(c, d, ctx), used:false}));
     const bonus = c => { let b = 0, w = null; tags(c).roles.forEach(r => { if (def[r] > 0){ b += 2 + Math.min(2, def[r] / 3); w = w || r; } }); return [b, w]; };
     let guard = 0;
     while (nAdd > 0 && guard++ < 400){
@@ -445,6 +448,41 @@ function evalFit(d, c){
   if (!pros.length && !cons.length) cons.push('Nothing in its text connects to the deck’s plan, but nothing clashes with it.');
   return {level, title:{great:'Great fit', good:'Good fit', ok:'Playable, not a natural fit', poor:'Poor fit'}[level], pros, cons};
 }
+// Two commanders: which cards may share the command zone. Covers Partner, "Partner with", named partner variants
+// (both cards must have the same one), Friends forever, Choose a Background and Doctor's companion.
+function pairKind(c){
+  if (!c) return ''; if (c._pk !== undefined) return c._pk; const o = c.o || '', t = c.t || ''; let m, k = '';
+  if ((m = /(^|\n)Partner with ([^\n(]+?)\s*(\(|\n|$)/.exec(o))) k = 'with:' + norm(m[2]);
+  else if ((m = /(^|\n)Partner\s*[—–-]\s*([^\n(]+?)\s*(\(|\n|$)/.exec(o))) k = 'var:' + m[2].trim().toLowerCase();
+  else if (/(^|\n)Partner\b/.test(o)) k = 'partner';
+  else if (/(^|\n)Friends forever/i.test(o)) k = 'friends';
+  else if (/Choose a Background/i.test(o)) k = 'bg';
+  else if (/Doctor’s companion|Doctor's companion/i.test(o)) k = 'companion';
+  else if (/Legendary/.test(t) && /\bBackground\b/.test(t)) k = 'isbg';
+  else if (/Time Lord Doctor/.test(t)) k = 'doctor';
+  return c._pk = k;
+}
+function pairLabel(c){ const k = pairKind(c); return k === 'partner' ? 'Partner' : k.startsWith('var:') ? 'Partner—' + k.slice(4).replace(/^./, x => x.toUpperCase()) : k.startsWith('with:') ? 'Partner with' : k === 'friends' ? 'Friends forever' : k === 'bg' || k === 'isbg' ? 'Choose a Background' : k ? 'Doctor’s companion' : ''; }
+function canPair(a, b){
+  const x = pairKind(a), y = pairKind(b); if (!x || !y || a.n === b.n) return false;
+  if (x.startsWith('with:') || y.startsWith('with:')) return x === 'with:' + b._n || y === 'with:' + a._n;
+  if (x === 'bg' || y === 'bg') return x === 'isbg' || y === 'isbg';
+  if (x === 'companion' || y === 'companion') return x === 'doctor' || y === 'doctor';
+  if (x === 'isbg' || x === 'doctor' || y === 'isbg' || y === 'doctor') return false;
+  return x === y;
+}
+function canLead(c){ return !!(c && c.cmd && /Legendary/.test(c.t) && /Creature/.test(frontType(c))); }
+// Commander pairs that together cover a set of colors, ranked by fit.
+function findPairs(d, colors, k){
+  const ctx = ctxOf(d), X = LIB.filter(c => c.cmd && pairKind(c)).map(c => ({c, s:baseScore(c, d, Object.assign({}, ctx, {focus:c.ci, ident:c.ci, edh:null})).s})), out = [];
+  for (let i = 0; i < X.length; i++) for (let j = i + 1; j < X.length; j++){
+    const a = X[i], b = X[j]; if (!canPair(a.c, b.c) || (!canLead(a.c) && !canLead(b.c))) continue;
+    const ci = 'WUBRG'.split('').filter(z => a.c.ci.includes(z) || b.c.ci.includes(z)); if (!colors.every(z => ci.includes(z))) continue;
+    const lead = canLead(a.c) && (a.s >= b.s || !canLead(b.c)) ? a : b, other = lead === a ? b : a;
+    out.push({n:lead.c.n, p:other.c.n, ci, s:a.s + b.s - 1.2 * (ci.length - colors.length)});
+  }
+  return out.sort((x, y) => y.s - x.s).slice(0, k || 4);
+}
 // Find a commander for an existing deck: legendary creatures that include the colors the player asks for, ranked by
 // how well they fit the deck's build, how popular they are, and how few of the deck's cards they would strand.
 function findCommanders(d, colors, k){
@@ -485,12 +523,12 @@ function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.
 // deck until the player installs it. Owned cards are marked so they cost nothing.
 function buildPlan(d, seeds, ownOnly, ownAll){
   const tmp = JSON.parse(JSON.stringify(d)); tmp.tier = 'apex'; tmp.cards = []; delete tmp.plan;
-  const cmd = find(d.commander), okC = c => !cmd || c.ci.every(k => cmd.ci.includes(k));
-  (seeds || []).forEach(c => { if (c.n !== d.commander && okC(c)) addCard(tmp, c.n, 1); });
+  const cmd = find(d.commander), id0 = ctxOf(d).ident, okC = c => !cmd || c.ci.every(k => id0.includes(k));
+  (seeds || []).forEach(c => { if (c.n !== d.commander && c.n !== d.partner && okC(c)) addCard(tmp, c.n, 1); });
   const seedSet = new Set(tmp.cards.map(x => norm(x.n)));
   if (ownOnly && ownOnly.size){ recommend.own = ownOnly; try { recommend(tmp, 0, true).adds.forEach(a => { if (!isBasic(a.n)) addCard(tmp, a.n, a.q); }); } finally { recommend.own = null; } }
   fillDeck(tmp);
-  const ctx = ctxOf(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander));
+  const ctx = ctxOf(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner));
   const pool = LIB.filter(c => c.p != null && c.p <= 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n))
     .map(c => ({c, s:baseScore(c, tmp, ctx).s, land:tags(c).land, ty:mainType(c)}));
   const alt = (x, cap) => { const tx = tags(x), ty = mainType(x); let best = null, bs = -1e9;
@@ -514,6 +552,7 @@ function planPick(s, t){ return t === 'apex' ? s.a : t === 'mid' ? (s.m || s.a) 
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }
 function setCommander(d, name){
   const c = find(name); d.commander = c ? c.n : name; cutCard(d, d.commander, 99);
+  if (d.partner){ const p = find(d.partner); if (!p || !c || !canPair(c, p)) delete d.partner; }
   if (c && !d.aimLocked){ const st = detectStrategy(c); d.tribe = st.tribe || d.tribe || ''; if (!d.aims.length) d.aims = st.themes.slice(0, 3); d.colors = c.ci.slice(); }
 }
 function searchCards(q, f, limit){

@@ -467,7 +467,7 @@ function viewDecks(){
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
-    return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.plan && d.plan.length ? '<span class="chip warn">Build in progress</span>' : '') + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
+    return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') + (d.partner ? ' + ' + esc(d.partner) : '') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.plan && d.plan.length ? '<span class="chip warn">Build in progress</span>' : '') + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
   return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
     (S.draft ? '<div class="gate"><b>Unsaved deck: ' + esc(S.draft.name) + '</b>' + (S.draft.plan && S.draft.plan.length ? '<span class="chip warn">Build in progress</span> ' : '') + 'You started this deck but haven’t saved it to your profile.<div class="row" style="margin-top:10px"><button class="btn" data-act="draft-open">Keep editing</button><button class="btn pri" data-act="draft-save">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button></div></div>' : '') +
     (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>';
@@ -476,7 +476,7 @@ function aimPanel(d, ctx){
   if (d.auto && !d.custom && isAimed(d)){
     return '<section class="panel aimp"><div class="ph"><h2>Build</h2><small>' + (d.auto === 'precon' ? 'Precon theme' : 'Set from the commander') + '</small></div>' +
       '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' +
-      (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button><button class="btn sm" data-act="cmd-find">Find a commander</button></div></div></div>' : '') +
+      (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button><button class="btn sm" data-act="cmd-find">Find a commander</button></div></div></div>' + partnerBox(d, false) : '') +
       '<div class="grp"><span class="lab">This deck is built around</span><div class="row">' + d.aims.map((a, i) => '<span class="chip gold">' + (i + 1) + ' · ' + (a === 'tribal' ? esc(ctx.tribe) + ' tribal' : THEMES[a].label) + '</span>').join('') + '</div></div>' +
       '<p class="note" style="margin:0">' + (d.auto === 'precon' ? 'This precon already has a theme, so its upgrade paths are ready below.' : 'The build was set from what this commander does, so its upgrade paths are ready below.') + ' Change the mechanics, their order or the color focus only if you want to take the deck somewhere else.</p>' +
       '<div class="row"><button class="btn" data-act="build-custom">Customize the build</button></div></section>';
@@ -487,7 +487,7 @@ function aimPanel(d, ctx){
   h += '<div class="grp"><span class="lab">Format</span><div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></div>';
   if (d.format === 'commander'){
     h += '<div class="grp"><span class="lab">Commander</span>';
-    if (ctx.cmd){ h += '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="clear-cmd">Change</button><button class="btn sm" data-act="cmd-find">Find a commander</button>') + '</div></div></div>';
+    if (ctx.cmd){ h += '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="clear-cmd">Change</button><button class="btn sm" data-act="cmd-find">Find a commander</button>') + '</div></div></div>' + partnerBox(d, lock);
       h += '<div class="row">' + (ctx.cmdThemes.length ? ctx.cmdThemes.map(k => '<span class="chip gold">' + (k === 'tribal' ? ctx.cmdTribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. Your aims decide the direction.</span>') + '</div>' +
         (ctx.cmdThemes.length ? '<p class="note" style="margin:0">Upgrades always lean toward what this commander does, on top of the aims you set.</p>' : ''); }
     else { const leg = d.cards.map(e => find(e.n)).filter(c => c && /Legendary/.test(c.t) && /Creature/.test(frontType(c))).slice(0, 6);
@@ -624,11 +624,12 @@ function planInstall(d, x, key){
   d.plan = d.plan.filter(y => y !== x); if (!d.plan.length) delete d.plan; return true;
 }
 // Start a generated deck as a build plan.
-function startPlan(cmdName, seeds, extraAims){
+function startPlan(cmdName, seeds, extraAims, partner){
   const c = find(cmdName); if (!c) return null;
   const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander'}); setCommander(nd, c.n);
+  { const p = partner && find(partner); if (p && canPair(c, p)){ nd.partner = p.n; nd.name = c.n.split(',')[0] + ' & ' + p.n.split(',')[0] + ' (generated)'; nd.colors = ctxOf(nd).ident.slice(); ctxOf(nd).cmdThemes.forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); }); } }
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
-  if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.ci.every(k => c.ci.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
+  if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
   nd.plan = buildPlan(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
   toast('Designed a ' + nd.plan.reduce((s, x) => s + x.q, 0) + '-card build for ' + c.n + '. Add the cards you want from the Upgrades tab.'); return nd;
 }
@@ -783,12 +784,30 @@ function seedThemes(cards){
   const n = {}; cards.forEach(c => { const th = tags(c).th; for (const k in th) if (th[k] === 1) n[k] = (n[k] || 0) + 1; });
   return Object.keys(n).sort((a, b) => n[b] - n[a]).slice(0, 3);
 }
+// Second commander: shown under the commander when the rules allow one.
+function partnerBox(d, lock){
+  const cmd = find(d.commander), par = find(d.partner); if (!cmd) return '';
+  if (par) return '<div class="cmdbox"><img alt="" src="' + artFor(par) + '"><div><b>' + esc(par.n) + '</b><span>' + pips(par.m) + '</span><div class="row" style="margin-top:4px"><span class="chip good">Second commander · ' + esc(pairLabel(cmd) || pairLabel(par)) + '</span><button class="btn sm" data-act="card" data-n="' + esc(par.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="partner-clear">Remove</button>') + '</div></div></div>';
+  if (!pairKind(cmd) || pairKind(cmd) === 'isbg') return '';
+  return '<div class="row"><span class="chip good">' + esc(pairLabel(cmd)) + ' · can have a second commander</span>' + (lock ? '' : '<button class="btn sm" data-act="partner-open">Add a second commander</button>') + '</div>';
+}
+function openPartner(){
+  const d = cur(), cmd = d && find(d.commander); if (!cmd) return; S.modalCard = null; const ctx = ctxOf(d);
+  const res = LIB.filter(c => c.cmd && canPair(cmd, c)).map(c => ({c, s:baseScore(c, d, Object.assign({}, ctx, {focus:c.ci, ident:c.ci, edh:null})).s})).sort((a, b) => b.s - a.s).slice(0, 14);
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Add a second commander"><div class="ph"><h2>Add a second commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">' + esc(cmd.n) + ' has ' + esc(pairLabel(cmd)) + ', so the deck may have two commanders. The deck can then use both commanders’ colors, and holds 98 other cards instead of 99.</p>' +
+    (res.length ? res.map(x => '<div class="pre"><img alt="" src="' + artFor(x.c) + '"><div style="min-width:0"><b>' + esc(x.c.n) + '</b> ' + x.c.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="note">' + esc(x.c.t) + '</div></div><div class="acts"><button class="btn sm" data-act="card" data-n="' + esc(x.c.n) + '">View</button><button class="btn pri sm" data-act="partner-set" data-n="' + esc(x.c.n) + '">Add</button></div></div>').join('')
+      : '<p class="note" style="margin:0">No card in the card data can pair with this commander' + (DBINFO.complete ? '.' : ' yet. More appear when the card download finishes.') + '</p>') + '</div>';
+  $('#modal').hidden = false;
+}
 function seedInfo(){
   const cards = S.seed.cards.map(find).filter(Boolean), colors = 'WUBRG'.split('').filter(k => cards.some(c => c.ci.includes(k))), aims = seedThemes(cards);
   const tmp = {format:'commander', commander:'', cards:cards.map(c => ({n:c.n, q:1})), aims, tribe:'', colors};
   const own = cards.filter(c => c.cmd && /Legendary/.test(c.t) && /Creature/.test(frontType(c)) && colors.every(k => c.ci.includes(k))).map(c => ({n:c.n, why:['One of your cards'], mine:true}));
   const rest = cards.length ? findCommanders(tmp, colors, 8).filter(x => !own.some(o => o.n === x.n)) : [];
-  return {cards, colors, aims, cmds:own.concat(rest).slice(0, 8)};
+  let pairs = cards.length ? findPairs(tmp, colors, 4) : [];
+  for (let i = 0; i < cards.length; i++) for (let j = 0; j < cards.length; j++){ const a = cards[i], b = cards[j]; if (i === j || !canLead(a) || !canPair(a, b) || pairs.some(x => x.mine && (x.n === b.n || x.n === a.n))) continue;
+    const ci = 'WUBRG'.split('').filter(z => a.ci.includes(z) || b.ci.includes(z)); if (colors.every(z => ci.includes(z))){ pairs = pairs.filter(x => !((x.n === a.n && x.p === b.n) || (x.n === b.n && x.p === a.n))); pairs.unshift({n:a.n, p:b.n, ci, mine:true}); } }
+  return {cards, colors, aims, cmds:own.concat(rest).slice(0, 8), pairs:pairs.slice(0, 5)};
 }
 function openSeed(){
   S.modalCard = null; const I = seedInfo(), g = S.gen;
@@ -799,14 +818,15 @@ function openSeed(){
   if (I.cards.length){
     h += '<div class="grp"><span class="lab">What these cards point to</span><div class="row">' + (I.colors.length ? I.colors.map(k => '<i class="pip p' + k + '">' + k + '</i>').join('') : '<span class="chip">Colorless</span>') + I.aims.map(k => '<span class="chip gold">' + THEMES[k].label + '</span>').join('') + '</div></div>' +
       ownToggle('seed') +
-      '<div class="grp"><span class="lab">Commanders that fit · pick one to build the deck</span>' + (DBINFO.complete ? '' : '<p class="note" style="margin:0">Card data is still downloading, so more commanders and better picks will appear when it finishes.</p>') +
-      (I.cmds.length ? I.cmds.map(x => { const k = find(x.n); return '<div class="pre"><img alt="" src="' + artFor(k) + '"><div style="min-width:0"><b>' + esc(k.n) + '</b> ' + k.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why">' + (x.mine ? '<span class="chip good">One of your cards</span>' : x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('')) + '</div></div><div class="acts"><button class="btn sm" data-act="card" data-n="' + esc(k.n) + '">View</button><button class="btn pri sm" data-act="seed-go" data-n="' + esc(k.n) + '">Build</button></div></div>'; }).join('')
-        : '<p class="note" style="margin:0">No commander in the card data covers all of these colors' + (DBINFO.complete ? '. Try removing a card.' : ' yet.') + '</p>') + '</div>';
+      '<div class="mscroll"><div class="grp"><span class="lab">Commanders that fit · pick one to build the deck</span>' + (DBINFO.complete ? '' : '<p class="note" style="margin:0">Card data is still downloading, so more commanders and better picks will appear when it finishes.</p>') +
+      (I.cmds.length ? I.cmds.map(x => { const k = find(x.n); return '<div class="pre"><img alt="" src="' + artFor(k) + '"><div style="min-width:0"><b>' + esc(k.n) + '</b> ' + k.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why">' + (x.mine ? '<span class="chip good">One of your cards</span>' : x.why.map(w => '<span class="chip">' + esc(w) + '</span>').join('')) + (pairKind(k) ? '<span class="chip good">' + esc(pairLabel(k)) + ' · can have a second commander</span>' : '') + '</div></div><div class="acts"><button class="btn sm" data-act="card" data-n="' + esc(k.n) + '">View</button><button class="btn pri sm" data-act="seed-go" data-n="' + esc(k.n) + '">Build</button></div></div>'; }).join('')
+        : (I.pairs.length ? '<div class="gate"><b>These cards need two commanders</b>No single commander covers all of their colors. A pair of commanders that are allowed to share the command zone does, so the deck has to be built with one of the pairs below.</div>' : '<p class="note" style="margin:0">No commander in the card data covers all of these colors' + (DBINFO.complete ? '. Try removing a card.' : ' yet.') + '</p>')) + '</div>' +
+      (I.pairs.length ? '<div class="grp"><span class="lab">Two commanders · pairs the rules allow</span><p class="note" style="margin:0">Some commanders may share the command zone. The deck then uses both commanders’ colors and has 98 other cards.</p>' + I.pairs.map(x => { const a = find(x.n), b2 = find(x.p); return '<div class="pre"><img alt="" src="' + artFor(a) + '"><div style="min-width:0"><b>' + esc(a.n) + ' + ' + esc(b2.n) + '</b> ' + x.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why">' + (x.mine ? '<span class="chip good">Your cards</span>' : '') + '<span class="chip good">Two commanders · ' + esc(pairLabel(a)) + '</span></div></div><div class="acts"><button class="btn sm" data-act="card" data-n="' + esc(a.n) + '">View</button><button class="btn sm" data-act="card" data-n="' + esc(b2.n) + '">View 2nd</button><button class="btn pri sm" data-act="seed-go" data-n="' + esc(a.n) + '" data-v="' + esc(b2.n) + '">Build</button></div></div>'; }).join('') + '</div>' : '') + '</div>';
   }
   $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
 }
-function seedBuild(n){
-  const I = seedInfo(); if (!startPlan(n, I.cards, I.aims)) return;
+function seedBuild(n, partner){
+  const I = seedInfo(); if (!startPlan(n, I.cards, I.aims, partner)) return;
   S.seed = {cards:[], paste:false}; touch(); render();
 }
 function viewProfile(){
@@ -845,7 +865,7 @@ function switchCommander(d, n){
   setCommander(d, n); d.aims = keepAims.length ? keepAims : d.aims; if (keepTribe) d.tribe = keepTribe; const nc = find(n); if (nc) d.colors = nc.ci.slice();
   if (old && old !== n) d.prevCmd = old; return old;
 }
-function offColor(d, c){ const cmd = d.format === 'commander' ? find(d.commander) : null; return !!(cmd && c && !c.ci.every(x => cmd.ci.includes(x))); }
+function offColor(d, c){ const cmd = d.format === 'commander' ? find(d.commander) : null, id = cmd ? ctxOf(d).ident : []; return !!(cmd && c && !c.ci.every(x => id.includes(x))); }
 // A card outside the commander's colors can't simply be added: show which commanders would allow it.
 function recolorHtml(d, c){
   const cmd = find(d.commander), missing = c.ci.filter(x => !cmd.ci.includes(x)), need = 'WUBRG'.split('').filter(x => cmd.ci.includes(x) || c.ci.includes(x)), res = findCommanders(d, need, 6);
@@ -876,7 +896,7 @@ function openEntry(n){
 }
 function openCard(name, pid){
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
-  const legend = /Legendary/.test(c.t) && /Creature/.test(frontType(c)), isCmd = d && d.format === 'commander' && d.commander === c.n;
+  const legend = /Legendary/.test(c.t) && /Creature/.test(frontType(c)), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
   S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : 'Colorless') + '</dd>' +
@@ -1018,12 +1038,15 @@ function handleAct(act, v, n, pArg){
     case 'precon-open': openPrecons(); return;
     case 'precon-live': $('#modal').hidden = true; loadPreconLive(v, n); return;
     case 'gen-open': openGenerate(); return;
+    case 'partner-open': openPartner(); return;
+    case 'partner-set': { const c = find(n), cmd = find(d.commander); if (!c || !cmd || !canPair(cmd, c)) return; d.partner = c.n; cutCard(d, c.n, 99); if (d.plan) d.plan = d.plan.filter(x => norm(x.a) !== c._n); d.colors = ctxOf(d).ident.slice(); $('#modal').hidden = true; toast(c.n + ' is now your second commander.'); break; }
+    case 'partner-clear': { const old = d.partner; delete d.partner; d.colors = (d.colors || []).filter(k => ctxOf(d).ident.includes(k)); toast(old + ' is no longer a commander. Cards outside the remaining colors are flagged on the Upgrades tab.'); break; }
     case 'seed-open': S.seed = S.seed || {cards:[], paste:false}; openSeed(); return;
     case 'seed-add': { const c = find(n); if (c && !S.seed.cards.includes(c.n)) S.seed.cards.push(c.n); openSeed(); const q = $('#seed-q'); if (q) q.focus(); return; }
     case 'seed-del': S.seed.cards = S.seed.cards.filter(x => x !== n); openSeed(); return;
     case 'seed-paste': S.seed.paste = true; openSeed(); return;
     case 'seed-paste-go': { const r = parseDeckText(($('#seed-text') || {}).value || ''); let k = 0, miss = 0; (r.commander ? [{n:r.commander}] : []).concat(r.cards).forEach(x => { const c = find(x.n); if (!c){ miss++; return; } if (!S.seed.cards.includes(c.n)){ S.seed.cards.push(c.n); k++; } }); S.seed.paste = false; openSeed(); toast('Added ' + k + ' card' + (k === 1 ? '' : 's') + (miss ? ' · ' + miss + ' not recognised' : '') + '.'); return; }
-    case 'seed-go': { $('#modal').hidden = true; toast('Building your deck…'); const go = () => seedBuild(n); loadEdh(n).then(go, go); return; }
+    case 'seed-go': { $('#modal').hidden = true; toast('Building your deck…'); const go = () => seedBuild(n, v); loadEdh(n).then(go, go); return; }
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
     case 'gen-pick': S.gen.cmd = n; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
     case 'gen-tier': S.gen.tier = v; openGenerate(); return;
