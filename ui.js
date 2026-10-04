@@ -501,6 +501,7 @@ function upPanel(d, A){
   if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
   h += '<div class="grp"><span class="lab">Card types</span><div class="row">' + TYPE_ORDER.filter(k => A.types[k]).map(k => '<span class="chip">' + (k === 'Sorcery' ? 'Sorceries' : k + 's') + ' · ' + A.types[k] + '</span>').join('') + '</div></div>';
+  { const mp0 = manaPlan(d), cols = 'WUBRG'.split('').filter(k => mp0.pips[k] || mp0.have[k]); if (cols.length) h += '<div class="grp"><span class="lab">Colored mana · spells need vs basic lands</span><div class="row">' + cols.map(k => '<span class="chip' + (mp0.basics && Math.abs(mp0.want[k] - mp0.have[k]) >= 2 ? ' warn' : '') + '"><i class="pip p' + k + '">' + k + '</i> ' + mp0.pips[k] + ' symbols · ' + mp0.have[k] + ' ' + COLOR_BASIC[k] + '</span>').join('') + '</div></div>'; }
   const mx = Math.max(1, ...A.curve);
   h += '<div class="grp"><span class="lab">Mana curve · average ' + A.avg.toFixed(2) + '</span><div class="curve">' + A.curve.map((v, i) => '<div><span>' + v + '</span><i style="height:' + (v / mx * 44) + 'px"></i><span>' + (i === 6 ? '6+' : i) + '</span></div>').join('') + '</div></div>';
   const flags = [];
@@ -516,6 +517,8 @@ function upPanel(d, A){
   }
   const R = recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>'; }, price = n => money(find(n));
   const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + '</span><em>' + price(n) + '</em></button>';
+  const mp = manaPlan(d);
+  if (mp.off >= 2) h += '<div class="gate"><b>Mana adjustment suggested</b>The deck’s colors have shifted, so its basic lands no longer match what the spells need. I would change: ' + esc(planText(mp)) + '.<div class="row" style="margin-top:10px"><button class="btn pri" data-act="mana-apply">Accept the change</button></div></div>';
   if (R.fixes.length || R.drops.length){
     h += '<div class="grp"><span class="lab">Fixes this deck needs</span>' +
       R.fixes.map((p, i) => '<div class="path">' + side('out', p.cut, p.q) + side('in', p.add, p.q) + '<div class="row"><span class="chip warn">' + esc(p.fix ? p.cutWhy[0] : p.why[0]) + '</span><button class="btn pri sm" data-act="fix" data-v="' + i + '" style="margin-left:auto">Swap</button></div></div>').join('') +
@@ -704,9 +707,35 @@ function dropdown(input, box, filter, act){
 async function copyText(text, msg){ try { await navigator.clipboard.writeText(text); toast(msg); } catch (e) { $('#modal').innerHTML = '<div class="panel"><div class="ph"><h2>Copy this text</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><textarea id="copy-box" readonly></textarea></div>'; $('#modal').hidden = false; const t = $('#copy-box'); t.value = text; t.select(); } }
 
 // ---------- events ----------
+const COLOR_NAME = {W:'white', U:'blue', B:'black', R:'red', G:'green'};
+const planText = plan => plan.changes.slice().sort((a, b) => a.delta - b.delta).map(x => (x.delta > 0 ? '+' : '−') + Math.abs(x.delta) + ' ' + x.n).join(', ');
+// Before a card goes in, check whether it needs a color of mana the deck doesn't use yet. If so, ask first.
+function manaCheck(d, act, v, n){
+  if (S.manaOK || !d || !/^(add-to-deck|pick-add|want|swap)$/.test(act)) return false;
+  let add = n, cut = null;
+  if (act === 'pick-add'){ const A = analyze(d); if (A.size >= A.T.size) return false; }   // a full deck goes to the swap chooser first
+  if (act === 'want') cut = v;
+  if (act === 'swap'){ const [i, t] = String(v).split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return false; add = p.add; cut = p.cut; }
+  const c = find(add); if (!c || tags(c).land) return false;
+  const before = manaPlan(d), sim = JSON.parse(JSON.stringify(d)); if (cut) cutCard(sim, cut, 1); addCard(sim, add, 1);
+  const after = manaPlan(sim), fresh = 'WUBRG'.split('').filter(k => after.spell[k] > 0 && before.spell[k] === 0 && (d.format !== 'commander' || !find(d.commander) || find(d.commander).ci.includes(k)));
+  if (!fresh.length || (after.basics && !after.changes.length)) return false;   // nothing new, or the lands already cover it
+  S.pend = {act, v, n}; S.modalCard = null;
+  const names = fresh.map(k => COLOR_NAME[k]).join(' and ');
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Mana adjustment"><div class="ph"><h2>New mana needed</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<p style="margin:0"><b>' + esc(c.n) + '</b> ' + pips(c.m) + ' needs ' + names + ' mana, which this deck doesn’t use yet.</p>' +
+    (after.changes.length ? '<div class="gate"><b>I will make this land adjustment to compensate</b>' + esc(planText(after)) + '<p class="note" style="margin:8px 0 0">Basic lands are split in proportion to the colored mana your spells need, so one ' + names + ' card gets a small share, not a big one. Result: ' + 'WUBRG'.split('').filter(k => after.want[k]).map(k => after.want[k] + ' ' + COLOR_BASIC[k]).join(', ') + '.</p></div>' +
+      '<div class="row"><button class="btn pri" data-act="mana-accept">Accept the change</button><button class="btn" data-act="mana-skip">Add the card, leave lands alone</button><button class="btn" data-act="close">Cancel</button></div>'
+      : '<p class="note" style="margin:0">This deck has no basic lands to rebalance, so you would need to add ' + names + ' sources yourself.</p><div class="row"><button class="btn pri" data-act="mana-skip">Add the card anyway</button><button class="btn" data-act="close">Cancel</button></div>') + '</div>';
+  $('#modal').hidden = false; return true;
+}
 document.addEventListener('click', ev => {
   if (ev.target.id === 'modal'){ $('#modal').hidden = true; return; }
-  const b = ev.target.closest('[data-act]'); if (!b) return; const act = b.dataset.act, v = b.dataset.v, n = b.dataset.n, d = cur(); let changed = true;
+  const b = ev.target.closest('[data-act]'); if (b) handleAct(b.dataset.act, b.dataset.v, b.dataset.n, b.dataset.p);
+});
+function handleAct(act, v, n, pArg){
+  const b = {dataset:{p:pArg}}, d = cur(); let changed = true;
+  if (manaCheck(d, act, v, n)) return;
   switch (act){
     case 'nav': S.view = v; S.open = false; S.confirmDel = null; changed = false; break;
     case 'close': $('#modal').hidden = true; return;
@@ -758,6 +787,9 @@ document.addEventListener('click', ev => {
     case 'copy-list': copyText(deckToText(d), 'Deck list copied.'); return;
     case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
+    case 'mana-accept': case 'mana-skip': { const pd = S.pend; S.pend = null; if (!pd) return; $('#modal').hidden = true; S.manaOK = true; try { handleAct(pd.act, pd.v, pd.n); } finally { S.manaOK = false; }
+      if (act === 'mana-accept'){ const dk = cur(), plan = manaPlan(dk); if (plan.changes.length){ applyMana(dk, plan); touch(); render(); toast('Lands adjusted: ' + planText(plan) + '.'); } } return; }
+    case 'mana-apply': { const plan = manaPlan(d); if (!plan.changes.length) return; applyMana(d, plan); toast('Lands adjusted: ' + planText(plan) + '.'); break; }
     case 'list-all': openList(); return;
     case 'cmd-find': openFindCmd(); return;
     case 'fc-color': { const s = new Set(S.fc.colors); if (s.has(v)) s.delete(v); else s.add(v); S.fc.colors = 'WUBRG'.split('').filter(x => s.has(x)); openFindCmd(); return; }
@@ -789,7 +821,7 @@ document.addEventListener('click', ev => {
   }
   if (changed) touch(); render();
   if (!$('#modal').hidden && S.modalCard && /^(inc|dec|lock|rm)$/.test(act)){ const box = $('#ctl'), still = cur() && cur().cards.some(e => e.n === S.modalCard); if (!still) $('#modal').hidden = true; else if (box) box.innerHTML = ctlHtml(S.modalCard); }
-});
+}
 let st = 0;
 document.addEventListener('input', ev => {
   const t = ev.target, d = cur();

@@ -407,6 +407,26 @@ function findCommanders(d, colors, k){
   }
   return out.sort((a, b) => b.s - a.s).slice(0, k || 12);
 }
+// Mana balance: split the deck's basic lands in proportion to the colored mana symbols its spells actually need.
+// One blue card means a couple of Islands, not a third of the land base.
+function manaPlan(d){
+  const ctx = ctxOf(d), pips = {W:0, U:0, B:0, R:0, G:0}, have = {W:0, U:0, B:0, R:0, G:0}; let basics = 0;
+  const count = (c, w) => (c.m.match(/\{[^}]+\}/g) || []).forEach(s => { for (const k of 'WUBRG') if (s.includes(k)) pips[k] += w; });
+  d.cards.forEach(e => { const c = find(e.n); if (!c) return; if (tags(c).land){ if (BASICS[c.n]){ have[BASICS[c.n]] += e.q; basics += e.q; } return; } count(c, e.q); });
+  const spell = Object.assign({}, pips);   // what the 99 need, before the commander's own cost is weighed in
+  if (ctx.cmd) count(ctx.cmd, 2);
+  const cols = 'WUBRG'.split('').filter(k => pips[k] > 0 && (d.format !== 'commander' || !ctx.cmd || ctx.ident.includes(k))), tot = cols.reduce((s, k) => s + pips[k], 0), want = {W:0, U:0, B:0, R:0, G:0};
+  if (basics && tot){
+    const min = basics >= 20 && cols.length <= 4 ? 2 : 1, f = cols.map(k => basics * pips[k] / tot); cols.forEach((k, i) => want[k] = Math.max(min, Math.floor(f[i])));
+    let left = basics - cols.reduce((s, k) => s + want[k], 0);
+    cols.map((k, i) => [f[i] - Math.floor(f[i]), k]).sort((a, b) => b[0] - a[0]).forEach(([, k]) => { if (left > 0){ want[k]++; left--; } });
+    while (left > 0){ const k = cols.slice().sort((a, b) => pips[b] - pips[a])[0]; want[k]++; left--; }
+    while (left < 0){ const k = cols.filter(x => want[x] > min).sort((a, b) => want[b] - want[a])[0]; if (!k) break; want[k]--; left++; }
+  }
+  const changes = basics && tot ? 'WUBRG'.split('').filter(k => want[k] !== have[k]).map(k => ({n:COLOR_BASIC[k], k, delta:want[k] - have[k]})) : [];
+  return {pips, spell, have, want, basics, changes, off:changes.reduce((s, x) => s + Math.max(0, x.delta), 0)};
+}
+function applyMana(d, plan){ plan.changes.forEach(x => { if (x.delta > 0) addCard(d, x.n, x.delta); else cutCard(d, x.n, -x.delta); }); }
 function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
 function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.n) === k); if (i < 0) return; d.cards[i].q -= q; if (d.cards[i].q <= 0) d.cards.splice(i, 1); }
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }
