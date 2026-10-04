@@ -258,7 +258,7 @@ function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count]); if 
 // ---------- views ----------
 function navHtml(){
   const b = (v, label) => '<button data-act="nav" data-v="' + v + '"' + (S.view === v ? ' aria-current="page"' : '') + '>' + SVG[v] + label + '</button>';
-  $('#nav-l').innerHTML = b('decks', 'Decks') + b('deck', 'Builder') + b('search', 'Card search');
+  $('#nav-l').innerHTML = b('decks', 'Decks') + b('deck', 'Builder') + b('search', '<span class="xs-hide">Card&nbsp;</span>Search');
   $('#nav-r').innerHTML = b('generate', 'Generate') + b('precons', 'Precons') + b('profile', 'Profile');
 }
 function viewDecks(){
