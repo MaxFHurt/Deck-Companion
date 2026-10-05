@@ -9,6 +9,10 @@ const TIERS = {budget:{label:'Budget', cap:3}, mid:{label:'Mid', cap:12}, apex:{
 const BRACKETS = {1:{label:'Exhibition', gc:0, mld:false, turns:0}, 2:{label:'Core', gc:0, mld:false, turns:2}, 3:{label:'Upgraded', gc:3, mld:false, turns:2},
   4:{label:'Optimized', gc:Infinity, mld:true, turns:Infinity}, 5:{label:'cEDH', gc:Infinity, mld:true, turns:Infinity}};
 let BTAGS = {mld:new Set(), turns:new Set(), v:0};
+// Universes Beyond families. A deck led by a commander from one of these is an "in-universe" deck: its Budget upgrades
+// come only from that family's sets, and at Mid and Apex an in-universe card wins ties but never beats a clearly better card.
+const UNIVERSES = [['msh','msc','spm','spe','tmt','tmc'], ['ltr','ltc'], ['fin','fic','fca'], ['who'], ['pip'], ['40k'], ['acr'], ['bot']];
+function universeOf(c){ const g = c && c.sc ? UNIVERSES.find(x => x.includes(c.sc)) : null; return g ? new Set(g) : null; }
 // Where a deck sits: no Game Changers is Bracket 2, one to three is Bracket 3, more (or any mass land denial) is Bracket 4.
 // Brackets 1 and 5 are about how the deck is meant to be played, which the card list alone can't show.
 function bracketOf(gc, mld){ return mld > 0 || gc > 3 ? 4 : gc > 0 ? 3 : 2; }
@@ -187,7 +191,7 @@ function ctxOf(d){
   let gcIn = (cmd && cmd.gc ? 1 : 0) + (par && par.gc ? 1 : 0); let mldIn = 0; if (d.format === 'commander') (d.cards || []).forEach(e => { const c = find(e.n); if (c && c.gc) gcIn += e.q; if (c && BTAGS.mld.has(c._n)) mldIn += e.q; });
   const bracket = d.format !== 'commander' ? 0 : bracketOf(gcIn, mldIn);
   return {cmd, par, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe,
-    bracket, gcIn, mldIn, gcCap:Infinity};
+    bracket, gcIn, mldIn, gcCap:Infinity, uni:universeOf(cmd) || universeOf(par)};
 }
 function isAimed(d){
   if (!d.aims || !d.aims.length) return false;
@@ -257,6 +261,7 @@ function baseScore(c, d, ctx){
   const ft = foreignTribe(c); if (ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t))){ s -= 5; hit = false; a0 = 0; }
   // Proven staples: the most-played cards anywhere (Rhystic Study, Teferi's Protection, Swords to Plowshares) earn their
   // slot in any deck, tapering off by about #400. The top ~250 count as a fit even when they touch no aim.
+  if (ctx.uni && ctx.uni.has(c.sc)){ s += 1; if (why.length < 2) why.push('In-universe'); }   // theme breaks ties
   if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6;
   else if (c.r && c.r < 400) s += 6 * Math.log(400 / c.r) / Math.log(400 / 60);
   if (!hit && (CORE.has(c._n) || (c.r && c.r < 250)) && !(ft && ft !== ctx.tribe)){ hit = true; why.push('Proven staple'); }
@@ -279,7 +284,7 @@ function recommend(d, swaps, fillOnly){
   // only while the bracket has room (autoSwaps also lets one Game Changer replace another).
   const BR = null, gcGate = false; let gcLeft = Infinity;   // brackets are a label, not a limit
   const brOk = c => !BR || ((BR.mld || !BTAGS.mld.has(c._n)) && (BR.turns > 0 || !BTAGS.turns.has(c._n)));
-  const okCard = c => brOk(c) && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && !(recommend.usedN && recommend.usedN.has(c._n)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
+  const okCard = c => brOk(c) && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && !(recommend.usedN && recommend.usedN.has(c._n)) && (!recommend.uniOnly || !ctx.uni || tags(c).land || ctx.uni.has(c.sc)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
 
   // lands first
   let landNeed = Math.min(nAdd, Math.max(0, T.lands - A.lands));
@@ -366,24 +371,30 @@ function recommend(d, swaps, fillOnly){
 // job-holding slot without doing that job.
 // Fixes the deck needs anyway (open slots, too many cards, missing lands, over-cap / off-color / illegal cards) are always included.
 const JOBS = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'];
-function jobsOf(n){ const c = find(n); return c && !tags(c).land ? [...tags(c).roles].filter(r => JOBS.includes(r)) : []; }
+function jobsOf(n){ const c = find(n); if (!c || tags(c).land) return []; const j = [...tags(c).roles].filter(r => JOBS.includes(r)), t = frontType(c); if (/\bEquipment\b/.test(t)) j.push('gear'); else if (/\bAura\b/.test(t)) j.push('aura'); else if (/\bVehicle\b/.test(t)) j.push('vehicle'); return j; }
 function autoSwaps(d){
   const A0 = analyze(d), ctx = A0.ctx, open = A0.T.size - A0.size, landGap = Math.max(0, A0.T.lands - A0.lands), top = (d.aims || [])[0];
   const isId = n => { const c = find(n); return !!(top && c && matchAim(c, top, ctx.tribe) >= 0.7); };
-  let outside = Math.max(2, Math.round((A0.aim[0] || 0) * 0.1));
+  // Budget stays close to the theme. Mid and Apex may leave it more often, but only for a big step up (see ok() below).
+  const loose = (d.tier || 'budget') !== 'budget';
+  let outside = Math.max(2, Math.round((A0.aim[0] || 0) * (loose ? 0.3 : 0.1)));
   // Card-type balance: like-for-like swaps are preferred. A swap that changes type (a creature for an artifact, say)
   // needs a bigger improvement, and each type can lose only about a tenth of its cards that way (at least two).
-  const typeOf = n => mainType(find(n)), lossRoom = {}; TYPE_ORDER.forEach(k => lossRoom[k] = Math.max(2, Math.round((A0.types[k] || 0) * 0.1)));
+  const typeOf = n => mainType(find(n)), lossRoom = {}; TYPE_ORDER.forEach(k => lossRoom[k] = Math.max(2, Math.round((A0.types[k] || 0) * (loose ? 0.2 : 0.1))));
   recommend.raw = true; let R; try { R = recommend(d, 45, false); } finally { recommend.raw = false; }
   const pairs = [], fills = [], drops = [];
   const adds = [], cuts = [], put = (list, x, q) => { const e = list.find(y => y.n === x.n); if (e) e.q += q; else list.push(Object.assign({}, x, {q})); };
   let fill = Math.max(0, open), trim = Math.max(0, -open), swaps = 0;
-  const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n), ty:typeOf(c.n), jobs:jobsOf(c.n), r:(find(c.n) || {}).r || 0, gc:!!(find(c.n) || {}).gc}));
+  const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n), ty:typeOf(c.n), jobs:jobsOf(c.n), r:(find(c.n) || {}).r || 0, gc:!!(find(c.n) || {}).gc, inc:ctx.edh ? ((ctx.edh.map.get(norm(c.n)) || {}).inc || 0) : 0}));
   let gcRoom = ctx.bracket ? ctx.gcCap - ctx.gcIn : Infinity;
   for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); put(drops, c, q); c.q -= q; trim -= q; if (c.gc) gcRoom += q; }
   let landSwaps = open > 0 ? 0 : landGap;
-  for (const a of R.adds){
-    let need = a.q; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w)), aTy = typeOf(a.n), aJobs = jobsOf(a.n), aR = (find(a.n) || {}).r || 0, aGc = !!(find(a.n) || {}).gc;
+  // Two passes: first every add is offered the cuts that do the same job (removal for removal, draw for draw, gear for
+  // gear); only then do the remaining adds take whatever is weakest. A deck with open slots skips the first pass.
+  const needOf = new Map();
+  for (const pass of (fill > 0 ? [2] : [1, 2])) for (const a of R.adds){
+    let need = needOf.has(a) ? needOf.get(a) : a.q; if (need <= 0) continue; const aId = a.kind !== 'land' && isId(a.n), gap = a.why.some(w => /^Fills /.test(w)), aTy = typeOf(a.n), aJobs = jobsOf(a.n), aR = (find(a.n) || {}).r || 0, aGc = !!(find(a.n) || {}).gc;
+    if (pass === 1 && (a.kind === 'land' || !aJobs.length)) continue;
     if (fill > 0){ const q = Math.min(fill, need); put(adds, a, q); put(fills, a, q); fill -= q; need -= q; }
     if (a.kind === 'land'){ if (landSwaps <= 0) continue; need = Math.min(need, landSwaps); }
     while (need > 0 && swaps < 40){
@@ -394,16 +405,20 @@ function autoSwaps(d){
         // card is not traded for one that hardly anyone runs.
         if (c.s > -40 && a.kind !== 'land' && (a.s - (a.a || 0)) < (c.s - (c.a || 0)) - 1) return false;
         if (c.s > -40 && c.r && c.r < 2500 && aR && aR > c.r * 8) return false;   // an unranked add is usually just new, so it isn't blocked
-        if (!(a.s > c.s + (cross ? 2.5 : 1) + (lost ? 4 : 0))) return false; if (cross && !(lossRoom[c.ty] > 0)) return false;
-        if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3); };
-      const c = pool.find(c => ok(c, false)) || pool.find(c => ok(c, true));
+        const power = loose && c.s > -40 && a.kind !== 'land' && !lost && c.inc < 0.4 && (a.s - (a.a || 0)) - (c.s - (c.a || 0)) >= 5 && a.s >= c.s - 5;   // "a huge upgrade"
+        if (!(a.s > c.s + (cross ? 2.5 : 1) + (lost ? 4 : 0)) && !power) return false; if (cross && !(lossRoom[c.ty] > 0)) return false;
+        if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3 || power); };
+      const sameJob = c => aJobs.length > 0 && c.jobs.some(j => aJobs.includes(j));
+      const c = pool.find(c => sameJob(c) && ok(c, false)) || pool.find(c => sameJob(c) && ok(c, true)) || (pass === 1 ? null : pool.find(c => ok(c, false)) || pool.find(c => ok(c, true)));
       if (!c) break; const q = Math.min(need, c.q);
       if (c.id && !aId && c.s > -40 && a.kind !== 'land'){ outside -= q; star = true; }
       const cross = c.ty !== aTy && a.kind !== 'land' && c.s > -40; if (cross) lossRoom[c.ty] -= q;
       if (aGc) gcRoom -= q; if (c.gc) gcRoom += q;
-      pairs.push({cut:c.n, add:a.n, q, from:c.ty, to:aTy, cross, why:star ? a.why.concat('Standout pick') : a.why, gain:a.s - c.s, aq:a.s - (a.a || 0), land:a.kind === 'land', fix:c.s <= -40, cutWhy:c.why, gc:aGc, gcOut:c.gc});
+      const qGain = (a.s - (a.a || 0)) - (c.s - (c.a || 0)), strong = a.s - c.s < (cross ? 4 : 2.5) && qGain >= 5;   // accepted for raw strength, not fit
+      pairs.push({cut:c.n, add:a.n, q, from:c.ty, to:aTy, cross, why:(star ? a.why.concat('Standout pick') : a.why).concat(strong ? ['Much stronger card'] : []), gain:strong ? Math.max(a.s - c.s, qGain * 0.7) : a.s - c.s, aq:a.s - (a.a || 0), land:a.kind === 'land', fix:c.s <= -40, cutWhy:c.why, gc:aGc, gcOut:c.gc});
       put(adds, star ? Object.assign({}, a, {why:a.why.concat('Standout pick')}) : a, q); put(cuts, c, q); c.q -= q; need -= q; swaps += q; if (a.kind === 'land') landSwaps -= q;
     }
+    needOf.set(a, a.kind === 'land' ? 0 : need);
   }
   // A land that has to go (outside the colors, or a Game Changer past the bracket) makes way for a basic, so the land count holds.
   const basic = (splitBasics(1, ctx)[0] || {}).n;
@@ -426,7 +441,7 @@ function upgradePaths(d){
   recommend.paths = true;
   try {
     steps.forEach(([t, minP]) => {
-      recommend.minP = minP; recommend.usedN = usedN; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
+      recommend.minP = minP; recommend.usedN = usedN; recommend.uniOnly = t === 'budget'; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
       const R = autoSwaps(Object.assign({}, d, {tier:t === 'free' ? 'apex' : t}));
       if (t === 'budget'){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
       R.pairs.forEach(p => {
@@ -448,7 +463,7 @@ function upgradePaths(d){
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
       });
     });
-  } finally { recommend.paths = false; recommend.minP = 0; recommend.usedN = null; recommend.own = null; recommend.skip = null; }
+  } finally { recommend.paths = false; recommend.minP = 0; recommend.usedN = null; recommend.uniOnly = false; recommend.own = null; recommend.skip = null; }
   for (const [k, L] of by) if (!Object.keys(L.opts).length) by.delete(k);
   // singleton / copy-limit breaches are fixes too
   const dupDrops = []; d.cards.forEach(en => { const c = find(en.n), lim = copyLimit(d, c); if (c && en.q > lim) dupDrops.push({n:en.n, q:en.q - lim, s:-95, why:[d.format === 'commander' ? 'Commander allows one copy' : 'More than four copies']}); });
@@ -598,7 +613,7 @@ function manaPlan(d){
   return {pips, spell, have, want, basics, changes, off:changes.reduce((s, x) => s + Math.max(0, x.delta), 0)};
 }
 function applyMana(d, plan){ plan.changes.forEach(x => { if (x.delta > 0) addCard(d, x.n, x.delta); else cutCard(d, x.n, -x.delta); }); }
-function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
+function addCard(d, n, q){ const k = norm(n), e = d.cards.find(x => norm(x.n) === k); if (d.dismissed && d.dismissed.length) d.dismissed = d.dismissed.filter(x => norm(x) !== k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }
 function cutCard(d, n, q){ const k = norm(n), i = d.cards.findIndex(x => norm(x.n) === k); if (i < 0) return; d.cards[i].q -= q; if (d.cards[i].q <= 0) d.cards.splice(i, 1); }
 // A generated deck starts as a plan, not a decklist. The plan is the strongest (Apex) build, one slot per card; each
 // expensive slot also gets a Mid (up to $12) and Budget (up to $3) stand-in that does the same job. Nothing is in the

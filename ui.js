@@ -408,7 +408,9 @@ function doSwap(d, p, step){
   const hist = old ? (old.hist || []).concat({n:old.n, q:p.q || 1, step:old.step || 0, pid:old.pid, ps:old.ps, pr:old.pr, pp:old.pp, l:!!old.l}) : [];
   cutCard(d, p.cut, p.q); addCard(d, p.add, p.q); const en = d.cards.find(x => x.n === p.add);
   if (en){ if (keep) en.step = keep; if (hist.length) en.hist = hist.slice(-8); }
+  if (old && !isBasic(p.cut) && !d.cards.some(x => x.n === p.cut)) ruleOut(d, p.cut);
 }
+function ruleOut(d, n){ d.dismissed = (d.dismissed || []).filter(x => norm(x) !== norm(n)).concat(n).slice(-80); }
 function undoSwap(d, n){
   const en = d.cards.find(x => x.n === n), hh = en && en.hist && en.hist[en.hist.length - 1]; if (!hh) return false;
   if (d.cards.some(x => x.n === hh.n) && copyLimit(d, find(hh.n)) <= 1){ toast(hh.n + ' is already back in the deck.'); delete en.hist; return true; }
@@ -769,6 +771,8 @@ function upPanel(d, A){
   { const hs = d.cards.filter(x => x.hist && x.hist.length);
     if (hs.length) h += '<div class="grp"><span class="lab">Swaps you’ve made · ' + hs.length + '</span><p class="note" style="margin:0">Nothing is lost when a card is swapped out. Each slot keeps its history, and Undo puts the previous card back.</p>' + hs.map(histHtml).join('') + '</div>'; }
   const any = R.paths.length;
+  const out0 = (d.dismissed || []).filter(n => !d.cards.some(x => norm(x.n) === norm(n)));
+  const outHtml = out0.length ? '<div class="grp"><span class="lab">Cards ruled out for this deck · ' + out0.length + '</span><p class="note" style="margin:0">Cards you swapped out, removed or marked “Not this card” are not suggested again. Tap one to allow it back.</p><div class="row">' + out0.map(n => '<button class="chip" data-act="undismiss" data-n="' + esc(n) + '">' + esc(n) + ' ×</button>').join('') + '</div></div>' : '';
   h += '<div class="grp"><span class="lab">Upgrade paths' + (any ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
   if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
   else {
@@ -781,10 +785,11 @@ function upPanel(d, A){
       return '<div class="path">' + side('out', L.cut, 1) + histHtml(en) +
         '<div class="prog" role="img" aria-label="Upgrade progress: ' + (step ? TIERS[TIER_KEYS[step - 1]].label : 'not started') + '">' + ['Now'].concat(TIER_KEYS.map(t => TIERS[t].label)).map((lab, k) => '<span class="' + (k <= step ? 'done' : '') + (k === step ? ' here' : '') + (k > 0 && L.opts[TIER_KEYS[k - 1]] ? ' has' : '') + '"><i></i>' + lab + '</span>').join('') + '</div>' +
         (fp ? '<div class="tip good free"><b><small>Tip</small>Free swap · you already own this</b>' + side('in', fp.add, fp.q) + '<div class="row">' + gcChip(fp, R) + (fp.cross ? '<span class="chip warn">' + fp.from + ' → ' + fp.to + '</span>' : '') + fp.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div><div class="row"><button class="btn sm" data-act="lib-not-own" data-n="' + esc(fp.add) + '">I don’t own this card</button><button class="btn pri sm" data-act="swap" data-v="' + i + '|free" style="margin-left:auto">Swap</button></div></div>' : '<div></div>') +
-        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.beaten ? '<span class="chip good">You own a better card</span>' : '') + gcChip(p, R) + (p.cross ? '<span class="chip warn">' + p.from + ' → ' + p.to + '</span>' : '') + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn ' + (p.beaten ? '' : 'pri ') + 'sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>' : '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + 'No worthwhile upgrade' + '</p></div>'; }).join('') + '</div>'; }).join('') + '</div>';
+        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.beaten ? '<span class="chip good">You own a better card</span>' : '') + gcChip(p, R) + (p.cross ? '<span class="chip warn">' + p.from + ' → ' + p.to + '</span>' : '') + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" style="margin-left:auto" title="Don’t suggest this card for this deck">Not this card</button><button class="btn ' + (p.beaten ? '' : 'pri ') + 'sm" data-act="swap" data-v="' + i + '|' + t + '">Swap</button></div></div>' : '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + 'No worthwhile upgrade' + '</p></div>'; }).join('') + '</div>'; }).join('') + '</div>';
     if (any > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, any - show) + ' more</button>';
   }
   h += '</div>';
+  h += outHtml;
   return h + '</div>';
 }
 function viewDeck(){
@@ -1096,7 +1101,9 @@ function handleAct(act, v, n, pArg){
     case 'set-cmd': if (d.commander && d.commander !== n) d.prevCmd = d.commander; delete d.cmdPid; delete d.cmdSet; setCommander(d, n); if (S.pick && S.pick.n === n && S.pick.sc){ d.cmdPid = S.pick.id; d.cmdSet = S.pick.sc; } $('#modal').hidden = true; toast(n + ' is now your commander.'); break;
     case 'inc': { const en = d.cards.find(x => x.n === n); if (en && en.q >= copyLimit(d, find(n))){ toast(d.format === 'commander' ? 'Commander decks run one copy of each card.' : 'Four copies is the limit.'); return; } addCard(d, n, 1); break; }
     case 'dec': cutCard(d, n, 1); break;
-    case 'rm': cutCard(d, n, 999); break;
+    case 'rm': cutCard(d, n, 999); if (!isBasic(n)) ruleOut(d, n); break;
+    case 'dismiss': ruleOut(d, n); toast(n + ' won’t be suggested for this deck again.'); break;
+    case 'undismiss': d.dismissed = (d.dismissed || []).filter(x => norm(x) !== norm(n)); break;
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
     case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
     case 'want': { doSwap(d, {cut:v, add:n, q:1}, 0); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
