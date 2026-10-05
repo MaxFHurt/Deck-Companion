@@ -22,6 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Start from the previous snapshot
+        run: git clone --depth 1 -b card-data "https://github.com/${{ github.repository }}.git" out && rm -rf out/.git || mkdir -p out
       - run: node tools/fetch-card-data.mjs
       - name: Publish to the card-data branch
         run: |
