@@ -643,8 +643,10 @@ function driftChip(d, n, t){ const r = driftOf(d, n, t); return r ? '<span class
 function watchAlerts(d){
   if (!d || !isAimed(d) || (d.plan && d.plan.length) || !DBINFO.complete || DBINFO.source === 'starter') return [];
   const R = recsFor(d), out = []; let ch = false; if (!d.recP) d.recP = {};
+  (R.unlock || []).forEach(k => { if (d.recP[k]){ delete d.recP[k]; ch = true; } });   // a clearly better card took the slot
   R.paths.forEach(L => ['budget', 'mid'].forEach(t => { const p = L.opts[t]; if (!p || p.beaten) return; const c = find(p.add); if (!c || c.p == null) return; const k = norm(p.add), cap = TIERS[t].cap, r = d.recP[k];
-    if (!r){ if (c.p <= cap){ d.recP[k] = {t, p:c.p, at:new Date().toISOString().slice(0, 10)}; ch = true; } return; }
+    if (!r){ if (c.p <= cap){ d.recP[k] = {t, p:c.p, at:new Date().toISOString().slice(0, 10), pair:JSON.parse(JSON.stringify(p))}; ch = true; } return; }
+    if (!r.pair && r.t === t){ r.pair = JSON.parse(JSON.stringify(p)); ch = true; }
     if (r.t === t && c.p > cap * PRICE_JUMP && !r.ack) out.push({kind:'price', n:p.add, t, was:r.p, now:c.p, cut:L.cut}); }));
   const ok = new Set((d.okIllegal || []).map(norm));
   d.cards.forEach(en => { const c = find(en.n); if (c && !legalIn(c, d.format) && !ok.has(norm(en.n))) out.push({kind:'legal', n:en.n}); });

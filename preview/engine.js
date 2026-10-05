@@ -444,6 +444,7 @@ function autoSwaps(d){
 // Tiers are steps up in strength under a price ceiling (Budget $3, Mid $12, Apex none), not price bands: a $1 card can be
 // the Mid pick if it clearly beats the Budget pick. A card already suggested at a cheaper tier is left out of the next.
 const TIER_STEPS = [['budget', 0], ['mid', 0], ['apex', 0]];
+const LOCK_MARGIN = 2;   // how much better a new card must be before it takes a slot from a pick the player has already been shown
 function upgradePaths(d){
   const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{free:0, budget:0, mid:0, apex:0}, cost:{free:0, budget:0, mid:0, apex:0}, shift:{free:{}, budget:{}, mid:{}, apex:{}}};
   // Free swaps come first: cards the player already owns (their library). Paid tiers never suggest an owned card,
@@ -451,12 +452,19 @@ function upgradePaths(d){
   const usedN = new Set();
   const own = upgradePaths.own && upgradePaths.own.size ? upgradePaths.own : null, steps = (own ? [['free', 0]] : []).concat(TIER_STEPS);
   recommend.paths = true; recommend.lock = d.recP || null;
+  // Picks already shown for this deck hold their slot and tier: ordinary price drift must not reshuffle them. A held pick
+  // gives way only to a clearly better card for the same slot, or when it stops being usable (swapped in, ruled out, owned, illegal).
+  out.unlock = []; const locks = [];
+  { const inDeck = new Set(d.cards.map(x => norm(x.n))), dis = new Set((d.dismissed || []).map(norm)), ident = ctxOf(d).ident;
+    for (const k in (d.recP || {})){ const r = d.recP[k], p = r && r.pair, c = p && find(p.add); if (!p || !TIERS[r.t]) continue;
+      if (!c || !inDeck.has(norm(p.cut)) || inDeck.has(k) || dis.has(k) || (own && own.has(k)) || !legalIn(c, d.format) || !c.ci.every(x => ident.includes(x))) continue;
+      locks.push({k, t:r.t, pair:p}); usedN.add(k); } }
   try {
     steps.forEach(([t, minP]) => {
       recommend.minP = minP; recommend.usedN = usedN; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
       const R = autoSwaps(Object.assign({}, d, {tier:t === 'free' ? 'apex' : t}));
       if (t === 'budget'){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
-      R.pairs.forEach(p => {
+      const take = (p, forced) => {
         if (used.has(p.add) && !isBasic(p.add)) return;   // a card is only ever suggested once
         if (p.land || p.fix){ if (t === 'budget'){ out.fixes.push(p); used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add)); } return; }
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
@@ -468,12 +476,16 @@ function upgradePaths(d){
         // it is left out of the tier totals and the buy list.
         const lower = Object.keys(L.opts).filter(k => k !== 'free' && !L.opts[k].beaten).map(k => L.opts[k]);
         const prev = Math.max(0, ...lower.map(o => o.gain)), prevQ = Math.max(-1e9, ...lower.map(o => o.aq));
-        if (p.gain < (p.cross ? 4 : 2.5) || (p.gain < prev + 1 && !(p.gain >= prev - 1.5 && p.aq >= prevQ + 2))) return;
+        if (!forced && (p.gain < (p.cross ? 4 : 2.5) || (p.gain < prev + 1 && !(p.gain >= prev - 1.5 && p.aq >= prevQ + 2)))) return;
         if (t !== 'free' && L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add)); return; }
         L.opts[t] = p; used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add));
         if (p.cross){ out.shift[t][p.from] = (out.shift[t][p.from] || 0) - p.q; out.shift[t][p.to] = (out.shift[t][p.to] || 0) + p.q; } L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
-      });
+      };
+      locks.filter(x => x.t === t).forEach(x => { const ch = R.pairs.find(p => !p.land && !p.fix && p.cut === x.pair.cut);
+        if (ch && ch.add !== x.pair.add && ch.gain >= x.pair.gain + LOCK_MARGIN){ out.unlock.push(x.k); return; }
+        take(x.pair, true); });
+      R.pairs.forEach(p => take(p));
     });
   } finally { recommend.paths = false; recommend.minP = 0; recommend.usedN = null; recommend.lock = null; recommend.own = null; recommend.skip = null; }
   for (const [k, L] of by) if (!Object.keys(L.opts).length) by.delete(k);
