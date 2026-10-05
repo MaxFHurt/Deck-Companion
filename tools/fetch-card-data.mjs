@@ -20,6 +20,11 @@ if (!meta.cardsAt) meta.cardsAt = meta.at;
 try { const sets = await get('https://api.scryfall.com/sets'); fs.writeFileSync('out/sets.json', JSON.stringify((sets.data || []).map(s => ({code:s.code, name:s.name, set_type:s.set_type, released_at:s.released_at, card_count:s.card_count, parent_set_code:s.parent_set_code, digital:s.digital})))); } catch (e) { meta.notes.push('sets: ' + e.message); }
 const tags = {}; for (const [k, q] of [['mld', 'otag:mass-land-denial'], ['turns', 'otag:extra-turn']]){ tags[k] = []; try { let u = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q + ' legal:commander') + '&unique=cards'; while (u){ const j = await get(u); if (!j) break; (j.data || []).forEach(o => tags[k].push(o.name)); u = j.has_more ? j.next_page : null; await sleep(120); } } catch (e) { meta.notes.push('tags ' + k + ': ' + e.message); } }
 if (tags.mld.length || tags.turns.length) fs.writeFileSync('out/tags.json', JSON.stringify(tags));
+// 2b. Alternate names: reprints that carry a different printed name (Universes Beyond reskins and the like).
+{ const alt = {}; let okQ = '';
+  for (const q of ['has:flavorname', 'is:flavorname', 'has:flavor_name', 'has:flavor-name']){ try { let u = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q + ' game:paper') + '&unique=prints', n = 0; while (u){ const j = await get(u, n ? 6 : 1); if (!j) break; (j.data || []).forEach(o => { n++; if (o.flavor_name) alt[o.flavor_name] = o.name; (o.card_faces || []).forEach(f => { if (f.flavor_name) alt[f.flavor_name] = o.name; }); }); u = j.has_more ? j.next_page : null; await sleep(250); } if (Object.keys(alt).length){ okQ = q; break; } } catch (e) { meta.notes.push('alt ' + q + ': ' + e.message.slice(-120)); } }
+  if (Object.keys(alt).length){ fs.writeFileSync('out/alt.json', JSON.stringify(alt)); meta.alt = Object.keys(alt).length; meta.altQuery = okQ; } }
+
 // 3. EDHREC: what players run with each listed commander (plus its budget and expensive pages).
 const slug = n => String(n).split(' // ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-');
 const names = fs.readFileSync('tools/commanders.txt', 'utf8').split('\n').map(s => s.trim()).filter(s => s && !s.startsWith('#')); meta.edhrec = {};
