@@ -238,6 +238,7 @@ function analyze(d){
 }
 
 // ----- scoring & recommendations -----
+const EDH_MISS = 3;
 const AIM_W = [5, 3.6, 2.6, 1.9, 1.4, 1];
 const CORE = new Set(['sol ring','arcane signet','command tower']);
 const TRIBE_SET = new Set(TRIBES);
@@ -251,7 +252,9 @@ function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
   (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : THEMES[a].label); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
-  if (ctx.edh){ const x = ctx.edh.map.get(c._n); if (x){ s += 4 * x.inc + 4 * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); } }
+  if (ctx.edh){ const x = ctx.edh.map.get(c._n); if (x){ s += 4 * x.inc + 4 * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); }
+    // When there is plenty of data for this commander, a card none of its players run needs a better reason to be here.
+    else if (ctx.edh.map.size >= 100 && !(c.r && c.r < 400) && !CORE.has(c._n)) s -= EDH_MISS; }
   if (d.prevCmd && d.prevCmd === c.n){ s += 3; hit = true; why.unshift('Your previous commander'); }
   a0 = s;
   s += c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.8);   // no rank usually means a new card, not a bad one
@@ -305,6 +308,7 @@ function recommend(d, swaps, fillOnly){
   // spells
   if (nAdd > 0){
     const pool = LIB.filter(c => !tags(c).land && okCard(c) && !have.has(c._n) && c.n !== d.commander && c.n !== d.partner).map(c => ({c, b:baseScore(c, d, ctx), used:false}));
+    if (recommend.raw) recommend.lastPool = pool;
     const bonus = c => { let b = 0, w = null; tags(c).roles.forEach(r => { if (def[r] > 0){ b += 2 + Math.min(2, def[r] / 3); w = w || r; } }); return [b, w]; };
     let guard = 0;
     while (nAdd > 0 && guard++ < 400){
@@ -386,6 +390,10 @@ function autoSwaps(d){
   const adds = [], cuts = [], put = (list, x, q) => { const e = list.find(y => y.n === x.n); if (e) e.q += q; else list.push(Object.assign({}, x, {q})); };
   let fill = Math.max(0, open), trim = Math.max(0, -open), swaps = 0;
   const pool = R.cuts.map(c => Object.assign({}, c, {id:isId(c.n), ty:typeOf(c.n), jobs:jobsOf(c.n), r:(find(c.n) || {}).r || 0, gc:!!(find(c.n) || {}).gc, inc:ctx.edh ? ((ctx.edh.map.get(norm(c.n)) || {}).inc || 0) : 0}));
+  // The candidate list is the best cards overall, which in a tribal deck is nearly all creatures. So that gear can be
+  // upgraded with gear and removal with removal, the best few candidates for each job the weak cards do are added too.
+  { const have = new Set(R.adds.map(x => norm(x.n))), sp = recommend.lastPool || [], jobs = new Set(); pool.slice(0, 20).forEach(c => c.jobs.forEach(j => jobs.add(j)));
+    jobs.forEach(j => { sp.filter(p => !have.has(p.c._n) && p.b.s > 0 && jobsOf(p.c.n).includes(j)).sort((x, y) => y.b.s - x.b.s).slice(0, 3).forEach(p => { have.add(p.c._n); R.adds.push({n:p.c.n, q:1, kind:'spell', why:p.b.why.slice(0, 2), s:p.b.s, a:p.b.a}); }); }); recommend.lastPool = null; }
   let gcRoom = ctx.bracket ? ctx.gcCap - ctx.gcIn : Infinity;
   for (const c of pool){ if (trim <= 0) break; const q = Math.min(trim, c.q); put(cuts, c, q); put(drops, c, q); c.q -= q; trim -= q; if (c.gc) gcRoom += q; }
   let landSwaps = open > 0 ? 0 : landGap;
@@ -409,7 +417,9 @@ function autoSwaps(d){
         if (!(a.s > c.s + (cross ? 2.5 : 1) + (lost ? 4 : 0)) && !power) return false; if (cross && !(lossRoom[c.ty] > 0)) return false;
         if (!c.id || aId) return true; return outside > 0 && (gap || a.s > c.s + 3 || power); };
       const sameJob = c => aJobs.length > 0 && c.jobs.some(j => aJobs.includes(j));
-      const c = pool.find(c => sameJob(c) && ok(c, false)) || pool.find(c => sameJob(c) && ok(c, true)) || (pass === 1 ? null : pool.find(c => ok(c, false)) || pool.find(c => ok(c, true)));
+      // Take the cut that gains the most. Keeping the card type and the job are preferred by a margin, not absolutely.
+      const pick = same => { let best = null, bv = -1e9; for (const c of pool){ if (same && !sameJob(c)) continue; const cross = c.ty !== aTy; if (!ok(c, cross && c.s > -40 && a.kind !== 'land')) continue; const v = (a.s - c.s) - (cross ? 2.5 : 0) + (sameJob(c) ? 2 : 0); if (v > bv + 1e-9){ bv = v; best = c; } } return best; };
+      const c = pick(true) || (pass === 1 ? null : pick(false));
       if (!c) break; const q = Math.min(need, c.q);
       if (c.id && !aId && c.s > -40 && a.kind !== 'land'){ outside -= q; star = true; }
       const cross = c.ty !== aTy && a.kind !== 'land' && c.s > -40; if (cross) lossRoom[c.ty] -= q;
