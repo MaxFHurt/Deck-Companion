@@ -1,0 +1,857 @@
+DECK COMPANION — BUILD 71 — UPGRADE RECOMMENDATIONS FOR FIVE RETAIL PRECONS (v4)
+Generated 5 October 2026 by Claude for the owner to give to ChatGPT.
+
+HOW THIS WAS PRODUCED
+- Each deck is the retail precon list (the workbook rolled back through its "Original Card" column; alternate printed names
+  replaced by real card names). No installed upgrades are in these lists.
+- The recommendations come from the live app's own engine (Build 71, engine.js), run on a data snapshot: Scryfall cards and
+  cheapest-printing prices, and each commander's EDHREC page, pulled 5-6 October 2026 (UTC). It was not run in a browser against live data.
+- The app set each deck's build priorities automatically from its commander, as it does when a precon is loaded.
+
+WHAT CHANGED IN v4
+- All five retail lists are now checked against the published decklists (Wizards' Marvel Super Heroes Commander decklist page;
+  playgroup.gg for Tramplesaurus Rex; Turtle Power checked earlier). Avengers Assemble and Tramplesaurus Rex matched exactly.
+- DOOM PREVAILS had three wrong cards in v1-v3 and is corrected here: the retail deck has Black Market Connections (v3 wrongly had
+  Leader, Super-Genius), Abomination, World Ravager and Puppet Master, String Puller (v3 had the wrong versions of both).
+- WAKANDA FOREVER had one wrong card and is corrected: the retail deck has Queen Mother Ramonda (v3 wrongly had The Vision).
+- Doom Prevails and Wakanda Forever recommendations below therefore differ from v3 and supersede it. The other three decks are unchanged.
+- Turtle Power: Leonardo, the Balance is the commander; Heroes in a Half Shell is in the 99 (as in v3).
+- Engine: live Build 71, unchanged.
+
+HOW TO READ IT
+- Each numbered entry is one card in the deck and what the app would replace it with.
+- Budget = best card under $3. Mid = under $12. Apex = any price. Tiers are ceilings, so a cheap card can be the Mid or Apex pick.
+- First step over the current card is rated Solid / Strong / Major (improvement score 2-4 / 4-7 / 7+).
+- A Mid pick is a full step at +10% over Budget. An Apex pick is a full step at +10% over Mid and +20% over Budget.
+- WEAK UPGRADE = better than the tier below, but short of a full step. Shown as an option; left out of the tier totals.
+- When a tier has no pick, the best pick below it is that slot's card for that tier. The top full pick is the slot's APEX CARD.
+- "score" is the app's improvement score for the swap. "played" is the share of that commander's EDHREC decks running the card.
+- Cards not listed have no recommended upgrade: the app treats them as already Apex for this deck.
+
+====================================================================================================
+TURTLE POWER
+====================================================================================================
+Commander: Leonardo, the Balance   Colour identity: WUBRG
+Build priorities set by the app: Mutant tribal > +1/+1 counters > Tokens / go wide
+Play data: 1,002 Leonardo decks on EDHREC (215 cards on the page). Method used: play-data method
+Retail deck as the app sees it: lands 39 (target 37), ramp 10 (10), card draw 13 (10), removal 9 (8), board wipes 3 (3), average mana value 3.45, deck price about $87
+
+TIER TOTALS (best full pick per slot up to that tier)
+  BUDGET   6 swaps, +$5   after applying all: ramp 10->10, draw 13->12, removal 9->8, wipes 3->3, avg mana value 3.45->3.25; 1 swap(s) removed by the package check
+  MID      6 swaps, +$5   after applying all: ramp 10->10, draw 13->12, removal 9->8, wipes 3->3, avg mana value 3.45->3.2
+  APEX     6 swaps, +$5   after applying all: ramp 10->10, draw 13->12, removal 9->8, wipes 3->3, avg mana value 3.45->3.25
+
+UPGRADES — 6 cards
+
+ 1. REPLACE Acidic Slime  [Creature, $0.10, played 20%]
+      BUDGET  Michelangelo, Weirdness to 11  [Creature, $2.35, played 43%, score 9.3]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 43% of Leonardo decks; Mutant synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 2. REPLACE Biogenic Ooze  [Creature, $0.29, played 22%]
+      BUDGET  Mutagen Man, Living Ooze  [Creature, $1.77, played 30%, score 8.06]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 30% of Leonardo decks; Mutant synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 3. REPLACE Rat King, Pale Piper  [Creature, $0.37, played 22%]
+      BUDGET  Mikey & Leo, Chaos & Order  [Creature, $1.36, played 39%, score 4.3]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 39% of Leonardo decks; Mutant synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 4. REPLACE Mole Module  [Artifact, $0.34, played 17%]
+      BUDGET  Turtle Van  [Artifact, $0.30, played 12%, score 3.83]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 12% of Leonardo decks; Mutant synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 5. REPLACE Krang, the All-Powerful  [Creature, $0.37, played 22%]
+      BUDGET  Sally Pride, Lioness Leader  [Creature, $0.31, played 8%, score 3.39]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 8% of Leonardo decks; Mutant synergy
+      MID     The Ooze  [Artifact, $4.26, played 35%, score 3.72]  WEAK UPGRADE, +4% over budget
+              why: In 35% of Leonardo decks; +1/+1 counters
+      APEX    same as BUDGET
+
+ 6. REPLACE Harmonize  [Sorcery, $0.18, played 28%]
+      BUDGET  Genghis Frog  [Creature, $0.30, played 12%, score 2.76]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 12% of Leonardo decks; Mutant synergy
+      MID     Dark Leo & Shredder  [Creature, $3.69, played 21%, score 2.86]  WEAK UPGRADE, +1% over budget
+              why: In 21% of Leonardo decks; Mutant synergy
+      APEX    Doubling Season  [Enchantment, $28.36, played 34%, score 3.17]  WEAK UPGRADE, +4% over mid
+              why: In 34% of Leonardo decks; Tokens / go wide
+
+RETAIL DECKLIST (100 cards; * = has a recommended upgrade above)
+  1 Leonardo, the Balance (commander)
+  1 Arcade Cabinet  [Artifact]
+  1 Arcane Signet  [Artifact]
+  1 Chromatic Lantern  [Artifact]
+  1 Coin of Mastery  [Artifact]
+  1 Everything Pizza  [Artifact]
+  1 Exploding Barrel  [Artifact]
+  1 Foot Chopper  [Artifact]
+  1 Mole Module *  [Artifact]
+  1 Sol Ring  [Artifact]
+  1 Acidic Slime *  [Creature]
+  1 April O'Neil, Live on the Scene  [Creature]
+  1 Baxter, Fly in the Ointment  [Creature]
+  1 Bebop, Skull & Crossbones  [Creature]
+  1 Big Mother Mouser  [Creature]
+  1 Biogenic Ooze *  [Creature]
+  1 Casey Jones, Back Alley Brute  [Creature]
+  1 Corpsejack Menace  [Creature]
+  1 Dimension X Pizzasaur  [Creature]
+  1 Donatello, the Brains  [Creature]
+  1 Electric Seaweed  [Creature]
+  1 Heroes in a Half Shell  [Creature]
+  1 Irma, Part-Time Mutant  [Creature]
+  1 Krang, the All-Powerful *  [Creature]
+  1 Leatherhead, Iron Gator  [Creature]
+  1 Lita, Little Orphan Amphibian  [Creature]
+  1 Michelangelo, the Heart  [Creature]
+  1 Mona Lisa, Science Geek  [Creature]
+  1 Raphael, the Muscle  [Creature]
+  1 Rat King, Pale Piper *  [Creature]
+  1 Ray Fillet, Wave Warrior  [Creature]
+  1 Roadkill Rodney  [Creature]
+  1 Rocksteady, Mutant Marauder  [Creature]
+  1 Shredder, Shadow Master  [Creature]
+  1 Splinter, the Mentor  [Creature]
+  1 Steelbane Hydra  [Creature]
+  1 Tempestra, Dame of Games  [Creature]
+  1 Tokka & Rahzar, Unsupervised  [Creature]
+  1 Vigor  [Creature]
+  1 Voracious Hydra  [Creature]
+  1 Endless Foot Assault  [Enchantment]
+  1 High Score  [Enchantment]
+  1 Level Up  [Enchantment]
+  1 Ninja Pizza  [Enchantment]
+  1 Together Forever  [Enchantment]
+  1 Assassin's Trophy  [Instant]
+  1 Continue?  [Instant]
+  1 Double Jump // Flying Kick  [Instant]
+  1 Shellshock  [Instant]
+  1 Special Move  [Instant]
+  1 Swift Demise  [Instant]
+  1 Ash Barrens  [Land]
+  1 Big Apple, 3 a.m.  [Land]
+  1 Cinder Glade  [Land]
+  1 City of Brass  [Land]
+  1 Command Tower  [Land]
+  1 Dragonskull Summit  [Land]
+  1 Escape Tunnel  [Land]
+  1 Evolving Wilds  [Land]
+  1 Exotic Orchard  [Land]
+  1 Fabled Passage  [Land]
+  3 Forest  [Land]
+  1 Grand Coliseum  [Land]
+  1 Hidden Hideout  [Land]
+  1 Hinterland Harbor  [Land]
+  3 Island  [Land]
+  2 Mountain  [Land]
+  1 Path of Ancestry  [Land]
+  2 Plains  [Land]
+  1 Rain-Slicked Copse  [Land]
+  1 Rootbound Crag  [Land]
+  1 Smoldering Marsh  [Land]
+  1 Sodden Verdure  [Land]
+  1 Spire Garden  [Land]
+  1 Sunken Hollow  [Land]
+  2 Swamp  [Land]
+  1 Thriving Grove  [Land]
+  1 Thriving Isle  [Land]
+  1 Thriving Moor  [Land]
+  1 Turtle Lair  [Land]
+  1 Undergrowth Stadium  [Land]
+  1 Vernal Fen  [Land]
+  1 Vibrant Cityscape  [Land]
+  1 Blasphemous Act  [Sorcery]
+  1 Cultivate  [Sorcery]
+  1 Fast Forward  [Sorcery]
+  1 Game Over  [Sorcery]
+  1 Harmonize *  [Sorcery]
+  1 Here Comes a New Hero!  [Sorcery]
+  1 Lessons from Life  [Sorcery]
+  1 Super Combo  [Sorcery]
+  1 Vanquish the Horde  [Sorcery]
+  1 Wave Goodbye  [Sorcery]
+
+====================================================================================================
+TRAMPLESAURUS REX
+====================================================================================================
+Commander: Ghalta, Primal Hunger   Colour identity: G
+Build priorities set by the app: Dinosaur tribal > Aggro / combat
+Play data: 9,578 Ghalta decks on EDHREC (216 cards on the page). Method used: play-data method
+Retail deck as the app sees it: lands 39 (target 37), ramp 13 (10), card draw 15 (10), removal 4 (8), board wipes 1 (3), average mana value 3.5, deck price about $67
+
+TIER TOTALS (best full pick per slot up to that tier)
+  BUDGET  18 swaps, +$7   after applying all: ramp 13->15, draw 15->13, removal 4->5, wipes 1->1, avg mana value 3.5->3.45; 1 swap(s) removed by the package check
+  MID     22 swaps, +$50   after applying all: ramp 13->16, draw 15->12, removal 4->4, wipes 1->1, avg mana value 3.5->3.43
+  APEX    24 swaps, +$185   after applying all: ramp 13->16, draw 15->13, removal 4->4, wipes 1->1, avg mana value 3.5->3.62
+
+UPGRADES — 24 cards
+
+ 1. REPLACE Rishkar, Peema Renegade  [Creature, $0.27, played not on page]
+      BUDGET  Topiary Stomper  [Creature, $0.67, played 58%, score 12.02]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 58% of Ghalta decks; Dinosaur synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 2. REPLACE Challenger Troll  [Creature, $0.11, played not on page]
+      BUDGET  Ghalta the Unstoppable  [Creature, $0.31, played 30%, score 9.02]  Major upgrade over current card
+              why: In 30% of Ghalta decks; Dinosaur synergy
+      MID     Lightning Greaves  [Artifact, $3.68, played 35%, score 10.67]  +21% over budget  <- APEX CARD for this slot
+              why: In 35% of Ghalta decks; Aggro / combat
+      APEX    same as MID
+
+ 3. REPLACE Loot, Exuberant Explorer  [Creature, $1.50, played not on page]
+      BUDGET  Frenzied Baloth  [Creature, $1.86, played 32%, score 7.07]  Major upgrade over current card
+              why: In 32% of Ghalta decks; Aggro / combat
+      MID     Wayward Swordtooth  [Creature, $3.70, played 46%, score 10.42]  +55% over budget  <- APEX CARD for this slot
+              why: In 46% of Ghalta decks; Dinosaur synergy
+      APEX    same as MID
+
+ 4. REPLACE Clifftop Lookout  [Creature, $0.31, played not on page]
+      BUDGET  Rampant Growth  [Sorcery, $0.41, played 40%, score 7.48]  Major upgrade over current card
+              why: In 40% of Ghalta decks
+      MID     Selvala, Heart of the Wilds  [Creature, $5.27, played 50%, score 8.74]  +20% over budget
+              why: In 50% of Ghalta decks
+      APEX    Ghalta, Stampede Tyrant  [Creature, $29.47, played 31%, score 10.3]  +20% over mid  <- APEX CARD for this slot
+              why: In 31% of Ghalta decks; Dinosaur synergy
+
+ 5. REPLACE Whisperer of the Wilds  [Creature, $0.21, played not on page]
+      BUDGET  Cultivate  [Sorcery, $0.38, played 47%, score 8.23]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 47% of Ghalta decks
+      MID     Heroic Intervention  [Instant, $9.06, played 46%, score 8.81]  WEAK UPGRADE, +8% over budget
+              why: In 46% of Ghalta decks
+      APEX    same as BUDGET
+
+ 6. REPLACE Arasta of the Endless Web  [Creature, $0.26, played not on page]
+      BUDGET  Agonasaur Rex  [Creature, $0.52, played 20%, score 7.95]  Major upgrade over current card
+              why: In 20% of Ghalta decks; Dinosaur synergy
+      MID     The Skullspore Nexus  [Artifact, $10.38, played 33%, score 8.76]  +12% over budget  <- APEX CARD for this slot
+              why: In 33% of Ghalta decks; Dinosaur synergy
+      APEX    same as MID
+
+ 7. REPLACE Scrapshooter  [Creature, $0.32, played not on page]
+      BUDGET  Reclamation Sage  [Creature, $0.21, played 36%, score 7.77]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 36% of Ghalta decks
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 8. REPLACE Paradise Druid  [Creature, $0.22, played not on page]
+      BUDGET  Return of the Wildspeaker  [Instant, $1.50, played 59%, score 6.44]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 59% of Ghalta decks
+      MID     Majestic Genesis  [Sorcery, $3.64, played 44%, score 6.88]  WEAK UPGRADE, +8% over budget
+              why: In 44% of Ghalta decks
+      APEX    same as BUDGET
+
+ 9. REPLACE Dungrove Elder  [Creature, $0.50, played not on page]
+      BUDGET  Kogla, the Titan Ape  [Creature, $2.45, played 32%, score 5.95]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 32% of Ghalta decks; Aggro / combat
+      MID     Defiler of Vigor  [Creature, $3.15, played 31%, score 6.31]  WEAK UPGRADE, +7% over budget
+              why: In 31% of Ghalta decks; Aggro / combat
+      APEX    Vaultborn Tyrant  [Creature, $36.91, played 14%, score 6.83]  WEAK UPGRADE, +10% over mid
+              why: In 14% of Ghalta decks; Dinosaur synergy
+
+10. REPLACE Whiptongue Hydra  [Creature, $0.49, played not on page]
+      BUDGET  nothing under this ceiling improves on the card
+      MID     Season of Gathering  [Sorcery, $6.09, played 10%, score 6.16]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 10% of Ghalta decks; Dinosaur synergy
+      APEX    same as MID
+
+11. REPLACE Thickest in the Thicket  [Enchantment, $0.36, played 13%]
+      BUDGET  Greater Good  [Enchantment, $1.85, played 36%, score 3.93]  Solid upgrade over current card
+              why: In 36% of Ghalta decks
+      MID     Railway Brawler  [Creature, $5.92, played 21%, score 4.12]  WEAK UPGRADE, +3% over budget
+              why: In 21% of Ghalta decks; Aggro / combat
+      APEX    The Great Henge  [Artifact, $62.88, played 34%, score 5.64]  +26% over mid  <- APEX CARD for this slot
+              why: In 34% of Ghalta decks
+
+12. REPLACE Arachnogenesis  [Instant, $2.49, played 6%]
+      BUDGET  Nature's Lore  [Sorcery, $1.07, played 31%, score 4.38]  Strong upgrade over current card
+              why: In 31% of Ghalta decks
+      MID     same as BUDGET
+      APEX    Fanatic of Rhonas  [Creature, $13.16, played 44%, score 5.63]  +23% over budget  <- APEX CARD for this slot
+              why: In 44% of Ghalta decks
+
+13. REPLACE Terrian, World Tyrant  [Creature, $0.19, played not on page]
+      BUDGET  Kodama's Reach  [Sorcery, $1.51, played 32%, score 4.73]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 32% of Ghalta decks
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+14. REPLACE Ripjaw Raptor  [Creature, $0.57, played not on page]
+      BUDGET  Quakestrider Ceratops  [Creature, $0.28, played 23%, score 4.56]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 23% of Ghalta decks; Dinosaur synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+15. REPLACE Curious Altisaur  [Creature, $1.65, played not on page]
+      BUDGET  Arbor Elf  [Creature, $0.38, played 42%, score 4.35]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 42% of Ghalta decks
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+16. REPLACE Monstrous Onslaught  [Sorcery, $0.09, played 12%]
+      BUDGET  Wild Growth  [Enchantment, $0.40, played 30%, score 3.7]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 30% of Ghalta decks
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+17. REPLACE Shamanic Revelation  [Sorcery, $0.30, played 18%]
+      BUDGET  Fireshrieker  [Artifact, $0.21, played 18%, score 3.03]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 18% of Ghalta decks; Aggro / combat
+      MID     Momentous Fall  [Instant, $3.54, played 28%, score 3.35]  WEAK UPGRADE, +6% over budget
+              why: In 28% of Ghalta decks
+      APEX    same as BUDGET
+
+18. REPLACE Yeva, Nature's Herald  [Creature, $0.51, played 17%]
+      BUDGET  Eternal Witness  [Creature, $1.48, played 31%, score 3.21]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 31% of Ghalta decks
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+19. REPLACE Commander's Sphere  [Artifact, $0.20, played not on page]
+      BUDGET  Thought Vessel  [Artifact, $1.89, played 13%, score 2.62]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 13% of Ghalta decks
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+20. REPLACE Collective Resistance  [Instant, $0.68, played 15%]
+      BUDGET  nothing under this ceiling improves on the card
+      MID     Silverback Elder  [Creature, $7.90, played 23%, score 2.29]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 23% of Ghalta decks
+      APEX    same as MID
+
+21. REPLACE Ezuri's Predation  [Sorcery, $0.97, played 21%]
+      BUDGET  nothing under this ceiling improves on the card
+      MID     Three Visits  [Sorcery, $5.60, played 22%, score 2.29]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 22% of Ghalta decks
+      APEX    same as MID
+
+22. REPLACE Harmonize  [Sorcery, $0.18, played 25%]
+      BUDGET  nothing under this ceiling improves on the card
+      MID     Traverse the Outlands  [Sorcery, $5.86, played 33%, score 2.21]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 33% of Ghalta decks
+      APEX    same as MID
+
+23. REPLACE Bite Down  [Instant, $0.22, played 22%]
+      BUDGET  nothing under this ceiling improves on the card
+      MID     nothing under this ceiling improves on the card
+      APEX    Worldly Tutor  [Instant, $26.42, played 14%, score 2.11]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 14% of Ghalta decks; Adds a tutor
+
+24. REPLACE Carnage Tyrant  [Creature, $1.36, played not on page]
+      BUDGET  nothing under this ceiling improves on the card
+      MID     nothing under this ceiling improves on the card
+      APEX    Zopandrel, Hunger Dominus  [Creature, $12.04, played 28%, score 2.02]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 28% of Ghalta decks
+
+RETAIL DECKLIST (100 cards; * = has a recommended upgrade above)
+  1 Ghalta, Primal Hunger (commander)
+  1 Commander's Sphere *  [Artifact]
+  1 Rhonas's Monument  [Artifact]
+  1 Sol Ring  [Artifact]
+  1 Swiftfoot Boots  [Artifact]
+  1 Tangleweave Armor  [Artifact]
+  1 Arasta of the Endless Web *  [Creature]
+  1 Beast Whisperer  [Creature]
+  1 Birds of Paradise  [Creature]
+  1 Carnage Tyrant *  [Creature]
+  1 Challenger Troll *  [Creature]
+  1 Clifftop Lookout *  [Creature]
+  1 Curious Altisaur *  [Creature]
+  1 Dungrove Elder *  [Creature]
+  1 Elder Gargaroth  [Creature]
+  1 Elvish Mystic  [Creature]
+  1 Fyndhorn Elves  [Creature]
+  1 Garruk's Packleader  [Creature]
+  1 Gigantosaurus  [Creature]
+  1 Goreclaw, Terror of Qal Sisma  [Creature]
+  1 Hulking Raptor  [Creature]
+  1 Ilysian Caryatid  [Creature]
+  1 Llanowar Elves  [Creature]
+  1 Llanowar Tribe  [Creature]
+  1 Loot, Exuberant Explorer *  [Creature]
+  1 Managorger Hydra  [Creature]
+  1 Paradise Druid *  [Creature]
+  1 Pugnacious Hammerskull  [Creature]
+  1 Regal Imperiosaur  [Creature]
+  1 Rhonas the Indomitable  [Creature]
+  1 Ripjaw Raptor *  [Creature]
+  1 Rishkar, Peema Renegade *  [Creature]
+  1 Scavenging Ooze  [Creature]
+  1 Scrapshooter *  [Creature]
+  1 Steel Leaf Champion  [Creature]
+  1 Surrak and Goreclaw  [Creature]
+  1 Surrak, the Hunt Caller  [Creature]
+  1 Terrian, World Tyrant *  [Creature]
+  1 Thrashing Brontodon  [Creature]
+  1 Verdant Sun's Avatar  [Creature]
+  1 Whiptongue Hydra *  [Creature]
+  1 Whisperer of the Wilds *  [Creature]
+  1 Yeva, Nature's Herald *  [Creature]
+  1 Colossal Majesty  [Enchantment]
+  1 Elemental Bond  [Enchantment]
+  1 Garruk's Uprising  [Enchantment]
+  1 Kenrith's Transformation  [Enchantment]
+  1 Thickest in the Thicket *  [Enchantment]
+  1 Unnatural Growth  [Enchantment]
+  1 Arachnogenesis *  [Instant]
+  1 Beast Within  [Instant]
+  1 Bite Down *  [Instant]
+  1 Collective Resistance *  [Instant]
+  1 Ram Through  [Instant]
+  1 Tamiyo's Safekeeping  [Instant]
+  1 Bonders' Enclave  [Land]
+  32 Forest  [Land]
+  1 Mosswort Bridge  [Land]
+  1 Rogue's Passage  [Land]
+  1 Scavenger Grounds  [Land]
+  1 Tranquil Thicket  [Land]
+  1 War Room  [Land]
+  1 Witch's Clinic  [Land]
+  1 Ezuri's Predation *  [Sorcery]
+  1 Harmonize *  [Sorcery]
+  1 Monstrous Onslaught *  [Sorcery]
+  1 Overwhelming Stampede  [Sorcery]
+  1 Rishkar's Expertise  [Sorcery]
+  1 Shamanic Revelation *  [Sorcery]
+
+====================================================================================================
+WAKANDA FOREVER
+====================================================================================================
+Commander: T'Challa, the Black Panther   Colour identity: WG
+Build priorities set by the app: Artifacts > Aggro / combat
+Play data: 4,374 T'Challa decks on EDHREC (228 cards on the page). Method used: play-data method
+Retail deck as the app sees it: lands 38 (target 37), ramp 12 (10), card draw 11 (10), removal 8 (8), board wipes 3 (3), average mana value 3.84, deck price about $60
+
+TIER TOTALS (best full pick per slot up to that tier)
+  BUDGET   4 swaps, +$3   after applying all: ramp 12->12, draw 11->11, removal 8->8, wipes 3->3, avg mana value 3.84->3.79; 1 swap(s) removed by the package check
+  MID      4 swaps, +$3   after applying all: ramp 12->12, draw 11->10, removal 8->8, wipes 3->3, avg mana value 3.84->3.87; 1 swap(s) removed by the package check
+  APEX     4 swaps, +$3   after applying all: ramp 12->12, draw 11->10, removal 8->8, wipes 3->3, avg mana value 3.84->3.87
+
+UPGRADES — 4 cards
+
+ 1. REPLACE Fleecemane Lion  [Creature, $0.21, played 14%]
+      BUDGET  Bronze Guardian  [Creature, $0.29, played 44%, score 8.07]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 44% of T'Challa decks; Artifacts
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 2. REPLACE Divine Visitation  [Enchantment, $0.39, played 16%]
+      BUDGET  Swiftfoot Boots  [Artifact, $1.48, played 30%, score 6.03]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 30% of T'Challa decks; Aggro / combat
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 3. REPLACE Queen Mother Ramonda  [Creature, $0.20, played 27%]
+      BUDGET  Mystic Forge  [Artifact, $2.22, played 40%, score 4.21]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 40% of T'Challa decks; Artifacts
+      MID     Chimil, the Inner Sun  [Artifact, $7.90, played 47%, score 4.42]  WEAK UPGRADE, +3% over budget
+              why: In 47% of T'Challa decks
+      APEX    same as BUDGET
+
+ 4. REPLACE Harmonize  [Sorcery, $0.18, played 32%]
+      BUDGET  Dyadrine, Synthesis Amalgam  [Creature, $0.28, played 24%, score 3.2]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 24% of T'Challa decks; Artifacts
+      MID     Genji Glove  [Artifact, $7.93, played 34%, score 3.47]  WEAK UPGRADE, +4% over budget
+              why: In 34% of T'Challa decks; Aggro / combat
+      APEX    same as BUDGET
+
+RETAIL DECKLIST (100 cards; * = has a recommended upgrade above)
+  1 T'Challa, the Black Panther (commander)
+  1 Arcane Signet  [Artifact]
+  1 Conduit of Worlds  [Artifact]
+  1 Coveted Jewel  [Artifact]
+  1 Gilded Lotus  [Artifact]
+  1 Hammer of Nazahn  [Artifact]
+  1 Heart-Shaped Herb  [Artifact]
+  1 Helm of the Host  [Artifact]
+  1 Kimoyo Beads  [Artifact]
+  1 King Solomon's Frogs  [Artifact]
+  1 Midnight Angel Armor  [Artifact]
+  1 Mind's Eye  [Artifact]
+  1 N'Yami-Class Mother Ship  [Artifact]
+  1 Panther Habit  [Artifact]
+  1 Royal Talon Fighter Jet  [Artifact]
+  1 Scourglass  [Artifact]
+  1 Shuri's Fabricator  [Artifact]
+  1 Sol Ring  [Artifact]
+  1 Sword of the Animist  [Artifact]
+  1 The Spear of Bashenga  [Artifact]
+  1 Thran Dynamo  [Artifact]
+  1 Trading Post  [Artifact]
+  1 Vibranium Mining Mech  [Artifact]
+  1 Vibranium Strike Gauntlets  [Artifact]
+  1 Whispersilk Cloak  [Artifact]
+  1 Bast, Panther Goddess  [Creature]
+  1 Birds of Paradise  [Creature]
+  1 Dora Milaje Elite  [Creature]
+  1 Everett K. Ross, Hapless Attaché  [Creature]
+  1 Fleecemane Lion *  [Creature]
+  1 Hatut Zeraze Strike Force  [Creature]
+  1 Ingenious Smith  [Creature]
+  1 Loyal Guardian  [Creature]
+  1 Loyal Retainers  [Creature]
+  1 M'Baku, Jabari Chieftain  [Creature]
+  1 Metalwork Colossus  [Creature]
+  1 Meteor Golem  [Creature]
+  1 Nakia, Wakandan Operative  [Creature]
+  1 Okoye, Mighty and Adored  [Creature]
+  1 Palace Jailer  [Creature]
+  1 Panther Robot  [Creature]
+  1 Queen Mother Ramonda *  [Creature]
+  1 Shuri, the Black Panther  [Creature]
+  1 Solemn Simulacrum  [Creature]
+  1 Storm, Queen of Wakanda  [Creature]
+  1 T'Chaka, Venerable King  [Creature]
+  1 W'Kabi, Shield of the Nation  [Creature]
+  1 Zuri, Warrior of Wakanda  [Creature]
+  1 Divine Visitation *  [Enchantment]
+  1 Greater Good  [Enchantment]
+  1 Beast Within  [Instant]
+  1 Dispatch  [Instant]
+  1 Fight for the Throne  [Instant]
+  1 Generous Gift  [Instant]
+  1 Valorous Stance  [Instant]
+  1 Bountiful Promenade  [Land]
+  1 Canopy Vista  [Land]
+  1 Command Tower  [Land]
+  1 Evolving Wilds  [Land]
+  12 Forest  [Land]
+  1 Fortified Village  [Land]
+  1 Path of Ancestry  [Land]
+  12 Plains  [Land]
+  1 Razorverge Thicket  [Land]
+  1 Scattered Groves  [Land]
+  1 Scavenger Grounds  [Land]
+  1 Sungrass Prairie  [Land]
+  1 Sunpetal Grove  [Land]
+  1 Terramorphic Expanse  [Land]
+  1 The Great Mound  [Land]
+  1 Throne of the High City  [Land]
+  1 Ancestral Communion  [Sorcery]
+  1 Harmonize *  [Sorcery]
+  1 Martial Coup  [Sorcery]
+  1 Nature's Lore  [Sorcery]
+  1 Overwhelming Stampede  [Sorcery]
+  1 Vanquish the Horde  [Sorcery]
+  1 Wakanda Forever!  [Sorcery]
+
+====================================================================================================
+AVENGERS ASSEMBLE
+====================================================================================================
+Commander: Captain America, Team Leader   Colour identity: WUR
+Build priorities set by the app: Hero tribal > +1/+1 counters > Aggro / combat
+Play data: 5,515 Captain America decks on EDHREC (207 cards on the page). Method used: play-data method
+Retail deck as the app sees it: lands 38 (target 37), ramp 9 (10), card draw 16 (10), removal 6 (8), board wipes 3 (3), average mana value 3.36, deck price about $64
+
+TIER TOTALS (best full pick per slot up to that tier)
+  BUDGET   7 swaps, +$4   after applying all: ramp 9->9, draw 16->15, removal 6->6, wipes 3->3, avg mana value 3.36->3.43; 2 swap(s) removed by the package check
+  MID      7 swaps, +$14   after applying all: ramp 9->9, draw 16->15, removal 6->6, wipes 3->3, avg mana value 3.36->3.36; 1 swap(s) removed by the package check
+  APEX     7 swaps, +$14   after applying all: ramp 9->9, draw 16->15, removal 6->6, wipes 3->3, avg mana value 3.36->3.36
+
+UPGRADES — 7 cards
+
+ 1. REPLACE Tome of Legends  [Artifact, $0.31, played 25%]
+      BUDGET  Agent Phil Coulson  [Creature, $0.34, played 72%, score 8.83]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 72% of Captain America decks; Hero synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 2. REPLACE Captain Mar-Vell, Space-Born  [Creature, $0.13, played 23%]
+      BUDGET  Captain America, Wings of Freedom  [Creature, $0.41, played 66%, score 7.31]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 66% of Captain America decks; Hero synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 3. REPLACE Speed, Young Avenger  [Creature, $0.16, played 16%]
+      BUDGET  Daredevil, Man Without Fear  [Creature, $0.30, played 47%, score 4.46]  Strong upgrade over current card
+              why: In 47% of Captain America decks; Hero synergy
+      MID     Captain America, Super-Soldier  [Creature, $3.44, played 64%, score 6.82]  +24% over budget  <- APEX CARD for this slot
+              why: In 64% of Captain America decks; Hero synergy
+      APEX    same as MID
+
+ 4. REPLACE Love on the Battlefield  [Enchantment, $0.23, played 20%]
+      BUDGET  SP//dr, Piloted by Peni  [Creature, $0.29, played 51%, score 6.46]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 51% of Captain America decks; Hero synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 5. REPLACE Bastion Protector  [Creature, $0.30, played 36%]
+      BUDGET  Captain America, Skybound  [Creature, $0.73, played 26%, score 3.6]  Solid upgrade over current card
+              why: In 26% of Captain America decks; Hero synergy
+      MID     Spectacular Spider-Man  [Creature, $7.19, played 57%, score 5.85]  +27% over budget  <- APEX CARD for this slot
+              why: In 57% of Captain America decks; Hero synergy
+      APEX    same as MID
+
+ 6. REPLACE Hero's Blade  [Artifact, $0.18, played 23%]
+      BUDGET  Captain America's Shield  [Artifact, $1.68, played 35%, score 4.13]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 35% of Captain America decks; Aggro / combat
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 7. REPLACE Patriot, Shield Wielder  [Creature, $0.15, played 23%]
+      BUDGET  Spider-Woman, Stunning Savior  [Creature, $1.74, played 49%, score 2.75]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 49% of Captain America decks; Hero synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+RETAIL DECKLIST (100 cards; * = has a recommended upgrade above)
+  1 Captain America, Team Leader (commander)
+  1 Arcane Signet  [Artifact]
+  1 Avengers Quinjet  [Artifact]
+  1 Door of Destinies  [Artifact]
+  1 Fellwar Stone  [Artifact]
+  1 Herald's Horn  [Artifact]
+  1 Hero's Blade *  [Artifact]
+  1 Hulkbuster Armor  [Artifact]
+  1 Relic of Legends  [Artifact]
+  1 Sol Ring  [Artifact]
+  1 Talisman of Conviction  [Artifact]
+  1 Talisman of Creativity  [Artifact]
+  1 Talisman of Progress  [Artifact]
+  1 Thought Vessel  [Artifact]
+  1 Tome of Legends *  [Artifact]
+  1 Ant-Man, Elusive Avenger  [Creature]
+  1 Bastion Protector *  [Creature]
+  1 Black Widow, Agile Avenger  [Creature]
+  1 Captain America, Living Legend  [Creature]
+  1 Captain Mar-Vell, Space-Born *  [Creature]
+  1 Captain Marvel, Apex Avenger  [Creature]
+  1 Director Nick Fury  [Creature]
+  1 Falcon and Redwing  [Creature]
+  1 Firebird, Blazing Ranger  [Creature]
+  1 Hawkeye, Avenging Archer  [Creature]
+  1 Hercules, Olympian Hero  [Creature]
+  1 Iron Man, Armored Avenger  [Creature]
+  1 Jarvis, Earth's Mightiest Butler  [Creature]
+  1 Jocasta, Automaton Avenger  [Creature]
+  1 Metallic Mimic  [Creature]
+  1 Patriot, Shield Wielder *  [Creature]
+  1 Photon, Mighty Marvel  [Creature]
+  1 Professor Hulk  [Creature]
+  1 Quicksilver, Speedster  [Creature]
+  1 Rescue, Pepper Potts  [Creature]
+  1 Scarlet Witch, Chaotic Avenger  [Creature]
+  1 Shang-Chi and the Ten Rings  [Creature]
+  1 She-Hulk, Wallbreaker  [Creature]
+  1 Speed, Young Avenger *  [Creature]
+  1 The Wasp, Winsome Avenger  [Creature]
+  1 Thor, Asgard's Avenger  [Creature]
+  1 Vision, Synthezoid Avenger  [Creature]
+  1 War Machine, Avenging Arsenal  [Creature]
+  1 Winter Soldier, Reborn Avenger  [Creature]
+  1 Folk Hero  [Enchantment]
+  1 Gift of Immortality  [Enchantment]
+  1 Kindred Discovery  [Enchantment]
+  1 Love on the Battlefield *  [Enchantment]
+  1 Reconnaissance Mission  [Enchantment]
+  1 Arcane Denial  [Instant]
+  1 Destroy Evil  [Instant]
+  1 Heroic Return  [Instant]
+  1 Heroic Sacrifice  [Instant]
+  1 Make Your Move  [Instant]
+  1 Methods of the Mighty  [Instant]
+  1 Swords to Plowshares  [Instant]
+  1 Avengers Tower  [Land]
+  1 Clifftop Retreat  [Land]
+  1 Coastal Peak  [Land]
+  1 Command Tower  [Land]
+  1 Exotic Orchard  [Land]
+  1 Frostboil Snarl  [Land]
+  1 Furycalm Snarl  [Land]
+  1 Glacial Fortress  [Land]
+  1 Glittering Massif  [Land]
+  1 Irrigated Farmland  [Land]
+  5 Island  [Land]
+  5 Mountain  [Land]
+  1 Mystic Monastery  [Land]
+  1 Path of Ancestry  [Land]
+  6 Plains  [Land]
+  1 Plaza of Heroes  [Land]
+  1 Port Town  [Land]
+  1 Prairie Stream  [Land]
+  1 Radiant Summit  [Land]
+  1 Scavenger Grounds  [Land]
+  1 Scorched Geyser  [Land]
+  1 Secluded Courtyard  [Land]
+  1 Spectator Seating  [Land]
+  1 Sulfur Falls  [Land]
+  1 Unclaimed Territory  [Land]
+  1 Austere Command  [Sorcery]
+  1 Avenge  [Sorcery]
+  1 Dismantling Wave  [Sorcery]
+  1 Raise the Palisade  [Sorcery]
+  1 Rip Apart  [Sorcery]
+  1 West Coast Expansion  [Sorcery]
+
+====================================================================================================
+DOOM PREVAILS
+====================================================================================================
+Commander: Doctor Doom, King of Latveria   Colour identity: UBR
+Build priorities set by the app: Villain tribal > +1/+1 counters > Lifegain / drain
+Play data: 10,581 Doctor Doom decks on EDHREC (237 cards on the page). Method used: play-data method
+Retail deck as the app sees it: lands 37 (target 37), ramp 12 (10), card draw 16 (10), removal 6 (8), board wipes 3 (3), average mana value 3.65, deck price about $80
+
+TIER TOTALS (best full pick per slot up to that tier)
+  BUDGET   8 swaps, +$4   after applying all: ramp 12->13, draw 16->18, removal 6->6, wipes 3->3, avg mana value 3.65->3.56
+  MID      8 swaps, +$22   after applying all: ramp 12->13, draw 16->19, removal 6->6, wipes 3->3, avg mana value 3.65->3.53
+  APEX     9 swaps, +$49   after applying all: ramp 12->14, draw 16->18, removal 6->6, wipes 3->3, avg mana value 3.65->3.48
+
+UPGRADES — 9 cards
+
+ 1. REPLACE Batroc the Leaper  [Creature, $0.24, played not on page]
+      BUDGET  Leader, Super-Genius  [Creature, $0.34, played 69%, score 11.54]  Major upgrade over current card  <- APEX CARD for this slot
+              why: In 69% of Doctor Doom decks; Villain synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 2. REPLACE Syphon Mind  [Sorcery, $0.28, played 21%]
+      BUDGET  Doctor Doom  [Creature, $2.60, played 32%, score 6.56]  Strong upgrade over current card
+              why: In 32% of Doctor Doom decks; Villain synergy
+      MID     M.O.D.O.K.  [Creature, $3.87, played 44%, score 8.51]  +21% over budget  <- APEX CARD for this slot
+              why: In 44% of Doctor Doom decks; Villain synergy
+      APEX    same as MID
+
+ 3. REPLACE Kang Dynasty  [Enchantment, $0.30, played 25%]
+      BUDGET  Doom Reigns Supreme  [Enchantment, $0.32, played 39%, score 5.28]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 39% of Doctor Doom decks; Villain synergy
+      MID     Doctor Octopus, Master Planner  [Creature, $6.66, played 46%, score 6.02]  WEAK UPGRADE, +8% over budget
+              why: In 46% of Doctor Doom decks; Villain synergy
+      APEX    Monument to Endurance  [Artifact, $17.20, played 56%, score 6.51]  WEAK UPGRADE, +5% over mid
+              why: In 56% of Doctor Doom decks; Lifegain / drain
+
+ 4. REPLACE Superior Foes of Spider-Man  [Creature, $0.13, played 10%]
+      BUDGET  Green Goblin, Revenant  [Creature, $0.27, played 39%, score 4.16]  Strong upgrade over current card
+              why: In 39% of Doctor Doom decks; Villain synergy
+      MID     Green Goblin, Nemesis  [Creature, $10.80, played 50%, score 5.77]  +21% over budget  <- APEX CARD for this slot
+              why: In 50% of Doctor Doom decks; Villain synergy
+      APEX    same as MID
+
+ 5. REPLACE Extract Power  [Sorcery, $0.26, played 23%]
+      BUDGET  Counterspell  [Instant, $1.62, played 39%, score 4.65]  Strong upgrade over current card  <- APEX CARD for this slot
+              why: In 39% of Doctor Doom decks; Adds a counterspell
+      MID     Cool but Rude  [Enchantment, $6.27, played 48%, score 5.37]  WEAK UPGRADE, +9% over budget
+              why: In 48% of Doctor Doom decks; Adds a tutor
+      APEX    same as BUDGET
+
+ 6. REPLACE Tri-Sentinel, Act of Vengeance  [Creature, $0.39, played 16%]
+      BUDGET  Ultimate Green Goblin  [Creature, $0.31, played 30%, score 2.72]  Solid upgrade over current card
+              why: In 30% of Doctor Doom decks; Villain synergy
+      MID     Reanimate  [Sorcery, $6.61, played 36%, score 4.34]  +23% over budget  <- APEX CARD for this slot
+              why: In 36% of Doctor Doom decks; Lifegain / drain
+      APEX    same as MID
+
+ 7. REPLACE Lady Loki, Agent of Chaos  [Creature, $0.28, played 15%]
+      BUDGET  Taskmaster, Mercenary Mimic  [Creature, $0.41, played 36%, score 3.18]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 36% of Doctor Doom decks; Villain synergy
+      MID     same as BUDGET
+      APEX    same as BUDGET
+
+ 8. REPLACE Titania, Proud Pummeler  [Creature, $0.26, played 18%]
+      BUDGET  Archfiend of Ifnir  [Creature, $0.38, played 47%, score 2.18]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 47% of Doctor Doom decks
+      MID     Ledger Shredder  [Creature, $9.97, played 32%, score 2.33]  WEAK UPGRADE, +2% over budget
+              why: In 32% of Doctor Doom decks; +1/+1 counters
+      APEX    Roaming Throne  [Creature, $49.25, played 24%, score 2.72]  WEAK UPGRADE, +6% over mid
+              why: In 24% of Doctor Doom decks; Villain synergy
+
+ 9. REPLACE Endless Ranks of HYDRA  [Sorcery, $0.25, played 24%]
+      BUDGET  nothing under this ceiling improves on the card
+      MID     nothing under this ceiling improves on the card
+      APEX    Crucible of Worlds  [Artifact, $27.31, played 43%, score 2.11]  Solid upgrade over current card  <- APEX CARD for this slot
+              why: In 43% of Doctor Doom decks
+
+RETAIL DECKLIST (100 cards; * = has a recommended upgrade above)
+  1 Doctor Doom, King of Latveria (commander)
+  1 Arcane Signet  [Artifact]
+  1 Currency Converter  [Artifact]
+  1 Damocles Base, Sword of Kang  [Artifact]
+  1 Doom's Time Platform  [Artifact]
+  1 Loki's Scepter  [Artifact]
+  1 Patchwork Banner  [Artifact]
+  1 Progenitor's Icon  [Artifact]
+  1 Skullclamp  [Artifact]
+  1 Sol Ring  [Artifact]
+  1 Swiftfoot Boots  [Artifact]
+  1 Talisman of Dominance  [Artifact]
+  1 Talisman of Indulgence  [Artifact]
+  1 Abomination, World Ravager  [Creature]
+  1 Baron Strucker, HYDRA Overlord  [Creature]
+  1 Batroc the Leaper *  [Creature]
+  1 Chameleon, Master of Disguise  [Creature]
+  1 Containment Construct  [Creature]
+  1 Helmut Zemo, Mastermind  [Creature]
+  1 Iron Monger, Sadistic Tycoon  [Creature]
+  1 Kang Prime  [Creature]
+  1 Kang, Temporal Tyrant  [Creature]
+  1 Killmonger, Ruthless Usurper  [Creature]
+  1 Klaw, Master of Sound  [Creature]
+  1 Lady Loki, Agent of Chaos *  [Creature]
+  1 Living Laser  [Creature]
+  1 Loki, the Deceiver  [Creature]
+  1 Madame Hydra  [Creature]
+  1 Molecule Man  [Creature]
+  1 Moonstone, Harsh Mistress  [Creature]
+  1 Prowler, Clawed Thief  [Creature]
+  1 Puppet Master, String Puller  [Creature]
+  1 Red Ghost, Intangible Genius  [Creature]
+  1 Spark Double  [Creature]
+  1 Stilt-Man, Towering Terror  [Creature]
+  1 Superior Foes of Spider-Man *  [Creature]
+  1 The Frightful Four  [Creature]
+  1 The Squadron Sinister  [Creature]
+  1 Titan of Littjara  [Creature]
+  1 Titania, Proud Pummeler *  [Creature]
+  1 Tombstone, Career Criminal  [Creature]
+  1 Tri-Sentinel, Act of Vengeance *  [Creature]
+  1 Typhoid Mary, Fractured  [Creature]
+  1 Ultron, Unlimited  [Creature]
+  1 Age of Ultron  [Enchantment]
+  1 Archnemesis  [Enchantment]
+  1 Black Market Connections  [Enchantment]
+  1 Glorious Purpose  [Enchantment]
+  1 Kang Dynasty *  [Enchantment]
+  1 Propaganda  [Enchantment]
+  1 Bedevil  [Instant]
+  1 Chaos Warp  [Instant]
+  1 Lethal Scheme  [Instant]
+  1 Terminate  [Instant]
+  1 Withering Torment  [Instant]
+  1 Canyon Slough  [Land]
+  1 Choked Estuary  [Land]
+  1 Coastal Peak  [Land]
+  1 Command Tower  [Land]
+  1 Crumbling Necropolis  [Land]
+  1 Dragonskull Summit  [Land]
+  1 Drowned Catacomb  [Land]
+  1 Exotic Orchard  [Land]
+  1 Fetid Pools  [Land]
+  1 Foreboding Ruins  [Land]
+  1 Frostboil Snarl  [Land]
+  4 Island  [Land]
+  1 Luxury Suite  [Land]
+  5 Mountain  [Land]
+  1 Path of Ancestry  [Land]
+  1 Scavenger Grounds  [Land]
+  1 Scorched Geyser  [Land]
+  1 Secluded Courtyard  [Land]
+  1 Smoldering Marsh  [Land]
+  1 Sulfur Falls  [Land]
+  1 Sunken Hollow  [Land]
+  6 Swamp  [Land]
+  1 Terramorphic Expanse  [Land]
+  1 Unclaimed Territory  [Land]
+  1 Villainous Hideout  [Land]
+  1 Blasphemous Act  [Sorcery]
+  1 Endless Ranks of HYDRA *  [Sorcery]
+  1 Extract Power *  [Sorcery]
+  1 Kindred Dominance  [Sorcery]
+  1 Night's Whisper  [Sorcery]
+  1 Syphon Mind *  [Sorcery]
+  1 Toxic Deluge  [Sorcery]
+  1 Vandalblast  [Sorcery]

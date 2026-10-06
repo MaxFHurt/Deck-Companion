@@ -1,0 +1,350 @@
+ADVERSARIAL AUDIT, ROUND 1 (v2, Leonardo baseline) — ChatGPT frozen benchmark vs Deck Companion Build 71
+Prepared 5 October 2026 by Claude. Both lists were fixed before either side saw the other's.
+
+BASELINE
+- Retail precon lists. Wakanda Forever uses the corrected names (Shuri, the Black Panther; Storm, Queen of Wakanda).
+- Turtle Power is run with Leonardo, the Balance as commander and Heroes in a Half Shell in the 99, matching ChatGPT's baseline
+  (owner's decision, 5 October). Leonardo has 1,002 decks of play data in the snapshot; Heroes in a Half Shell had 4,260.
+- Prices: Scryfall cheapest printing, snapshot of 5-6 October 2026 (UTC). Caps: Budget $3, Mid $12.
+- "app score" is Build 71's improvement score for that exact OUT -> IN (2 is the app's minimum to show a swap).
+  It is the app's own yardstick. Section 3 lists two biases found in it during this audit, so it must not be read as a verdict.
+
+CORRECTION TO CLAUDE'S EARLIER HANDOFFS
+- Claude repeatedly stated that T'Challa, the Black Panther had only 65 decks of play data. That was a misread field.
+  The snapshot has 4,351 T'Challa decks (ChatGPT reported 4,320). Wakanda Forever's weak results are NOT explained by thin data.
+  Snapshot sizes: Captain America 5,483; Doctor Doom 10,525; Ghalta 9,512; Leonardo, the Balance 1,002; T'Challa 4,351 (approximate; the snapshot was refreshed).
+
+1. OBJECTIVE CHECKS (no judgment involved)
+ChatGPT frozen list: 111 picks in 37 slots.
+   illegal colour identity: 0
+   card already in the retail deck: 4   (ChatGPT pre-flagged Kindred Discovery, Herald's Horn and Garruk's Uprising with *; Leader, Super-Genius was not flagged)
+   same card recommended twice in one deck: 2   (both pre-flagged with *)
+   over the tier's price cap on snapshot prices: 5
+   land recommended for a nonland slot: 1
+   Avengers Assemble: Heroic Return -> Kindred Discovery (apex, $5.26): ALREADY IN RETAIL DECK
+   Avengers Assemble: Tome of Legends -> Herald's Horn (mid, $2.30): ALREADY IN RETAIL DECK
+   Avengers Assemble: Tome of Legends -> The Ozolith (apex, $62.04): DUPLICATE (also for Hero's Blade)
+   Doom Prevails: Kang Prime -> Leader, Super-Genius (budget, $0.34): ALREADY IN RETAIL DECK
+   Doom Prevails: Kang Prime -> M.O.D.O.K. (mid, $3.87): DUPLICATE (also for Titania, Proud Pummeler)
+   Tramplesaurus Rex: Ilysian Caryatid -> Fanatic of Rhonas (mid, $13.16): OVER MID CAP
+   Tramplesaurus Rex: Commander's Sphere -> Tribute to the World Tree (mid, $15.24): OVER MID CAP
+   Tramplesaurus Rex: Colossal Majesty -> Garruk's Uprising (budget, $0.40): ALREADY IN RETAIL DECK
+   Tramplesaurus Rex: Whisperer of the Wilds -> Nykthos, Shrine to Nyx (apex, $48.09): land for nonland
+   Tramplesaurus Rex: Tranquil Thicket -> Yavimaya, Cradle of Growth (mid, $17.19): OVER MID CAP
+   Turtle Power: Harmonize -> Guardian Project (mid, $13.15): OVER MID CAP
+   Turtle Power: Mole Module -> The Ooze (budget, $4.26): OVER BUDGET CAP
+Build 71: 82 picks in 52 slots. Illegal, duplicate, already-in-deck and over-cap picks: 0. These are enforced by the engine,
+   so this is not evidence of judgment. Same price snapshot.
+
+2. OVERLAP
+   Avengers Assemble  GPT slots  6 | app slots  7 | cards on both lists  1 | same card for the same OUT 1 | GPT's OUT cards the app also cuts 2/6
+   Doom Prevails      GPT slots  7 | app slots 10 | cards on both lists  5 | same card for the same OUT 0 | GPT's OUT cards the app also cuts 4/7
+   Tramplesaurus Rex  GPT slots  9 | app slots 24 | cards on both lists 11 | same card for the same OUT 0 | GPT's OUT cards the app also cuts 4/9
+   Turtle Power       GPT slots  8 | app slots  6 | cards on both lists  3 | same card for the same OUT 0 | GPT's OUT cards the app also cuts 4/8
+   Wakanda Forever    GPT slots  7 | app slots  5 | cards on both lists  1 | same card for the same OUT 1 | GPT's OUT cards the app also cuts 2/7
+   TOTAL: 21 of ChatGPT's 111 cards are also Build 71 picks; 2 for the same OUT card; the app also cuts 16 of ChatGPT's 37 OUT cards.
+
+3. TWO BIASES IN BUILD 71'S SCORE FOUND DURING THIS AUDIT (these count against Build 71)
+A. It undervalues cards that are new with the precon. A card with no commander play data is valued as if nobody wants it.
+   Retail-exclusive new cards therefore look like the weakest cards in the deck and are cut first. Examples: Tramplesaurus Rex cuts
+   Loot, Exuberant Explorer; Terrian, World Tyrant; Arasta of the Endless Web. With Heroes in a Half Shell as commander, Turtle Power's first three cuts were all cards with no play data. The app applies a new-card allowance to incoming cards but not to
+   cards already in the deck. Some of these cuts may still be right; the score cannot tell.
+B. It over-recommends ramp. Tramplesaurus Rex retail already has 13 ramp against a target of 10 and only 4 removal against a
+   target of 8. Build 71 recommends eight more ramp cards (Rampant Growth, Cultivate, Wild Growth, Nature's Lore, Kodama's Reach,
+   Arbor Elf, Thought Vessel, Three Visits) and ends at 15 ramp and 4-5 removal. Ramp spells are among the most-played cards for
+   any green commander, so a play-rate-driven score keeps choosing them. The package check only stops a job falling below its
+   floor; it does not stop a job the deck already has enough of from growing, and it does not push toward a job the deck lacks.
+   ChatGPT's four flagged swaps (Arachnogenesis -> Nature's Lore, Bite Down -> Worldly Tutor, Harmonize -> Three Visits,
+   Yeva -> Fireshrieker) are instances of this and of cross-function cuts. Claude agrees they are suspect.
+
+4. SLOT BY SLOT — ChatGPT's frozen list, with the app's view of the same OUT card
+
+--- AVENGERS ASSEMBLE ---
+
+1. OUT Avenge  [played 47%, does: wipe]
+     GPT BUDGET Unbreakable Formation  [$0.71, played not on page, does: protect]  app score -7.84
+     GPT MID    Flawless Maneuver  [$8.05, played 22%, does: protect]  app score -4, +192% vs GPT tier below
+     GPT APEX   Teferi's Protection  [$35.59, played 17%, does: protect]  app score -3.72, +11% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+2. OUT Hercules, Olympian Hero  [played 47%, does: protect]
+     GPT BUDGET Silver Sable, Mercenary Leader  [$0.22, played 23%]  app score -3.83
+     GPT MID    Lae'zel, Vlaakith's Champion  [$2.61, played not on page]  app score -13.07, -129% vs GPT tier below
+     GPT APEX   Roaming Throne  [$49.25, played 26%]  app score -5.06, +401% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+3. OUT Heroic Return  [played 46%]
+     GPT BUDGET Avengers Assemble!  [$1.74, played 54%, does: draw]  app score -0.14
+     GPT MID    And They Shall Know No Fear  [$10.34, played not on page, does: protect]  app score -8.15, -83% vs GPT tier below
+     GPT APEX   Kindred Discovery  [$5.26, played 86%, does: draw]  app score 4.06, +611% vs GPT tier below  ** ALREADY IN RETAIL DECK **
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+4. OUT Hero's Blade  [played 23%, does: gear]
+     GPT BUDGET Captain America's Shield  [$1.68, played 35%, does: protect/gear]  app score 4.13  | app also picks it: budget for Hero's Blade [SAME SLOT]
+     GPT MID    Sword of Hours  [$4.65, played not on page, does: gear]  app score -0.66, -65% vs GPT tier below
+     GPT APEX   The Ozolith  [$62.04, played 13%]  app score -2.59, -73% vs GPT tier below
+     APP for this OUT: budget: Captain America's Shield
+
+5. OUT Make Your Move  [played 31%, does: removal]
+     GPT BUDGET Path to Exile  [$0.58, played 44%, does: removal]  app score 2.59
+     GPT MID    Generous Gift  [$0.93, played 10%, does: removal]  app score -0.86, -49% vs GPT tier below
+     GPT APEX   Cyclonic Rift  [$30.04, played 9%, does: removal]  app score -0.18, +19% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+6. OUT Tome of Legends  [played 25%, does: draw]
+     GPT BUDGET Biorganic Carapace  [$0.36, played 37%, does: draw/gear]  app score 2.59
+     GPT MID    Herald's Horn  [$2.30, played 83%]  app score 10.54, +110% vs GPT tier below  ** ALREADY IN RETAIL DECK **
+     GPT APEX   The Ozolith  [$62.04, played 13%]  app score -1.3, -54% vs GPT tier below  ** DUPLICATE (also for Hero's Blade) **
+     APP for this OUT: budget: Agent Phil Coulson
+
+   Slots only Build 71 changes (5):
+     OUT Captain Mar-Vell, Space-Born -> budget: Captain America, Wings of Freedom (7.31)
+     OUT Speed, Young Avenger -> budget: Daredevil, Man Without Fear (4.46) | mid: Captain America, Super-Soldier (6.82)
+     OUT Love on the Battlefield -> budget: SP//dr, Piloted by Peni (6.46)
+     OUT Bastion Protector -> budget: Captain America, Skybound (3.6) | mid: Spectacular Spider-Man (5.85)
+     OUT Patriot, Shield Wielder -> budget: Spider-Woman, Stunning Savior (2.75)
+
+--- DOOM PREVAILS ---
+
+1. OUT Titania, Proud Pummeler  [played 18%]
+     GPT BUDGET Tectonic Reformation  [$0.41, played 15%, does: draw]  app score -2.21
+     GPT MID    M.O.D.O.K.  [$3.87, played 44%, does: draw]  app score 6.66, +399% vs GPT tier below  | app also picks it: mid for Batroc the Leaper
+     GPT APEX   Monument to Endurance  [$17.20, played 56%, does: ramp/draw]  app score 4.93, -16% vs GPT tier below  | app also picks it: apex for Puppet Master
+     APP for this OUT: mid: An Offer You Can't Refuse
+
+2. OUT Batroc the Leaper  [played not on page]
+     GPT BUDGET Faithless Looting  [$0.36, played 34%, does: draw]  app score 3.53
+     GPT MID    Big Score  [$0.38, played 24%, does: ramp/draw]  app score 1.91, -28% vs GPT tier below
+     GPT APEX   Bone Miser  [$29.96, played 32%, does: ramp/draw]  app score 3.16, +30% vs GPT tier below
+     APP for this OUT: budget: Counterspell | mid: M.O.D.O.K.
+
+3. OUT Stilt-Man, Towering Terror  [played 24%]
+     GPT BUDGET Feed the Swarm  [$0.19, played 11%, does: removal]  app score -1.47
+     GPT MID    Waste Not  [$5.05, played not on page, does: ramp/draw]  app score -6, -119% vs GPT tier below
+     GPT APEX   Demonic Tutor  [$63.10, played 13%, does: tutor]  app score 0.47, +324% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+4. OUT Tri-Sentinel, Act of Vengeance  [played 16%]
+     GPT BUDGET Counterspell  [$1.62, played 39%, does: counter]  app score 3.62  | app also picks it: budget for Batroc the Leaper
+     GPT MID    Trade Routes  [$3.50, played 5%, does: draw]  app score -3.09, -86% vs GPT tier below
+     GPT APEX   Crucible of Worlds  [$27.31, played 43%]  app score 3.24, +317% vs GPT tier below  | app also picks it: apex for Lady Loki, Agent of Chaos
+     APP for this OUT: budget: Ultimate Green Goblin | apex: Roaming Throne (weak)
+
+5. OUT Syphon Mind  [played 21%, does: draw]
+     GPT BUDGET Dark Ritual  [$0.44, played 36%, does: ramp]  app score 3.03
+     GPT MID    Phyrexian Arena  [$1.24, played not on page, does: draw]  app score 0.68, -40% vs GPT tier below
+     GPT APEX   Rhystic Study  [$61.95, played 16%, does: draw]  app score 2.42, +49% vs GPT tier below
+     APP for this OUT: budget: Green Goblin, Revenant | mid: Doctor Octopus, Master Planner
+
+6. OUT Kang Prime  [played 25%]
+     GPT BUDGET Leader, Super-Genius  [$0.34, played 69%, does: draw]  app score 7.76  ** ALREADY IN RETAIL DECK **
+     GPT MID    M.O.D.O.K.  [$3.87, played 44%, does: draw]  app score 5.62  ** DUPLICATE (also for Titania, Proud Pummeler) **  | app also picks it: mid for Batroc the Leaper
+     GPT APEX   Seismic Assault  [$0.62, played 9%, does: removal]  app score -3.7
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+7. OUT Damocles Base, Sword of Kang  [played 11%, does: draw/vehicle]
+     GPT BUDGET Fellwar Stone  [$0.50, played 21%, does: ramp]  app score -1.34
+     GPT MID    Thought Vessel  [$1.89, played 8%, does: ramp/draw]  app score -1.69, -17% vs GPT tier below
+     GPT APEX   The One Ring  [$112.03, played 5%, does: draw/protect]  app score 1.14, +142% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+   Slots only Build 71 changes (6):
+     OUT Abomination -> budget: Doctor Doom (10.3) | mid: Black Market Connections (14.45)
+     OUT Puppet Master -> budget: Doom Reigns Supreme (7.27) | mid: Green Goblin, Nemesis (7.46, weak) | apex: Monument to Endurance (7.89, weak) [card is on GPT list]
+     OUT Kang Dynasty -> budget: Frantic Search (3.55) | mid: Cool but Rude (6)
+     OUT Extract Power -> budget: Archfiend of Ifnir (3.12) | mid: Reanimate (5.07)
+     OUT Superior Foes of Spider-Man -> budget: Taskmaster, Mercenary Mimic (3.75)
+     OUT Lady Loki, Agent of Chaos -> budget: Puppet Master, String Puller (2.3) | mid: Ledger Shredder (2.72, weak) | apex: Crucible of Worlds (2.81, weak) [card is on GPT list]
+
+--- TRAMPLESAURUS REX ---
+
+1. OUT Curious Altisaur  [played not on page, does: draw]
+     GPT BUDGET Ghalta the Unstoppable  [$0.31, played 30%]  app score 6.79  | app also picks it: budget for Challenger Troll
+     GPT MID    Majestic Genesis  [$3.64, played 44%]  app score 5.43, -17% vs GPT tier below  | app also picks it: mid for Paradise Druid
+     GPT APEX   Old Gnawbone  [$49.65, played not on page, does: ramp]  app score -0.95, -98% vs GPT tier below
+     APP for this OUT: budget: Arbor Elf
+
+2. OUT Challenger Troll  [played not on page]
+     GPT BUDGET Hunter's Insight  [$0.30, played 32%, does: draw]  app score 5.22
+     GPT MID    Return of the Wildspeaker  [$1.50, played 59%, does: draw]  app score 7.21, +49% vs GPT tier below  | app also picks it: budget for Paradise Druid
+     GPT APEX   Finale of Devastation  [$32.19, played 19%]  app score 5.83, -23% vs GPT tier below
+     APP for this OUT: budget: Ghalta the Unstoppable | mid: Lightning Greaves
+
+3. OUT Ilysian Caryatid  [played 23%, does: ramp]
+     GPT BUDGET Topiary Stomper  [$0.67, played 58%, does: ramp]  app score 7.23  | app also picks it: budget for Rishkar, Peema Renegade
+     GPT MID    Fanatic of Rhonas  [$13.16, played 44%, does: ramp]  app score 3.3, -38% vs GPT tier below  ** OVER MID CAP **  | app also picks it: apex for Arachnogenesis
+     GPT APEX   Selvala, Heart of the Wilds  [$5.27, played 50%, does: ramp/draw]  app score 3.96, +10% vs GPT tier below  | app also picks it: mid for Clifftop Lookout
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+4. OUT Commander's Sphere  [played not on page, does: ramp/draw]
+     GPT BUDGET Greater Good  [$1.85, played 36%, does: draw]  app score 2.93  | app also picks it: budget for Thickest in the Thicket
+     GPT MID    Tribute to the World Tree  [$15.24, played 26%, does: draw]  app score 1.73, -22% vs GPT tier below  ** OVER MID CAP **
+     GPT APEX   The Great Henge  [$62.88, played 34%, does: ramp/draw]  app score 4.04, +55% vs GPT tier below  | app also picks it: apex for Thickest in the Thicket
+     APP for this OUT: budget: Thought Vessel
+
+5. OUT Colossal Majesty  [played 30%, does: draw]
+     GPT BUDGET Garruk's Uprising  [$0.40, played 74%, does: draw]  app score 9.33  ** ALREADY IN RETAIL DECK **
+     GPT MID    Monstrous Vortex  [$0.34, played 11%]  app score -2.01
+     GPT APEX   Guardian Project  [$13.15, played 16%, does: draw]  app score -0.45, +78% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+6. OUT Whisperer of the Wilds  [played not on page, does: ramp]
+     GPT BUDGET Sakura-Tribe Elder  [$0.28, played 21%, does: ramp]  app score 5.13
+     GPT MID    Three Visits  [$5.60, played 22%, does: ramp]  app score 5.86, +18% vs GPT tier below  | app also picks it: mid for Ezuri's Predation
+     GPT APEX   Nykthos, Shrine to Nyx  [$48.09, played 27%]  app score 6.02, +3% vs GPT tier below  ** land for nonland **
+     APP for this OUT: budget: Cultivate | mid: Heroic Intervention (weak)
+
+7. OUT Thrashing Brontodon  [played 33%, does: removal]
+     GPT BUDGET Nature's Claim  [$0.67, played 17%, does: removal]  app score -3.63
+     GPT MID    Heroic Intervention  [$9.06, played 46%, does: protect]  app score -0.86, +92% vs GPT tier below  | app also picks it: mid for Whisperer of the Wilds
+     GPT APEX   Force of Vigor  [$5.70, played 8%]  app score -6.13, -91% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+8. OUT Surrak, the Hunt Caller  [played 47%]
+     GPT BUDGET Rancor  [$1.07, played not on page, does: aura]  app score -6.23
+     GPT MID    Defense of the Heart  [$8.33, played 7%]  app score -6.58, -17% vs GPT tier below
+     GPT APEX   Ghalta, Stampede Tyrant  [$29.47, played 31%]  app score 0.6, +359% vs GPT tier below  | app also picks it: apex for Clifftop Lookout
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+9. OUT Tranquil Thicket  [played 14%]
+     GPT BUDGET Cactus Preserve  [$2.85, played 24%]  app score null
+     GPT MID    Yavimaya, Cradle of Growth  [$17.19, played 13%]  app score null  ** OVER MID CAP **
+     GPT APEX   Ancient Tomb  [$118.22, played 5%]  app score null
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+   Slots only Build 71 changes (20):
+     OUT Rishkar, Peema Renegade -> budget: Topiary Stomper (12.02) [card is on GPT list]
+     OUT Loot, Exuberant Explorer -> budget: Frenzied Baloth (7.07) | mid: Wayward Swordtooth (10.42)
+     OUT Clifftop Lookout -> budget: Rampant Growth (7.48) | mid: Selvala, Heart of the Wilds (8.74) [card is on GPT list] | apex: Ghalta, Stampede Tyrant (10.3) [card is on GPT list]
+     OUT Arasta of the Endless Web -> budget: Agonasaur Rex (7.95) | mid: The Skullspore Nexus (8.76)
+     OUT Scrapshooter -> budget: Reclamation Sage (7.77)
+     OUT Paradise Druid -> budget: Return of the Wildspeaker (6.44) [card is on GPT list] | mid: Majestic Genesis (6.88, weak) [card is on GPT list]
+     OUT Dungrove Elder -> budget: Kogla, the Titan Ape (5.95) | mid: Defiler of Vigor (6.31, weak) | apex: Vaultborn Tyrant (6.83, weak)
+     OUT Whiptongue Hydra -> mid: Season of Gathering (6.16)
+     OUT Thickest in the Thicket -> budget: Greater Good (3.93) [card is on GPT list] | mid: Railway Brawler (4.12, weak) | apex: The Great Henge (5.64) [card is on GPT list]
+     OUT Arachnogenesis -> budget: Nature's Lore (4.38) | apex: Fanatic of Rhonas (5.63) [card is on GPT list]
+     OUT Terrian, World Tyrant -> budget: Kodama's Reach (4.73)
+     OUT Ripjaw Raptor -> budget: Quakestrider Ceratops (4.56)
+     OUT Monstrous Onslaught -> budget: Wild Growth (3.7)
+     OUT Shamanic Revelation -> budget: Fireshrieker (3.03) | mid: Momentous Fall (3.35, weak)
+     OUT Yeva, Nature's Herald -> budget: Eternal Witness (3.21)
+     OUT Collective Resistance -> mid: Silverback Elder (2.29)
+     OUT Ezuri's Predation -> mid: Three Visits (2.29) [card is on GPT list]
+     OUT Harmonize -> mid: Traverse the Outlands (2.21)
+     OUT Bite Down -> apex: Worldly Tutor (2.11)
+     OUT Carnage Tyrant -> apex: Zopandrel, Hunger Dominus (2.02)
+
+--- TURTLE POWER ---
+
+1. OUT Electric Seaweed  [played 13%, does: removal]
+     GPT BUDGET Raphael, the Nightwatcher  [$0.83, played 22%]  app score 3.62
+     GPT MID    Impact Tremors  [$2.60, played not on page]  app score -0.24, -62% vs GPT tier below
+     GPT APEX   All Will Be One  [$10.72, played 16%]  app score 0.11, +15% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+2. OUT Roadkill Rodney  [played 33%]
+     GPT BUDGET Michelangelo, Mutant BFF  [$0.26, played 27%]  app score 4.38
+     GPT MID    Branching Evolution  [$7.63, played 12%]  app score -1.9, -63% vs GPT tier below
+     GPT APEX   Doubling Season  [$28.36, played 34%]  app score 2.34, +114% vs GPT tier below  | app also picks it: apex for Harmonize
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+3. OUT Rat King, Pale Piper  [played 22%, does: draw]
+     GPT BUDGET Genghis Frog  [$0.30, played 12%]  app score 3.73  | app also picks it: budget for Harmonize
+     GPT MID    Toski, Bearer of Secrets  [$6.69, played not on page, does: draw/protect]  app score -1.14, -62% vs GPT tier below
+     GPT APEX   Roaming Throne  [$49.25, played not on page]  app score -0.02, +38% vs GPT tier below
+     APP for this OUT: budget: Mikey & Leo, Chaos & Order
+
+4. OUT Tempestra, Dame of Games  [played 33%]
+     GPT BUDGET Raph & Leo, Sibling Rivals  [$0.63, played 18%]  app score -0.74
+     GPT MID    Hardened Scales  [$1.93, played 29%]  app score 0.26, +18% vs GPT tier below
+     GPT APEX   The Ozolith  [$62.04, played 11%]  app score -3.63, -58% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+5. OUT Foot Chopper  [played 29%, does: draw/gear]
+     GPT BUDGET Michelangelo's Technique  [$0.34, played 5%]  app score -7.34
+     GPT MID    Beast Within  [$0.44, played 6%, does: removal]  app score -3.58, +188% vs GPT tier below
+     GPT APEX   Cyclonic Rift  [$30.04, played 6%, does: removal]  app score -4.63, -52% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+6. OUT Harmonize  [played 28%, does: draw]
+     GPT BUDGET Evolution Witness  [$0.28, played 13%]  app score 1.08
+     GPT MID    Guardian Project  [$13.15, played not on page, does: draw]  app score -2.62, -70% vs GPT tier below  ** OVER MID CAP **
+     GPT APEX   Rhystic Study  [$61.95, played 10%, does: draw]  app score 0.4, +151% vs GPT tier below
+     APP for this OUT: budget: Genghis Frog | mid: Dark Leo & Shredder (weak) | apex: Doubling Season (weak)
+
+7. OUT Mole Module  [played 17%, does: vehicle]
+     GPT BUDGET The Ooze  [$4.26, played 35%]  app score 3.15  ** OVER BUDGET CAP **  | app also picks it: mid for Krang, the All-Powerful
+     GPT MID    Maskwood Nexus  [$1.83, played not on page]  app score -3.59, -121% vs GPT tier below
+     GPT APEX   Parallel Lives  [$28.88, played 10%]  app score -2.23, +68% vs GPT tier below
+     APP for this OUT: budget: Turtle Van
+
+8. OUT Krang, the All-Powerful  [played 22%]
+     GPT BUDGET Mikey & Don, Party Planners  [$0.36, played 24%]  app score 3.21
+     GPT MID    Unbreakable Formation  [$0.71, played not on page, does: protect]  app score -2.05, -68% vs GPT tier below
+     GPT APEX   Teferi's Protection  [$35.59, played 9%, does: protect]  app score 0.26, +93% vs GPT tier below
+     APP for this OUT: budget: Sally Pride, Lioness Leader | mid: The Ooze (weak)
+
+   Slots only Build 71 changes (2):
+     OUT Acidic Slime -> budget: Michelangelo, Weirdness to 11 (9.3)
+     OUT Biogenic Ooze -> budget: Mutagen Man, Living Ooze (8.06)
+
+--- WAKANDA FOREVER ---
+
+1. OUT Harmonize  [played 32%, does: draw]
+     GPT BUDGET Ironsoul Enforcer  [$0.88, played 19%]  app score 2.09
+     GPT MID    Mystic Forge  [$2.22, played 40%]  app score 3.76, +27% vs GPT tier below  | app also picks it: budget for Harmonize [SAME SLOT]
+     GPT APEX   The One Ring  [$112.03, played 15%, does: draw/protect]  app score 2.2, -20% vs GPT tier below
+     APP for this OUT: budget: Mystic Forge | mid: Chimil, the Inner Sun (weak)
+
+2. OUT Trading Post  [played 37%, does: draw]
+     GPT BUDGET Arc Reactor  [$0.83, played 16%, does: ramp]  app score -1.87
+     GPT MID    Sculpting Steel  [$1.65, played not on page]  app score -5.22, -63% vs GPT tier below
+     GPT APEX   Roaming Throne  [$49.25, played 16%]  app score -1.74, +174% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+3. OUT Palace Jailer  [played 20%, does: removal]
+     GPT BUDGET S.H.I.E.L.D. Helicarrier  [$0.12, played not on page, does: vehicle]  app score -0.78
+     GPT MID    Jhoira's Familiar  [$1.40, played 41%]  app score 5.09, +294% vs GPT tier below
+     GPT APEX   Akroma's Memorial  [$34.98, played 9%, does: protect]  app score 1.42, -47% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+4. OUT Whispersilk Cloak  [played 61%, does: protect/gear]
+     GPT BUDGET Adaptive Omnitool  [$1.43, played 20%, does: gear]  app score -2.55
+     GPT MID    Lightning Greaves  [$3.68, played 15%, does: protect/gear]  app score -2.36, +3% vs GPT tier below
+     GPT APEX   Kaldra Compleat  [$9.41, played 14%, does: removal/protect/gear]  app score -4.11, -23% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+5. OUT Fleecemane Lion  [played 14%, does: protect]
+     GPT BUDGET Memnarch, the Warden  [$1.04, played 9%, does: draw/protect]  app score 3.36
+     GPT MID    Brightglass Gearhulk  [$5.71, played 20%]  app score 5.06, +33% vs GPT tier below
+     GPT APEX   Blightsteel Colossus  [$31.90, played 14%, does: protect]  app score 3.79, -18% vs GPT tier below
+     APP for this OUT: budget: Bronze Guardian
+
+6. OUT Meteor Golem  [played 41%, does: removal]
+     GPT BUDGET Threefold Thunderhulk  [$0.33, played 8%]  app score -2.18
+     GPT MID    Wurmcoil Engine  [$9.85, played 14%]  app score -2.27, -2% vs GPT tier below
+     GPT APEX   Portal to Phyrexia  [$50.54, played 14%]  app score -1.61, +15% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+7. OUT Conduit of Worlds  [played 36%]
+     GPT BUDGET Living Brain, Mechanical Marvel  [$0.12, played not on page]  app score -5.33
+     GPT MID    Foundry Inspector  [$0.31, played 27%]  app score 0.25, +279% vs GPT tier below
+     GPT APEX   Unwinding Clock  [$19.93, played 13%]  app score -1.2, -23% vs GPT tier below
+     APP for this OUT: no upgrade recommended (app keeps the card)
+
+   Slots only Build 71 changes (3):
+     OUT Divine Visitation -> budget: Swiftfoot Boots (6.03)
+     OUT Greater Good -> budget: Dyadrine, Synthesis Amalgam (2.58) | mid: Genji Glove (2.86, weak)
+     OUT Loyal Retainers -> mid: Heroic Intervention (2.4)
+
+5. WHAT CLAUDE IS AND IS NOT CLAIMING
+- Not claiming a winner. On ChatGPT's 111 picks the app's score puts 66 below its own bar, but that score has the two biases in section 3,
+  so those numbers are a list of disagreements to argue, not a count of ChatGPT errors.
+- Claiming: ChatGPT's list has 12 objective problems in 111 picks (7 of them it flagged itself before the reveal); Build 71's list has
+  two systematic scoring flaws that a human reader caught at once.
+- The slot disagreement is the core question. The two lists share 21 cards but only 2 OUT -> IN pairs.
+
+6. PROPOSED NEXT STEP
+For each of the 37 ChatGPT slots and the Build 71 slots it does not share, argue in the agreed form:
+incoming quality -> cut quality -> effect on the resulting 100 -> tier validity -> winner (GPT / Build 71 / tie / neither).
+Suggested order: Tramplesaurus Rex first (largest disagreement, clearest app flaws), then Wakanda Forever (least overlap).
