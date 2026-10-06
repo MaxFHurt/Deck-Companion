@@ -39,12 +39,15 @@ const THEMES = {
 const ROLE_LABEL = {ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes'};
 const LAND_WORDS = '(basic land|land|plains|island|swamp|mountain|forest)';
 const ROLE_RE = {
-  ramp: new RegExp('\\{T\\}[^.]{0,40}: Add |: Add \\{|adds? (an additional|one additional|\\{)|add (one|two|three|x) mana|search your library for [^.]*' + LAND_WORDS + ' cards?[^.]*onto the battlefield|land card from your hand onto the battlefield|(?<!controller )creates? [^.]*treasure token|additional land on each', 'i'),
-  removal: /(destroy|exile) target (?!player|card|instant|sorcery|spell|non-|creature you control|creature card|artifacts, creatures)[^.]*(creature|permanent|artifact|enchantment|planeswalker)|deals? (\d+|x) damage to (any target|target creature)|target creature gets -\d|return target (nonland permanent|creature)[^.]*to its owner's hand|fights target|owner of target permanent shuffles|exile that creature/i,
-  wipe: /(destroy|exile) all (creatures|nontoken|nonland|artifacts|permanents|other)|deals? (\d+|x) damage to each creature|all creatures get -|destroy all artifacts, creatures|return all (nonland|attacking)/i,
-  counter: /counter target/i,
-  tutor: /search your library for (a|an) (card|creature card|artifact or enchantment card|instant or sorcery card|equipment card)/i,
-  protect: /hexproof|indestructible|phase out|protection from|\bshroud\b/i
+  ramp: new RegExp('\\{T\\}[^.]{0,40}: Add |: Add \\{|adds? (an additional|one additional|\\{)|add (one|two|three|x) mana|search your library for [^.]*' + LAND_WORDS + ' cards?[^.]*onto the battlefield|land card from your hand onto the battlefield|(?<!controller )creates? [^.]*treasure token|additional land on each|play (an|one|two|three|x) additional lands?|untap target (forest|land)|produces? (twice|three times) as much|(lands?|permanents?) for mana, (add|it produces)', 'i'),
+  // one card or a few: destroy, exile, bounce, shrink, fight, bite, edict, lock down, turn into something harmless
+  removal: /(destroy|exile) (up to (one|two|three|x) )?(other |another )?target (?!player|card|instant|sorcery|spell|non-|creature you control|creature card|artifacts, creatures|land\b)[^.]*(creature|permanent|artifact|enchantment|planeswalker|battle)|deals? (\d+|x|that much|twice that much) damage to (any target|(up to (one|two|three) )?(other |another )?target (attacking |blocking |tapped )?(creature|permanent|planeswalker))|damage equal to (its|their|that creature's|x|the number)[^.]{0,40} to (any target|(up to one |another |each of up to \w+ )?target (creature|permanent|planeswalker))|deals damage equal to its power to (any target|(another |up to one )?target|each of)|target creature gets -(\d+|x)|gets? -(\d+|x)\/-(\d+|x) until|return (up to (one|two) )?target (nonland permanent|creature|permanent)[^.]*to its owner's hand|fights? (up to one |another |a different |target )|owner of target permanent shuffles|exile that creature|target (player|opponent) sacrifices (a|an|two) (creature|permanent|nonland)|each opponent sacrifices (a|an) (creature|nontoken creature|permanent)|put target (creature|nonland permanent|permanent)[^.]*(top|bottom) of its owner's library|enchanted (creature|permanent) (can't attack or block|can't attack, block|loses all abilities|doesn't untap)|target creature[^.]*loses all abilities|gain control of target (creature|permanent|artifact)/i,
+  wipe: /(destroy|exile) (all|each) (?!lands)(creatures?|nontoken|nonland|artifacts?|enchantments?|permanents?|other|non)|deals? (\d+|x|that much) damage to each (creature|other creature|non|attacking|blocking)|damage to each creature|(all|each) (other )?creatures? gets? -|creatures your opponents control get -(\d+|x)\/-|destroy all artifacts, creatures|return (all|each) (nonland|attacking|creature|other)[^.]*to (its|their) owners?'? hands?|each player sacrifices (all|\w+ creatures)|sacrifices? all (creatures|permanents|nonland)|damage divided as you choose among any number of target creatures|each of those[^.]*fights a different|(destroy|exile|damage|return|gets -)[^]*\boverload\b/i,
+  counter: /counter (up to one |another )?target|counter (that|the) (spell|ability)(?! unless (that player|its controller) pays)/i,   // ward's reminder text is not a counterspell
+  tutor: /search your library for (a|an|up to (one|two|three|x)|two|three|x) (?!basic|land|plains|island|swamp|mountain|forest|gate)[^.]*cards?/i,
+  // protects what you control (grants, fogs, blinks, phasing); a creature that is merely hard to kill itself does not count
+  protect: /(creatures?|permanents?|artifacts?) you control[^.]{0,45}(gain|gains|have|has)[^.]{0,35}(hexproof|indestructible|protection from|shroud|ward)|(target|another target|equipped|enchanted|each|that) (creature|permanent|artifact)[^.]{0,60}(gains?|has|have)[^.]{0,40}(hexproof|indestructible|protection from|shroud|ward)|you (gain|have) (hexproof|protection from|shroud)|phases? out|prevent all (combat )?damage|(totem|umbra) armor|regenerate (target|each|enchanted|equipped)|can't be the targets? of spells or abilities your opponents control/i,
+  blink: /exile (up to one |another |any number of )?target (creature|permanent|nonland permanent)s? you control[^.]*(then )?return/i
 };
 
 let LIB = [], IDX = new Map();
@@ -98,15 +101,17 @@ function find(name){ if (!name) return null; return IDX.get(norm(name)) || IDX.g
 function tags(c){
   if (c._t) return c._t;
   const o = c.o || '', t = frontType(c), land = /\bLand\b/.test(t), th = {}, roles = new Set();
+  // a spell with a land on its back face is judged for jobs by its front face only
+  const ro = / \/\/ [^/]*\bLand\b/.test(c.t || '') ? o.split(' // ')[0] : o;
   for (const k in THEMES){ const T = THEMES[k]; if (!T.re) continue; th[k] = T.re.test(o) ? 1 : (T.type && T.type.test(t) ? 0.5 : 0); }
   if (!land){
-    if (ROLE_RE.ramp.test(o)) roles.add('ramp');
-    if (THEMES.draw.re.test(o) && !/each player draws|target opponent draws/i.test(o)) roles.add('draw');
-    if (ROLE_RE.wipe.test(o)) roles.add('wipe');
-    else if (ROLE_RE.removal.test(o)) roles.add('removal');
-    if (ROLE_RE.counter.test(o)) roles.add('counter');
-    if (ROLE_RE.tutor.test(o) && !roles.has('ramp')) roles.add('tutor');
-    if (ROLE_RE.protect.test(o)) roles.add('protect');
+    if (ROLE_RE.ramp.test(ro)) roles.add('ramp');
+    if (THEMES.draw.re.test(ro) && !/each player draws|target opponent draws/i.test(ro)) roles.add('draw');
+    if (ROLE_RE.wipe.test(ro)) roles.add('wipe');
+    else if (ROLE_RE.removal.test(ro.replace(/exile[^.]*\.?( then,?)? ?return[^.]*(to|onto) the battlefield[^.]*\./gi, ''))) roles.add('removal');
+    if (ROLE_RE.counter.test(ro)) roles.add('counter');
+    if (ROLE_RE.tutor.test(ro) && !roles.has('ramp')) roles.add('tutor');
+    if (ROLE_RE.protect.test(ro) || (/\bInstant\b/.test(t) && ROLE_RE.blink.test(ro))) roles.add('protect');   // an instant-speed blink saves a creature; a blink engine does not count
   }
   return c._t = {land, th, roles};
 }
