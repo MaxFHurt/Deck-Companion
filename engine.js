@@ -487,7 +487,7 @@ function autoSwaps(d){
 // commander synergy and fit with the build. A swap is scored on the whole deck: what comes in, minus what leaves, minus the
 // hole it leaves in a job the deck is thin on, plus the gap it fills. The best pair is taken first, so every pick is the best
 // in both directions among what is left. A swap that does not clearly improve the deck is not offered.
-const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:0.10, stepMin:0.01, curve:0.25};   // step: a substantial step is 10% over the tier below (Apex: also 20% over Budget). A smaller real gain is still shown, marked weak.
+const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:0.10, stepMin:0.01, curve:0.25, pkg:0, pkgFloor:0, hU:2, hO:3, hS:0.2};   // step: a substantial step is 10% over the tier below (Apex: also 20% over Budget). A smaller real gain is still shown, marked weak.
 // Needs play data for the commander. Running the same method without it was tested and did worse than the older engine
 // (see SMART.wfThin and friends, kept for that work), so a commander with too little data still uses the older engine.
 function smartOK(d, ctx){ return d.format === 'commander' && !!ctx.edh && ctx.edh.map.size >= 60; }
@@ -547,18 +547,28 @@ function smartPaths(d, o){
   for (const t of TIER_ORDER){
     const upTo = TIER_ORDER.slice(0, TIER_ORDER.indexOf(t) + 1), best = i => { const P = pick.get(i) || {}; for (let k = upTo.length - 1; k >= 0; k--) if (P[upTo[k]]) return {t:upTo[k], x:P[upTo[k]]}; return null; };
     let removed = 0, after, avg;
-    for (let pass = 0; pass < 6; pass++){
+    // EXPERIMENT (SMART.pkg, off by default): judge the package by the deck it produces. Role health is the distance of
+    // ramp/draw/removal/wipes from their targets: a shortfall costs more the deeper it is, a little over target is free,
+    // far over costs gradually more (no cap). Package utility = card quality and fit gained + change in role health.
+    // The swap whose removal improves utility most is undone, and this repeats until no removal helps.
+    const HR = ['ramp', 'draw', 'removal', 'wipe'], pen = (n, tg) => { const dd2 = tg - n; if (dd2 > 0) return K.hU * dd2 * (1 + dd2 / tg); const s2 = n - tg - K.hS * tg; return s2 > 0 ? K.hO * s2 * s2 / tg : 0; };
+    const health = N => -HR.reduce((s, j) => s + pen(N[j] || 0, floor[j]), 0);
+    const util = L => { const N = Object.assign({}, cnt); let q = 0; L.forEach(z => { const cu = cuts[z.i], a = z.x.a; cu.jobs.forEach(j => N[j] = (N[j] || 0) - 1); a.jobs.forEach(j => N[j] = (N[j] || 0) + 1); q += a.v - cu.v + K.fn * fn(a.c, cu.c); }); return q + health(N); };
+    for (let pass = 0; pass < (K.pkg ? 60 : 6); pass++){
       const act = [...pick.keys()].map(i => ({i, b:best(i)})).filter(z => z.b);
       after = Object.assign({}, cnt); let sum = nonland.reduce((s, c) => s + cmcOf(c), 0);
       act.forEach(z => { cuts[z.i].jobs.forEach(j => after[j] = (after[j] || 0) - 1); z.b.x.a.jobs.forEach(j => after[j] = (after[j] || 0) + 1); sum += cmcOf(z.b.x.a.c) - cmcOf(cuts[z.i].c); });
       avg = sum / Math.max(1, nonland.length);
       const mine = act.filter(z => z.b.t === t && !z.b.x.held); let drop = null;
       // 1. a job the deck needs has been thinned below its floor: undo the weakest swap that gave that job up
-      for (const j of JOBS){ const fl = floor[j] != null ? Math.min(floor[j], cnt[j] || 0) : Math.min(cnt[j] || 0, 2); if ((after[j] || 0) < fl){ const c2 = mine.filter(z => cuts[z.i].jobs.includes(j) && !z.b.x.a.jobs.includes(j)).sort((a, b) => a.b.x.v - b.b.x.v)[0]; if (c2){ drop = c2; break; } } }
+      if (!K.pkg || K.pkgFloor) for (const j of JOBS){ const fl = floor[j] != null ? Math.min(floor[j], cnt[j] || 0) : Math.min(cnt[j] || 0, 2); if ((after[j] || 0) < fl){ const c2 = mine.filter(z => cuts[z.i].jobs.includes(j) && !z.b.x.a.jobs.includes(j)).sort((a, b) => a.b.x.v - b.b.x.v)[0]; if (c2){ drop = c2; break; } } }
       // 2. the package has pushed the curve up: undo the swap that adds the most mana for the least gain
       if (!drop && avg > avg0 + K.curve){ drop = mine.map(z => ({z, up:cmcOf(z.b.x.a.c) - cmcOf(cuts[z.i].c)})).filter(y => y.up > 0).sort((a, b) => b.up / Math.max(0.5, b.z.b.x.v) - a.up / Math.max(0.5, a.z.b.x.v)).map(y => y.z)[0] || null; }
       // 3. challenge every swap against the deck as it would be with all the others made
-      if (!drop){ let worst = null, wv = 1e9; mine.forEach(z => { const N = Object.assign({}, after); cuts[z.i].jobs.forEach(j => N[j] = (N[j] || 0) + 1); z.b.x.a.jobs.forEach(j => N[j] = (N[j] || 0) - 1); const v = delta(cuts[z.i], z.b.x.a, N); if (v < mMin * 0.75 && v < wv){ wv = v; worst = z; } }); drop = worst; }
+      if (K.pkg && !drop){ const cur = act.map(z => ({i:z.i, x:z.b.x})), U0 = util(cur), lowT = TIER_ORDER.slice(0, TIER_ORDER.indexOf(t)); let bestG = 1e-6;
+        mine.forEach(z => { const P = pick.get(z.i); let fb = null; for (let k = lowT.length - 1; k >= 0; k--) if (P[lowT[k]]){ fb = P[lowT[k]]; break; }
+          const alt = cur.filter(y => y.i !== z.i); if (fb) alt.push({i:z.i, x:fb}); const g = util(alt) - U0; if (g > bestG){ bestG = g; drop = z; } }); }
+      else if (!drop){ let worst = null, wv = 1e9; mine.forEach(z => { const N = Object.assign({}, after); cuts[z.i].jobs.forEach(j => N[j] = (N[j] || 0) + 1); z.b.x.a.jobs.forEach(j => N[j] = (N[j] || 0) - 1); const v = delta(cuts[z.i], z.b.x.a, N); if (v < mMin * 0.75 && v < wv){ wv = v; worst = z; } }); drop = worst; }
       if (!drop) break;
       const P = pick.get(drop.i); taken.delete(P[t].a.c._n); delete P[t]; removed++;
     }
