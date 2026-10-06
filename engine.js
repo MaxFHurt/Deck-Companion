@@ -238,7 +238,8 @@ function analyze(d){
 }
 
 // ----- scoring & recommendations -----
-const EDH_MISS = 3;
+// Tuning weights: how much what the commander's players actually run counts against theme-word matching.
+let EDH_MISS = 3, W_INC = 10, W_SYN = 4, AIM_K = 1, STAPLE_K = 1, POP_K = 1;
 const AIM_W = [5, 3.6, 2.6, 1.9, 1.4, 1];
 const CORE = new Set(['sol ring','arcane signet','command tower']);
 const TRIBE_SET = new Set(TRIBES);
@@ -248,25 +249,56 @@ function foreignTribe(c){
   while ((m = re.exec(c.o || ''))){ const w = m[1] === 'Elv' ? 'Elf' : m[1]; if (TRIBE_SET.has(w)){ r = w; break; } }
   return c._ft = r;
 }
+// ----- build filters: creature types and keywords -----
+// A filter is either a preference (matching cards score higher) or a rule. A creature-type rule applies to creature slots
+// only; a keyword rule applies to theme slots only, so the deck still gets its lands, ramp, card draw and removal.
+const KEYWORDS = {
+  stun:{label:'Stun', re:/stun counter/i}, tap:{label:'Tap / freeze', re:/\btap (?:target|up to|all)|doesn.t untap/i}, flying:{label:'Flying', re:/\bflying\b/i},
+  trample:{label:'Trample', re:/\btrample\b/i}, haste:{label:'Haste', re:/\bhaste\b/i}, deathtouch:{label:'Deathtouch', re:/\bdeathtouch\b/i}, lifelink:{label:'Lifelink', re:/\blifelink\b/i},
+  vigilance:{label:'Vigilance', re:/\bvigilance\b/i}, menace:{label:'Menace', re:/\bmenace\b/i}, strike:{label:'First / double strike', re:/\b(?:first|double) strike\b/i},
+  hexproof:{label:'Hexproof / ward', re:/\bhexproof\b|\bward\b/i}, indestructible:{label:'Indestructible', re:/\bindestructible\b/i}, flash:{label:'Flash', re:/\bflash\b/i},
+  proliferate:{label:'Proliferate', re:/\bproliferate/i}, goad:{label:'Goad', re:/\bgoad/i}, mill:{label:'Mill', re:/\bmills?\b/i}, treasure:{label:'Treasure', re:/\bTreasure token/},
+  food:{label:'Food', re:/\bFood token/}, clue:{label:'Clues / investigate', re:/\binvestigate|\bClue token/i}, scry:{label:'Scry / surveil', re:/\bscry \d|\bsurveil \d/i},
+  bounce:{label:'Bounce', re:/return (?:target|up to|each|all)[^.]*to (?:its|their) owner(?:'|’)s? hands?/i}, exile:{label:'Exile effects', re:/\bexile (?:target|up to|each|all)/i},
+  copy:{label:'Copy effects', re:/\bcopy (?:target|that|it|of)\b|create a token that.s a copy/i}, sneak:{label:'Ninjutsu / unblockable', re:/\bninjutsu\b|can.t be blocked/i}};
+function creatureTypes(){
+  if (creatureTypes.n === LIB.length && creatureTypes.v) return creatureTypes.v; const m = new Map();
+  for (const c of LIB){ if (!/\bCreature\b/.test(c.t)) continue; c.t.split(' // ').forEach(f => { if (!/\bCreature\b/.test(f)) return; (f.split('—')[1] || '').trim().split(/\s+/).forEach(w => { if (/^[A-Z][A-Za-z'’-]+$/.test(w)) m.set(w, (m.get(w) || 0) + 1); }); }); }
+  creatureTypes.n = LIB.length; return creatureTypes.v = [...m.entries()].filter(x => x[1] >= 2).map(x => x[0]).sort();
+}
+function hasCType(c, t){ if (!/\bCreature\b/.test(c.t)) return false; if (/\bChangeling\b/.test(c.o || '')) return true; return c.t.split(' // ').some(f => new RegExp('\\b' + t + '\\b').test(f.split('—')[1] || '')); }
+function hasKey(c, k){ const K = KEYWORDS[k]; return !!K && K.re.test(c.o || ''); }
+function mustOk(c, d){
+  if (d.typesMust && d.types && d.types.length && /\bCreature\b/.test(frontType(c)) && !d.types.some(t => hasCType(c, t))) return false;
+  if (d.keysMust && d.keys && d.keys.length && !tags(c).land){ const r = tags(c).roles; if (!['ramp', 'draw', 'removal', 'wipe'].some(j => r.has(j)) && !d.keys.some(k => hasKey(c, k))) return false; }
+  return true;
+}
+let FILT_W = 6, FILT_MUST = 10;
+function filtBonus(c, d){
+  let s = 0; const why = [], wt = 4, wk = d.keysMust ? FILT_MUST : FILT_W;   // a type rule already narrows the creatures, so it needs no extra push
+  (d.types || []).forEach(t => { if (hasCType(c, t)){ s += wt; why.push(t); } else if (new RegExp('\\b' + t + 's?\\b').test(c.o || '')) s += wt / 2; });
+  (d.keys || []).forEach(k => { if (hasKey(c, k)){ s += wk; why.push(KEYWORDS[k].label); } });
+  return {s, why};
+}
 function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
-  (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : THEMES[a].label); } } });
+  (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : THEMES[a].label); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
-  if (ctx.edh){ const x = ctx.edh.map.get(c._n); if (x){ s += 4 * x.inc + 4 * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); }
+  if (ctx.edh){ const x = ctx.edh.map.get(c._n); if (x){ s += W_INC * x.inc + W_SYN * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); }
     // When there is plenty of data for this commander, a card none of its players run needs a better reason to be here.
     else if (ctx.edh.map.size >= 100 && !(c.r && c.r < 400) && !CORE.has(c._n)) s -= EDH_MISS; }
+  if ((d.types && d.types.length) || (d.keys && d.keys.length)){ const fb = filtBonus(c, d); if (fb.s){ s += fb.s; if (fb.why.length){ hit = true; fb.why.forEach(w => why.unshift(w)); } } }
   if (d.prevCmd && d.prevCmd === c.n){ s += 3; hit = true; why.unshift('Your previous commander'); }
   a0 = s;
-  s += c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.8);   // no rank usually means a new card, not a bad one
+  s += POP_K * (c.r ? 3 * (1 - Math.log(c.r + 1) / Math.log(40000)) : (c.src === 'starter' ? 1.6 : 0.8));   // no rank usually means a new card, not a bad one
   if (ctx.cap === Infinity) s += Math.min(2.5, Math.log10((c.p || 0) + 1) * 1.5);
   else if (ctx.cap > 3) s += Math.min(1, Math.log10((c.p || 0) + 1));
   c.ci.forEach(x => { if (!ctx.focus.includes(x)) s -= 1.5; });
   const ft = foreignTribe(c); if (ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t))){ s -= 5; hit = false; a0 = 0; }
   // Proven staples: the most-played cards anywhere (Rhystic Study, Teferi's Protection, Swords to Plowshares) earn their
   // slot in any deck, tapering off by about #400. The top ~250 count as a fit even when they touch no aim.
-  if (ctx.uni && ctx.uni.has(c.sc)){ s += 1; if (why.length < 2) why.push('In-universe'); }   // theme breaks ties
-  if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6;
-  else if (c.r && c.r < 400) s += 6 * Math.log(400 / c.r) / Math.log(400 / 60);
+  if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6 * STAPLE_K;
+  else if (c.r && c.r < 400) s += STAPLE_K * 6 * Math.log(400 / c.r) / Math.log(400 / 60);
   if (!hit && (CORE.has(c._n) || (c.r && c.r < 250)) && !(ft && ft !== ctx.tribe)){ hit = true; why.push('Proven staple'); }
   return {s, hit, why, a:a0};
 }
@@ -287,7 +319,9 @@ function recommend(d, swaps, fillOnly){
   // only while the bracket has room (autoSwaps also lets one Game Changer replace another).
   const BR = null, gcGate = false; let gcLeft = Infinity;   // brackets are a label, not a limit
   const brOk = c => !BR || ((BR.mld || !BTAGS.mld.has(c._n)) && (BR.turns > 0 || !BTAGS.turns.has(c._n)));
-  const okCard = c => brOk(c) && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && c.p <= ctx.cap)) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && !(recommend.usedN && recommend.usedN.has(c._n)) && (!recommend.uniOnly || !ctx.uni || tags(c).land || ctx.uni.has(c.sc)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
+  // A card keeps the tier it was first recommended in for this deck, even if its price has since risen past that tier's line.
+  const lockOk = c => { const r = recommend.lock && recommend.lock[c._n]; return !!r && TIERS[r.t] && TIERS[r.t].cap <= ctx.cap; };
+  const okCard = c => brOk(c) && mustOk(c, d) && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && (ctx.cap === Infinity || (c.p != null && (c.p <= ctx.cap || lockOk(c)))) && (!recommend.minP || (c.p != null && c.p > recommend.minP)) && !(recommend.usedN && recommend.usedN.has(c._n)) && (!recommend.own || recommend.own.has(c._n)) && (!recommend.skip || !recommend.skip.has(c._n)) && !dismissed.has(c._n);
 
   // lands first
   let landNeed = Math.min(nAdd, Math.max(0, T.lands - A.lands));
@@ -375,6 +409,7 @@ function recommend(d, swaps, fillOnly){
 // job-holding slot without doing that job.
 // Fixes the deck needs anyway (open slots, too many cards, missing lands, over-cap / off-color / illegal cards) are always included.
 const JOBS = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'];
+const JOB_LABEL = {ramp:'ramp', draw:'card draw', removal:'removal', wipe:'a board wipe', protect:'protection', counter:'a counterspell', tutor:'a tutor'};
 function jobsOf(n){ const c = find(n); if (!c || tags(c).land) return []; const j = [...tags(c).roles].filter(r => JOBS.includes(r)), t = frontType(c); if (/\bEquipment\b/.test(t)) j.push('gear'); else if (/\bAura\b/.test(t)) j.push('aura'); else if (/\bVehicle\b/.test(t)) j.push('vehicle'); return j; }
 function autoSwaps(d){
   const A0 = analyze(d), ctx = A0.ctx, open = A0.T.size - A0.size, landGap = Math.max(0, A0.T.lands - A0.lands), top = (d.aims || [])[0];
@@ -441,22 +476,82 @@ function autoSwaps(d){
 // cards over $3 up to $12, Apex at cards over $12, so the three options for a card are genuinely different steps.
 // Tiers are steps up in strength under a price ceiling (Budget $3, Mid $12, Apex none), not price bands: a $1 card can be
 // the Mid pick if it clearly beats the Budget pick. A card already suggested at a cheaper tier is left out of the next.
+// ----- upgrade picks built from what this commander's players run -----
+// Candidates are the cards most played with the commander that the deck is missing, plus the best-fitting cards with no play
+// data (new cards are not punished for being new). Each candidate and each card in the deck gets a value from play rate,
+// commander synergy and fit with the build. A swap is scored on the whole deck: what comes in, minus what leaves, minus the
+// hole it leaves in a job the deck is thin on, plus the gap it fills. The best pair is taken first, so every pick is the best
+// in both directions among what is left. A swap that does not clearly improve the deck is not offered.
+const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5};
+function smartOK(d, ctx){ return d.format === 'commander' && !!ctx.edh && ctx.edh.map.size >= 60; }
+function smartPaths(d, o){
+  const dd = Object.assign({}, d, {tier:'apex'}), ctx = ctxOf(dd), K = SMART, unlock = [], rows = new Map(); o = o || {};
+  const E = c => ctx.edh.map.get(c._n), isNew = c => !E(c) && !c.r;
+  const fit = c => { if (c._sf !== undefined && c._sfk === smartPaths.k) return c._sf; const a = W_INC, b = W_SYN, p = POP_K; W_INC = 0; W_SYN = 0; POP_K = 0; let s; try { s = baseScore(c, dd, ctx).s; } finally { W_INC = a; W_SYN = b; POP_K = p; } if (isNew(c)) s += EDH_MISS; c._sf = s; c._sfk = smartPaths.k; return s; };
+  smartPaths.k = (smartPaths.k || 0) + 1;
+  const val = c => { const e = E(c); return K.wi * (e ? e.inc : isNew(c) ? K.prior : 0) + K.ws * (e ? e.syn : 0) + K.wf * fit(c); };
+  const have = new Set(d.cards.map(x => norm(x.n))); have.add(norm(d.commander || '')); if (d.partner) have.add(norm(d.partner));
+  const dis = new Set((d.dismissed || []).map(norm)), skip = o.skip || new Set(), own = o.own || null;
+  const usable = c => c && !have.has(c._n) && !dis.has(c._n) && !tags(c).land && !isBasic(c.n) && legalIn(c, d.format) && c.ci.every(z => ctx.ident.includes(z)) && c.p != null && mustOk(c, d);
+  const okNew = c => usable(c) && !skip.has(c._n) && !(own && own.has(c._n));
+  const mk = c => ({c, jobs:jobsOf(c.n), v:val(c)});
+  const seen = new Set(), C = [];
+  [...ctx.edh.map.entries()].map(([k, v]) => ({c:IDX.get(k), inc:v.inc})).filter(x => okNew(x.c)).sort((a, b) => b.inc - a.inc).slice(0, K.pool).forEach(x => { seen.add(x.c._n); C.push(mk(x.c)); });
+  if (K.extra) LIB.filter(c => !seen.has(c._n) && okNew(c)).map(c => ({c, f:fit(c)})).filter(x => x.f >= K.fitMin).sort((a, b) => b.f - a.f).slice(0, K.extra).forEach(x => C.push(mk(x.c)));
+  const tierOf = c => c.p <= TIERS.budget.cap ? 'budget' : c.p <= TIERS.mid.cap ? 'mid' : 'apex';
+  const noCut = o.noCut || new Set();
+  const cuts = d.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !tags(x.c).land && !x.e.l && !noCut.has(norm(x.e.n))).map(x => ({n:x.e.n, c:x.c, jobs:jobsOf(x.e.n), v:val(x.c)}));
+  const cnt = {}; d.cards.forEach(e => jobsOf(e.n).forEach(j => cnt[j] = (cnt[j] || 0) + 1));
+  const th = c => Object.keys(tags(c).th).filter(k => tags(c).th[k] === 1 && k !== 'aggro');
+  const fn = (a, b) => 2 * th(a).filter(k => th(b).includes(k)).length + (mainType(a) === mainType(b) ? 1 : 0);
+  const delta = (cut, add) => { let x = add.v - cut.v;
+    cut.jobs.forEach(j => { if (!add.jobs.includes(j)) x -= K.wd * Math.max(0, (K.T - (cnt[j] - 1)) / K.T); });
+    add.jobs.forEach(j => { if (!cut.jobs.includes(j)) x += K.wk * Math.max(0, (K.T - (cnt[j] || 0)) / K.T); });
+    return x + K.fn * fn(add.c, cut.c); };
+  // Play rate is evidence, not a gate: a card also qualifies on synergy, on fit with the build, or by being too new to have data.
+  const ev = a => { const e = E(a.c); return (e && (e.inc >= 0.1 || e.syn >= 0.1)) || fit(a.c) >= K.fitMin || isNew(a.c); };
+  const pair = (cu, a, v) => { const why = (isNew(a.c) ? ['New card · not enough play data yet'] : []).concat(baseScore(a.c, dd, ctx).why); const gap = a.jobs.find(j => !cu.jobs.includes(j) && (cnt[j] || 0) < K.T * 0.75); if (gap && why.length < 2 && JOB_LABEL[gap]) why.push('Adds ' + JOB_LABEL[gap]);
+    return {cut:cu.n, add:a.c.n, q:1, gain:+v.toFixed(2), aq:+a.v.toFixed(2), why:why.slice(0, 2), cutWhy:[], gc:!!a.c.gc, gcOut:!!cu.c.gc, smart:true}; };
+  const put = (cu, t, p) => { let r = rows.get(cu.n); if (!r){ r = {cut:cu.n, opts:{}, gain:0}; rows.set(cu.n, r); } r.opts[t] = p; r.gain = Math.max(r.gain, p.gain); };
+  const held = new Map(); (o.locks || []).forEach(x => held.set(x.k, x));
+  for (const t of ['apex', 'mid', 'budget']){
+    const L = C.filter(x => !held.has(x.c._n) && tierOf(x.c) === t), uc = new Set(), ua = new Set(), M = [];
+    cuts.forEach((cu, i) => L.forEach((a, k) => { const v = delta(cu, a); if (v >= K.m && ev(a)) M.push([v, i, k]); })); M.sort((a, b) => b[0] - a[0]);
+    // Picks the player has already been shown hold their slot unless a clearly better card has turned up for it.
+    (o.locks || []).filter(x => x.t === t).forEach(x => { const i = cuts.findIndex(cu => cu.n === x.pair.cut), c = find(x.pair.add); if (i < 0 || !usable(c)) return;
+      const a = mk(c), now = delta(cuts[i], a), ch = M.find(m => m[1] === i);
+      if (ch && ch[0] >= now + LOCK_MARGIN){ unlock.push(x.k); return; }
+      uc.add(i); put(cuts[i], t, Object.assign(pair(cuts[i], a, now), {held:true})); });
+    for (const [v, i, k] of M){ if (uc.has(i) || ua.has(k)) continue; uc.add(i); ua.add(k); put(cuts[i], t, pair(cuts[i], L[k], v)); }
+  }
+  return {rows, unlock};
+}
 const TIER_STEPS = [['budget', 0], ['mid', 0], ['apex', 0]];
+const LOCK_MARGIN = 2;   // how much better a new card must be before it takes a slot from a pick the player has already been shown
 function upgradePaths(d){
   const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{free:0, budget:0, mid:0, apex:0}, cost:{free:0, budget:0, mid:0, apex:0}, shift:{free:{}, budget:{}, mid:{}, apex:{}}};
   // Free swaps come first: cards the player already owns (their library). Paid tiers never suggest an owned card,
   // and must beat the free swap for the same slot to be shown at all.
   const usedN = new Set();
-  const own = upgradePaths.own && upgradePaths.own.size ? upgradePaths.own : null, steps = (own ? [['free', 0]] : []).concat(TIER_STEPS);
-  recommend.paths = true;
+  const own = upgradePaths.own && upgradePaths.own.size ? upgradePaths.own : null, smart = smartOK(d, ctxOf(d)), steps = (own ? [['free', 0]] : []).concat(smart ? [['budget', 0]] : TIER_STEPS);
+  out.smart = smart;
+  recommend.paths = true; recommend.lock = d.recP || null;
+  // Picks already shown for this deck hold their slot and tier: ordinary price drift must not reshuffle them. A held pick
+  // gives way only to a clearly better card for the same slot, or when it stops being usable (swapped in, ruled out, owned, illegal).
+  out.unlock = []; const locks = [];
+  { const inDeck = new Set(d.cards.map(x => norm(x.n))), dis = new Set((d.dismissed || []).map(norm)), ident = ctxOf(d).ident;
+    for (const k in (d.recP || {})){ const r = d.recP[k], p = r && r.pair, c = p && find(p.add); if (!p || !TIERS[r.t]) continue;
+      if (!c || !inDeck.has(norm(p.cut)) || inDeck.has(k) || dis.has(k) || (own && own.has(k)) || !legalIn(c, d.format) || !c.ci.every(x => ident.includes(x))) continue;
+      locks.push({k, t:r.t, pair:p}); usedN.add(k); } }
   try {
     steps.forEach(([t, minP]) => {
-      recommend.minP = minP; recommend.usedN = usedN; recommend.uniOnly = t === 'budget'; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
+      recommend.minP = minP; recommend.usedN = usedN; recommend.own = t === 'free' ? own : null; recommend.skip = t !== 'free' ? own : null;
       const R = autoSwaps(Object.assign({}, d, {tier:t === 'free' ? 'apex' : t}));
       if (t === 'budget'){ out.A = R.A; out.drops = R.drops; out.fills = R.fills.reduce((s, a) => s + a.q, 0); }
-      R.pairs.forEach(p => {
+      const take = (p, forced) => {
         if (used.has(p.add) && !isBasic(p.add)) return;   // a card is only ever suggested once
         if (p.land || p.fix){ if (t === 'budget'){ out.fixes.push(p); used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add)); } return; }
+        if (smart && t !== 'free') return;   // the paid tiers come from smartPaths below
         let L = by.get(p.cut); if (!L){ L = {cut:p.cut, opts:{}, gain:0}; by.set(p.cut, L); }
         if (L.opts[t]) return;
         // Don't force an upgrade: it must clearly beat the card it replaces, and beat the cheaper tier's pick for the same card,
@@ -466,14 +561,26 @@ function upgradePaths(d){
         // it is left out of the tier totals and the buy list.
         const lower = Object.keys(L.opts).filter(k => k !== 'free' && !L.opts[k].beaten).map(k => L.opts[k]);
         const prev = Math.max(0, ...lower.map(o => o.gain)), prevQ = Math.max(-1e9, ...lower.map(o => o.aq));
-        if (p.gain < (p.cross ? 4 : 2.5) || (p.gain < prev + 1 && !(p.gain >= prev - 1.5 && p.aq >= prevQ + 2))) return;
+        if (!forced && (p.gain < (p.cross ? 4 : 2.5) || (p.gain < prev + 1 && !(p.gain >= prev - 1.5 && p.aq >= prevQ + 2)))) return;
         if (t !== 'free' && L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add)); return; }
         L.opts[t] = p; used.add(p.add); if (!isBasic(p.add)) usedN.add(norm(p.add));
         if (p.cross){ out.shift[t][p.from] = (out.shift[t][p.from] || 0) - p.q; out.shift[t][p.to] = (out.shift[t][p.to] || 0) + p.q; } L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q;
         const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q;
-      });
+      };
+      if (!smart) locks.filter(x => x.t === t).forEach(x => { const ch = R.pairs.find(p => !p.land && !p.fix && p.cut === x.pair.cut);
+        if (ch && ch.add !== x.pair.add && ch.gain >= x.pair.gain + LOCK_MARGIN){ out.unlock.push(x.k); return; }
+        take(x.pair, true); });
+      R.pairs.forEach(p => take(p));
     });
-  } finally { recommend.paths = false; recommend.minP = 0; recommend.usedN = null; recommend.uniOnly = false; recommend.own = null; recommend.skip = null; }
+    if (smart){
+      const lk = new Set(locks.map(x => x.k)), skip = new Set([...usedN].filter(k => !lk.has(k))), noCut = new Set(out.fixes.map(p => norm(p.cut)).concat((out.drops || []).map(x => norm(x.n))));
+      const S2 = smartPaths(d, {skip, own, locks, noCut}); out.unlock = S2.unlock;
+      for (const [cut, r] of S2.rows){ let L = by.get(cut); if (!L){ L = {cut, opts:{}, gain:0}; by.set(cut, L); }
+        TIER_STEPS.forEach(([t]) => { const p = r.opts[t]; if (!p) return;
+          if (L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); return; }
+          L.opts[t] = p; L.gain = Math.max(L.gain, p.gain); out.count[t] += p.q; const a = find(p.add), c = find(p.cut); out.cost[t] += ((a && a.p || 0) - (c && c.p || 0)) * p.q; }); }
+    }
+  } finally { recommend.paths = false; recommend.minP = 0; recommend.usedN = null; recommend.lock = null; recommend.own = null; recommend.skip = null; }
   for (const [k, L] of by) if (!Object.keys(L.opts).length) by.delete(k);
   // singleton / copy-limit breaches are fixes too
   const dupDrops = []; d.cards.forEach(en => { const c = find(en.n), lim = copyLimit(d, c); if (c && en.q > lim) dupDrops.push({n:en.n, q:en.q - lim, s:-95, why:[d.format === 'commander' ? 'Commander allows one copy' : 'More than four copies']}); });
@@ -636,7 +743,7 @@ function buildPlan(d, seeds, ownOnly, ownAll){
   if (ownOnly && ownOnly.size){ recommend.own = ownOnly; try { recommend(tmp, 0, true).adds.forEach(a => { if (!isBasic(a.n)) addCard(tmp, a.n, a.q); }); } finally { recommend.own = null; } }
   fillDeck(tmp);
   const ctx = ctxOf(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner));
-  const pool = LIB.filter(c => c.p != null && c.p <= 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n))
+  const pool = LIB.filter(c => c.p != null && c.p <= 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n) && mustOk(c, d))
     .map(c => ({c, s:baseScore(c, tmp, ctx).s, land:tags(c).land, ty:mainType(c)}));
   const alt = (x, cap) => { const tx = tags(x), ty = mainType(x); let best = null, bs = -1e9;
     for (const p of pool){ if (p.used || p.c.p > cap || p.land !== tx.land) continue; let s = p.s + (p.ty === ty ? 3 : 0), share = 0; tags(p.c).roles.forEach(r => { if (tx.roles.has(r)) share++; }); s += share * 2; if (tx.roles.size && !share) s -= 3; if (s > bs){ bs = s; best = p; } }
