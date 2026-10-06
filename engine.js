@@ -482,7 +482,7 @@ function autoSwaps(d){
 // commander synergy and fit with the build. A swap is scored on the whole deck: what comes in, minus what leaves, minus the
 // hole it leaves in a job the deck is thin on, plus the gap it fills. The best pair is taken first, so every pick is the best
 // in both directions among what is left. A swap that does not clearly improve the deck is not offered.
-const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:0.10, curve:0.25};   // step: a tier's pick must be at least this much (10%) stronger than the tier below, or it is not offered
+const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:0.10, stepMin:0.01, curve:0.25};   // step: a substantial step is 10% over the tier below (Apex: also 20% over Budget). A smaller real gain is still shown, marked weak.
 // Needs play data for the commander. Running the same method without it was tested and did worse than the older engine
 // (see SMART.wfThin and friends, kept for that work), so a commander with too little data still uses the older engine.
 function smartOK(d, ctx){ return d.format === 'commander' && !!ctx.edh && ctx.edh.map.size >= 60; }
@@ -525,7 +525,7 @@ function smartPaths(d, o){
   const set = (i, t, a, v, isHeld) => { const P = pick.get(i) || {}; P[t] = {a, v, held:isHeld}; pick.set(i, P); taken.add(a.c._n); };
   for (const t of TIER_ORDER){
     const cap = TIERS[t].cap, L = C.filter(x => !held.has(x.c._n) && !taken.has(x.c._n) && x.c.p <= cap), uc = new Set(), ua = new Set(), M = [];
-    cuts.forEach((cu, i) => { const lo = lower(i, t), need = lo > -1e8 ? Math.max(mMin, lo + K.step * Math.max(2, cu.v + lo)) : mMin; L.forEach((a, k) => { const v = delta(cu, a); if (v >= need && ev(a)) M.push([v, i, k]); }); }); M.sort((a, b) => b[0] - a[0]);
+    cuts.forEach((cu, i) => { const lo = lower(i, t), need = lo > -1e8 ? Math.max(mMin, lo + K.stepMin * Math.max(2, cu.v + lo)) : mMin; L.forEach((a, k) => { const v = delta(cu, a); if (v >= need && ev(a)) M.push([v, i, k]); }); }); M.sort((a, b) => b[0] - a[0]);
     // Picks the player has already been shown hold their slot unless a clearly better card has turned up for it.
     (o.locks || []).filter(x => x.t === t).forEach(x => { const i = cuts.findIndex(cu => cu.n === x.pair.cut), c = find(x.pair.add); if (i < 0 || !usable(c) || taken.has(c._n)) return;
       const a = mk(c), now = delta(cuts[i], a), ch = M.find(m => m[1] === i);
@@ -559,7 +559,13 @@ function smartPaths(d, o){
     }
     pack[t] = {removed, jobs:Object.fromEntries(['ramp', 'draw', 'removal', 'wipe'].map(j => [j, [cnt[j] || 0, (after && after[j]) || 0]])), avg:[+avg0.toFixed(2), +((avg == null ? avg0 : avg)).toFixed(2)]};
   }
-  for (const [i, P] of pick) TIER_ORDER.forEach(t => { const x = P[t]; if (x) put(cuts[i], t, Object.assign(pair(cuts[i], x.a, x.v), x.held ? {held:true} : {})); });
+  // Steps stack: Mid must be 10% over Budget; Apex must be 10% over Mid and 20% over Budget. A pick that is better but falls
+  // short of that is still offered, marked as a weak upgrade.
+  const over = (cu, hi, lo2) => (hi.v - lo2.v) / Math.max(2, cu.v + lo2.v);
+  for (const [i, P] of pick) TIER_ORDER.forEach(t => { const x = P[t]; if (!x) return; const cu = cuts[i]; let weak = false;
+    if (t === 'mid' && P.budget) weak = over(cu, x, P.budget) < K.step;
+    if (t === 'apex') weak = (!!P.mid && over(cu, x, P.mid) < K.step) || (!!P.budget && over(cu, x, P.budget) < 2 * K.step);
+    put(cu, t, Object.assign(pair(cu, x.a, x.v), x.held ? {held:true} : {}, weak ? {weak:true} : {})); });
   return {rows, unlock, pack, thin};
 }
 const TIER_STEPS = [['budget', 0], ['mid', 0], ['apex', 0]];
