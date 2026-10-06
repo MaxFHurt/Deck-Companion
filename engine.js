@@ -97,6 +97,9 @@ function mergeLibrary(starter, full){
   return full.concat(starter.filter(c => !seen.has(norm(c.n))));
 }
 function find(name){ if (!name) return null; return IDX.get(norm(name)) || IDX.get(norm(String(name).split(' // ')[0])) || null; }
+// Alternate printed names (see ALT_NAMES in lists.js): the real card name for a name printed on a reskinned card, or ''.
+let ALT_IDX = null;
+function altName(name){ if (typeof ALT_NAMES === 'undefined' || !name) return ''; if (!ALT_IDX){ ALT_IDX = new Map(); for (const k in ALT_NAMES) ALT_IDX.set(norm(k), ALT_NAMES[k]); } const k = norm(name); return k ? ALT_IDX.get(k) || ALT_IDX.get(norm(String(name).split(' // ')[0])) || '' : ''; }
 
 function tags(c){
   if (c._t) return c._t;
@@ -169,10 +172,11 @@ function parseDeckText(txt){
     let q = 1, name = line; const m = /^(\d+)\s*x?\s+(.+)$/i.exec(line); if (m){ q = +m[1]; name = m[2]; }
     const isCmd = /\*CMDR\*/i.test(name);
     const pm = /[\(\[]([A-Za-z0-9]{2,6})[\)\]]\s*([A-Za-z0-9★-]{1,8})?/.exec(name);   // "(SET) 123": the printing
-    name = name.replace(/\*[A-Z]+\*/g, '').replace(/\s+#.*$/, '').replace(/\s*[\(\[][A-Za-z0-9]{2,6}[\)\]].*$/, '').replace(/\s+\d+[a-z★]?$/i, '').trim();
+    name = name.replace(/\*[A-Z]+\*/g, '').replace(/\s+#.*$/, '').replace(/\s*[\(\[][A-Za-z0-9]{2,6}[\)\]].*$/, '').trim();
+    if (!find(name) && !altName(name)) name = name.replace(/\s+\d+[a-z★]?$/i, '').trim();   // a trailing collector number, unless it is part of the name
     if (!name || q < 1 || q > 250) continue;
     if (sb || section === 'side'){ out.side += q; continue; }
-    const c = find(name); if (c) name = c.n;
+    let c = find(name); if (!c){ const real = altName(name); if (real){ c = find(real); name = real; } } if (c) name = c.n;
     if ((section === 'commander' || isCmd) && !out.commander){ out.commander = name; continue; }
     if ((section === 'commander' || isCmd) && !out.partner){ out.partner = name; continue; }
     const k = norm(name); if (map.has(k)) map.get(k).q += q; else { const e = {n:name, q, l:false}; if (pm){ e.psc = pm[1].toLowerCase(); if (pm[2]) e.pcn = pm[2]; } map.set(k, e); out.cards.push(e); }
