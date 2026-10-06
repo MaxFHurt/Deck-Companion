@@ -39,15 +39,12 @@ const THEMES = {
 const ROLE_LABEL = {ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes'};
 const LAND_WORDS = '(basic land|land|plains|island|swamp|mountain|forest)';
 const ROLE_RE = {
-  ramp: new RegExp('\\{T\\}[^.]{0,40}: Add |: Add \\{|adds? (an additional|one additional|\\{)|add (one|two|three|x) mana|search your library for [^.]*' + LAND_WORDS + ' cards?[^.]*onto the battlefield|land card from your hand onto the battlefield|(?<!controller )creates? [^.]*treasure token|additional land on each|play (an|one|two|three|x) additional lands?|untap target (forest|land)|produces? (twice|three times) as much|(lands?|permanents?) for mana, (add|it produces)', 'i'),
-  // one card or a few: destroy, exile, bounce, shrink, fight, bite, edict, lock down, turn into something harmless
-  removal: /(destroy|exile) (up to (one|two|three|x) )?(other |another )?target (?!player|card|instant|sorcery|spell|non-|creature you control|creature card|artifacts, creatures|land\b)[^.]*(creature|permanent|artifact|enchantment|planeswalker|battle)|deals? (\d+|x|that much|twice that much) damage to (any target|(up to (one|two|three) )?(other |another )?target (attacking |blocking |tapped )?(creature|permanent|planeswalker))|damage equal to (its|their|that creature's|x|the number)[^.]{0,40} to (any target|(up to one |another |each of up to \w+ )?target (creature|permanent|planeswalker))|deals damage equal to its power to (any target|(another |up to one )?target|each of)|target creature gets -(\d+|x)|gets? -(\d+|x)\/-(\d+|x) until|return (up to (one|two) )?target (nonland permanent|creature|permanent)[^.]*to its owner's hand|fights? (up to one |another |a different |target )|owner of target permanent shuffles|exile that creature|target (player|opponent) sacrifices (a|an|two) (creature|permanent|nonland)|each opponent sacrifices (a|an) (creature|nontoken creature|permanent)|put target (creature|nonland permanent|permanent)[^.]*(top|bottom) of its owner's library|enchanted (creature|permanent) (can't attack or block|can't attack, block|loses all abilities|doesn't untap)|target creature[^.]*loses all abilities|gain control of target (creature|permanent|artifact)/i,
-  wipe: /(destroy|exile) (all|each) (?!lands)(creatures?|nontoken|nonland|artifacts?|enchantments?|permanents?|other|non)|deals? (\d+|x|that much) damage to each (creature|other creature|non|attacking|blocking)|damage to each creature|(all|each) (other )?creatures? gets? -|creatures your opponents control get -(\d+|x)\/-|destroy all artifacts, creatures|return (all|each) (nonland|attacking|creature|other)[^.]*to (its|their) owners?'? hands?|each player sacrifices (all|\w+ creatures)|sacrifices? all (creatures|permanents|nonland)|damage divided as you choose among any number of target creatures|each of those[^.]*fights a different|(destroy|exile|damage|return|gets -)[^]*\boverload\b/i,
-  counter: /counter (up to one |another )?target|counter (that|the) (spell|ability)(?! unless (that player|its controller) pays)/i,   // ward's reminder text is not a counterspell
-  tutor: /search your library for (a|an|up to (one|two|three|x)|two|three|x) (?!basic|land|plains|island|swamp|mountain|forest|gate)[^.]*cards?/i,
-  // protects what you control (grants, fogs, blinks, phasing); a creature that is merely hard to kill itself does not count
-  protect: /(creatures?|permanents?|artifacts?) you control[^.]{0,45}(gain|gains|have|has)[^.]{0,35}(hexproof|indestructible|protection from|shroud|ward)|(target|another target|equipped|enchanted|each|that) (creature|permanent|artifact)[^.]{0,60}(gains?|has|have)[^.]{0,40}(hexproof|indestructible|protection from|shroud|ward)|you (gain|have) (hexproof|protection from|shroud)|phases? out|prevent all (combat )?damage|(totem|umbra) armor|regenerate (target|each|enchanted|equipped)|can't be the targets? of spells or abilities your opponents control/i,
-  blink: /exile (up to one |another |any number of )?target (creature|permanent|nonland permanent)s? you control[^.]*(then )?return/i
+  ramp: new RegExp('\\{T\\}[^.]{0,40}: Add |: Add \\{|adds? (an additional|one additional|\\{)|add (one|two|three|x) mana|search your library for [^.]*' + LAND_WORDS + ' cards?[^.]*onto the battlefield|land card from your hand onto the battlefield|(?<!controller )creates? [^.]*treasure token|additional land on each', 'i'),
+  removal: /(destroy|exile) target (?!player|card|instant|sorcery|spell|non-|creature you control|creature card|artifacts, creatures)[^.]*(creature|permanent|artifact|enchantment|planeswalker)|deals? (\d+|x) damage to (any target|target creature)|target creature gets -\d|return target (nonland permanent|creature)[^.]*to its owner's hand|fights target|owner of target permanent shuffles|exile that creature/i,
+  wipe: /(destroy|exile) all (creatures|nontoken|nonland|artifacts|permanents|other)|deals? (\d+|x) damage to each creature|all creatures get -|destroy all artifacts, creatures|return all (nonland|attacking)/i,
+  counter: /counter target/i,
+  tutor: /search your library for (a|an) (card|creature card|artifact or enchantment card|instant or sorcery card|equipment card)/i,
+  protect: /hexproof|indestructible|phase out|protection from|\bshroud\b/i
 };
 
 let LIB = [], IDX = new Map();
@@ -101,17 +98,15 @@ function find(name){ if (!name) return null; return IDX.get(norm(name)) || IDX.g
 function tags(c){
   if (c._t) return c._t;
   const o = c.o || '', t = frontType(c), land = /\bLand\b/.test(t), th = {}, roles = new Set();
-  // a spell with a land on its back face is judged for jobs by its front face only
-  const ro = / \/\/ [^/]*\bLand\b/.test(c.t || '') ? o.split(' // ')[0] : o;
   for (const k in THEMES){ const T = THEMES[k]; if (!T.re) continue; th[k] = T.re.test(o) ? 1 : (T.type && T.type.test(t) ? 0.5 : 0); }
   if (!land){
-    if (ROLE_RE.ramp.test(ro)) roles.add('ramp');
-    if (THEMES.draw.re.test(ro) && !/each player draws|target opponent draws/i.test(ro)) roles.add('draw');
-    if (ROLE_RE.wipe.test(ro)) roles.add('wipe');
-    else if (ROLE_RE.removal.test(ro.replace(/exile[^.]*\.?( then,?)? ?return[^.]*(to|onto) the battlefield[^.]*\./gi, ''))) roles.add('removal');
-    if (ROLE_RE.counter.test(ro)) roles.add('counter');
-    if (ROLE_RE.tutor.test(ro) && !roles.has('ramp')) roles.add('tutor');
-    if (ROLE_RE.protect.test(ro) || (/\bInstant\b/.test(t) && ROLE_RE.blink.test(ro))) roles.add('protect');   // an instant-speed blink saves a creature; a blink engine does not count
+    if (ROLE_RE.ramp.test(o)) roles.add('ramp');
+    if (THEMES.draw.re.test(o) && !/each player draws|target opponent draws/i.test(o)) roles.add('draw');
+    if (ROLE_RE.wipe.test(o)) roles.add('wipe');
+    else if (ROLE_RE.removal.test(o)) roles.add('removal');
+    if (ROLE_RE.counter.test(o)) roles.add('counter');
+    if (ROLE_RE.tutor.test(o) && !roles.has('ramp')) roles.add('tutor');
+    if (ROLE_RE.protect.test(o)) roles.add('protect');
   }
   return c._t = {land, th, roles};
 }
@@ -487,7 +482,7 @@ function autoSwaps(d){
 // commander synergy and fit with the build. A swap is scored on the whole deck: what comes in, minus what leaves, minus the
 // hole it leaves in a job the deck is thin on, plus the gap it fills. The best pair is taken first, so every pick is the best
 // in both directions among what is left. A swap that does not clearly improve the deck is not offered.
-const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:0.10, stepMin:0.01, curve:0.25, unk:0, sat:0, def:0, fill:1, trim:0, poolN:99};   // step: a substantial step is 10% over the tier below (Apex: also 20% over Budget). A smaller real gain is still shown, marked weak.
+const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:0.10, stepMin:0.01, curve:0.25};   // step: a substantial step is 10% over the tier below (Apex: also 20% over Budget). A smaller real gain is still shown, marked weak.
 // Needs play data for the commander. Running the same method without it was tested and did worse than the older engine
 // (see SMART.wfThin and friends, kept for that work), so a commander with too little data still uses the older engine.
 function smartOK(d, ctx){ return d.format === 'commander' && !!ctx.edh && ctx.edh.map.size >= 60; }
@@ -509,22 +504,13 @@ function smartPaths(d, o){
   [...(ctx.edh ? ctx.edh.map.entries() : [])].map(([k, v]) => ({c:IDX.get(k), inc:v.inc})).filter(x => okNew(x.c)).sort((a, b) => b.inc - a.inc).slice(0, K.pool).forEach(x => { seen.add(x.c._n); C.push(mk(x.c)); });
   LIB.filter(c => !seen.has(c._n) && okNew(c)).map(c => ({c, f:fit(c)})).filter(x => x.f >= (thin ? K.fitMinThin : K.fitMin)).sort((a, b) => b.f - a.f).slice(0, thin ? K.extraThin : K.extra).forEach(x => C.push(mk(x.c)));
   const noCut = o.noCut || new Set();
-  const cuts = d.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !tags(x.c).land && !x.e.l && !noCut.has(norm(x.e.n))).map(x => ({n:x.e.n, c:x.c, jobs:jobsOf(x.e.n), v:val(x.c) + (E(x.c) ? 0 : K.unk)}));
+  const cuts = d.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !tags(x.c).land && !x.e.l && !noCut.has(norm(x.e.n))).map(x => ({n:x.e.n, c:x.c, jobs:jobsOf(x.e.n), v:val(x.c)}));
   const cnt = {}; d.cards.forEach(e => jobsOf(e.n).forEach(j => cnt[j] = (cnt[j] || 0) + 1));
   const th = c => Object.keys(tags(c).th).filter(k => tags(c).th[k] === 1 && k !== 'aggro');
   const fn = (a, b) => 2 * th(a).filter(k => th(b).includes(k)).length + (mainType(a) === mainType(b) ? 1 : 0);
-  // Jobs with a target (ramp, draw, removal, wipes) are judged against it: adding to a job the deck already has enough of costs
-  // more the further over it is and the more the deck is short elsewhere; giving up a job the deck is short of costs more the
-  // shorter it is. Other jobs use the general scale.
-  const TG = (() => { const T0 = analyze(d).T; return {ramp:T0.ramp, draw:T0.draw, removal:T0.removal, wipe:T0.wipe}; })();
-  const shortOf = N => Object.keys(TG).reduce((s, j) => s + Math.max(0, TG[j] - (N[j] || 0)) / Math.max(1, TG[j]), 0);
-  const delta = (cut, add, N) => { let x = add.v - cut.v; N = N || cnt; const D = shortOf(N);
-    cut.jobs.forEach(j => { if (add.jobs.includes(j)) return; const n = (N[j] || 0) - 1;
-      if (TG[j] != null && K.def){ if (n < TG[j]) x -= K.wd * (1 + K.def * (TG[j] - n) / Math.max(1, TG[j])); else x += K.trim; }
-      else x -= K.wd * Math.max(0, (K.T - n) / K.T); });
-    add.jobs.forEach(j => { if (cut.jobs.includes(j)) return; const n = N[j] || 0;
-      if (TG[j] != null && K.sat){ if (n < TG[j]) x += K.fill * K.wk * (TG[j] - n) / Math.max(1, TG[j]) * 2; else x -= K.sat * (1 + (n - TG[j]) / Math.max(1, TG[j])) * (1 + D); }
-      else x += K.wk * Math.max(0, (K.T - n) / K.T); });
+  const delta = (cut, add, N) => { let x = add.v - cut.v; N = N || cnt;
+    cut.jobs.forEach(j => { if (!add.jobs.includes(j)) x -= K.wd * Math.max(0, (K.T - ((N[j] || 0) - 1)) / K.T); });
+    add.jobs.forEach(j => { if (!cut.jobs.includes(j)) x += K.wk * Math.max(0, (K.T - (N[j] || 0)) / K.T); });
     return x + K.fn * fn(add.c, cut.c); };
   // Play rate is evidence, not a gate: a card also qualifies on synergy, on fit with the build, or by being too new to have data.
   const ev = a => { const e = E(a.c); return (e && (e.inc >= 0.1 || e.syn >= 0.1)) || fit(a.c) >= (thin ? K.fitMinThin : K.fitMin) || isNew(a.c); };
@@ -537,22 +523,16 @@ function smartPaths(d, o){
   const taken = new Set(), pick = new Map();   // pick: cut index -> {tier: {a, v}}
   const lower = (i, t) => { const P = pick.get(i) || {}; return Math.max(-1e9, ...TIER_ORDER.slice(0, TIER_ORDER.indexOf(t)).map(k => P[k] ? P[k].v : -1e9)); };
   const set = (i, t, a, v, isHeld) => { const P = pick.get(i) || {}; P[t] = {a, v, held:isHeld}; pick.set(i, P); taken.add(a.c._n); };
-  // Which cards may leave is decided separately from which cards are worth adding: only the weakest cards in the deck (lowest
-  // value, counting the job they do) are considered as cuts, so a strong incoming card cannot push out a card just because the pair scores well.
-  const keep = cu => cu.v + cu.jobs.reduce((s, j) => s + (TG[j] != null ? ((cnt[j] || 0) <= TG[j] ? K.wd : 0) : 0), 0);
-  const poolIdx = new Set(cuts.map((cu, i) => [keep(cu), i]).sort((a, b) => a[0] - b[0]).slice(0, K.poolN).map(x => x[1]));
-  (o.locks || []).forEach(x => { const i = cuts.findIndex(cu => cu.n === x.pair.cut); if (i >= 0) poolIdx.add(i); });
   for (const t of TIER_ORDER){
-    const cap = TIERS[t].cap, L = C.filter(x => !held.has(x.c._n) && !taken.has(x.c._n) && x.c.p <= cap), uc = new Set(), ua = new Set(), N = Object.assign({}, cnt);
-    const apply = (cu, a) => { cu.jobs.forEach(j => N[j] = (N[j] || 0) - 1); a.jobs.forEach(j => N[j] = (N[j] || 0) + 1); };
-    const bestFor = () => { let b = null; cuts.forEach((cu, i) => { if (uc.has(i) || !poolIdx.has(i)) return; const lo = lower(i, t); L.forEach((a, k) => { if (ua.has(k)) return; const v = delta(cu, a, N), need = lo > -1e8 ? Math.max(mMin, lo + K.stepMin * Math.max(2, cu.v + lo)) : mMin; if (v >= need && (!b || v > b[0]) && ev(a)) b = [v, i, k]; }); }); return b; };
+    const cap = TIERS[t].cap, L = C.filter(x => !held.has(x.c._n) && !taken.has(x.c._n) && x.c.p <= cap), uc = new Set(), ua = new Set(), M = [];
+    cuts.forEach((cu, i) => { const lo = lower(i, t), need = lo > -1e8 ? Math.max(mMin, lo + K.stepMin * Math.max(2, cu.v + lo)) : mMin; L.forEach((a, k) => { const v = delta(cu, a); if (v >= need && ev(a)) M.push([v, i, k]); }); }); M.sort((a, b) => b[0] - a[0]);
     // Picks the player has already been shown hold their slot unless a clearly better card has turned up for it.
     (o.locks || []).filter(x => x.t === t).forEach(x => { const i = cuts.findIndex(cu => cu.n === x.pair.cut), c = find(x.pair.add); if (i < 0 || !usable(c) || taken.has(c._n)) return;
-      const a = mk(c), now = delta(cuts[i], a, N); let ch = null; L.forEach((a2, k) => { const v = delta(cuts[i], a2, N); if (ev(a2) && (!ch || v > ch[0])) ch = [v, k]; });
+      const a = mk(c), now = delta(cuts[i], a), ch = M.find(m => m[1] === i);
       // a real challenger is a card whose own best home is this slot, not one that will go to another slot anyway
-      if (ch && ch[0] >= now + LOCK_MARGIN && !cuts.some((cu, i2) => i2 !== i && poolIdx.has(i2) && delta(cu, L[ch[1]], N) > ch[0])){ unlock.push(x.k); return; }
-      uc.add(i); set(i, t, a, now, true); apply(cuts[i], a); });
-    for (let guard = 0; guard < 60; guard++){ const b = bestFor(); if (!b) break; const [v, i, k] = b; uc.add(i); ua.add(k); set(i, t, L[k], v, false); apply(cuts[i], L[k]); }
+      if (ch && ch[0] >= now + LOCK_MARGIN && M.find(m => m[2] === ch[2])[1] === i){ unlock.push(x.k); return; }
+      uc.add(i); set(i, t, a, now, true); });
+    for (const [v, i, k] of M){ if (uc.has(i) || ua.has(k)) continue; uc.add(i); ua.add(k); set(i, t, L[k], v, false); }
   }
   // Package check. Applying a whole tier is many swaps at once, so each tier's swaps are applied together, the deck's jobs and
   // curve are recounted, and every swap is challenged again against that resulting deck. A swap that only looked good while

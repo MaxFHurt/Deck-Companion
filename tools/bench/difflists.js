@@ -1,0 +1,4 @@
+const fs=require("fs");const W=JSON.parse(fs.readFileSync("workbook_pre.json"));const nm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").split(" // ")[0].replace(/[^a-z0-9]/g,"");const basic=/^(plains|island|swamp|mountain|forest)$/i;
+for(const [d,f] of [["Avengers Assemble","av_off.txt"],["Doom Prevails","doom_off.txt"],["Wakanda Forever","wak_off.txt"],["Tramplesaurus Rex","tr_off.txt"]]){const off=fs.readFileSync(f,"utf8").trim().split("|");const w=W[d];const ours=[w.commander,...w.deck.map(x=>x[1])].filter(n=>!basic.test(n));const O=new Set(off.map(nm)),U=new Set(ours.map(nm));
+ console.log("==",d,"| official nonbasic",off.length,"| ours",ours.length,"| our basics:",w.deck.filter(x=>basic.test(x[1])).map(x=>x[0]+" "+x[1]).join(", "));
+ console.log("   official, missing from ours:",JSON.stringify(off.filter(n=>!U.has(nm(n)))));console.log("   ours, not official:",JSON.stringify(ours.filter(n=>!O.has(nm(n)))));}

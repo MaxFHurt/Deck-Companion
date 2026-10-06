@@ -1,0 +1,234 @@
+{
+ "Avengers Assemble": [
+  {
+   "cut": "Avenge",
+   "budget": "Unbreakable Formation",
+   "mid": "Flawless Maneuver",
+   "apex": "Teferi's Protection"
+  },
+  {
+   "cut": "Hercules, Olympian Hero",
+   "budget": "Silver Sable, Mercenary Leader",
+   "mid": "Lae'zel, Vlaakith's Champion",
+   "apex": "Roaming Throne"
+  },
+  {
+   "cut": "Heroic Return",
+   "budget": "Avengers Assemble!",
+   "mid": "And They Shall Know No Fear",
+   "apex": "Kindred Discovery"
+  },
+  {
+   "cut": "Hero's Blade",
+   "budget": "Captain America's Shield",
+   "mid": "Sword of Hours",
+   "apex": "The Ozolith"
+  },
+  {
+   "cut": "Make Your Move",
+   "budget": "Path to Exile",
+   "mid": "Generous Gift",
+   "apex": "Cyclonic Rift"
+  },
+  {
+   "cut": "Tome of Legends",
+   "budget": "Biorganic Carapace",
+   "mid": "Herald's Horn",
+   "apex": "The Ozolith"
+  }
+ ],
+ "Doom Prevails": [
+  {
+   "cut": "Titania, Proud Pummeler",
+   "budget": "Tectonic Reformation",
+   "mid": "M.O.D.O.K.",
+   "apex": "Monument to Endurance"
+  },
+  {
+   "cut": "Batroc the Leaper",
+   "budget": "Faithless Looting",
+   "mid": "Big Score",
+   "apex": "Bone Miser"
+  },
+  {
+   "cut": "Stilt-Man, Towering Terror",
+   "budget": "Feed the Swarm",
+   "mid": "Waste Not",
+   "apex": "Demonic Tutor"
+  },
+  {
+   "cut": "Tri-Sentinel, Act of Vengeance",
+   "budget": "Counterspell",
+   "mid": "Trade Routes",
+   "apex": "Crucible of Worlds"
+  },
+  {
+   "cut": "Syphon Mind",
+   "budget": "Dark Ritual",
+   "mid": "Phyrexian Arena",
+   "apex": "Rhystic Study"
+  },
+  {
+   "cut": "Kang Prime",
+   "budget": "Leader, Super-Genius",
+   "mid": "M.O.D.O.K.",
+   "apex": "Seismic Assault"
+  },
+  {
+   "cut": "Damocles Base, Sword of Kang",
+   "budget": "Fellwar Stone",
+   "mid": "Thought Vessel",
+   "apex": "The One Ring"
+  }
+ ],
+ "Tramplesaurus Rex": [
+  {
+   "cut": "Curious Altisaur",
+   "budget": "Ghalta the Unstoppable",
+   "mid": "Majestic Genesis",
+   "apex": "Old Gnawbone"
+  },
+  {
+   "cut": "Challenger Troll",
+   "budget": "Hunter's Insight",
+   "mid": "Return of the Wildspeaker",
+   "apex": "Finale of Devastation"
+  },
+  {
+   "cut": "Ilysian Caryatid",
+   "budget": "Topiary Stomper",
+   "mid": "Fanatic of Rhonas",
+   "apex": "Selvala, Heart of the Wilds"
+  },
+  {
+   "cut": "Commander's Sphere",
+   "budget": "Greater Good",
+   "mid": "Tribute to the World Tree",
+   "apex": "The Great Henge"
+  },
+  {
+   "cut": "Colossal Majesty",
+   "budget": "Garruk's Uprising",
+   "mid": "Monstrous Vortex",
+   "apex": "Guardian Project"
+  },
+  {
+   "cut": "Whisperer of the Wilds",
+   "budget": "Sakura-Tribe Elder",
+   "mid": "Three Visits",
+   "apex": "Nykthos, Shrine to Nyx"
+  },
+  {
+   "cut": "Thrashing Brontodon",
+   "budget": "Nature's Claim",
+   "mid": "Heroic Intervention",
+   "apex": "Force of Vigor"
+  },
+  {
+   "cut": "Surrak, the Hunt Caller",
+   "budget": "Rancor",
+   "mid": "Defense of the Heart",
+   "apex": "Ghalta, Stampede Tyrant"
+  },
+  {
+   "cut": "Tranquil Thicket",
+   "budget": "Cactus Preserve",
+   "mid": "Yavimaya, Cradle of Growth",
+   "apex": "Ancient Tomb"
+  }
+ ],
+ "Turtle Power": [
+  {
+   "cut": "Electric Seaweed",
+   "budget": "Raphael, the Nightwatcher",
+   "mid": "Impact Tremors",
+   "apex": "All Will Be One"
+  },
+  {
+   "cut": "Roadkill Rodney",
+   "budget": "Michelangelo, Mutant BFF",
+   "mid": "Branching Evolution",
+   "apex": "Doubling Season"
+  },
+  {
+   "cut": "Rat King, Pale Piper",
+   "budget": "Genghis Frog",
+   "mid": "Toski, Bearer of Secrets",
+   "apex": "Roaming Throne"
+  },
+  {
+   "cut": "Tempestra, Dame of Games",
+   "budget": "Raph & Leo, Sibling Rivals",
+   "mid": "Hardened Scales",
+   "apex": "The Ozolith"
+  },
+  {
+   "cut": "Foot Chopper",
+   "budget": "Michelangelo's Technique",
+   "mid": "Beast Within",
+   "apex": "Cyclonic Rift"
+  },
+  {
+   "cut": "Harmonize",
+   "budget": "Evolution Witness",
+   "mid": "Guardian Project",
+   "apex": "Rhystic Study"
+  },
+  {
+   "cut": "Mole Module",
+   "budget": "The Ooze",
+   "mid": "Maskwood Nexus",
+   "apex": "Parallel Lives"
+  },
+  {
+   "cut": "Krang, the All-Powerful",
+   "budget": "Mikey & Don, Party Planners",
+   "mid": "Unbreakable Formation",
+   "apex": "Teferi's Protection"
+  }
+ ],
+ "Wakanda Forever": [
+  {
+   "cut": "Harmonize",
+   "budget": "Ironsoul Enforcer",
+   "mid": "Mystic Forge",
+   "apex": "The One Ring"
+  },
+  {
+   "cut": "Trading Post",
+   "budget": "Arc Reactor",
+   "mid": "Sculpting Steel",
+   "apex": "Roaming Throne"
+  },
+  {
+   "cut": "Palace Jailer",
+   "budget": "S.H.I.E.L.D. Helicarrier",
+   "mid": "Jhoira's Familiar",
+   "apex": "Akroma's Memorial"
+  },
+  {
+   "cut": "Whispersilk Cloak",
+   "budget": "Adaptive Omnitool",
+   "mid": "Lightning Greaves",
+   "apex": "Kaldra Compleat"
+  },
+  {
+   "cut": "Fleecemane Lion",
+   "budget": "Memnarch, the Warden",
+   "mid": "Brightglass Gearhulk",
+   "apex": "Blightsteel Colossus"
+  },
+  {
+   "cut": "Meteor Golem",
+   "budget": "Threefold Thunderhulk",
+   "mid": "Wurmcoil Engine",
+   "apex": "Portal to Phyrexia"
+  },
+  {
+   "cut": "Conduit of Worlds",
+   "budget": "Living Brain, Mechanical Marvel",
+   "mid": "Foundry Inspector",
+   "apex": "Unwinding Clock"
+  }
+ ]
+}

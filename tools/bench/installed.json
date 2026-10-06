@@ -1,0 +1,136 @@
+{
+ "Avengers Assemble": [
+  {
+   "orig": "Tome of Legends",
+   "new": "Biorganic Carapace",
+   "t": "budget"
+  },
+  {
+   "orig": "Hercules, Olympian Hero",
+   "new": "Daredevil, Man Without Fear",
+   "t": "budget"
+  },
+  {
+   "orig": "Gift of Immortality",
+   "new": "Origin of the Avengers",
+   "t": "budget"
+  },
+  {
+   "orig": "Make Your Move",
+   "new": "Silver Sable, Mercenary Leader",
+   "t": "budget"
+  },
+  {
+   "orig": "Vision, Synthezoid Avenger",
+   "new": "SP//dr, Piloted by Peni",
+   "t": "budget"
+  },
+  {
+   "orig": "Bastion Protector",
+   "new": "Spectacular Spider-Man",
+   "t": "budget"
+  },
+  {
+   "orig": "Speed, Young Avenger",
+   "new": "Arachne, Psionic Weaver",
+   "t": "budget"
+  },
+  {
+   "orig": "Heroic Return",
+   "new": "The Mighty Thor, Jane Foster",
+   "t": "budget"
+  }
+ ],
+ "Doom Prevails": [
+  {
+   "orig": "Titania, Proud Pummeler",
+   "new": "Green Goblin, Revenant",
+   "t": "budget"
+  },
+  {
+   "orig": "Batroc the Leaper",
+   "new": "Norman Osborn // Green Goblin",
+   "t": "apex"
+  },
+  {
+   "orig": "Stilt-Man, Towering Terror",
+   "new": "Mysterio, Master of Illusion",
+   "t": "budget"
+  },
+  {
+   "orig": "Tri-Sentinel, Act of Vengeance",
+   "new": "Doctor Octopus, Master Planner",
+   "t": "budget"
+  },
+  {
+   "orig": "Syphon Mind",
+   "new": "Behold the Sinister Six!",
+   "t": "budget"
+  }
+ ],
+ "Tramplesaurus Rex": [],
+ "Turtle Power": [
+  {
+   "orig": "Electric Seaweed",
+   "new": "Raphael, the Nightwatcher",
+   "t": "budget"
+  },
+  {
+   "orig": "Krang, the All-Powerful",
+   "new": "Mikey & Don, Party Planners",
+   "t": "budget"
+  },
+  {
+   "orig": "Voracious Hydra",
+   "new": "Michelangelo, Mutant BFF",
+   "t": "budget"
+  },
+  {
+   "orig": "Rat King, Pale Piper",
+   "new": "Genghis Frog",
+   "t": "budget"
+  },
+  {
+   "orig": "Harmonize",
+   "new": "Leader's Talent",
+   "t": "budget"
+  },
+  {
+   "orig": "Mole Module",
+   "new": "The Ooze",
+   "t": "budget"
+  },
+  {
+   "orig": "Roadkill Rodney",
+   "new": "Turtle Power!",
+   "t": "budget"
+  }
+ ],
+ "Wakanda Forever": [
+  {
+   "orig": "Trading Post",
+   "new": "Arc Reactor",
+   "t": "budget"
+  },
+  {
+   "orig": "Harmonize",
+   "new": "Interdimensional Web Watch",
+   "t": "budget"
+  },
+  {
+   "orig": "Conduit of Worlds",
+   "new": "Living Brain, Mechanical Marvel",
+   "t": "budget"
+  },
+  {
+   "orig": "Palace Jailer",
+   "new": "S.H.I.E.L.D. Helicarrier",
+   "t": "budget"
+  },
+  {
+   "orig": "Whispersilk Cloak",
+   "new": "Vibranium Energy Daggers",
+   "t": "budget"
+  }
+ ]
+}
