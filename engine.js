@@ -482,52 +482,89 @@ function autoSwaps(d){
 // commander synergy and fit with the build. A swap is scored on the whole deck: what comes in, minus what leaves, minus the
 // hole it leaves in a job the deck is thin on, plus the gap it fills. The best pair is taken first, so every pick is the best
 // in both directions among what is left. A swap that does not clearly improve the deck is not offered.
-const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5};
+const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:1, curve:0.25};
+// Needs play data for the commander. Running the same method without it was tested and did worse than the older engine
+// (see SMART.wfThin and friends, kept for that work), so a commander with too little data still uses the older engine.
 function smartOK(d, ctx){ return d.format === 'commander' && !!ctx.edh && ctx.edh.map.size >= 60; }
 function smartPaths(d, o){
   const dd = Object.assign({}, d, {tier:'apex'}), ctx = ctxOf(dd), K = SMART, unlock = [], rows = new Map(); o = o || {};
-  const E = c => ctx.edh.map.get(c._n), isNew = c => !E(c) && !c.r;
-  const fit = c => { if (c._sf !== undefined && c._sfk === smartPaths.k) return c._sf; const a = W_INC, b = W_SYN, p = POP_K; W_INC = 0; W_SYN = 0; POP_K = 0; let s; try { s = baseScore(c, dd, ctx).s; } finally { W_INC = a; W_SYN = b; POP_K = p; } if (isNew(c)) s += EDH_MISS; c._sf = s; c._sfk = smartPaths.k; return s; };
+  // With little or no play data for this commander (a new or rarely played one), the same method runs on fit with the build
+  // and on how widely a card is played in general, instead of switching to a different engine.
+  const thin = !ctx.edh || ctx.edh.map.size < 60, wf = thin ? K.wfThin : K.wf, mMin = thin ? K.mThin : K.m;
+  const E = c => ctx.edh ? ctx.edh.map.get(c._n) : undefined, isNew = c => !E(c) && !c.r;
+  const fit = c => { if (c._sf !== undefined && c._sfk === smartPaths.k) return c._sf; const a = W_INC, b = W_SYN, p = POP_K; W_INC = 0; W_SYN = 0; if (!thin) POP_K = 0; let s; try { s = baseScore(c, dd, ctx).s; } finally { W_INC = a; W_SYN = b; POP_K = p; } if (isNew(c)) s += EDH_MISS; c._sf = s; c._sfk = smartPaths.k; return s; };
   smartPaths.k = (smartPaths.k || 0) + 1;
-  const val = c => { const e = E(c); return K.wi * (e ? e.inc : isNew(c) ? K.prior : 0) + K.ws * (e ? e.syn : 0) + K.wf * fit(c); };
+  const val = c => { const e = E(c); return K.wi * (e ? e.inc : isNew(c) ? K.prior : 0) + K.ws * (e ? e.syn : 0) + wf * fit(c); };
   const have = new Set(d.cards.map(x => norm(x.n))); have.add(norm(d.commander || '')); if (d.partner) have.add(norm(d.partner));
   const dis = new Set((d.dismissed || []).map(norm)), skip = o.skip || new Set(), own = o.own || null;
   const usable = c => c && !have.has(c._n) && !dis.has(c._n) && !tags(c).land && !isBasic(c.n) && legalIn(c, d.format) && c.ci.every(z => ctx.ident.includes(z)) && c.p != null && mustOk(c, d);
   const okNew = c => usable(c) && !skip.has(c._n) && !(own && own.has(c._n));
   const mk = c => ({c, jobs:jobsOf(c.n), v:val(c)});
   const seen = new Set(), C = [];
-  [...ctx.edh.map.entries()].map(([k, v]) => ({c:IDX.get(k), inc:v.inc})).filter(x => okNew(x.c)).sort((a, b) => b.inc - a.inc).slice(0, K.pool).forEach(x => { seen.add(x.c._n); C.push(mk(x.c)); });
-  if (K.extra) LIB.filter(c => !seen.has(c._n) && okNew(c)).map(c => ({c, f:fit(c)})).filter(x => x.f >= K.fitMin).sort((a, b) => b.f - a.f).slice(0, K.extra).forEach(x => C.push(mk(x.c)));
-  const tierOf = c => c.p <= TIERS.budget.cap ? 'budget' : c.p <= TIERS.mid.cap ? 'mid' : 'apex';
+  [...(ctx.edh ? ctx.edh.map.entries() : [])].map(([k, v]) => ({c:IDX.get(k), inc:v.inc})).filter(x => okNew(x.c)).sort((a, b) => b.inc - a.inc).slice(0, K.pool).forEach(x => { seen.add(x.c._n); C.push(mk(x.c)); });
+  LIB.filter(c => !seen.has(c._n) && okNew(c)).map(c => ({c, f:fit(c)})).filter(x => x.f >= (thin ? K.fitMinThin : K.fitMin)).sort((a, b) => b.f - a.f).slice(0, thin ? K.extraThin : K.extra).forEach(x => C.push(mk(x.c)));
   const noCut = o.noCut || new Set();
   const cuts = d.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !tags(x.c).land && !x.e.l && !noCut.has(norm(x.e.n))).map(x => ({n:x.e.n, c:x.c, jobs:jobsOf(x.e.n), v:val(x.c)}));
   const cnt = {}; d.cards.forEach(e => jobsOf(e.n).forEach(j => cnt[j] = (cnt[j] || 0) + 1));
   const th = c => Object.keys(tags(c).th).filter(k => tags(c).th[k] === 1 && k !== 'aggro');
   const fn = (a, b) => 2 * th(a).filter(k => th(b).includes(k)).length + (mainType(a) === mainType(b) ? 1 : 0);
-  const delta = (cut, add) => { let x = add.v - cut.v;
-    cut.jobs.forEach(j => { if (!add.jobs.includes(j)) x -= K.wd * Math.max(0, (K.T - (cnt[j] - 1)) / K.T); });
-    add.jobs.forEach(j => { if (!cut.jobs.includes(j)) x += K.wk * Math.max(0, (K.T - (cnt[j] || 0)) / K.T); });
+  const delta = (cut, add, N) => { let x = add.v - cut.v; N = N || cnt;
+    cut.jobs.forEach(j => { if (!add.jobs.includes(j)) x -= K.wd * Math.max(0, (K.T - ((N[j] || 0) - 1)) / K.T); });
+    add.jobs.forEach(j => { if (!cut.jobs.includes(j)) x += K.wk * Math.max(0, (K.T - (N[j] || 0)) / K.T); });
     return x + K.fn * fn(add.c, cut.c); };
   // Play rate is evidence, not a gate: a card also qualifies on synergy, on fit with the build, or by being too new to have data.
-  const ev = a => { const e = E(a.c); return (e && (e.inc >= 0.1 || e.syn >= 0.1)) || fit(a.c) >= K.fitMin || isNew(a.c); };
+  const ev = a => { const e = E(a.c); return (e && (e.inc >= 0.1 || e.syn >= 0.1)) || fit(a.c) >= (thin ? K.fitMinThin : K.fitMin) || isNew(a.c); };
   const pair = (cu, a, v) => { const why = (isNew(a.c) ? ['New card · not enough play data yet'] : []).concat(baseScore(a.c, dd, ctx).why); const gap = a.jobs.find(j => !cu.jobs.includes(j) && (cnt[j] || 0) < K.T * 0.75); if (gap && why.length < 2 && JOB_LABEL[gap]) why.push('Adds ' + JOB_LABEL[gap]);
     return {cut:cu.n, add:a.c.n, q:1, gain:+v.toFixed(2), aq:+a.v.toFixed(2), why:why.slice(0, 2), cutWhy:[], gc:!!a.c.gc, gcOut:!!cu.c.gc, smart:true}; };
   const put = (cu, t, p) => { let r = rows.get(cu.n); if (!r){ r = {cut:cu.n, opts:{}, gain:0}; rows.set(cu.n, r); } r.opts[t] = p; r.gain = Math.max(r.gain, p.gain); };
   const held = new Map(); (o.locks || []).forEach(x => held.set(x.k, x));
-  for (const t of ['apex', 'mid', 'budget']){
-    const L = C.filter(x => !held.has(x.c._n) && tierOf(x.c) === t), uc = new Set(), ua = new Set(), M = [];
-    cuts.forEach((cu, i) => L.forEach((a, k) => { const v = delta(cu, a); if (v >= K.m && ev(a)) M.push([v, i, k]); })); M.sort((a, b) => b[0] - a[0]);
+  // Tiers are steps up under a price ceiling (Budget $3, Mid $12, Apex none), not price bands: a $1 card can be the Mid pick
+  // when it clearly beats the Budget pick for the same slot. A card is only ever suggested once.
+  const taken = new Set(), pick = new Map();   // pick: cut index -> {tier: {a, v}}
+  const lower = (i, t) => { const P = pick.get(i) || {}; return Math.max(-1e9, ...TIER_ORDER.slice(0, TIER_ORDER.indexOf(t)).map(k => P[k] ? P[k].v : -1e9)); };
+  const set = (i, t, a, v, isHeld) => { const P = pick.get(i) || {}; P[t] = {a, v, held:isHeld}; pick.set(i, P); taken.add(a.c._n); };
+  for (const t of TIER_ORDER){
+    const cap = TIERS[t].cap, L = C.filter(x => !held.has(x.c._n) && !taken.has(x.c._n) && x.c.p <= cap), uc = new Set(), ua = new Set(), M = [];
+    cuts.forEach((cu, i) => { const need = Math.max(mMin, lower(i, t) + K.step); L.forEach((a, k) => { const v = delta(cu, a); if (v >= need && ev(a)) M.push([v, i, k]); }); }); M.sort((a, b) => b[0] - a[0]);
     // Picks the player has already been shown hold their slot unless a clearly better card has turned up for it.
-    (o.locks || []).filter(x => x.t === t).forEach(x => { const i = cuts.findIndex(cu => cu.n === x.pair.cut), c = find(x.pair.add); if (i < 0 || !usable(c)) return;
+    (o.locks || []).filter(x => x.t === t).forEach(x => { const i = cuts.findIndex(cu => cu.n === x.pair.cut), c = find(x.pair.add); if (i < 0 || !usable(c) || taken.has(c._n)) return;
       const a = mk(c), now = delta(cuts[i], a), ch = M.find(m => m[1] === i);
-      if (ch && ch[0] >= now + LOCK_MARGIN){ unlock.push(x.k); return; }
-      uc.add(i); put(cuts[i], t, Object.assign(pair(cuts[i], a, now), {held:true})); });
-    for (const [v, i, k] of M){ if (uc.has(i) || ua.has(k)) continue; uc.add(i); ua.add(k); put(cuts[i], t, pair(cuts[i], L[k], v)); }
+      // a real challenger is a card whose own best home is this slot, not one that will go to another slot anyway
+      if (ch && ch[0] >= now + LOCK_MARGIN && M.find(m => m[2] === ch[2])[1] === i){ unlock.push(x.k); return; }
+      uc.add(i); set(i, t, a, now, true); });
+    for (const [v, i, k] of M){ if (uc.has(i) || ua.has(k)) continue; uc.add(i); ua.add(k); set(i, t, L[k], v, false); }
   }
-  return {rows, unlock};
+  // Package check. Applying a whole tier is many swaps at once, so each tier's swaps are applied together, the deck's jobs and
+  // curve are recounted, and every swap is challenged again against that resulting deck. A swap that only looked good while
+  // the others were ignored is removed. Held picks are the player's to drop, so they are never removed here.
+  const pack = {}, T = analyze(d).T, floor = {ramp:T.ramp, draw:T.draw, removal:T.removal, wipe:T.wipe};
+  const cmcOf = c => c.cmc || 0, nonland = d.cards.map(e => find(e.n)).filter(c => c && !tags(c).land), avg0 = nonland.reduce((s, c) => s + cmcOf(c), 0) / Math.max(1, nonland.length);
+  for (const t of TIER_ORDER){
+    const upTo = TIER_ORDER.slice(0, TIER_ORDER.indexOf(t) + 1), best = i => { const P = pick.get(i) || {}; for (let k = upTo.length - 1; k >= 0; k--) if (P[upTo[k]]) return {t:upTo[k], x:P[upTo[k]]}; return null; };
+    let removed = 0, after, avg;
+    for (let pass = 0; pass < 6; pass++){
+      const act = [...pick.keys()].map(i => ({i, b:best(i)})).filter(z => z.b);
+      after = Object.assign({}, cnt); let sum = nonland.reduce((s, c) => s + cmcOf(c), 0);
+      act.forEach(z => { cuts[z.i].jobs.forEach(j => after[j] = (after[j] || 0) - 1); z.b.x.a.jobs.forEach(j => after[j] = (after[j] || 0) + 1); sum += cmcOf(z.b.x.a.c) - cmcOf(cuts[z.i].c); });
+      avg = sum / Math.max(1, nonland.length);
+      const mine = act.filter(z => z.b.t === t && !z.b.x.held); let drop = null;
+      // 1. a job the deck needs has been thinned below its floor: undo the weakest swap that gave that job up
+      for (const j of JOBS){ const fl = floor[j] != null ? Math.min(floor[j], cnt[j] || 0) : Math.min(cnt[j] || 0, 2); if ((after[j] || 0) < fl){ const c2 = mine.filter(z => cuts[z.i].jobs.includes(j) && !z.b.x.a.jobs.includes(j)).sort((a, b) => a.b.x.v - b.b.x.v)[0]; if (c2){ drop = c2; break; } } }
+      // 2. the package has pushed the curve up: undo the swap that adds the most mana for the least gain
+      if (!drop && avg > avg0 + K.curve){ drop = mine.map(z => ({z, up:cmcOf(z.b.x.a.c) - cmcOf(cuts[z.i].c)})).filter(y => y.up > 0).sort((a, b) => b.up / Math.max(0.5, b.z.b.x.v) - a.up / Math.max(0.5, a.z.b.x.v)).map(y => y.z)[0] || null; }
+      // 3. challenge every swap against the deck as it would be with all the others made
+      if (!drop){ let worst = null, wv = 1e9; mine.forEach(z => { const N = Object.assign({}, after); cuts[z.i].jobs.forEach(j => N[j] = (N[j] || 0) + 1); z.b.x.a.jobs.forEach(j => N[j] = (N[j] || 0) - 1); const v = delta(cuts[z.i], z.b.x.a, N); if (v < mMin * 0.75 && v < wv){ wv = v; worst = z; } }); drop = worst; }
+      if (!drop) break;
+      const P = pick.get(drop.i); taken.delete(P[t].a.c._n); delete P[t]; removed++;
+    }
+    pack[t] = {removed, jobs:Object.fromEntries(['ramp', 'draw', 'removal', 'wipe'].map(j => [j, [cnt[j] || 0, (after && after[j]) || 0]])), avg:[+avg0.toFixed(2), +((avg == null ? avg0 : avg)).toFixed(2)]};
+  }
+  for (const [i, P] of pick) TIER_ORDER.forEach(t => { const x = P[t]; if (x) put(cuts[i], t, Object.assign(pair(cuts[i], x.a, x.v), x.held ? {held:true} : {})); });
+  return {rows, unlock, pack, thin};
 }
 const TIER_STEPS = [['budget', 0], ['mid', 0], ['apex', 0]];
-const LOCK_MARGIN = 2;   // how much better a new card must be before it takes a slot from a pick the player has already been shown
+const TIER_ORDER = ['budget', 'mid', 'apex'];
+let LOCK_MARGIN = 2;   // how much better a new card must be before it takes a slot from a pick the player has already been shown
 function upgradePaths(d){
   const by = new Map(), used = new Set(), out = {fixes:[], drops:[], fills:0, count:{free:0, budget:0, mid:0, apex:0}, cost:{free:0, budget:0, mid:0, apex:0}, shift:{free:{}, budget:{}, mid:{}, apex:{}}};
   // Free swaps come first: cards the player already owns (their library). Paid tiers never suggest an owned card,
@@ -574,7 +611,7 @@ function upgradePaths(d){
     });
     if (smart){
       const lk = new Set(locks.map(x => x.k)), skip = new Set([...usedN].filter(k => !lk.has(k))), noCut = new Set(out.fixes.map(p => norm(p.cut)).concat((out.drops || []).map(x => norm(x.n))));
-      const S2 = smartPaths(d, {skip, own, locks, noCut}); out.unlock = S2.unlock;
+      const S2 = smartPaths(d, {skip, own, locks, noCut}); out.unlock = S2.unlock; out.pack = S2.pack; out.thin = S2.thin;
       for (const [cut, r] of S2.rows){ let L = by.get(cut); if (!L){ L = {cut, opts:{}, gain:0}; by.set(cut, L); }
         TIER_STEPS.forEach(([t]) => { const p = r.opts[t]; if (!p) return;
           if (L.opts.free && p.gain < L.opts.free.gain + 1){ L.opts[t] = Object.assign({}, p, {beaten:true}); return; }
