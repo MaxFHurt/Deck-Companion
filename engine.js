@@ -482,7 +482,7 @@ function autoSwaps(d){
 // commander synergy and fit with the build. A swap is scored on the whole deck: what comes in, minus what leaves, minus the
 // hole it leaves in a job the deck is thin on, plus the gap it fills. The best pair is taken first, so every pick is the best
 // in both directions among what is left. A swap that does not clearly improve the deck is not offered.
-const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:1, curve:0.25};
+const SMART = {wi:10, ws:4, wf:0.4, wd:3, wk:1.5, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, step:0.10, curve:0.25};   // step: a tier's pick must be at least this much (10%) stronger than the tier below, or it is not offered
 // Needs play data for the commander. Running the same method without it was tested and did worse than the older engine
 // (see SMART.wfThin and friends, kept for that work), so a commander with too little data still uses the older engine.
 function smartOK(d, ctx){ return d.format === 'commander' && !!ctx.edh && ctx.edh.map.size >= 60; }
@@ -515,7 +515,7 @@ function smartPaths(d, o){
   // Play rate is evidence, not a gate: a card also qualifies on synergy, on fit with the build, or by being too new to have data.
   const ev = a => { const e = E(a.c); return (e && (e.inc >= 0.1 || e.syn >= 0.1)) || fit(a.c) >= (thin ? K.fitMinThin : K.fitMin) || isNew(a.c); };
   const pair = (cu, a, v) => { const why = (isNew(a.c) ? ['New card · not enough play data yet'] : []).concat(baseScore(a.c, dd, ctx).why); const gap = a.jobs.find(j => !cu.jobs.includes(j) && (cnt[j] || 0) < K.T * 0.75); if (gap && why.length < 2 && JOB_LABEL[gap]) why.push('Adds ' + JOB_LABEL[gap]);
-    return {cut:cu.n, add:a.c.n, q:1, gain:+v.toFixed(2), aq:+a.v.toFixed(2), why:why.slice(0, 2), cutWhy:[], gc:!!a.c.gc, gcOut:!!cu.c.gc, smart:true}; };
+    return {cut:cu.n, add:a.c.n, q:1, gain:+v.toFixed(2), aq:+a.v.toFixed(2), cv:+cu.v.toFixed(2), why:why.slice(0, 2), cutWhy:[], gc:!!a.c.gc, gcOut:!!cu.c.gc, smart:true}; };
   const put = (cu, t, p) => { let r = rows.get(cu.n); if (!r){ r = {cut:cu.n, opts:{}, gain:0}; rows.set(cu.n, r); } r.opts[t] = p; r.gain = Math.max(r.gain, p.gain); };
   const held = new Map(); (o.locks || []).forEach(x => held.set(x.k, x));
   // Tiers are steps up under a price ceiling (Budget $3, Mid $12, Apex none), not price bands: a $1 card can be the Mid pick
@@ -525,7 +525,7 @@ function smartPaths(d, o){
   const set = (i, t, a, v, isHeld) => { const P = pick.get(i) || {}; P[t] = {a, v, held:isHeld}; pick.set(i, P); taken.add(a.c._n); };
   for (const t of TIER_ORDER){
     const cap = TIERS[t].cap, L = C.filter(x => !held.has(x.c._n) && !taken.has(x.c._n) && x.c.p <= cap), uc = new Set(), ua = new Set(), M = [];
-    cuts.forEach((cu, i) => { const need = Math.max(mMin, lower(i, t) + K.step); L.forEach((a, k) => { const v = delta(cu, a); if (v >= need && ev(a)) M.push([v, i, k]); }); }); M.sort((a, b) => b[0] - a[0]);
+    cuts.forEach((cu, i) => { const lo = lower(i, t), need = lo > -1e8 ? Math.max(mMin, lo + K.step * Math.max(2, cu.v + lo)) : mMin; L.forEach((a, k) => { const v = delta(cu, a); if (v >= need && ev(a)) M.push([v, i, k]); }); }); M.sort((a, b) => b[0] - a[0]);
     // Picks the player has already been shown hold their slot unless a clearly better card has turned up for it.
     (o.locks || []).filter(x => x.t === t).forEach(x => { const i = cuts.findIndex(cu => cu.n === x.pair.cut), c = find(x.pair.add); if (i < 0 || !usable(c) || taken.has(c._n)) return;
       const a = mk(c), now = delta(cuts[i], a), ch = M.find(m => m[1] === i);
