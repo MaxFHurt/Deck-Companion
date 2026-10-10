@@ -271,6 +271,26 @@ function supportOf(d, key){
   if (N.share){ const v = cards.map(N.count).filter(x => x != null); return {have:v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) : 0, min:N.min, share:true}; }
   return {have:cards.reduce((a, c) => a + (N.count(c) || 0), 0), min:N.min};
 }
+// ----- analyze a build by hand -----
+// What a deck's own cards are doing, whatever its build is set to: the commander's EDHREC themes (when loaded) and the general
+// mechanics, each with the spells that support it, and the most common creature type. Ranked by how many cards back each.
+function buildThemes(d){
+  const ctx = ctxOf(d), spells = []; d.cards.forEach(e => { const c = find(e.n); if (c && !tags(c).land) for (let i = 0; i < e.q; i++) spells.push(c); });
+  const edh = [], gen = [], E = ctx.edh;
+  // A theme is ranked by the cards backing it and by how many of the commander's players build that way (broad themes
+  // such as Legends touch many cards without being the plan).
+  const top = E && E.tags && E.tags.length ? Math.max(1, ...E.tags.slice(0, 10).map(t => t.count || 0)) : 1;
+  if (E && E.tags) E.tags.slice(0, 10).forEach(t => { if (!E.tmap || !E.tmap[t.slug]) return; const cs = spells.filter(c => matchAim(c, 'edh:' + t.slug) >= 1); if (cs.length >= 3) edh.push({key:'edh:' + t.slug, label:t.label, n:cs.length, cards:cs.map(c => c.n), r:cs.length * Math.sqrt((t.count || 0) / top)}); });
+  Object.keys(THEMES).filter(k => THEMES[k].re && k !== 'draw').forEach(k => { const cs = spells.filter(c => matchAim(c, k, ctx.tribe) >= 0.7); if (cs.length >= 4) gen.push({key:k, label:THEMES[k].label, n:cs.length, cards:cs.map(c => c.n)}); });
+  const cnt = {}; spells.forEach(c => { if (/Creature/.test(frontType(c))) subtypes(c).forEach(t => { if (TRIBE_SET.has(t) && t !== 'Human') cnt[t] = (cnt[t] || 0) + 1; }); });
+  const tt = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]; if (tt && tt[1] >= 8) gen.push({key:'tribal', tribe:tt[0], label:tt[0] + ' tribal', n:tt[1], cards:[]});
+  edh.sort((a, b) => b.r - a.r); gen.sort((a, b) => b.n - a.n);
+  // the suggested build: the commander's own themes when it has play data, otherwise the general mechanics
+  const pick = (edh.length ? edh : gen).slice(0, 3);
+  return {edh, gen, suggest:pick.map(x => x.key), tribe:(pick.find(x => x.key === 'tribal') || {}).tribe || '', spells:spells.length};
+}
+// The colours a commander-less deck's cards ask for (for suggesting a commander).
+function deckColors(d){ const s = new Set(); d.cards.forEach(e => { const c = find(e.n); if (c && !tags(c).land) c.ci.forEach(k => s.add(k)); }); return 'WUBRG'.split('').filter(k => s.has(k)); }
 // Commander profiles for the five benchmark decks, written from their current Oracle text (hash: the text they were reviewed
 // against; a changed text drops the profile until it is reviewed again). A profile describes how the commander works and
 // what it depends on, not a list of preferred cards. Other commanders get the needs read from their text (needsOf).
@@ -381,17 +401,21 @@ function evaluateDeck(d, opt){
   const routes = Math.min(1, 0.45 * Math.min(1, fin.length / 6) + (wins.length ? 0.25 : cb.full.length ? 0.12 : 0) + 0.15 * Math.min(1, prot / 5) + 0.1 * Math.min(1, rec / 3) + 0.05 * Math.min(1, tut / 2) + 0.1 * Math.min(1, A.roles.draw / Math.max(6, T.draw)));
   why.routes = fin.length + ' finishers' + (wins.length ? ', ' + wins.length + ' winning combo' + (wins.length > 1 ? 's' : '') + ' (' + wins.slice(0, 2).map(x => x.names.join(' + ')).join('; ') + ')' : '') + ', ' + prot + ' protection/counters, ' + rec + ' recursion';
   // Mana and curve: goldfish games (seeded, so the same deck always gets the same score).
-  const S = opt.sim || simulate(d, opt.games || 300, opt.seed || 7);
+  // An unfinished deck (opt.partial) is not played out: practice games with a part of a deck say nothing about its mana.
+  const S = opt.partial ? null : opt.sim || simulate(d, opt.games || 300, opt.seed || 7);
   // Running short of lands and drawing too many cost the same; mana spent counts up to about a land a turn plus a little ramp.
-  const mana = Math.max(0, Math.min(1, 0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * S.screwT5 - S.floodT8)));
-  why.mana = 'commander out by turn ' + S.cmdMedianTurn + ' (median), ' + S.manaUsedBy6 + ' mana used by turn 6, stuck on colour ' + Math.round(100 * S.colourStuck) + '%, short of lands ' + Math.round(100 * S.screwT5) + '%, flooded ' + Math.round(100 * S.floodT8) + '%';
+  let mana = 0;
+  if (S){ mana = Math.max(0, Math.min(1, 0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * S.screwT5 - S.floodT8)));
+  why.mana = 'commander out by turn ' + S.cmdMedianTurn + ' (median), ' + S.manaUsedBy6 + ' mana used by turn 6, stuck on colour ' + Math.round(100 * S.colourStuck) + '%, short of lands ' + Math.round(100 * S.screwT5) + '%, flooded ' + Math.round(100 * S.floodT8) + '%'; }
+  else why.mana = 'available once the deck has its full 100 cards';
   const raw = {synergy:syn, balance:bal, quality:qual, routes, mana}, parts = {}; let total = 0;
-  for (const k in EV_W){ parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], EV_ANCHOR[k])); total += parts[k] * EV_W[k] / 100; }
+  let wsum = 0; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], EV_ANCHOR[k])); total += parts[k] * EV_W[k] / 100; wsum += EV_W[k]; }
+  if (wsum && wsum < 100) total = total * 100 / wsum;   // the parts that could be judged, weighted as usual
   const onPlan = spells.filter(c => (d.aims || []).some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)).length;
   const feat = {lands:A.lands, tLands:T.lands, avg:+A.avg.toFixed(2), ramp:A.roles.ramp, draw:A.roles.draw, removal:A.roles.removal, wipe:A.roles.wipe, tRamp:T.ramp, tDraw:T.draw, tRem:T.removal, tWipe:T.wipe, inter, fin:fin.length, prot, rec, tut, wins:wins.length, combos:cb.full.length,
     onPlan:onPlan / n, synPos:E && E.map ? spells.filter(c => { const x = incOf(c); return x && x.syn >= 0.1; }).length / n : 0, cheap:spells.filter(c => c.cmc <= 2).length, big:spells.filter(c => c.cmc >= 6).length, gc:A.gc.length, weak:dead.length};
   const prof = profileOf(ctx.cmd), needs = prof ? prof.needs.map(k => Object.assign({key:k, label:k.startsWith('tribe:') ? k.slice(6) + ' creatures' : NEEDS[k].label}, supportOf(d, k))) : [];
-  return {total:Math.round(total), parts, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
+  return {total:Math.round(total), parts, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null, marks:AR && AR.apex != null ? {budget:qualityPct(AR.budget, AR.apex, AR.floor), mid:qualityPct(AR.mid, AR.apex, AR.floor)} : null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
 }
 function parsePrecon(j){
   const jd = (j && j.container && j.container.json_dict) || {}, dk = (j && j.deck) || {}, L = t => ((jd.cardlists || []).find(x => x.tag === t) || {}).cardviews || [];
@@ -1160,13 +1184,20 @@ function evalFit(d, c){
     if (!isBasic(c.n)){ if (c.r && c.r < 1500){ pts += 2; pros.push('A widely played land.'); } else pts += 1; }
     if (/enters (the battlefield )?tapped/i.test(c.o || '')) cons.push('It enters tapped, which slows you down a turn.');
   } else {
-    const aims = [];
-    (d.aims || []).forEach(a => { if (matchAim(c, a, ctx.tribe) >= 0.7) aims.push(aimLabel(a, ctx.tribe)); });
+    // Every mechanic of the build counts, not only the first: the main plan, the secondary plans, partial fits, the
+    // commander's own strategy and the filters. A card that does a core job, or a staple, is never told it fits no plan.
+    const aims = [], part = [], AL = (d.aims || []).map(a => aimLabel(a, ctx.tribe));
+    (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m >= 0.7) aims.push({i, l:AL[i]}); else if (m >= 0.3) part.push(AL[i]); });
+    const fb = filtBonus(c, d), jobby = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'].some(r => tg.roles.has(r)), staple = CORE.has(c._n) || (c.r && c.r < 250);
     const ft = foreignTribe(c), wrongTribe = ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t));
     if (wrongTribe){ pts -= 3; cons.push('It rewards ' + ft + ' cards' + (ctx.tribe ? ', and this is a ' + ctx.tribe + ' deck' : ', which this deck is not built around') + ', so most of its text would do nothing.'); }
-    else if (aims.length){ pts += 2; pros.push('Supports what the deck is built to do: ' + aims.slice(0, 3).join(', ') + '.'); }
+    else if (aims.length){ pts += 2; const main = aims.find(x => x.i === 0), sub = aims.filter(x => x.i > 0).map(x => x.l);
+      pros.push(main ? 'Supports the deck’s main plan (' + main.l + ')' + (sub.length ? ' and also ' + sub.join(', ') : '') + '.' : 'Supports a secondary plan of the deck: ' + sub.join(', ') + '.'); }
     else if (ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)){ pts += 2; pros.push('Works with ' + cmdName + '’s own strategy.'); }
-    else if ((d.aims || []).length || ctx.cmdThemes.length) { pts -= 1; cons.push('It doesn’t feed the deck’s main plan' + ((d.aims || []).length ? ' (' + aimLabel(d.aims[0], ctx.tribe) + ')' : '') + '.'); }
+    else if (fb.why.length){ pts += 1; pros.push('Matches your filters: ' + fb.why.join(', ') + '.'); }
+    else if (part.length){ pros.push('Loosely ties into ' + part.join(', ') + ', though it isn’t a core piece.'); }
+    else if (jobby || staple){ /* a job card or a staple earns its slot without feeding a plan; its job is judged below */ }
+    else if (AL.length || ctx.cmdThemes.length){ pts -= 1; cons.push('It doesn’t feed any of the deck’s plans' + (AL.length ? ' (' + AL.join(', ') + ')' : '') + (ctx.cmdThemes.length && cmdName ? ' or ' + cmdName + '’s own strategy' : '') + '.'); }
     if (ctx.edh){ const x = edhOf(ctx.edh.map, c);
       if (x){ const pc = Math.round(x.inc * 100); if (x.inc >= 0.25){ pts += 2; pros.push('Played in ' + pc + '% of ' + cmdName + ' decks.'); } else { pts += 1; pros.push('Shows up in ' + Math.max(1, pc) + '% of ' + cmdName + ' decks' + (x.syn > 0.1 ? ', far more than in other decks' : '') + '.'); } }
       else if (ctx.edh.map.size > 80){ pts -= 1; cons.push(cmdName + ' players rarely run it.'); } }
@@ -1349,6 +1380,35 @@ function buildPlan(d, seeds, ownOnly, ownAll){
     if (!S0.b && S0.land && basic) S0.b = basic;
     if (!S0.b) delete S0.b; return S0;
   });
+}
+// Price band by the owner's rule: Budget strictly under $3, Mid strictly under $12, Apex anything else (or unknown).
+function priceBand(p){ return p == null ? 'apex' : p < 3 ? 'budget' : p < 12 ? 'mid' : 'apex'; }
+// "See alternatives": cards that fill the same slot as a recommended card when the player doesn't have it. Each one does the
+// same job (the stand-in rule above: its main job, or for a card with no job the same type and part of the deck's plan),
+// sits in the same price band, and is among the strongest such cards for this deck: in the top ALT_TOP of every same-job,
+// same-band card it could play. The pick itself was chosen as the best, so closeness is measured against that field, not
+// against the pick's own score. Same card type and shared roles rank first. For an upgrade (o.cut) every alternative must
+// still beat the card it replaces. An Apex-band alternative costs at most twice the pick, so it is no big step up in price.
+const ALT_TOP = 0.2;
+function altsFor(d, name, o){
+  o = o || {}; const c = find(name); if (!c) return [];
+  const ref = JSON.parse(JSON.stringify(d)); delete ref.plan; if (o.deck) ref.cards = o.deck.map(x => ({n:x.n, q:x.q}));
+  const ctx = ctxOf(ref), val = o.val || (x => baseScore(x, ref, ctx).s), band = priceBand(c.p), tc = tags(c), land = !!tc.land, ty = mainType(c), j = mainJob(c.n);
+  const used = new Set(ref.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner)); used.add(c._n);
+  (o.skip || []).forEach(n => used.add(norm(n))); const dis = new Set((d.dismissed || []).map(norm));
+  const aimSet = x => { const s = new Set(); (ref.aims || []).forEach(a => { if (matchAim(x, a, ctx.tribe) >= 0.7) s.add(a); }); return s; }, aims = aimSet(c);
+  const same = x => { const t = tags(x); if (!!t.land !== land) return false;
+    if (land) return [...landColors(c)].filter(k => ctx.ident.includes(k)).every(k => landColors(x).has(k));
+    if (j) return jobsOf(x.n).includes(j);
+    if (mainType(x) !== ty || jobsOf(x.n).some(r => JOBS.includes(r))) return false;
+    return !aims.size || [...aimSet(x)].some(a => aims.has(a)); };
+  const vcut = o.cut && find(o.cut) ? val(find(o.cut)) : null;
+  const C = LIB.filter(x => !used.has(x._n) && !dis.has(x._n) && !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx.ident.includes(k)) && mustOk(x, d) && (x.p != null || band === 'apex') && priceBand(x.p) === band && (band !== 'apex' || c.p == null || x.p == null || x.p <= 2 * c.p) && same(x))
+    .map(x => { let share = 0; tags(x).roles.forEach(r => { if (tc.roles.has(r)) share++; }); const v = val(x); return {c:x, v, fit:v + (mainType(x) === ty ? 3 : 0) + 2 * share}; });
+  if (!C.length) return [];
+  const vs = C.map(y => y.v).sort((a, b) => b - a), floor = vs[Math.min(vs.length - 1, Math.floor(vs.length * ALT_TOP))];
+  return C.filter(y => y.v >= floor && (vcut == null || y.v > vcut)).sort((a, b) => b.fit - a.fit || (a.c.p || 0) - (b.c.p || 0)).slice(0, o.n || 6)
+    .map(y => ({n:y.c.n, p:y.c.p, v:+y.v.toFixed(2), band, job:j || '', type:mainType(y.c)}));
 }
 function planPick(s, t){ return t === 'apex' ? s.a : t === 'mid' ? (s.m || s.a) : (s.b || s.m || s.a); }
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }

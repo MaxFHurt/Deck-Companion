@@ -228,7 +228,12 @@ const SVG = {
   generate:'<svg viewBox="0 0 24 24"><path d="M4 20L15 9M14 4l1 3 3 1-3 1-1 3-1-3-3-1 3-1zM19 13l.7 1.8 1.8.7-1.8.7L19 18l-.7-1.8-1.8-.7 1.8-.7z"/></svg>',
   lock:'<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>'
 };
-function pips(text){ return esc(text || '').replace(/\{([^}]+)\}/g, (m, k) => { const cls = 'WUBRG'.includes(k) && k.length === 1 ? 'p' + k : 'pN'; return '<i class="pip ' + cls + '">' + (k === 'T' ? '↷' : k) + '</i>'; }); }
+// Mana symbols as printed on cards: Scryfall's official symbol images ({W/U} -> WU.svg, {2/W} -> 2W.svg, {T}, {X} …).
+// If an image can't load (offline), it falls back to the app's own coloured pip with the symbol's letters.
+function symImg(k){ return '<img class="ms" src="https://svgs.scryfall.io/card-symbols/' + encodeURIComponent(k.replace(/\//g, '')) + '.svg" alt="{' + esc(k) + '}" title="{' + esc(k) + '}" data-k="' + esc(k) + '">'; }
+function symPip(k){ const cls = 'WUBRG'.includes(k) && k.length === 1 ? 'p' + k : 'pN'; return '<i class="pip ' + cls + '">' + (k === 'T' ? '↷' : esc(k)) + '</i>'; }
+function pips(text){ return esc(text || '').replace(/\{([^}]+)\}/g, (m, k) => symImg(k)); }
+document.addEventListener('error', ev => { const t = ev.target; if (t && t.classList && t.classList.contains('ms')) t.outerHTML = symPip(t.dataset.k || ''); }, true);
 function money(c){ return !c || c.p == null ? '—' : (c.src === 'starter' ? '~' : '') + '$' + c.p.toFixed(2); }
 function frameCls(c){ if (!c) return ''; if (/\bLand\b/.test(frontType(c))) return 'fL'; return c.ci.length > 1 ? 'fM' : c.ci.length ? 'f' + c.ci[0] : ''; }
 function cardHtml(c, mini, pr, extra){
@@ -463,7 +468,7 @@ function backupPanel(){
 
 // ---------- deck helpers ----------
 function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; return d; }
-function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || ''}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
+function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || '', src:'generated'}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example deck: Lathril Elves (auto-built)'; d.example = true; d.tier = 'mid'; S.draft = null; S.profile.decks.unshift(d); return d; }
 // Every swap remembers what it replaced: the new card carries the slot's history, so nothing is lost and any swap can be undone.
 // A swap that would add a Game Changer past the deck's bracket is refused (several tiers' picks taken together could).
@@ -662,7 +667,7 @@ function listRows(d, q){
   const buckets = {}, unknown = [], lq = String(q || '').toLowerCase().trim(); let shown = 0;
   for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
-    '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
+    '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + (lacks(d, e.n) ? ' <span class="chip warn" title="You marked this card as one you don’t have; it is on the buy list">Don’t have</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
     '<span class="pr">' + (e.pp != null ? '$' + e.pp.toFixed(2) : money(c)) + '</span></button>';
   let h = '';
   if (!d.cards.length) h += '<p class="note">This deck is empty. Add cards from the Upgrades tab, or set the build and fill the open slots there.</p>';
@@ -681,6 +686,25 @@ function listPanel(d, A){
 // Buy list: grouped by the card being replaced. Each group lists every card that could take its place,
 // weakest to strongest. Groups are ordered by the replaced card's color, then A–Z.
 const BUY_GROUPS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolor'], ['C', 'Colorless'], ['L', 'Land']];
+// Cards the player chose to buy for a deck (from card search or any card's details). Kept with the deck, so they are saved,
+// backed up and restored with it. They are not part of the decklist until the player adds them.
+const wantOf = d => d.want || (d.want = []);
+// Where a deck came from. Decks built from scratch (generated, or started empty) get an "I don't have this" button on their
+// recommendations; precons and imported lists do not. Decks saved before this was recorded: generated and precon decks are
+// recognised, anything else counts as imported (no button).
+const srcOf = d => d.src || (d.auto === 'precon' ? 'precon' : (d.plan || d.auto === 'commander' || / \(generated\)$/.test(d.name || '')) ? 'generated' : 'import');
+const fromScratch = d => !!d && (srcOf(d) === 'scratch' || srcOf(d) === 'generated');
+// "I don't have this": the card goes on the deck's buy list and is marked wherever it is shown; nothing is hidden.
+const lacks = (d, n) => !!d && (d.lack || []).some(x => keyOf(x) === keyOf(n));
+function lackBtn(d, n){ if (!fromScratch(d) || !n) return ''; const on = lacks(d, n);
+  return (on ? '<span class="chip warn">Don’t have · on buy list</span>' : '') + '<button class="btn sm' + (on ? ' on' : '') + '" data-act="lack" data-n="' + esc(n) + '" aria-pressed="' + on + '" aria-label="' + (on ? 'I have ' : 'I don’t have ') + esc(n) + '">' + (on ? 'I have it' : 'I don’t have this') + '</button>'; }
+function wantFit(d, c){
+  if (!c) return 'not in the card data';
+  if (d.format === 'commander' && find(d.commander) && !c.ci.every(z => ctxOf(d).ident.includes(z))) return 'outside its colors';
+  if (!legalIn(c, d.format)) return 'not legal in ' + (d.format === 'commander' ? 'Commander' : 'Standard');
+  return '';
+}
+function addWant(d, name){ const c = find(name), n = c ? c.n : name; if (wantOf(d).some(x => keyOf(x.n) === keyOf(n))) return false; wantOf(d).push({n, q:1, at:Date.now()}); return true; }
 function buyData(d){
   const hasPlan = d.plan && d.plan.length, R = hasPlan ? {paths:[], fixes:[]} : recsFor(d), grp = c => !c ? 'C' : tags(c).land ? 'L' : c.ci.length > 1 ? 'M' : c.ci[0] || 'C', order = BUY_GROUPS.map(g => g[0]);
   const item = (p, t) => { const c = find(p.add); return {n:p.add, q:p.q, p:c ? c.p : null, t, gain:p.gain || 0}; };
@@ -690,12 +714,14 @@ function buyData(d){
   if (hasPlan) d.plan.filter(x => !x.own && !x.basic).forEach(x => { const mk = (n, gain) => { const c = find(n); return {n, q:x.q, p:c ? c.p : null, t:tierOfPrice(c), gain}; };
     groups.push({cut:x.a, slot:true, g:grp(find(x.a)), opts:[x.b && mk(x.b, 1), x.m && mk(x.m, 2), mk(x.a, 3)].filter(o => o && !isBasic(o.n))}); });
   if (hasPlan) groups.sort((a, b) => order.indexOf(a.g) - order.indexOf(b.g) || a.cut.localeCompare(b.cut));
-  const count = groups.reduce((s, G) => s + G.opts.length, 0) + fixes.length;
-  return {groups, fixes, count};
+  const want = (d.want || []).map(x => { const c = find(x.n); return {n:x.n, q:x.q, p:c ? c.p : null, inDeck:!!entryOf(d, x.n), lack:x.from === 'lack'}; });
+  const count = groups.reduce((s, G) => s + G.opts.length, 0) + fixes.length + want.length;
+  return {groups, fixes, want, count};
 }
 function buyText(d){
   const B = buyData(d), L = ['// ' + d.name + ' · buy list', '// Grouped by the card each one replaces. Options run weakest to strongest; buy one per group.'];
   if (!B.count) L.push('// nothing to buy right now');
+  if (B.want.length){ L.push('', '// Added by you'); B.want.forEach(x => L.push(x.q + ' ' + x.n)); }
   B.fixes.forEach(G => { L.push('', '// Fix: replaces ' + G.cut); G.opts.forEach(x => L.push(x.q + ' ' + x.n)); });
   B.groups.forEach(G => { L.push('', G.slot ? '// For the ' + G.cut + ' slot' : '// Replaces ' + G.cut); G.opts.forEach(x => L.push(x.q + ' ' + x.n)); });
   return L.join('\n') + '\n';
@@ -704,22 +730,25 @@ function buyHtml(d){
   const B = buyData(d), est = DBINFO.source === 'starter' ? '~' : '';
   const row = x => '<button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + printTag(find(x.n)) + '</span>' + (x.t ? '<span class="chip gold"' + (driftOf(d, x.n, x.t) ? ' title="$' + driftOf(d, x.n, x.t).p.toFixed(2) + ' when it was picked"' : '') + '>' + TIERS[x.t].label + (driftOf(d, x.n, x.t) ? ' · was $' + driftOf(d, x.n, x.t).p.toFixed(2) : '') + '</span>' : '<span></span>') + '<span class="pr">' + money(find(x.n)) + '</span></button>';
   const box = (G, fix) => { const c = find(G.cut); return '<div class="buygrp"><button class="sw out" data-act="card" data-n="' + esc(G.cut) + '">' + (c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>') + '<span><small>' + (fix ? esc(G.why || 'Needs replacing') : G.slot ? 'Open slot · built for' : 'Replaces') + '</small>' + esc(G.cut) + '</span><em>' + (G.opts.length > 1 ? G.opts.length + ' options' : '1 option') + '</em></button>' + G.opts.map(row).join('') + '</div>'; };
+  const wantHtml = B.want.length ? '<div class="grp"><span class="lab">Added by you · ' + B.want.length + ' card' + (B.want.length === 1 ? '' : 's') + (B.want.some(x => x.p != null) ? ' · ' + est + '$' + B.want.reduce((a, x) => a + (x.p || 0) * x.q, 0).toFixed(2) : '') + '</span>' +
+    B.want.map((x, i) => '<div class="row" style="flex-wrap:nowrap;gap:6px"><div style="flex:1;min-width:0">' + row(x) + '</div>' + (x.lack ? '<span class="chip warn" title="Marked “I don’t have this” on a recommendation">Don’t have</span>' : '') + (x.inDeck ? '<span class="chip good">In the deck</span>' : '') + '<button class="ico" data-act="want-rm" data-v="' + i + '" aria-label="Remove ' + esc(x.n) + ' from the buy list" title="Remove from the buy list">×</button></div>').join('') + '</div>' : '';
+  if (B.count === B.want.length && B.want.length) return wantHtml + '<p class="note" style="margin:0">No upgrades to suggest beyond the cards you added' + (isAimed(d) ? '.' : ': set up the build to see suggested upgrades too.') + '</p>';
   if (!B.count) return '<p class="note" style="margin:0">Nothing to buy right now: no card in this deck has a worthwhile upgrade' + (DBINFO.complete ? '.' : ' yet. Card data is still downloading, so this list will grow.') + '</p>';
-  return '<p class="note" style="margin:0">Grouped by the card being replaced. Each group lists the cards that could take its place, weakest to strongest, so you only need one per group.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
+  return wantHtml + '<p class="note" style="margin:0">Grouped by the card being replaced. Each group lists the cards that could take its place, weakest to strongest, so you only need one per group.' + (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') + '</p>' +
     (B.fixes.length ? '<div class="grp"><span class="lab">Fixes this deck needs</span>' + B.fixes.map(G => box(G, true)).join('') + '</div>' : '') +
     BUY_GROUPS.map(([k, label]) => { const gs = B.groups.filter(G => G.g === k); return gs.length ? '<div class="grp"><span class="lab">' + label + '</span>' + gs.map(G => box(G)).join('') + '</div>' : ''; }).join('');
 }
 // Deck value chip: the total price of the cards in the deck ("+" when some cards have no price yet).
 function priceChip(A){ return A.price > 0 ? '<span class="chip gold" title="Total price of the cards in this deck">' + (DBINFO.source === 'starter' ? '~' : '') + '$' + Math.round(A.price).toLocaleString() + (A.priced ? '' : '+') + '</span>' : ''; }
 function buyPanel(d){
-  if (!isAimed(d)) return '<div class="scroll"><div class="gate"><b>Set up the build first</b>The buy list comes from the deck’s upgrade paths, which need the build to be set.</div></div>';
+  if (!isAimed(d) && !(d.want || []).length) return '<div class="scroll"><div class="gate"><b>Set up the build first</b>The buy list comes from the deck’s upgrade paths, which need the build to be set. You can also add any card from Card search.</div></div>';
   return '<div class="row"><span class="lab" style="flex:1">What to buy, by the card it replaces</span><button class="btn pri sm" data-act="buy-copy">Copy as text</button><button class="btn sm" data-act="buy-save">Save text file</button></div>' +
     '<div class="scroll" id="buyscroll" data-keep>' + buyHtml(d) + '</div>';
 }
 function openBuy(){
   const d = cur(); if (!d) return; S.modalCard = null;
   let h = '<div class="panel" role="dialog" aria-label="Buy list"><div class="ph"><h2>Buy list</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>';
-  if (!isAimed(d)) h += '<p class="note" style="margin:0">Set up the build first. The buy list comes from the deck’s upgrade paths.</p>';
+  if (!isAimed(d) && !(d.want || []).length) h += '<p class="note" style="margin:0">Set up the build first. The buy list comes from the deck’s upgrade paths. You can also add any card from Card search.</p>';
   else {
     h += '<div class="row"><button class="btn pri" data-act="buy-copy">Copy as text</button><button class="btn" data-act="buy-save">Save text file</button></div>' + buyHtml(d);
   }
@@ -855,23 +884,51 @@ function openList(){
 }
 const TIER_KEYS = ['budget', 'mid', 'apex'];
 // Build plan (generated decks): every card is a recommendation until the player installs it.
-function tierOfPrice(c){ return !c || c.p == null ? 'apex' : c.p <= 3 ? 'budget' : c.p <= 12 ? 'mid' : 'apex'; }
-function planCost(d, t){ let s = 0; d.plan.forEach(x => { if (x.own || x.basic) return; const c = find(planPick(x, t)); s += (c && c.p || 0) * x.q; }); return s; }
+function tierOfPrice(c){ return priceBand(c ? c.p : null); }
+// Card-type filter for the upgrade list and the build plan: shows only the slots that suggest a card of that type. It
+// changes what is listed, not the picks; the tier buttons (Add all / Apply all) still cover the whole deck.
+function upT(){ return S.upType && S.upType.id === S.deckId ? S.upType.t : ''; }   // the filter belongs to the deck it was set on
+function slotTypes(names){ const s = new Set(); names.forEach(n => { const c = n && find(n); if (c) s.add(mainType(c)); }); return s; }
+function typeBar(sets, shown){ const cnt = {}; sets.forEach(s => s.forEach(t => cnt[t] = (cnt[t] || 0) + 1)); const ts = TYPE_ORDER.filter(t => cnt[t]);
+  if (ts.length < 2 && !upT()) return ''; const b = (v, l) => '<button class="btn sm' + ((upT() || '') === v ? ' pri' : '') + '" data-act="uptype" data-v="' + v + '" aria-pressed="' + ((upT() || '') === v) + '">' + l + '</button>';
+  return '<div class="row typebar" role="group" aria-label="Filter by card type"><span class="lab" style="margin:0">Card type</span>' + b('', 'All · ' + sets.length) + ts.map(t => b(t, t + ' · ' + cnt[t])).join('') + '</div>' + (upT() && !shown ? '<p class="note" style="margin:0">No ' + esc(upT().toLowerCase()) + ' suggestions right now.</p>' : ''); }
+// The slots Add all would fill: best picks first (your picks, cards you own, spells, lands, basics), only as many as there is room for.
+function planFill(d){ let room = planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0); const rk = x => x.seed ? 0 : x.own ? 1 : x.basic ? 4 : x.land ? 3 : 2;
+  return (d.plan || []).slice().sort((a, b) => rk(a) - rk(b) || a.id - b.id).filter(x => { if (room <= 0 || x.q > room) return false; room -= x.q; return true; }); }
+function planCost(d, t){ let s = 0; planFill(d).forEach(x => { if (x.own || x.basic) return; const c = find(planPick(x, t)); s += (c && c.p || 0) * x.q; }); return s; }
+// A card that reaches the deck by any route (the Add a card box, a card's own Add to deck button, the Library) fills the plan
+// slot that suggested it, so the slot is not counted twice. Basic lands are left to their own box.
+function planSlotFor(d, n){ const k = keyOf(n); return (d.plan || []).find(x => !x.basic && [x.a, x.m, x.b].some(y => y && keyOf(y) === k)); }
+function syncPlan(d){ if (!d.plan) return false; const inDeck = new Set(d.cards.filter(e => !isBasic(e.n)).map(e => keyOf(e.n))), n0 = d.plan.length;
+  d.plan = d.plan.filter(x => x.basic || ![x.a, x.m, x.b].some(y => y && inDeck.has(keyOf(y)))); if (!d.plan.length) delete d.plan; return (d.plan ? d.plan.length : 0) !== n0; }
+function planNeed(d){ return analyze(d).T.size - (d.format === 'commander' && d.commander ? 1 : 0) - (d.partner ? 1 : 0); }
+// Regenerate a generated build around the cards already in the deck: they all stay, and the open slots are designed again
+// for them (the same generator, with your cards as fixed picks). Cards you added yourself shape the rest of the plan.
+function regenPlan(d){
+  const seeds = d.cards.filter(e => !isBasic(e.n)).map(e => find(e.n)).filter(Boolean), have = new Map(d.cards.map(e => [keyOf(e.n), e.q]));
+  let P = buildPlan(d, seeds, S.gen.own ? ownSet() : null, ownSet()).filter(x => !have.has(keyOf(x.a)) || x.basic)
+    .map(x => x.basic && have.get(keyOf(x.a)) ? Object.assign({}, x, {q:x.q - have.get(keyOf(x.a))}) : x).filter(x => x.q > 0);
+  // never more than the open slots: basics give way first, then the lowest-ranked picks
+  let over = P.reduce((a, x) => a + x.q, 0) - Math.max(0, planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0));
+  for (const x of P.filter(y => y.basic)){ if (over <= 0) break; const k = Math.min(over, x.q); x.q -= k; over -= k; }
+  P = P.filter(x => x.q > 0); while (over > 0 && P.length){ const i = P.map(x => x.basic ? -1 : x.own ? 0 : x.land ? 1 : 2).lastIndexOf(2); const j = i >= 0 ? i : P.length - 1; over -= P[j].q; P.splice(j, 1); }
+  d.planPrev = d.plan || []; if (P.length) d.plan = P; else delete d.plan; S.planShow = 0; return P.reduce((a, x) => a + x.q, 0);
+}
 function planHtml(d){
   const side = (kind, n, q) => { const c = find(n); return '<button class="sw in" data-act="card" data-n="' + esc(n) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span><small>Add</small>' + (q > 1 ? q + '× ' : '') + esc(n) + printTag(c) + '</span><em>' + money(c) + '</em></button>'; };
-  const P = d.plan, total = P.reduce((s, x) => s + x.q, 0), done = d.cards.reduce((s, x) => s + x.q, 0), nOwn = P.filter(x => x.own).length, est = DBINFO.source === 'starter' ? '~' : '';
+  const P = d.plan, total = P.reduce((s, x) => s + x.q, 0), done = d.cards.reduce((s, x) => s + x.q, 0), need = planNeed(d), room = Math.max(0, need - done), extra = Math.max(0, total - room), nOwn = P.filter(x => x.own).length, est = DBINFO.source === 'starter' ? '~' : '';
   const rank = x => x.seed ? 0 : x.own ? 1 : x.land ? 3 : 2, basics = P.filter(x => x.basic), slots = P.filter(x => !x.basic).sort((a, b) => rank(a) - rank(b) || a.id - b.id), show = S.planShow || 16;
-  const short = Math.max(0, analyze(d).T.size - done - total), must = d.typesMust || d.keysMust;
-  const opt = (x, key, t, n) => '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', n, x.q) + '<div class="row"><button class="btn pri sm" data-act="plan-add" data-v="' + x.id + '|' + key + '" style="margin-left:auto">Add to deck</button></div></div>';
-  const one = (x, label, cls) => '<div class="opt"><span class="chip ' + cls + '">' + label + '</span>' + side('in', x.a, x.q) + '<div class="row">' + (x.own && !x.basic ? '<button class="btn sm" data-act="lib-not-own" data-n="' + esc(x.a) + '">I don’t own this card</button>' : '') + '<button class="btn pri sm" data-act="plan-add" data-v="' + x.id + '|a" style="margin-left:auto">Add to deck</button></div></div><div></div><div></div>';
-  return '<div class="tip good"><b><small>Build in progress</small>' + done + ' of ' + (done + total) + ' cards in the deck</b><ul><li class="pro"><i>+</i>This deck was designed as its strongest version first. Each expensive card also has a Mid and a Budget stand-in that does the same job.</li><li class="pro"><i>+</i>Nothing is in the decklist until you add it. Add cards one at a time, or finish the whole deck at one tier below.</li></ul></div>' +
+  const short = Math.max(0, need - done - total), must = d.typesMust || d.keysMust, vis = slots.filter(x => !upT() || slotTypes([x.a, x.m, x.b]).has(upT()));
+  const opt = (x, key, t, n) => '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', n, x.q) + '<div class="row">' + altBtn('plan|' + x.id + '|' + key) + lackBtn(d, n) + '<button class="btn pri sm" data-act="plan-add" data-v="' + x.id + '|' + key + '" style="margin-left:auto">Add to deck</button></div></div>';
+  const one = (x, label, cls) => '<div class="opt"><span class="chip ' + cls + '">' + label + '</span>' + side('in', x.a, x.q) + '<div class="row">' + (x.own && !x.basic ? '<button class="btn sm" data-act="lib-not-own" data-n="' + esc(x.a) + '">I don’t own this card</button>' : '') + (!x.basic ? altBtn('plan|' + x.id + '|a') : '') + (!x.own && !x.basic ? lackBtn(d, x.a) : '') + '<button class="btn pri sm" data-act="plan-add" data-v="' + x.id + '|a" style="margin-left:auto">Add to deck</button></div></div><div></div><div></div>';
+  return '<div class="tip good"><b><small>Build in progress</small>' + done + ' of ' + need + ' cards in the deck</b>' + (d.planPrev ? '<div class="row" style="margin-top:6px"><span class="note">Redesigned around your cards.</span><button class="btn sm" data-act="plan-regen-undo">Undo</button></div>' : '') + (extra ? '<p class="note" style="margin:4px 0 0">' + room + ' slot' + (room === 1 ? '' : 's') + ' left and ' + total + ' suggested cards: you added ' + extra + ' card' + (extra === 1 ? '' : 's') + ' of your own, so pick the ones you want. Add all fills only the open slots, best picks first.</p>' : '') + '<ul><li class="pro"><i>+</i>This deck was designed as its strongest version first. Each expensive card also has a Mid and a Budget stand-in that does the same job.</li><li class="pro"><i>+</i>Nothing is in the decklist until you add it. Add cards one at a time, or finish the whole deck at one tier below.</li></ul></div>' +
     '<div class="tiers">' + TIER_KEYS.map(t => '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>Finish the deck</span><span>' + est + '$' + planCost(d, t).toFixed(0) + '</span><button class="btn sm" data-act="plan-all" data-v="' + t + '">Add all</button><em>' + (t === 'apex' ? 'the strongest build' : t === 'mid' ? 'nothing over $12' : 'nothing over $3') + (nOwn ? ', plus cards you own' : '') + '</em></div>').join('') + '</div>' +
     (nOwn ? '<div class="row"><button class="btn sm" data-act="plan-all" data-v="own">Add the ' + nOwn + ' card' + (nOwn === 1 ? '' : 's') + ' you already own</button></div>' : '') +
     (short ? '<div class="gate"><b>' + short + ' slot' + (short === 1 ? '' : 's') + ' could not be filled</b>' + (must ? 'Your filter rules leave too few cards to choose from. Switch a filter back to Preferred, or add cards yourself.' : 'There were not enough suitable cards. You can add cards yourself.') + '</div>' : '') +
-    '<div class="grp"><span class="lab">Cards to add · ' + slots.length + ' slots</span><div class="paths plan">' + slots.slice(0, show).map(x => { const c = find(x.a);
+    '<div class="grp"><span class="lab">Cards to add · ' + slots.length + ' slots</span>' + typeBar(slots.map(x => slotTypes([x.a, x.m, x.b])), vis.length) + '<div class="paths plan">' + vis.slice(0, show).map(x => { const c = find(x.a);
       return '<div class="path">' + (x.basic ? one(x, 'Basic land', '') : x.seed ? one(x, x.own ? 'Your pick · you own this' : 'Your pick', 'good') : x.own ? one(x, 'Free · you own this', 'good') : !x.b && !x.m ? one(x, tierOfPrice(c) === 'budget' ? 'Best pick at every tier' : TIERS[tierOfPrice(c)].label + ' · no cheaper stand-in found', 'gold')
         : (x.b ? opt(x, 'b', 'budget', x.b) : '<div class="opt none"><span class="chip">Budget</span><p>No stand-in under $3</p></div>') + (x.m ? opt(x, 'm', 'mid', x.m) : tierOfPrice(c) === 'mid' ? opt(x, 'a', 'mid', x.a) : '<div class="opt none"><span class="chip">Mid</span><p>Same as Budget</p></div>') + (tierOfPrice(c) === 'apex' ? opt(x, 'a', 'apex', x.a) : '<div class="opt none"><span class="chip">Apex</span><p>Same as Mid</p></div>')) + '</div>'; }).join('') + '</div>' +
-    (slots.length > show ? '<div class="row"><button class="btn" data-act="plan-more">Show ' + Math.min(24, slots.length - show) + ' more</button></div>' : '') + '</div>' + basicsBox(basics.map(x => ({n:x.a, q:x.q})), 'plan-basics', 'Add all basic lands', '');
+    (vis.length > show ? '<div class="row"><button class="btn" data-act="plan-more">Show ' + Math.min(24, vis.length - show) + ' more</button></div>' : '') + '</div>' + basicsBox(basics.map(x => ({n:x.a, q:x.q})), 'plan-basics', 'Add all basic lands', '');
 }
 // The deck is being built toward its Apex version. The best card found for a slot is that slot's Apex card, whatever it
 // costs: when no stronger card exists above a pick, that pick stands for every tier above it.
@@ -897,6 +954,34 @@ function basicsBox(rows, act, btn, note){
   const col = n => Object.keys(COLOR_BASIC).find(k => COLOR_BASIC[k] === n) || 'C', order = 'WUBRGC', L = [...by.entries()].sort((a, b) => order.indexOf(col(a[0])) - order.indexOf(col(b[0]))), tot = L.reduce((s, x) => s + x[1], 0);
   return '<div class="grp"><span class="lab">Basic lands · ' + tot + '</span><div class="buygrp"><div class="row">' + L.map(([n, q]) => '<span class="chip"><i class="pip p' + col(n) + '">' + col(n) + '</i> ' + q + ' × ' + esc(n) + '</span>').join('') + '<button class="btn pri sm" data-act="' + act + '" style="margin-left:auto">' + btn + '</button></div>' + (note ? '<p class="note" style="margin:6px 0 0">' + note + '</p>' : '<p class="note" style="margin:6px 0 0">Basic lands are treated as cards you already have. They are not priced and never appear on the buy list.</p>') + '</div></div>';
 }
+// See alternatives: when you don't have a recommended card, cards close enough to fill its slot. Same job, same price band
+// (Budget under $3, Mid under $12, Apex otherwise and at most twice the pick's price), strongest for this deck first (altsFor).
+function altSrc(d, v){ const [k, a, b] = String(v || '').split('|');
+  if (k === 'plan'){ const x = (d.plan || []).find(y => y.id === +a), n = x && (b === 'b' ? x.b : b === 'm' ? x.m : x.a); return n ? {kind:'plan', x, key:b, n, q:x.q} : null; }
+  if (k === 'up'){ const L = recsFor(d).paths[+a], p = L && L.opts[b]; return p ? {kind:'up', t:b, n:p.add, q:p.q, cut:p.cut} : null; }
+  return null; }
+function altBtn(v){ return '<button class="btn sm" data-act="alts" data-v="' + v + '">See alternatives</button>'; }
+function altList(d, s){
+  if (s.kind === 'plan'){ const P = d.plan || [], deck = d.cards.map(e => ({n:e.n, q:e.q})).concat(P.map(y => ({n:y.a, q:y.q})));
+    return altsFor(d, s.n, {deck, skip:P.flatMap(y => [y.m, y.b]).filter(Boolean)}); }
+  const R = recsFor(d); return altsFor(d, s.n, {cut:s.cut, val:R.valOf, skip:R.paths.flatMap(L => Object.values(L.opts).map(o => o.add))}); }
+function openAlts(v){
+  const d = cur(), s = d && altSrc(d, v); if (!s) return; S.modalCard = null;
+  const c = find(s.n), band = tierOfPrice(c), job = mainJob(s.n), head = '<div class="panel" role="dialog" aria-label="Alternatives"><div class="ph"><h2>Alternatives to ' + esc(s.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>';
+  $('#modal').innerHTML = head + '<p class="note" style="margin:0">Finding cards that do the same job…</p></div>'; $('#modal').hidden = false;
+  setTimeout(() => { if (cur() !== d || $('#modal').hidden) return; let L = []; try { L = altList(d, s); } catch (e) { console.error(e); }
+    const rule = (job ? 'Each one is ' + (JOB_LABEL[job] || job) : tags(c || {}).land ? 'Each one is a land making the same colours' : 'Each one is a ' + mainType(c).toLowerCase() + ' that fits the same part of your plan') +
+      ', in the same price band as ' + esc(s.n.split(' // ')[0]) + ' (' + (band === 'budget' ? 'Budget: under $3' : band === 'mid' ? 'Mid: $3 to under $12' : 'Apex: $12 or more, and no more than twice its price') + ')' + (s.cut ? ', and still an upgrade over ' + esc(s.cut.split(' // ')[0]) : '') + '. Strongest for this deck first.';
+    $('#modal').innerHTML = head + '<p class="note" style="margin:0 0 8px">' + rule + '</p>' + (L.length ? '<div class="alts">' + L.map(a => { const ac = find(a.n);
+      return '<div class="opt alt"><button class="sw in" data-act="card" data-n="' + esc(a.n) + '">' + (ac ? '<img alt="" src="' + artFor(ac, {pid:ac.id}) + '">' : '<span></span>') + '<span>' + (s.q > 1 ? s.q + '× ' : '') + esc(a.n) + printTag(ac) + '</span><em>' + money(ac) + '</em></button><div class="row">' + (ac && ownSet().has(ac._n) ? '<span class="chip good">You own this</span>' : lackBtn(d, a.n)) + '<button class="btn pri sm" data-act="alt-use" data-v="' + esc(v) + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Use this instead</button></div></div>'; }).join('') + '</div>'
+      : '<p class="note" style="margin:0">No other card in this price band does the same job well enough for this deck' + (s.cut ? ' and still improves on ' + esc(s.cut.split(' // ')[0]) : '') + '.</p>') + '</div>';
+  }, 30);
+}
+function useAlt(d, v, n){ const s = altSrc(d, v), c = find(n); if (!s || !c) return false; const step = TIER_KEYS.indexOf(tierOfPrice(c)) + 1;
+  if (s.kind === 'plan'){ addCard(d, c.n, s.q); const en = d.cards.find(y => y.n === c.n); if (en) en.step = step; d.plan = d.plan.filter(y => y !== s.x); if (!d.plan.length) delete d.plan; toast('Added ' + c.n + ' in place of ' + s.n + '.'); return true; }
+  // You chose this card over the held pick on purpose, so the hold on that pick is released rather than blocking the swap.
+  const p = {cut:s.cut, add:c.n, q:s.q, t:s.t, gc:!!c.gc}, bad = validatePackage(d, [p]).filter(x => x.key !== 'held_pick_changed'); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ' (' + bad[0].card + ')' : '') + '.'); return false; }
+  if (d.recP) delete d.recP[norm(s.n)]; doSwap(d, p, step); toast('Swapped ' + s.cut + ' for ' + c.n + '.'); return true; }
 function planInstall(d, x, key){
   const n = key === 'b' ? x.b : key === 'm' ? x.m : x.a; if (!n) return false;
   addCard(d, n, x.q); const en = d.cards.find(y => y.n === n); if (en && !x.basic){ en.step = key === 'b' ? 1 : key === 'm' ? 2 : 3; if (x.seed) en.l = true; }
@@ -905,7 +990,7 @@ function planInstall(d, x, key){
 // Start a generated deck as a build plan.
 function startPlan(cmdName, seeds, extraAims, partner, opts){
   const c = find(cmdName); if (!c) return null;
-  const nd = newDeck(Object.assign({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander'}, opts && opts.sets && opts.sets.length ? {sets:opts.sets.slice(), setsMust:!!opts.setsMust} : {})); setCommander(nd, c.n);
+  const nd = newDeck(Object.assign({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander', src:'generated'}, opts && opts.sets && opts.sets.length ? {sets:opts.sets.slice(), setsMust:!!opts.setsMust} : {})); setCommander(nd, c.n);
   { const p = partner && find(partner); if (p && canPair(c, p)){ nd.partner = p.n; nd.name = c.n.split(',')[0] + ' & ' + p.n.split(',')[0] + ' (generated)'; nd.colors = ctxOf(nd).ident.slice(); ctxOf(nd).cmdThemes.forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); }); } }
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
   if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
@@ -972,14 +1057,68 @@ function scoreHtml(d, A){
   return '<div class="grp"><span class="lab">Deck score · ' + e.total + ' of 100</span>' + Object.keys(L).map(k => bar(k) + (k === 'quality' ? qLine : '')).join('') +
     '<details class="more" id="score-more"' + (S.scoreOpen ? ' open' : '') + '><summary>Why, how ' + cmdN + ' works, and how the deck wins</summary><div class="grp" style="margin-top:8px">' + more + '</div></details></div>';
 }
+// Running stats at the top of Upgrades: strength, where the cards sit between Budget and Apex, what the upgrades have cost
+// and what is left, and the deck's health. Recomputed on every change, with the change since you started and since the
+// last change. The start point is taken the first time the deck is scored and kept with the deck (Reset sets it again).
+const STATL = new Map();
+function statDelta(v, ref, unit){ if (ref == null || v == null || v === ref) return ''; const x = v - ref; return '<em class="' + (x > 0 ? 'up' : 'dn') + '">' + (x > 0 ? '+' : '−') + Math.abs(x) + (unit || '') + '</em>'; }
+// Tier-meter labels: marks closer than 22 points share one label so they never overlap on a phone.
+function tmLabels(mk){ const L = (mk ? [{p:mk.budget, t:'Budget ' + mk.budget}, {p:mk.mid, t:mk.mid >= 99 ? 'Mid' : 'Mid ' + mk.mid}] : []).concat({p:100, t:'Apex'}), out = [];
+  L.forEach(x => { const y = out[out.length - 1]; if (y && x.p - y.p < 22){ y.t += ' · ' + x.t; y.p = x.p; } else out.push(Object.assign({}, x)); });
+  return out.map(x => '<span style="' + (x.p >= 80 ? 'right:' + (100 - x.p) + '%;transform:none' : x.p <= 15 ? 'left:' + x.p + '%;transform:none' : 'left:' + x.p + '%') + '">' + esc(x.t) + '</span>').join(''); }
+function statsHtml(d, A, R){
+  if (d.format !== 'commander') return '';
+  const T = A.T, e = A.size >= 90 && A.ctx.cmd && DBINFO.complete ? evalFor(d) : null, q = e && e.quality || {}, val = n => { const c = find(n); return c && c.p != null && !isBasic(c.n) ? c.p : 0; };
+  if (e && !q.pending && !d.base){ d.base = {score:e.total, q:q.vsApex, at:new Date().toISOString().slice(0, 10)}; persistSoon(); }
+  const L = STATL.get(d.id) || {}; if (e && !q.pending && (L.score !== e.total || L.q !== q.vsApex)){ STATL.set(d.id, {score:e.total, q:q.vsApex, prev:L.score != null ? {score:L.score, q:L.q} : (L.prev || null)}); }
+  const prev = (STATL.get(d.id) || {}).prev, B = d.base;
+  // health: each indicator is good, warn or bad
+  const H = [], st = (have, want) => have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad';
+  const v = validateDeck(d), open = Math.max(0, T.size - A.size);
+  H.push({k:'Legal', s:v.length ? 'bad' : open ? 'warn' : 'good', t:v.length ? v.length + ' rule problem' + (v.length === 1 ? '' : 's') : open ? open + ' open slot' + (open === 1 ? '' : 's') : A.size + ' cards, legal'});
+  [['Lands', A.lands, T.lands], ['Ramp', A.roles.ramp, T.ramp], ['Draw', A.roles.draw, T.draw], ['Removal', A.roles.removal, T.removal], ['Wipes', A.roles.wipe, T.wipe]].forEach(([k, h, w]) => { if (w) H.push({k, s:st(h, w), t:h + ' / ' + w}); });
+  H.push({k:'Curve', s:A.avg <= 3.3 ? 'good' : A.avg <= 3.7 ? 'warn' : 'bad', t:'avg ' + A.avg.toFixed(2)});
+  if (e && e.sim){ const m = e.sim, bad = Math.max(m.colourStuck, m.screwT5); H.push({k:'Mana', s:bad <= 0.12 ? 'good' : bad <= 0.22 ? 'warn' : 'bad', t:Math.round(m.colourStuck * 100) + '% colour-stuck · ' + Math.round(m.screwT5 * 100) + '% short of lands'}); }
+  if (e){ const w = e.combos.win.length, f = e.finishers.length; H.push({k:'Win routes', s:w || f >= 4 ? 'good' : f >= 2 ? 'warn' : 'bad', t:f + ' finisher' + (f === 1 ? '' : 's') + (w ? ' · ' + w + ' combo' + (w === 1 ? '' : 's') : '')});
+    const un = e.needs.filter(x => x.have < x.min); if (e.needs.length) H.push({k:'Commander', s:un.length ? 'warn' : 'good', t:un.length ? 'short on ' + un.map(x => x.label).slice(0, 2).join(', ') : 'its needs are met'}); }
+  const nBad = H.filter(x => x.s === 'bad').length, nWarn = H.filter(x => x.s === 'warn').length, hs = nBad ? 'bad' : nWarn ? 'warn' : 'good';
+  // upgrade totals
+  const sw = d.cards.filter(x => x.hist && x.hist.length), nSw = sw.reduce((a, x) => a + x.hist.length, 0), own = ownSet();
+  const spent = sw.reduce((a, x) => { const c = find(x.n); return a + (c && !own.has(c._n) ? val(x.n) * x.q : 0); }, 0), worth = d.cards.reduce((a, x) => a + val(x.n) * x.q, 0);
+  const left = R ? TIER_KEYS.map(t => ({t, s:tierSum(d, R, t)})) : [], want = wantOf(d), wCost = want.reduce((a, x) => a + val(x.n) * (x.q || 1), 0);
+  // tier meter: the deck's cards between random playable cards (0) and the Apex build (100), with the best Budget and Mid builds marked
+  const mk = q.marks, qp = q.vsApex, lvl = qp == null || !mk ? '' : qp >= 97 ? 'Apex' : qp >= mk.mid ? 'Mid' : qp >= mk.budget ? 'Budget' : 'Starter';
+  const tierMeter = qp == null ? '<p class="note" style="margin:0">' + (e ? 'Measuring against this deck’s Apex build…' : A.size < 90 ? 'The tier meter appears once the deck has 90 or more cards.' : 'The tier meter appears once the card data has finished downloading.') + '</p>'
+    : '<div class="tmeter" role="img" aria-label="Card quality ' + qp + '% of the Apex build; ' + lvl + ' level"><i><b style="width:' + qp + '%"></b>' + (mk ? '<u style="left:' + mk.budget + '%" title="Best build with every card under $3"></u><u style="left:' + mk.mid + '%" title="Best build with every card under $12"></u>' : '') + '</i>' +
+      '<div class="tm-lab">' + tmLabels(mk) + '</div></div>' +
+      '<p class="note" style="margin:0">Your cards are at <b>' + lvl + '</b> level' + (lvl === 'Starter' ? ' (below the best Budget build)' : '') + ': ' + qp + '% of the way from random playable cards to the Apex build' + statDelta(qp, B && B.q, ' pts') + (B && B.q != null && B.q !== qp ? ' since ' + B.at : '') + '. The marks show where the best all-under-$3 and all-under-$12 builds land.</p>';
+  const strip = '<div class="statbar" role="status" aria-live="polite"><span><b>' + (e ? e.total : '—') + '</b>/100' + (e ? statDelta(e.total, prev && prev.score) : '') + '</span>' +
+    (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') + (A.ctx.bracket ? '<span>Bracket <b>' + A.ctx.bracket + '</b></span>' : '') +
+    '<span>Swaps <b>' + nSw + '</b></span><span>Spent <b>$' + spent.toFixed(0) + '</b></span><span class="hdot ' + hs + '">Health ' + (nBad + nWarn ? nBad + nWarn + ' to watch' : 'good') + '</span></div>';
+  const open1 = S.statsOpen !== false;
+  return strip + '<details class="stats grp" id="stats-more"' + (open1 ? ' open' : '') + '><summary><span class="lab" style="margin:0">Build stats</span></summary>' +
+    '<div class="sgrid"><div><small>Deck score</small><b>' + (e ? e.total : '—') + '</b>' + (e ? statDelta(e.total, B && B.score) + (B && B.score !== e.total ? '<span class="note"> since ' + B.at + '</span>' : '') : '') + '</div>' +
+    '<div><small>Card quality</small><b>' + (qp == null ? '—' : qp + '%') + '</b><span class="note">of Apex</span></div>' +
+    '<div><small>Bracket</small><b>' + (A.ctx.bracket || '—') + '</b><span class="note">' + (A.ctx.bracket ? esc(BRACKETS[A.ctx.bracket].label) : '') + '</span></div>' +
+    '<div><small>Deck value</small><b>$' + worth.toFixed(0) + '</b><span class="note">excluding basics</span></div>' +
+    '<div><small>Swaps made</small><b>' + nSw + '</b><span class="note">$' + spent.toFixed(0) + ' in cards you didn’t own</span></div>' +
+    '<div><small>Buy list</small><b>' + want.length + '</b><span class="note">$' + wCost.toFixed(0) + '</span></div></div>' +
+    '<span class="lab">Tier meter</span>' + tierMeter +
+    (left.length ? '<span class="lab">Upgrades left</span><div class="row">' + left.map(x => '<span class="chip' + (x.s.n ? '' : ' good') + '">' + TIERS[x.t].label + ' · ' + (x.s.n ? x.s.n + ' swap' + (x.s.n === 1 ? '' : 's') + ' · ' + (x.s.cost >= 0 ? '+' : '−') + '$' + Math.abs(x.s.cost).toFixed(0) : 'done') + '</span>').join('') + '</div>' : '') +
+    '<span class="lab">Health</span><div class="hgrid">' + H.map(x => '<span class="hi ' + x.s + '"><i></i><b>' + x.k + '</b> ' + esc(x.t) + '</span>').join('') + '</div>' +
+    (B ? '<div class="row"><span class="note">Changes are counted from ' + B.at + ' (score ' + B.score + (B.q != null ? ', card quality ' + B.q + '%' : '') + ').</span><button class="btn sm" data-act="stats-reset" style="margin-left:auto">Start counting from now</button></div>' : '') +
+    '</details>';
+}
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
   let h = '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
-    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size && !(d.plan && d.plan.length) ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button></div><div class="scroll up" id="upscroll" data-keep>';
+    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size && !(d.plan && d.plan.length) ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="analyze"' + (d.cards.length ? '' : ' disabled') + ' title="Read what your cards are doing, score the deck as it stands, and see what it needs">Analyze this build</button>' + (d.plan && d.plan.length ? '<button class="btn" data-act="plan-regen"' + (d.cards.length ? '' : ' disabled') + ' title="Keep every card in the deck and design the open slots again around them">Regenerate around my cards</button>' : isAimed(d) && d.cards.length ? '<button class="btn" data-act="regen" title="Weigh every upgrade again for the cards in your deck now">Regenerate upgrades</button>' : '') + '</div><div class="scroll up" id="upscroll" data-keep>';
+  if (d.plan && d.plan.length && syncPlan(d)) persistSoon();
   if (d.plan && d.plan.length) return h + planHtml(d) + '</div>';
+  h += statsHtml(d, A, isAimed(d) ? recsFor(d) : null);
   if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   if (d.format === 'commander') h += bracketHtml(d, A);
-  h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
+  if (d.format !== 'commander') h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';   // Commander decks show these in Build stats
   if (!(d.plan && d.plan.length)) h += scoreHtml(d, A);
   h += '<div class="grp"><span class="lab">Card types</span><div class="row">' + TYPE_ORDER.filter(k => A.types[k]).map(k => '<span class="chip">' + (k === 'Sorcery' ? 'Sorceries' : k + 's') + ' · ' + A.types[k] + '</span>').join('') + '</div></div>';
   { const mp0 = manaPlan(d), cols = 'WUBRG'.split('').filter(k => mp0.pips[k] || mp0.have[k]); if (cols.length) h += '<div class="grp"><span class="lab">Colored mana · spells need vs basic lands</span><div class="row">' + cols.map(k => '<span class="chip' + (mp0.basics && Math.abs(mp0.want[k] - mp0.have[k]) >= 2 ? ' warn' : '') + '"><i class="pip p' + k + '">' + k + '</i> ' + mp0.pips[k] + ' symbols · ' + mp0.have[k] + ' ' + COLOR_BASIC[k] + '</span>').join('') + '</div></div>'; }
@@ -994,7 +1133,7 @@ function upPanel(d, A){
   if (flags.length) h += '<div class="row">' + flags.join('') + '</div>';
   if (!isAimed(d)){
     const need = d.format === 'commander' && !A.ctx.cmd ? 'Choose your commander, then pick' : !d.aims.length ? 'Pick' : d.aims.includes('tribal') && !A.ctx.tribe ? 'Choose a creature type for your tribal aim. Then pick' : 'Choose your land colors, and pick';
-    return h + '<div class="gate"><b>Set up the build first</b>' + need + ' at least one mechanic in the Build panel. Upgrade paths are built around your priorities, so two players with the same commander get different lists.</div></div>';
+    return h + '<div class="gate"><b>Set up the build first</b>' + need + ' at least one mechanic in the Build panel. Upgrade paths are built around your priorities, so two players with the same commander get different lists.' + (d.cards.length ? '<div class="row" style="margin-top:10px"><button class="btn pri" data-act="analyze">Analyze this build</button><span class="note">Reads what your cards are doing and suggests the build for you.</span></div>' : '') + '</div></div>';
   }
   const hasPlan = d.plan && d.plan.length, R = hasPlan ? null : recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>'; }, price = n => money(find(n));
   const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + (kind === 'in' ? printTag(find(n)) : '') + '</span><em>' + price(n) + '</em></button>';
@@ -1020,8 +1159,8 @@ function upPanel(d, A){
     h += '<div class="tiers">' + TIER_KEYS.map(t => { const ts = tierSum(d, R, t); return '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>' + (ts.n ? ts.n + ' swap' + (ts.n === 1 ? '' : 's') : 'No worthwhile upgrades') + '</span><span>' + (ts.n ? (ts.cost >= 0 ? '+' : '−') + '$' + Math.abs(ts.cost).toFixed(0) : '') + '</span><button class="btn sm" data-act="swap-all" data-v="' + t + '"' + (ts.n ? '' : ' disabled') + '>Apply all</button><em>' + (t === 'apex' ? 'the strongest card for each slot, any price' : 'the Apex card where it costs under $' + TIERS[t].cap + ', otherwise a cheaper card that does the same job') + '</em>' + packLine(R, t, ts.n) + (t === 'apex' ? '' : capBox(d, t)) + '</div>'; }).join('') + '</div>' +
       '<p class="note" style="margin:0">Apex is the strongest card found for each slot, whatever it costs, so a cheap card can be the Apex pick. Mid and Budget are cheaper cards that do the same job as the Apex card: under $12 and under $3, and cheaper than the Apex card. When nothing qualifies the tier stays empty and says why. When the Apex card already costs less than a tier’s limit, that tier uses it. Mid and Budget also offer the best deck with every new card under their limit (per card; cards you own count as free). That list is chosen on its own, so it can replace different cards than the Apex list. The Apex swaps are also checked together: the line under Apex shows what applying all of them does to the deck. Picks you have been shown are held in place until you swap them in, exclude them, or regenerate.</p>' +
       '<p class="note" style="margin:0"><b>Don’t suggest for this deck</b> excludes that card from this deck’s recommendations. Your deck stays unchanged, and you can allow the card again under Excluded cards for this deck.</p>';
-    const show = S.pathShow || 12;
-    h += '<div class="paths">' + R.paths.slice(0, show).map((L, i) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
+    const show = S.pathShow || 12, PT = R.paths.map(L => slotTypes(Object.values(L.opts).map(o => o.add))), PV = R.paths.map((L, i) => [L, i]).filter(([, i]) => !upT() || PT[i].has(upT()));
+    h += typeBar(PT, PV.length) + '<div class="paths">' + PV.slice(0, show).map(([L, i]) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
       const fp = L.opts.free;
       const cw = (L.opts.apex || L.opts.mid || L.opts.budget || {}).cutWhy || [];
       // the explanation shares the swap-history row, so every card keeps the same 7 rows and lines up with its neighbours
@@ -1030,9 +1169,9 @@ function upPanel(d, A){
         (fp ? '<div class="tip good free"><b><small>Tip</small>Free swap · you already own this</b>' + side('in', fp.add, fp.q) + '<div class="row">' + gcChip(fp, R) + (fp.cross ? '<span class="chip warn">' + fp.from + ' → ' + fp.to + '</span>' : '') + fp.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div><div class="row"><button class="btn sm" data-act="lib-not-own" data-n="' + esc(fp.add) + '">I don’t own this card</button><button class="btn pri sm" data-act="swap" data-v="' + i + '|free" style="margin-left:auto">Swap</button></div></div>' : '<div></div>') +
         TIER_KEYS.map(t => { const p = L.opts[t]; if (!p) return '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + esc((L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') + '</p></div>';
           return '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + upChip(L, t) + driftChip(d, p.add, t) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
-            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Don’t suggest ' + esc(p.add) + ' for this deck">Don’t suggest for this deck</button><button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>';
+            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Don’t suggest ' + esc(p.add) + ' for this deck">Don’t suggest for this deck</button>' + altBtn('up|' + i + '|' + t) + (p.own ? '' : lackBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>';
 }).join('') + '</div>'; }).join('') + '</div>';
-    if (any > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, any - show) + ' more</button>';
+    if (PV.length > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, PV.length - show) + ' more</button>';
   }
   h += '</div>';
   h += outHtml;
@@ -1079,7 +1218,7 @@ function viewSearch(){
 }
 function loadPrecon(p){
   const cards = PRECON_LISTS[p.name].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x), n = m ? m[2] : x, c = find(n); return {n:c ? c.n : n, q:m ? +m[1] : 1, l:false}; });
-  const d = newDeck({name:p.name, format:'commander', cards, aims:p.aims.slice(), tribe:p.tribe || '', auto:'precon'}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; return d;
+  const d = newDeck({name:p.name, format:'commander', cards, aims:p.aims.slice(), tribe:p.tribe || '', auto:'precon', src:'precon'}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; return d;
 }
 // Precon picker: the 16 built-in decks are always there; the full catalogue and other decklists come live from EDHREC.
 let PRE = {state:'', list:[]};
@@ -1114,7 +1253,7 @@ async function loadPreconLive(slug, label){
     Object.values(dk.cards || {}).forEach(arr => (arr || []).forEach(t => { if (t && t[0]) put(t[0], +t[1] || 1); })); cmds.slice(2).forEach(n => put(n, 1));
     if (cmds[1] && !(find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1])))) put(cmds[1], 1);
     if (!map.size) throw new Error('empty');
-    const d = newDeck({name:dk.name || label, format:'commander', cards:[...map.values()]});
+    const d = newDeck({name:dk.name || label, format:'commander', cards:[...map.values()], src:'precon'});
     if (cmds[0]){ setCommander(d, cmds[0]); if (cmds[1] && find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1]))) setPartner(d, cmds[1]); const v2 = (dk.commander_v2 || [])[0]; if (v2 && v2[2] && find(cmds[0])) d.cmdSet = v2[2]; }
     if (d.aims.length) d.auto = 'precon';
     touch(); render(); const unk = d.cards.filter(e => !find(e.n)).length;
@@ -1138,7 +1277,7 @@ function genPartnerBox(c){
 function regenBuild(d){
   const c = find(d.commander); if (!c || d.format !== 'commander') return null;
   const seeds = d.cards.filter(e => e.l).map(e => find(e.n)).filter(Boolean);
-  const nd = newDeck({name:d.name.replace(/ \(generated\)$/, '') + ' (generated)', format:'commander', tier:'apex', aims:d.aims.slice(), tribe:d.tribe || '', colors:(d.colors || []).slice(), types:(d.types || []).slice(), keys:(d.keys || []).slice(), typesMust:!!d.typesMust, keysMust:!!d.keysMust, sets:(d.sets || []).slice(), setsMust:!!d.setsMust, custom:true, aimAuto:d.aimAuto});
+  const nd = newDeck({name:d.name.replace(/ \(generated\)$/, '') + ' (generated)', format:'commander', tier:'apex', src:'generated', aims:d.aims.slice(), tribe:d.tribe || '', colors:(d.colors || []).slice(), types:(d.types || []).slice(), keys:(d.keys || []).slice(), typesMust:!!d.typesMust, keysMust:!!d.keysMust, sets:(d.sets || []).slice(), setsMust:!!d.setsMust, custom:true, aimAuto:d.aimAuto});
   setCommander(nd, c.n); if (d.partner){ const p = find(d.partner); if (p && canPair(c, p)) nd.partner = p.n; }
   nd.colors = (d.colors || []).length ? d.colors.slice() : ctxOf(nd).ident.slice(); nd.tribe = d.tribe || nd.tribe;   // setCommander resets them; keep the player's
   nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
@@ -1279,19 +1418,77 @@ function openEntry(n){
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(n) + '"><div class="ph"><h2>' + esc(n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">This card isn’t in the card data yet, so there are no details to show. It stays in your list.</p><div class="grp" id="ctl">' + ctlHtml(n) + '</div></div>';
   $('#modal').hidden = false;
 }
+// Analyze this build: for a deck built by hand (or any deck), read what its cards are doing, score it as it stands, and say
+// what it needs. Nothing changes in the deck unless the player presses one of the buttons.
+// Plain words for a rules problem from validateDeck.
+function validMsg(x){ const c = x.card ? x.card + ': ' : '';
+  return ({commander_missing:'No commander chosen yet.', commander_ineligible:c + 'can’t be a commander.', commander_pair_invalid:c + 'can’t share the command zone with your commander.', format_not_legal:c + 'not legal in this format.',
+    off_color_identity:c + 'outside your commander’s colors.', singleton_conflict:c + 'more copies than the format allows.', wrong_deck_size:'The deck doesn’t have the right number of cards yet.', unresolved_identity:c + 'not found in the card data.',
+    land_type_color_invalid:c + 'a land type outside your colors.'})[x.key] || (c + x.key.replace(/_/g, ' ')); }
+async function openAnalysis(){
+  const d = cur(); if (!d) return; S.modalCard = null;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Build analysis"><div class="ph"><h2>Build analysis</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Reading your deck…</p></div>'; $('#modal').hidden = false;
+  const c = d.format === 'commander' ? find(d.commander) : null;
+  if (c){ await loadEdh(c.n); if (EDH.key === c.n && EDH.state === 'ok') await loadThemes(c.n, (EDH.tags || []).slice(0, 10).map(t => 'edh:' + t.slug)); }
+  if (cur() !== d || $('#modal').hidden) return;
+  const A = analyze(d), ctx = A.ctx, T = A.T, B = buildThemes(d), v = validateDeck(d), open = Math.max(0, T.size - A.size);
+  const label = k => isEdhAim(k) ? aimLabel(k) : k === 'tribal' ? (B.tribe || ctx.tribe || 'Creature type') + ' tribal' : (THEMES[k] || {label:k}).label;
+  let h = '<div class="panel" role="dialog" aria-label="Build analysis"><div class="ph"><h2>Build analysis</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>';
+  h += '<p class="note" style="margin:0">' + A.size + ' of ' + T.size + ' cards' + (open ? ' · ' + open + ' open slot' + (open === 1 ? '' : 's') : '') + ' · ' + A.lands + ' lands, ' + A.nonland + ' spells · average mana value ' + A.avg.toFixed(2) + '</p>';
+  // 1. commander
+  if (d.format === 'commander' && !c){ const cols = deckColors(d), sug = cols.length ? findCommanders(d, cols, 5) : [];
+    h += '<div class="grp"><span class="lab">Commander</span><p class="note" style="margin:0">No commander yet.' + (cols.length ? ' Your spells use ' + cols.join('') + '. These commanders cover those colors and fit your cards:' : ' Add some cards first, or pick one.') + '</p>' +
+      (sug.length ? '<div class="row">' + sug.map(x => '<button class="btn sm" data-act="set-cmd" data-n="' + esc(x.n) + '">' + esc(x.n) + (x.outside ? ' · ' + x.outside + ' off-color' : '') + '</button>').join('') + '</div>' : '') + '</div>'; }
+  // 2. what the cards are doing
+  const row = x => '<div class="row" style="justify-content:space-between"><span>' + esc(x.label) + '</span><span class="chip">' + x.n + ' card' + (x.n === 1 ? '' : 's') + '</span></div>';
+  h += '<div class="grp"><span class="lab">What your cards are doing</span>' + (!B.edh.length && !B.gen.length ? '<p class="note" style="margin:0">Not enough spells yet to see a plan.</p>' :
+    (B.edh.length ? '<p class="note" style="margin:0">' + esc(c.n.split(',')[0]) + '’s themes (what players build it around):</p>' + B.edh.slice(0, 5).map(row).join('') : '') +
+    (B.gen.length ? '<p class="note" style="margin:0">' + (B.edh.length ? 'General mechanics:' : 'Mechanics in your cards:') + '</p>' + B.gen.slice(0, 5).map(row).join('') : '') +
+    (B.suggest.length ? '<p class="note" style="margin:0">Suggested build, in order: <b>' + B.suggest.map(k => esc(label(k))).join(' › ') + '</b>' + (JSON.stringify(B.suggest) === JSON.stringify(d.aims) ? ' (already set).' : '. Your build is set to: ' + (d.aims.length ? d.aims.map(k => esc(aimLabel(k, ctx.tribe))).join(' › ') : 'nothing yet') + '.') + '</p>' +
+      (JSON.stringify(B.suggest) !== JSON.stringify(d.aims) && !d.aimLocked ? '<div class="row"><button class="btn pri sm" data-act="an-apply">Use the suggested build</button></div>' : '') : '')) + '</div>';
+  // 3. rules
+  h += '<div class="grp"><span class="lab">Rules check</span>' + (v.length ? v.slice(0, 8).map(x => '<p class="note" style="margin:0">' + esc(validMsg(x)) + '</p>').join('') : '<p class="note" style="margin:0">' + (open ? 'Legal so far; it needs ' + open + ' more card' + (open === 1 ? '' : 's') + '.' : 'A legal ' + (d.format === 'commander' ? 'Commander' : 'Standard') + ' deck.') + '</p>') + '</div>';
+  // 4. score and health (the deck score panel, scored as the deck stands)
+  if (d.format === 'commander' && c){ let e = null; try { e = evaluateDeck(d, {games:300, apex:apexFor(d), partial:A.size < 90}); } catch (err) {}
+    if (e){ const L = {synergy:'Synergy', balance:'Balance', quality:'Card quality', routes:'Win routes', mana:'Mana and curve'};
+      h += '<div class="grp"><span class="lab">Deck score as it stands · ' + e.total + ' of 100</span>' + (open ? '<p class="note" style="margin:0">Scored as the ' + A.size + ' cards so far; missing lands and jobs count against it.' + (A.size < 90 ? ' Mana and curve is left out until the deck is complete.' : '') + '</p>' : '') +
+        Object.keys(L).map(k => { const x = e.parts[k]; if (x == null) return '<p class="note" style="margin:0"><b>' + L[k] + ':</b> ' + esc(e.why[k]) + '.</p>'; const cls = x >= 75 ? 'good' : x >= 50 ? 'warn' : 'bad'; return '<div class="meter ' + cls + '"><span>' + L[k] + '</span><i><b style="width:' + x + '%"></b></i><span>' + x + '</span></div><p class="note" style="margin:-2px 0 4px">' + esc(e.why[k]) + '</p>'; }).join('') +
+        (e.finishers.length ? '<p class="note" style="margin:0"><b>Finishers:</b> ' + e.finishers.slice(0, 8).map(esc).join(', ') + '</p>' : '<p class="note" style="margin:0"><b>No clear finisher yet.</b></p>') +
+        (e.combos.win.length ? '<p class="note" style="margin:0"><b>Combo:</b> ' + e.combos.win.slice(0, 2).map(x => esc(x.names.join(' + ') + ' · ' + x.what.toLowerCase())).join('; ') + '</p>' : '') +
+        (e.weak.length ? '<p class="note" style="margin:0"><b>Barely supported:</b> ' + [...new Set(e.weak.map(w => w.n + ' (needs ' + w.label + ')'))].slice(0, 4).map(esc).join('; ') + '</p>' : '') + '</div>'; } }
+  h += '<div class="grp"><span class="lab">Deck health</span>' + [['Lands', A.lands, T.lands], ['Ramp', A.roles.ramp, T.ramp], ['Card draw', A.roles.draw, T.draw], ['Removal', A.roles.removal, T.removal], ['Board wipes', A.roles.wipe, T.wipe]].map(([n, have, want]) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + n + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; }).join('') + '</div>';
+  // 5. what to add next and the weakest cards
+  if (A.nonland){ let adds = []; try { const tmp = JSON.parse(JSON.stringify(d)); if (!tmp.aims.length) tmp.aims = B.suggest.slice(); adds = recommend(tmp, 0, true).adds.filter(a => a.kind === 'spell').slice(0, 8); } catch (err) {}
+    const sc = d.cards.map(x => find(x.n)).filter(x => x && !tags(x).land).map(x => ({c:x, s:baseScore(x, d, ctx).s})).sort((a, b) => a.s - b.s).slice(0, 5);
+    if (adds.length) h += '<div class="grp"><span class="lab">' + (open ? 'Best cards to add next' : 'Cards that would fit') + '</span><div class="row">' + adds.map(a => '<button class="chip" data-act="card" data-n="' + esc(a.n) + '" title="' + esc(a.why.join(' · ')) + '">' + esc(a.n) + '</button>').join('') + '</div><p class="note" style="margin:0">Tap one to see why it fits and add it.</p></div>';
+    if (sc.length >= 5 && A.nonland >= 20) h += '<div class="grp"><span class="lab">Weakest fits in the deck</span><div class="row">' + sc.map(x => '<button class="chip" data-act="card" data-n="' + esc(x.c.n) + '">' + esc(x.c.n) + '</button>').join('') + '</div><p class="note" style="margin:0">The cards that do least for this build; the Upgrades tab says what to replace them with.</p></div>'; }
+  $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
+}
+// Card details: add the card to one of the player's buy lists. The deck it upgrades (or the open deck) is chosen first; decks it
+// cannot go in are listed with the reason and cannot be picked.
+function wantBox(c){
+  const decks = S.profile.decks.concat(S.draft ? [S.draft] : []); if (!decks.length) return '<div id="wantbox"></div>';
+  const fit = d => wantFit(d, c), up = upFor(c).map(x => x.id), cd = cur();
+  let sel = S.wantDeck && decks.some(d => d.id === S.wantDeck && !fit(d)) ? S.wantDeck : (up.find(id => decks.some(d => d.id === id && !fit(d))) || (cd && !fit(cd) ? cd.id : (decks.find(d => !fit(d)) || {}).id));
+  const d = decks.find(x => x.id === sel), on = d && wantOf(d).some(x => keyOf(x.n) === c._k), inDeck = d && entryOf(d, c.n);
+  return '<div class="grp" id="wantbox"><span class="lab">Add to a buy list</span><div class="row"><select id="want-deck" aria-label="Deck" style="flex:1 1 180px;min-width:0;width:auto">' +
+    decks.map(x => { const f = fit(x); return '<option value="' + esc(x.id) + '"' + (x.id === sel ? ' selected' : '') + (f ? ' disabled' : '') + '>' + esc(x.name) + (up.includes(x.id) ? ' · upgrade' : '') + (f ? ' (' + esc(f) + ')' : '') + '</option>'; }).join('') + '</select>' +
+    (d ? (on ? '<button class="btn sm" data-act="want-undo" data-n="' + esc(c.n) + '">On the buy list · remove</button>' : '<button class="btn pri sm" data-act="want-add" data-n="' + esc(c.n) + '">Add to buy list</button>') : '') + '</div>' +
+    (!d ? '<p class="note" style="margin:0">This card can’t go in any of your decks: ' + esc(fit(decks[0])) + '.</p>' : inDeck ? '<p class="note" style="margin:0">' + esc(d.name) + ' already has this card.</p>' : ownSet().has(c._n) ? '<p class="note" style="margin:0">You already own this card (it’s in your library).</p>' : '') + '</div>';
+}
 function openCard(name, pid){
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
   const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
   S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
-    '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : 'Colorless') + '</dd>' +
+    '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => symImg(x)).join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
     (c.gc || BTAGS.mld.has(c._n) || BTAGS.turns.has(c._n) ? '<dt>Brackets</dt><dd>' + [c.gc ? 'Game Changer (Bracket 3 allows up to three; 4 and 5 any)' : '', BTAGS.mld.has(c._n) ? 'Mass land denial (Bracket 4 and up)' : '', BTAGS.turns.has(c._n) ? 'Extra turn (a few at most below Bracket 4)' : ''].filter(Boolean).join('; ') + '</dd>' : '') +
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +
     '<dt>Does</dt><dd>' + ([...tg.roles].map(r => ROLE_LABEL[r] || ({counter:'Counterspell', tutor:'Tutor', protect:'Protection'})[r]).concat(tg.land ? ['Land'] : []).join(', ') || 'Threat / synergy piece') + '</dd>' +
     (upFor(c).length ? '<dt>Upgrade for</dt><dd>' + upFor(c).map(x => '<button class="btn sm" data-act="open-deck" data-v="' + esc(x.id) + '">' + esc(x.name) + '</button> replaces ' + esc(x.cut) + ' <span class="chip">' + ({apex:'Apex', mid:'Mid', budget:'Budget'})[x.t] + '</span>').join('<br>') + '</dd>' : '') +
-    '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' +
+    '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' + wantBox(c) +
     '<div class="row">' + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.n + '"') + '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';
   $('#modal').hidden = false;
@@ -1349,6 +1546,8 @@ function handleAct(act, v, n, pArg){
     case 'nav': S.view = v; S.open = false; S.confirmDel = null; changed = false; break;
     case 'close': $('#modal').hidden = true; S.watchOpen = false; return;
     case 'regen': openRegen(); return;
+    case 'plan-regen': { if (!d || !d.plan) return; toast('Designing the open slots around your ' + d.cards.reduce((a, e) => a + e.q, 0) + ' cards…'); setTimeout(() => { if (cur() !== d) return; const n = regenPlan(d); touch(); render(); toast('Redesigned ' + n + ' card' + (n === 1 ? '' : 's') + ' around the cards in your deck. Undo is in the build box.'); }, 30); return; }
+    case 'plan-regen-undo': if (d && d.planPrev){ if (d.planPrev.length) d.plan = d.planPrev; else delete d.plan; delete d.planPrev; S.planShow = 0; toast('Put the previous plan back.'); } break;
     case 'regen-go': doRegen(); return;
     case 'hold-release': if (d.recP) delete d.recP[norm(n)]; toast(n + ' is no longer held for this deck.'); break;
     case 'regen-undo': if (d.recPrev){ d.recP = d.recPrev; delete d.recPrev; } $('#modal').hidden = true; toast('Put the previous picks back.'); break;
@@ -1372,7 +1571,7 @@ function handleAct(act, v, n, pArg){
     case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; S.tab = null; } changed = false; break;
     case 'draft-save': if (S.draft){ const nd = S.draft; S.profile.decks.unshift(nd); S.draft = null; S.deckId = nd.id; toast('Saved ' + nd.name + ' to your decks.'); } break;
     case 'draft-discard': if (S.draft){ const nm = S.draft.name; S.draft = null; S.open = false; S.deckId = (S.profile.decks[0] || {}).id || null; lsSet('dc.draft', null); toast('Discarded ' + nm + '.'); } changed = false; break;
-    case 'new-deck': newDeck({format:v, name:v === 'commander' ? 'New Commander deck' : 'New Standard deck'}); break;
+    case 'new-deck': newDeck({format:v, name:v === 'commander' ? 'New Commander deck' : 'New Standard deck', src:'scratch'}); break;
     case 'del-deck': if (S.confirmDel !== v){ S.confirmDel = v; changed = false; break; } S.profile.decks = S.profile.decks.filter(x => x.id !== v); if (S.deckId === v){ S.deckId = (S.profile.decks[0] || {}).id || null; S.open = false; } S.confirmDel = null; break;
     case 'fmt': if (d.format !== v){ d.format = v; if (v === 'standard'){ d.colors = (d.colors || []).slice(0, 3); } else if (find(d.commander)) d.colors = find(d.commander).ci.slice(); } break;
     case 'tier': d.tier = v; break;
@@ -1396,7 +1595,7 @@ function handleAct(act, v, n, pArg){
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
     case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = entryOf(d, n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck' + (en0.n !== n ? ' as ' + en0.n : '') + '.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
     case 'want': { doSwap(d, {cut:v, add:n, q:1}, 0); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
-    case 'add-to-deck': { const en0 = entryOf(d, n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
+    case 'add-to-deck': { const en0 = entryOf(d, n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } { const sl = planSlotFor(d, n); if (sl){ planInstall(d, sl, sl.b && keyOf(sl.b) === keyOf(n) ? 'b' : sl.m && keyOf(sl.m) === keyOf(n) ? 'm' : 'a'); } else addCard(d, n, 1); } if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
     case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; if (gcBlocked(d, p)){ toast(gcBlockMsg(d)); return; } const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ' (' + bad[0].card + ')' : '') + '.'); return; } const top = !!L.opts.apex && L.opts.apex.add === p.add; doSwap(d, p, top ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(t) + 1)); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'swap-cap': { const list = capList(d, v);
       // its own package, not a tier: holds on the cards it replaces end when those cards leave the deck
@@ -1425,6 +1624,8 @@ function handleAct(act, v, n, pArg){
     case 'lib-add-set': libAddSet(($('#lib-set') || {}).value); return;
     case 'fix': { const p = recsFor(d).fixes[+v]; if (!p) return; if (gcBlocked(d, p)){ toast(gcBlockMsg(d)); return; } doSwap(d, p, 0); break; }
     case 'drop': { const c = recsFor(d).drops[+v]; if (!c) return; cutCard(d, c.n, c.q); break; }
+    case 'uptype': S.upType = {id:S.deckId, t:v || ''}; S.pathShow = 0; S.planShow = 0; changed = false; break;
+    case 'stats-reset': { const e = evalFor(d); if (e && !e.quality.pending){ d.base = {score:e.total, q:e.quality.vsApex, at:new Date().toISOString().slice(0, 10)}; toast('Changes are now counted from here.'); } break; }
     case 'path-more': S.pathShow = (S.pathShow || 12) + 12; changed = false; break;
     case 'fill': { const k = fillDeck(d); const left = analyze(d); toast(k ? 'Filled ' + k + ' slots.' + (left.size < left.T.size ? ' The card library ran out of fits for the last ' + (left.T.size - left.size) + '.' : '') : 'No fitting cards left in the library for this aim and tier.'); break; }
     case 'backup-save': downloadBackup(); return;
@@ -1468,6 +1669,18 @@ function handleAct(act, v, n, pArg){
     case 'seed-paste-go': { const r = parseDeckText(($('#seed-text') || {}).value || ''); let k = 0, miss = 0; (r.commander ? [{n:r.commander}] : []).concat(r.partner ? [{n:r.partner}] : [], r.cards).forEach(x => { const c = find(x.n); if (!c){ miss++; return; } if (!S.seed.cards.includes(c.n)){ S.seed.cards.push(c.n); k++; } }); S.seed.paste = false; openSeed(); toast('Added ' + k + ' card' + (k === 1 ? '' : 's') + (miss ? ' · ' + miss + ' not recognised' : '') + '.'); return; }
     case 'seed-go': { $('#modal').hidden = true; toast('Building your deck…'); const go = () => seedBuild(n, v); loadEdh(n).then(go, go); return; }
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
+    case 'analyze': openAnalysis(); return;
+    case 'alts': openAlts(v); return;
+    case 'alt-use': if (!d || !useAlt(d, v, n)) return; $('#modal').hidden = true; break;
+    case 'lack': { if (!fromScratch(d)) return; const c = find(n), name = c ? c.n : n;
+      if (lacks(d, name)){ d.lack = d.lack.filter(x => keyOf(x) !== keyOf(name)); const w = wantOf(d), i = w.findIndex(x => keyOf(x.n) === keyOf(name) && x.from === 'lack'); if (i >= 0) w.splice(i, 1); toast(name + ' is no longer marked; removed from the buy list.'); }
+      else { (d.lack = d.lack || []).push(name); if (addWant(d, name)) wantOf(d)[wantOf(d).length - 1].from = 'lack'; toast(name + ' marked as one you don’t have and added to the ' + d.name + ' buy list.'); }
+      break; }
+    case 'an-apply': { const B = buildThemes(d); if (!B.suggest.length || d.aimLocked) return; aimsChanged(d); d.aims = B.suggest.slice(); if (B.tribe) d.tribe = B.tribe; d.aimAuto = false; d.custom = true; touch(); render(); openAnalysis(); toast('The build now follows your cards: ' + d.aims.map(k => aimLabel(k, d.tribe)).join(' › ') + '.'); return; }
+    case 'want-add': case 'want-undo': { const c = find(n), dk = S.profile.decks.concat(S.draft ? [S.draft] : []).find(x => x.id === (($('#want-deck') || {}).value || '')); if (!c || !dk) return;
+      if (act === 'want-add'){ if (wantFit(dk, c)) return; addWant(dk, c.n); toast('Added ' + c.n + ' to the ' + dk.name + ' buy list.'); } else { dk.want = wantOf(dk).filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from the ' + dk.name + ' buy list.'); }
+      S.wantDeck = dk.id; touch(); const b = $('#wantbox'); if (b) b.outerHTML = wantBox(c); return; }
+    case 'want-rm': { const w = wantOf(d), x = w[+v]; if (!x) return; w.splice(+v, 1); if (x.from === 'lack') d.lack = (d.lack || []).filter(y => keyOf(y) !== keyOf(x.n)); toast('Removed ' + x.n + ' from the buy list.'); break; }
     case 'gset-rm': S.gen.sets.splice(+v, 1); if (!S.gen.sets.length) S.gen.setsMust = false; openGenerate(); return;
     case 'gset-must': S.gen.setsMust = !S.gen.setsMust; openGenerate(); return;
     case 'dset-rm': (d.sets || []).splice(+v, 1); if (!d.sets.length) d.setsMust = false; aimsChanged(d); break;
@@ -1484,14 +1697,15 @@ function handleAct(act, v, n, pArg){
     case 'plan-basics': { let k = 0; (d.plan || []).slice().forEach(x => { if (x.basic && planInstall(d, x, 'a')) k += x.q; }); toast('Added ' + k + ' basic land' + (k === 1 ? '' : 's') + '.' + (d.plan ? '' : ' The deck is complete.')); break; }
     case 'fix-basics': { const F = recsFor(d).fixes.filter(p => isBasic(p.add)); let k = 0; F.forEach(p => { doSwap(d, p, 0); k += p.q; }); toast('Made ' + k + ' basic land change' + (k === 1 ? '' : 's') + '.'); break; }
     case 'plan-add': { const [id, key] = String(v).split('|'), x = (d.plan || []).find(y => y.id === +id); if (!x || !planInstall(d, x, key)) return; if (!d.plan) toast('Every card is in. The deck is complete.'); break; }
-    case 'plan-all': { let k = 0; (d.plan || []).slice().forEach(x => { if (v === 'own'){ if (x.own && planInstall(d, x, 'a')) k++; return; } const n = x.own || x.seed || x.basic ? x.a : planPick(x, v); if (planInstall(d, x, n === x.b ? 'b' : n === x.m ? 'm' : 'a')) k++; }); toast('Added ' + k + ' slot' + (k === 1 ? '' : 's') + ' to the deck.' + (d.plan ? '' : ' The deck is complete.')); break; }
-    case 'std-starter': { $('#modal').hidden = true; const p = STD_STARTERS[+v], nd = newDeck({name:p.name, format:'standard', aims:p.aims.slice(), tribe:p.tribe || '', colors:p.colors.slice()}); fillDeck(nd); toast('Standard deck generated.'); break; }
+    case 'plan-all': { let k = 0, room = planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0); const rk = x => x.seed ? 0 : x.own ? 1 : x.basic ? 4 : x.land ? 3 : 2;
+      (d.plan || []).slice().sort((a, b) => rk(a) - rk(b) || a.id - b.id).forEach(x => { if (room <= 0 || (v === 'own' && !x.own)) return; if (x.q > room){ if (x.basic){ addCard(d, x.a, room); x.q -= room; room = 0; } return; } room -= x.q; if (v === 'own'){ if (planInstall(d, x, 'a')) k++; return; } const n = x.own || x.seed || x.basic ? x.a : planPick(x, v); if (planInstall(d, x, n === x.b ? 'b' : n === x.m ? 'm' : 'a')) k++; }); toast('Added ' + k + ' slot' + (k === 1 ? '' : 's') + ' to the deck.' + (d.plan ? '' : ' The deck is complete.')); break; }
+    case 'std-starter': { $('#modal').hidden = true; const p = STD_STARTERS[+v], nd = newDeck({name:p.name, format:'standard', aims:p.aims.slice(), tribe:p.tribe || '', colors:p.colors.slice(), src:'generated'}); fillDeck(nd); toast('Standard deck generated.'); break; }
     case 'import-go': {
       const txt = $('#imp-text').value; if (!txt.trim()){ toast('Paste a list or choose a text file first.'); return; }
       const r = parseDeckText(txt), fmt = $('#imp-fmt').value, total = r.cards.reduce((s, e) => s + e.q, 0); if (!total && !r.commander){ toast('No cards found in that text.'); return; }
       const pre = openImport.preset && openImport.preset.precon; let t = d;
       if (v === 'merge' && d) r.cards.forEach(e => addCard(d, e.n, e.q));
-      else t = newDeck({name:$('#imp-name').value.trim() || r.name || 'Imported deck', format:fmt, cards:r.cards, aims:pre ? pre.aims.slice() : [], tribe:pre && pre.tribe || ''});
+      else t = newDeck({name:$('#imp-name').value.trim() || r.name || 'Imported deck', format:fmt, cards:r.cards, aims:pre ? pre.aims.slice() : [], tribe:pre && pre.tribe || '', src:'import'});
       const cmdName = r.commander || (pre && pre.cmd); const hadCmd = v === 'merge' && t.commander; if (fmt === 'commander' && cmdName && !hadCmd) setCommander(t, cmdName);
       if (r.partner){ if (fmt === 'commander' && !hadCmd && r.commander) setPartner(t, r.partner); else addCard(t, r.partner, 1); }
       if (fmt === 'standard' && !t.colors.length){ const s = new Set(); t.cards.forEach(e => { const c = find(e.n); if (c) c.ci.forEach(x => s.add(x)); }); t.colors = 'WUBRG'.split('').filter(x => s.has(x)).slice(0, 3); }
@@ -1523,6 +1737,7 @@ document.addEventListener('change', ev => {
   else if (t.id === 'aim-add' && t.value && d){ d.aimAuto = false; aimsChanged(d); d.aims.push(t.value); touch(); render(); ensureEdh(); }
   else if (t.id === 'tribe' && d){ d.tribe = t.value; touch(); render(); }
   else if (t.id === 'type-add' && d){ const v = t.value.trim().toLowerCase(), m = creatureTypes().find(x => x.toLowerCase() === v); if (m){ d.types = (d.types || []).filter(x => x !== m).concat(m); touch(); render(); } else if (v) toast('That is not a creature type in the card data.'); }
+  else if (t.id === 'want-deck'){ S.wantDeck = t.value; const c = find(S.modalCard), b = $('#wantbox'); if (c && b) b.outerHTML = wantBox(c); }
   else if ((t.id === 'gset-add' || t.id === 'dset-add') && t.value){ const st = resolveSet(t.value); if (!st){ toast('No set matches “' + t.value + '”.'); return; }
     if (t.id === 'gset-add'){ S.gen.sets = (S.gen.sets || []).filter(x => x !== st.code).concat(st.code); openGenerate(); loadSetCards([st.code]); }
     else if (d){ SETFAIL.delete(st.code); d.sets = (d.sets || []).filter(x => x !== st.code).concat(st.code); aimsChanged(d); touch(); render(); ensureSetCards(d); } }
@@ -1533,17 +1748,30 @@ document.addEventListener('change', ev => {
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
 });
-document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; }, true);
+document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; }, true);
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
 addEventListener('orientationchange', () => setTimeout(() => { wasNarrow = isNarrow(); render(); }, 250));
+// iPad windows (Stage Manager, Split View) can come back at full size without a resize event, or report the
+// new size a moment late. Re-check the layout whenever the app returns and shortly after, so a closed and
+// reopened window never stays stuck in the one-pane layout.
+function ensureLayout(){ const app = document.querySelector('.app'); if (!app) return; const nw = isNarrow(); wasNarrow = nw; if (app.classList.contains('narrow') !== nw) render(); else fitWork(); }
+let elT = []; function recheckLayout(){ elT.forEach(clearTimeout); ensureLayout(); elT = [120, 500, 1500].map(ms => setTimeout(ensureLayout, ms)); }
+addEventListener('pageshow', recheckLayout); addEventListener('focus', recheckLayout);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) recheckLayout(); });
+let rz2 = 0; if (window.ResizeObserver) new ResizeObserver(() => { clearTimeout(rz2); rz2 = setTimeout(ensureLayout, 150); }).observe(document.documentElement);
+// Where you were in the app survives the page being reloaded while it was in the background.
+function saveSpot(){ try { sessionStorage.setItem('dc.ui', JSON.stringify({view:S.view, deckId:S.deckId, open:!!S.open, tab:S.tab || null})); } catch (e) {} }
+function restoreSpot(){ let u = null; try { u = JSON.parse(sessionStorage.getItem('dc.ui') || 'null'); } catch (e) {} if (!u || !u.view) return;
+  if (u.view === 'decks' && u.open){ const ok = (S.draft && S.draft.id === u.deckId) || S.profile.decks.some(d => d.id === u.deckId); if (!ok) return; S.deckId = u.deckId; S.view = 'decks'; S.open = true; S.tab = u.tab || null; }
+  else if (['home', 'decks', 'search', 'profile'].includes(u.view)){ S.view = u.view; S.open = false; } }
 if (window.visualViewport) visualViewport.addEventListener('resize', () => fitWork());
-addEventListener('pagehide', () => { clearTimeout(saveT); if (!S.profile.example) persist(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && !S.profile.example){ clearTimeout(saveT); persist(); } });
+addEventListener('pagehide', () => { saveSpot(); clearTimeout(saveT); if (!S.profile.example) persist(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden){ saveSpot(); if (!S.profile.example){ clearTimeout(saveT); persist(); } } });
 // ---------- boot ----------
 ornaments(); paintSky(); let rz = 0; let wasNarrow = isNarrow();
 addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 250); const nw = isNarrow(); if (nw !== wasNarrow){ wasNarrow = nw; render(); } else fitWork(); });
 loadLocal();
 if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else S.deckId = S.profile.decks[0].id;
-S.view = 'home'; S.open = false;
+S.view = 'home'; S.open = false; restoreSpot();
 render(); loadSavedLibrary(); initBackup();
