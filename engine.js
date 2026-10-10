@@ -52,10 +52,20 @@ const ROLE_RE = {
 
 let LIB = [], IDX = new Map();
 // What players actually run with one commander (from EDHREC): key = commander name, map = card name -> {inc, syn}.
-let EDH = {key:'', map:null, decks:0, state:'', pre:null};
+let EDH = {key:'', map:null, decks:0, state:'', pre:null, tags:[], tmap:{}};
 // EDHREC's page for the precon a commander leads: its decklist, the cards its owners cut most (in order) and the cards they
 // add (share of the decks built from it). Plain arrays, so the loader can cache it. Used only for decks that still hold
 // most of that precon.
+// A commander's own mechanics, as players build them (EDHREC theme tags, most-built first), and the play data inside one theme.
+// A theme aim is stored as 'edh:<slug>' in d.aims; EDH.tags lists the commander's themes, EDH.tmap[slug] the theme's cards.
+function parseLands(j){ const p = (((j && j.panels) || {}).piechart || {}).content || [], L = p.find(x => x.label === 'Land'); return L ? +L.value : 0; }
+function parseTags(j){ return (((j && j.panels) || {}).taglinks || []).filter(t => t && t.slug && t.value).map(t => ({slug:t.slug, label:t.value, count:t.count || 0})); }
+function parseTheme(j){ const m = new Map(); (((j && j.container && j.container.json_dict) || {}).cardlists || []).forEach(L => (L.cardviews || []).forEach(v => { if (!v.name || !v.potential_decks) return;
+  const inc = Math.min(1, v.num_decks / v.potential_decks), k = norm(v.name), o = m.get(k); if (!o || inc > o.inc) m.set(k, {inc, syn:+(v.synergy || 0)}); })); return m; }
+const isEdhAim = a => typeof a === 'string' && a.startsWith('edh:');
+function aimLabel(a, tribe){ if (isEdhAim(a)){ const t = (EDH.tags || []).find(x => 'edh:' + x.slug === a); return t ? t.label : a.slice(4).replace(/-/g, ' '); } return a === 'tribal' ? (tribe || 'Creature type') + ' tribal' : (THEMES[a] || {label:a}).label; }
+// "Heroes: in 84% of Heroes decks" — the share of the commander's decks built around that theme that run the card.
+function themeWhy(a, c){ const m = EDH.tmap && EDH.tmap[a.slice(4)], x = m && edhOf(m, c), L = aimLabel(a); return x ? L + ': in ' + Math.round(x.inc * 100) + '% of ' + L + ' decks' : L; }
 function parsePrecon(j){
   const jd = (j && j.container && j.container.json_dict) || {}, dk = (j && j.deck) || {}, L = t => ((jd.cardlists || []).find(x => x.tag === t) || {}).cardviews || [];
   const list = []; Object.values(dk.cards || {}).forEach(a => (a || []).forEach(t => { if (t && t[0]) list.push(t[0]); }));
@@ -145,6 +155,7 @@ function tags(c){
   return c._t = {land, th, roles};
 }
 function matchAim(c, key, tribe){
+  if (isEdhAim(key)){ const m = EDH.tmap && EDH.tmap[key.slice(4)], x = m && edhOf(m, c), all = EDH.map && edhOf(EDH.map, c); return x && x.inc >= 0.2 && x.inc >= (all ? all.inc : 0) + 0.05 ? 1 : 0; }
   if (key === 'tribal'){
     if (!tribe) return 0;
     // Creature types are capitalised in rules text; a named Role token ("Young Hero Role") is not the type.
@@ -244,9 +255,20 @@ function isAimed(d){
   if (d.aims.includes('tribal') && !(d.tribe || ctxOf(d).cmdTribe)) return false;
   return d.format === 'commander' ? !!find(d.commander) : (d.colors || []).length > 0;
 }
+// What this commander's players run: the sum of play rates of the ramp (draw, removal, wipe) cards on its EDHREC page, scaled
+// for the cards the page leaves out (checked against ~4,000 real decks: within about one card), and its average land count.
+function roleNeeds(E){
+  if (!E || !E.map || E.map.size < 60) return null; if (E._needs && E._needs.m === E.map) return E._needs.v;
+  const t = {ramp:0, draw:0, removal:0, wipe:0}; E.map.forEach((x, k) => { const c = IDX.get(k); if (!c || tags(c).land) return; tags(c).roles.forEach(r => { if (r in t) t[r] += x.inc; }); });
+  const F = {ramp:1.15, draw:1.25, removal:1.25, wipe:1.2}, lim = {ramp:[5, 22], draw:[6, 22], removal:[4, 12], wipe:[1, 5]}, v = {};
+  for (const r in t) v[r] = Math.max(lim[r][0], Math.min(lim[r][1], Math.round(t[r] * F[r])));
+  if (E.lands) v.lands = Math.max(33, Math.min(40, Math.round(E.lands)));
+  E._needs = {m:E.map, v}; return v;
+}
 function targetsOf(d, ctx){
   const a = d.aims || [];
-  if (d.format === 'commander') return {size:100, lands:a[0] === 'lands' ? 39 : a[0] === 'aggro' ? 35 : 37, ramp:10, draw:10, removal:8, wipe:a.includes('control') ? 4 : 3};
+  if (d.format === 'commander'){ const N = UP.roleT && ctx && ctx.edh ? roleNeeds(ctx.edh) : null, base = {size:100, lands:a[0] === 'lands' ? 39 : a[0] === 'aggro' ? 35 : 37, ramp:10, draw:10, removal:8, wipe:a.includes('control') ? 4 : 3};
+    return N ? Object.assign(base, N) : base; }
   return {size:60, lands:a.includes('control') ? 26 : (a[0] === 'aggro' || a[0] === 'burn') ? 22 : 24, ramp:ctx.ident.includes('G') ? 4 : 0, draw:4, removal:6, wipe:a.includes('control') ? 2 : 0};
 }
 // Copies allowed: one in Commander (singleton), four in Standard; basics and "any number of cards named" cards are unlimited.
@@ -333,7 +355,7 @@ function filtBonus(c, d){
 }
 function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
-  (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : THEMES[a].label); } } });
+  (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe)); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
   if (ctx.edh){ const x = edhOf(ctx.edh.map, c); if (x){ s += W_INC * x.inc + W_SYN * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); }
     // When there is plenty of data for this commander, a card none of its players run needs a better reason to be here.
@@ -385,7 +407,8 @@ function recommend(d, swaps, fillOnly){
   // spells
   if (nAdd > 0){
     const pool = LIB.filter(c => !tags(c).land && okCard(c) && !have.has(c._k) && c._k !== keyOf(d.commander) && (!d.partner || c._k !== keyOf(d.partner))).map(c => ({c, b:baseScore(c, d, ctx), used:false}));
-    const bonus = c => { let b = 0, w = null; tags(c).roles.forEach(r => { if (def[r] > 0){ b += 2 + Math.min(2, def[r] / 3); w = w || r; } }); return [b, w]; };
+    const bonus = c => { let b = 0, w = null, over = 0; tags(c).roles.forEach(r => { if (def[r] > 0){ b += 2 + Math.min(2, def[r] / 3); w = w || r; } else if (r in def && def[r] < 0) over = Math.max(over, -def[r]); });
+      if (over && !b) b -= UP.over * Math.min(4, over); return [b, w]; };   // past the target, another card of the same role is worth less
     let guard = 0;
     while (nAdd > 0 && guard++ < 400){
       let best = null, bs = -1e9, bw = null, strict = true;
@@ -493,7 +516,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {pbDyn:0, pk:5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:3, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:3, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -523,8 +546,18 @@ function upgradePaths(d, opt){
   // most-cut cards is protected, in proportion to how little of the population the precon is — the deck keeps its plan.
   const preOther = preOn && ctx.edh && ctx.edh.decks && pre.decks ? Math.max(0, 1 - Math.min(1, pre.decks / ctx.edh.decks)) : 0;
   const PA = c => preOn ? preAdd.get(c._k) : null, PCL = c => preOn ? preLCut.get(c._k) : undefined, PC = c => preOn ? (tags(c).land ? preLCut.get(c._k) : preCut.get(c._k)) : undefined;
-  const val = c => { const e = E(c), pa = PA(c), ci = PC(c); let inc = e ? e.inc : isNew(c) ? K.prior : 0; if (preU && e) inc = preAll.has(c._k) ? Math.max(0, inc - preU) / (1 - preU) : inc / (1 - preU); const pb = K.pbDyn ? Math.max(K.pb, preOther) : K.pb; if (pa) inc = e ? (1 - pb) * inc + pb * pa.inc : pa.inc;
-    return K.wi * inc + K.ws * (e ? e.syn : 0) + wf * fit(c) - (ci != null ? K.pc * (1 - ci / Math.max(1, (tags(c).land ? preLCut : preCut).size)) : (preOther && preAll.has(c._k) ? -K.pk * preOther : 0)); };
+  // The player's ranked mechanics steer the build: a card that does the first mechanic counts most, the next less, and so
+  // on, so reordering them changes the picks. A spell that does none of them and no core job needs a stronger case.
+  const AW = [1, 0.75, 0.55, 0.4, 0.3], aims = (d.aims || []).slice(0, 5);
+  const aimV = c => { if (tags(c).land || !aims.length) return 0; let v = 0; aims.forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m >= 0.7) v += AW[i] * m; });
+    return v ? K.wa * v : (jobsOf(c.n).some(j => JOBS.includes(j)) ? 0 : -K.wo); };
+  // Ranked commander themes: the play rate is blended with the rate among decks built for each chosen theme (first counts most).
+  const TA = aims.map((a, i) => isEdhAim(a) && ctx.edh && ctx.edh.tmap && ctx.edh.tmap[a.slice(4)] ? {m:ctx.edh.tmap[a.slice(4)], w:AW[i], a} : null).filter(Boolean), TW = TA.reduce((s, t) => s + t.w, 0);
+  const themeInc = c => TA.reduce((s, t) => { const x = edhOf(t.m, c); return s + t.w * (x ? x.inc : 0); }, 0) / (TW || 1);
+  const val = c => { const e = E(c), pa = PA(c), ci = PC(c); let inc = e ? e.inc : isNew(c) ? K.prior : 0;
+    // Themes judge the precon's own cards only as far as the theme's players are the precon's players (Eshki: barely at all).
+    if (TA.length && !tags(c).land){ const lt = preAll.has(c._k) ? K.lt * (1 - preOther) : K.lt; inc = (1 - lt) * inc + lt * themeInc(c); } if (preU && e) inc = preAll.has(c._k) ? Math.max(0, inc - preU) / (1 - preU) : inc / (1 - preU); const pb = K.pbDyn ? Math.max(K.pb, preOther) : K.pb; if (pa) inc = e ? (1 - pb) * inc + pb * pa.inc : pa.inc;
+    return K.wi * inc + K.ws * (e ? e.syn : 0) + wf * fit(c) + aimV(c) - (ci != null ? K.pc * (1 - ci / Math.max(1, (tags(c).land ? preLCut : preCut).size)) : (preOther && preAll.has(c._k) ? -K.pk * preOther : 0)); };
   const own = upgradePaths.own && upgradePaths.own.size ? upgradePaths.own : null, owned = c => !!own && own.has(c._n);
   const capOk = c => !opt.cap || owned(c) || (c.p != null && c.p < opt.cap);
   const installed = new Set(d.cards.map(x => keyOf(x.n)).concat([keyOf(d.commander || '')]).concat(d.partner ? [keyOf(d.partner)] : []));
@@ -729,12 +762,12 @@ function evalFit(d, c){
     if (/enters (the battlefield )?tapped/i.test(c.o || '')) cons.push('It enters tapped, which slows you down a turn.');
   } else {
     const aims = [];
-    (d.aims || []).forEach(a => { if (matchAim(c, a, ctx.tribe) >= 0.7) aims.push(a === 'tribal' ? ctx.tribe + ' tribal' : THEMES[a].label); });
+    (d.aims || []).forEach(a => { if (matchAim(c, a, ctx.tribe) >= 0.7) aims.push(aimLabel(a, ctx.tribe)); });
     const ft = foreignTribe(c), wrongTribe = ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t));
     if (wrongTribe){ pts -= 3; cons.push('It rewards ' + ft + ' cards' + (ctx.tribe ? ', and this is a ' + ctx.tribe + ' deck' : ', which this deck is not built around') + ', so most of its text would do nothing.'); }
     else if (aims.length){ pts += 2; pros.push('Supports what the deck is built to do: ' + aims.slice(0, 3).join(', ') + '.'); }
     else if (ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)){ pts += 2; pros.push('Works with ' + cmdName + '’s own strategy.'); }
-    else if ((d.aims || []).length || ctx.cmdThemes.length) { pts -= 1; cons.push('It doesn’t feed the deck’s main plan' + ((d.aims || []).length ? ' (' + (d.aims[0] === 'tribal' ? ctx.tribe + ' tribal' : THEMES[d.aims[0]].label) + ')' : '') + '.'); }
+    else if ((d.aims || []).length || ctx.cmdThemes.length) { pts -= 1; cons.push('It doesn’t feed the deck’s main plan' + ((d.aims || []).length ? ' (' + aimLabel(d.aims[0], ctx.tribe) + ')' : '') + '.'); }
     if (ctx.edh){ const x = edhOf(ctx.edh.map, c);
       if (x){ const pc = Math.round(x.inc * 100); if (x.inc >= 0.25){ pts += 2; pros.push('Played in ' + pc + '% of ' + cmdName + ' decks.'); } else { pts += 1; pros.push('Shows up in ' + Math.max(1, pc) + '% of ' + cmdName + ' decks' + (x.syn > 0.1 ? ', far more than in other decks' : '') + '.'); } }
       else if (ctx.edh.map.size > 80){ pts -= 1; cons.push(cmdName + ' players rarely run it.'); } }
@@ -848,10 +881,15 @@ function buildPlan(d, seeds, ownOnly, ownAll){
   if (ownOnly && ownOnly.size){ recommend.own = ownOnly; try { recommend(tmp, 0, true).adds.forEach(a => { if (!isBasic(a.n)) addCard(tmp, a.n, a.q); }); } finally { recommend.own = null; } }
   fillDeck(tmp);
   const ctx = ctxOf(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner));
-  const pool = LIB.filter(c => c.p != null && c.p <= 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n) && mustOk(c, d))
+  const pool = LIB.filter(c => c.p != null && c.p < 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n) && mustOk(c, d))
     .map(c => ({c, s:baseScore(c, tmp, ctx).s, land:tags(c).land, ty:mainType(c)}));
-  const alt = (x, cap) => { const tx = tags(x), ty = mainType(x); let best = null, bs = -1e9;
-    for (const p of pool){ if (p.used || p.c.p > cap || p.land !== tx.land) continue; let s = p.s + (p.ty === ty ? 3 : 0), share = 0; tags(p.c).roles.forEach(r => { if (tx.roles.has(r)) share++; }); s += share * 2; if (tx.roles.size && !share) s -= 3; if (s > bs){ bs = s; best = p; } }
+  // A stand-in is strictly under the tier's price and does the same job as the card it stands in for (its main job; for a
+  // card with no job, the same card type), the same rule as upgrade alternatives.
+  const alt = (x, cap) => { const tx = tags(x), ty = mainType(x), j = mainJob(x.n); let best = null, bs = -1e9;
+    for (const p of pool){ if (p.used || !(p.c.p < cap) || !(x.p == null || p.c.p < x.p) || p.land !== tx.land) continue;
+      if (!p.land && (j ? !jobsOf(p.c.n).includes(j) : (p.ty !== ty || jobsOf(p.c.n).some(r => JOBS.includes(r))))) continue;
+      if (p.land && ![...landColors(x)].filter(k => ctx.ident.includes(k)).every(k => landColors(p.c).has(k))) continue;
+      let s = p.s + (p.ty === ty ? 3 : 0), share = 0; tags(p.c).roles.forEach(r => { if (tx.roles.has(r)) share++; }); s += share * 2; if (s > bs){ bs = s; best = p; } }
     if (best) best.used = true; return best ? best.c.n : null; };
   const basic = (splitBasics(1, ctx)[0] || {}).n || null, own = ownAll || new Set();
   return tmp.cards.map((en, i) => {
@@ -860,8 +898,8 @@ function buildPlan(d, seeds, ownOnly, ownAll){
     if (tags(c).land) S0.land = true;
     if (seedSet.has(c._n)){ S0.seed = true; if (own.has(c._n)) S0.own = true; return S0; }
     if (own.has(c._n)){ S0.own = true; return S0; }
-    if (c.p == null || c.p <= 3) return S0;
-    if (c.p > 12){ const m = alt(c, 12), mc = m && find(m); if (mc && mc.p <= 3) S0.b = m; else { if (m) S0.m = m; S0.b = alt(c, 3); } }
+    if (c.p == null || c.p < 3) return S0;
+    if (c.p >= 12){ const m = alt(c, 12), mc = m && find(m); if (mc && mc.p < 3) S0.b = m; else { if (m) S0.m = m; S0.b = alt(c, 3); } }
     else S0.b = alt(c, 3);
     if (!S0.b && S0.land && basic) S0.b = basic;
     if (!S0.b) delete S0.b; return S0;

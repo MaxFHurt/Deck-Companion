@@ -111,27 +111,50 @@ async function printSearch(q){
 const edhSlug = n => String(n).split(' // ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-');
 async function loadEdh(name){
   if (!name) return; if (EDH.key === name && EDH.state) return EDH.wait;
-  EDH = {key:name, map:null, decks:0, state:'loading', pre:null};
+  EDH = {key:name, map:null, decks:0, state:'loading', pre:null, tags:[], tmap:{}};
   const mine = EDH, apply = rows => { mine.map = new Map(rows.map(r => [norm(r[0]), {inc:r[1], syn:r[2]}])); mine.state = 'ok'; };
   mine.wait = (async () => {
     const slug = edhSlug(name), cached = lsGet('dc.edh.' + slug);
-    if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length){ mine.decks = cached.decks; mine.pre = cached.pre || null; apply(cached.rows); return; }
+    if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length && cached.tags){ mine.decks = cached.decks; mine.pre = cached.pre || null; mine.tags = cached.tags; apply(cached.rows); return; }
     try {
       const r = await fetch('https://json.edhrec.com/pages/commanders/' + slug + '.json'); if (!r.ok) throw new Error('status ' + r.status);
       const j = await r.json(), seen = new Map(); let decks = 0;
       ((j.container && j.container.json_dict && j.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => {
         if (!v.name || !v.potential_decks) return; decks = Math.max(decks, v.potential_decks);
         const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, inc, +(v.synergy || 0).toFixed(3)]); }));
-      if (!seen.size) throw new Error('no cards'); mine.decks = decks;
+      if (!seen.size) throw new Error('no cards'); mine.decks = decks; mine.tags = parseTags(j);
       // The precon this commander leads, if any: what its owners cut and add. Optional; the commander's own data stands alone.
       const pn = j.container && j.container.json_dict && j.container.json_dict.card && j.container.json_dict.card.precon;
       if (pn){ try { const pr = await fetch('https://json.edhrec.com/pages/precon/' + edhSlug(pn) + '.json'); if (pr.ok) mine.pre = parsePrecon(await pr.json()); } catch (e) { mine.pre = null; } }
-      apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()], pre:mine.pre});
+      apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()], pre:mine.pre, tags:mine.tags});
     } catch (e) { mine.state = 'fail'; }
   })();
   return mine.wait;
 }
-function ensureEdh(){ const d = S.view === 'decks' && S.open ? cur() : null, c = d && d.format === 'commander' ? find(d.commander) : null; if (!c || EDH.key === c.n) return; loadEdh(c.n).then(() => { if (EDH.key === c.n) render(); }); }
+// Play data inside each chosen commander theme (EDHREC theme pages), cached for a week like the commander page.
+async function loadThemes(name, aims){
+  const want = (aims || []).filter(isEdhAim).map(a => a.slice(4)).filter(t => EDH.key === name && !EDH.tmap[t]); if (!want.length) return false;
+  const slug = edhSlug(name); let got = false;
+  await Promise.all(want.map(async t => { const k = 'dc.edht.' + slug + '__' + t, c = lsGet(k);
+    if (c && Date.now() - c.ts < 7 * 864e5){ EDH.tmap[t] = new Map(c.rows.map(r => [r[0], {inc:r[1], syn:r[2]}])); got = true; return; }
+    try { const r = await fetch('https://json.edhrec.com/pages/commanders/' + slug + '/' + t + '.json'); if (!r.ok) return; const m = parseTheme(await r.json());
+      if (EDH.key !== name) return; EDH.tmap[t] = m; got = true; lsSet(k, {ts:Date.now(), rows:[...m.entries()].map(([n, x]) => [n, x.inc, x.syn])}); } catch (e) {} }));
+  return got;
+}
+// A deck whose mechanics were set automatically takes the commander's own top themes (what players build it around) once
+// they are known. Any change the player makes to the mechanics is kept from then on.
+// Changing the mechanics asks for a different build, so the picks being held are released (like Regenerate; Undo brings them back).
+function aimsChanged(d){ if (d.recP && Object.keys(d.recP).length){ d.recPrev = d.recP; d.recP = {}; toast('Picks rebuilt for the new mechanics. “Undo last regenerate” brings the old ones back.'); } }
+function themeDefaults(d){
+  if (!d || d.aimLocked || d.aimAuto === false || !EDH.tags || !EDH.tags.length || EDH.key !== (find(d.commander) || {}).n) return false;
+  const auto = d.aimAuto === true || !d.aims.length || JSON.stringify(d.aims) === JSON.stringify(detectStrategy(find(d.commander), d).themes.slice(0, 3));
+  if (!auto) return false; const next = EDH.tags.slice(0, 3).map(t => 'edh:' + t.slug); if (JSON.stringify(next) === JSON.stringify(d.aims)) return false;
+  d.aims = next; d.aimAuto = true; return true;
+}
+function ensureEdh(){ const d = S.view === 'decks' && S.open ? cur() : null, c = d && d.format === 'commander' ? find(d.commander) : null; if (!c) return;
+  const themes = () => { if (EDH.key !== c.n || EDH.state !== 'ok') return; const ch = themeDefaults(d); if (ch) touch(); loadThemes(c.n, d.aims).then(g => { if (g || ch) render(); }); };
+  if (EDH.key === c.n){ if (EDH.state === 'ok' && (d.aims.some(a => isEdhAim(a) && !EDH.tmap[a.slice(4)]) || themeDefaults(d))) themes(); return; }
+  loadEdh(c.n).then(() => { if (EDH.key === c.n){ render(); themes(); } }); }
 function edhNote(c){ if (!c || EDH.key !== c.n) return ''; return EDH.state === 'ok' ? '<span class="chip good">Using what ' + EDH.decks.toLocaleString() + ' ' + esc(c.n.split(',')[0]) + ' decks play (EDHREC)</span>' : EDH.state === 'loading' ? '<span class="chip">Loading what ' + esc(c.n.split(',')[0]) + ' players run…</span>' : '<span class="chip warn">Commander-specific data unavailable · using general popularity</span>'; }
 function artFor(c, e){
   if (c && c.id) return imgUrl('art_crop', pidOf(c, e));
@@ -384,7 +407,7 @@ async function initBackup(){ try { const h = await idb('readonly', s => s.get('b
 function readBackup(text){
   let p = null, when = ''; try { const j = JSON.parse(text); p = j.profile || j; when = j.savedAt || ''; } catch (e) {}
   if (!p || !Array.isArray(p.decks)){ toast('That is not a Deck Companion backup file.'); return; }
-  p.decks = p.decks.filter(d => d && Array.isArray(d.cards)).map(d => Object.assign({id:uid(), name:'Deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], dismissed:[]}, d, {tier:TIERS[d.tier] ? d.tier : 'budget', aims:(d.aims || []).filter(a => THEMES[a])}));
+  p.decks = p.decks.filter(d => d && Array.isArray(d.cards)).map(d => Object.assign({id:uid(), name:'Deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], dismissed:[]}, d, {tier:TIERS[d.tier] ? d.tier : 'budget', aims:(d.aims || []).filter(a => THEMES[a] || isEdhAim(a))}));
   S.pendingRestore = {p, when}; render();
 }
 function backupPanel(){
@@ -481,10 +504,10 @@ function openLibPaste(){
   $('#modal').hidden = false;
 }
 // "Best deck with every new card under $X" (per card; owned cards are free): its own engine run, cached like recsFor.
-function capFor(d, t){ const cap = TIERS[t].cap, key = JSON.stringify([t, d, DBINFO.count, EDH.key, EDH.state, S.libV || 0, libCount(), BTAGS.v]); capFor.c = capFor.c || {};
+function capFor(d, t){ const cap = TIERS[t].cap, key = JSON.stringify([t, d, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); capFor.c = capFor.c || {};
   if (!capFor.c[t] || capFor.c[t].k !== key){ upgradePaths.own = ownSet(); capFor.c[t] = {k:key, v:upgradePaths(d, {cap})}; } return capFor.c[t].v; }
 function capList(d, t){ return capFor(d, t).paths.map(L => L.opts.apex).filter(p => p && entryOf(d, p.cut) && !entryOf(d, p.add)); }
-function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state, S.libV || 0, libCount(), BTAGS.v]); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d); } return recsFor.v; }
+function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d); } return recsFor.v; }
 
 // ---------- views ----------
 function navHtml(){
@@ -526,7 +549,7 @@ function aimPanel(d, ctx){
     return '<section class="panel aimp"><div class="ph"><h2>Build</h2><small>' + (d.auto === 'precon' ? 'Precon theme' : 'Set from the commander') + '</small></div>' +
       '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' +
       (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button><button class="btn sm" data-act="cmd-find">Find a commander</button></div></div></div>' + partnerBox(d, false) : '') +
-      '<div class="grp"><span class="lab">This deck is built around</span><div class="row">' + d.aims.map((a, i) => '<span class="chip gold">' + (i + 1) + ' · ' + (a === 'tribal' ? esc(ctx.tribe) + ' tribal' : THEMES[a].label) + '</span>').join('') + '</div></div>' +
+      '<div class="grp"><span class="lab">This deck is built around</span><div class="row">' + d.aims.map((a, i) => '<span class="chip gold">' + (i + 1) + ' · ' + esc(aimLabel(a, ctx.tribe)) + '</span>').join('') + '</div></div>' +
       '<p class="note" style="margin:0">' + (d.auto === 'precon' ? 'This precon already has a theme, so its upgrade paths are ready below.' : 'The build was set from what this commander does, so its upgrade paths are ready below.') + ' Change the mechanics, their order or the color focus only if you want to take the deck somewhere else.</p>' +
       '<div class="row"><button class="btn" data-act="build-custom">Customize the build</button></div></section>';
   }
@@ -546,9 +569,13 @@ function aimPanel(d, ctx){
     h += '</div>';
   }
   h += '<div class="grp"><span class="lab">Mechanics, in priority order</span>';
-  h += d.aims.map((a, i) => '<div class="aim"><span class="n">' + (i + 1) + '</span><span class="t">' + (a === 'tribal' ? esc(ctx.tribe || 'Pick a creature type') + ' tribal' : THEMES[a].label) + (ctx.cmdThemes.includes(a) ? '<small>Commander strategy</small>' : '') + '</span><span class="row" style="gap:3px">' +
+  h += d.aims.map((a, i) => '<div class="aim"><span class="n">' + (i + 1) + '</span><span class="t">' + (a === 'tribal' ? esc(ctx.tribe || 'Pick a creature type') + ' tribal' : esc(aimLabel(a, ctx.tribe))) + (ctx.cmdThemes.includes(a) ? '<small>Commander strategy</small>' : '') + '</span><span class="row" style="gap:3px">' +
     (lock ? '' : '<button class="ico" data-act="aim-up" data-v="' + i + '" title="Raise priority"' + (i ? '' : ' disabled') + '>↑</button><button class="ico" data-act="aim-down" data-v="' + i + '" title="Lower priority"' + (i < d.aims.length - 1 ? '' : ' disabled') + '>↓</button><button class="ico" data-act="aim-rm" data-v="' + i + '" title="Remove">×</button>') + '</span></div>').join('');
-  if (!lock && d.aims.length < 5) h += '<select id="aim-add" aria-label="Add a mechanic"><option value="">+ Add a mechanic…</option>' + Object.keys(THEMES).filter(k => !d.aims.includes(k)).map(k => '<option value="' + k + '">' + THEMES[k].label + '</option>').join('') + '</select>';
+  { const own = ctx.cmd && EDH.key === ctx.cmd.n ? (EDH.tags || []).filter(t => !d.aims.includes('edh:' + t.slug)).slice(0, 12) : [];
+    if (!lock && d.aims.length < 5) h += '<select id="aim-add" aria-label="Add a mechanic"><option value="">+ Add a mechanic…</option>' +
+      (own.length ? '<optgroup label="' + esc(ctx.cmd.n.split(',')[0]) + '’s mechanics (decks built that way)">' + own.map(t => '<option value="edh:' + esc(t.slug) + '">' + esc(t.label) + ' · ' + t.count.toLocaleString() + '</option>').join('') + '</optgroup><optgroup label="Other mechanics">' : '') +
+      Object.keys(THEMES).filter(k => !d.aims.includes(k)).map(k => '<option value="' + k + '">' + THEMES[k].label + '</option>').join('') + (own.length ? '</optgroup>' : '') + '</select>';
+    if (d.aims.some(isEdhAim)) h += '<p class="note" style="margin:0">' + (d.aimAuto ? 'Set from what players build ' + esc(ctx.cmd ? ctx.cmd.n.split(',')[0] : 'this commander') + ' around. ' : '') + 'Recommendations lean toward the cards players of each mechanic run, the first mechanic most. Reorder them to steer the build.</p>'; }
   if (d.aims.includes('tribal')) h += '<select id="tribe" aria-label="Creature type"' + dis + '><option value="">Creature type…</option>' + TRIBES.slice().sort().map(t => '<option' + (t === ctx.tribe ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>';
   h += '</div>';
   { const ty = d.types || [], ky = d.keys || [], tog = (act, on, a, b) => '<button class="btn sm' + (on ? ' pri' : '') + '" data-act="' + act + '"' + dis + ' title="Switch between a preference and a rule">' + (on ? b : a) + '</button>';
@@ -854,7 +881,7 @@ function upPanel(d, A){
   if (A.illegal.length) flags.push('<span class="chip bad">' + A.illegal.length + ' not ' + d.format + '-legal</span>');
   if (A.dupes.length) flags.push('<span class="chip bad">' + A.dupes.length + ' over copy limit</span>');
   if (A.unknown.length) flags.push('<span class="chip warn">' + A.unknown.length + ' unrecognized</span>');
-  d.aims.forEach((a, i) => flags.push('<span class="chip">' + (a === 'tribal' ? esc(A.ctx.tribe || 'Tribal') : THEMES[a].label.split(' / ')[0]) + ' · ' + A.aim[i] + '</span>'));
+  d.aims.forEach((a, i) => flags.push('<span class="chip">' + (a === 'tribal' ? esc(A.ctx.tribe || 'Tribal') : esc(aimLabel(a, A.ctx.tribe).split(' / ')[0])) + ' · ' + A.aim[i] + '</span>'));
   if (flags.length) h += '<div class="row">' + flags.join('') + '</div>';
   if (!isAimed(d)){
     const need = d.format === 'commander' && !A.ctx.cmd ? 'Choose your commander, then pick' : !d.aims.length ? 'Pick' : d.aims.includes('tribal') && !A.ctx.tribe ? 'Choose a creature type for your tribal aim. Then pick' : 'Choose your land colors, and pick';
@@ -1214,9 +1241,9 @@ function handleAct(act, v, n, pArg){
     case 'tier': d.tier = v; break;
     case 'build-custom': d.custom = true; break;
     case 'lock-aim': d.aimLocked = !d.aimLocked; break;
-    case 'aim-up': { const i = +v; [d.aims[i - 1], d.aims[i]] = [d.aims[i], d.aims[i - 1]]; break; }
-    case 'aim-down': { const i = +v; [d.aims[i + 1], d.aims[i]] = [d.aims[i], d.aims[i + 1]]; break; }
-    case 'aim-rm': d.aims.splice(+v, 1); break;
+    case 'aim-up': { d.aimAuto = false; aimsChanged(d); const i = +v; [d.aims[i - 1], d.aims[i]] = [d.aims[i], d.aims[i - 1]]; break; }
+    case 'aim-down': { d.aimAuto = false; aimsChanged(d); const i = +v; [d.aims[i + 1], d.aims[i]] = [d.aims[i], d.aims[i + 1]]; break; }
+    case 'aim-rm': d.aimAuto = false; aimsChanged(d); d.aims.splice(+v, 1); break;
     case 'type-rm': (d.types || []).splice(+v, 1); if (!d.types.length) d.typesMust = false; break;
     case 'key-rm': (d.keys || []).splice(+v, 1); if (!d.keys.length) d.keysMust = false; break;
     case 'types-must': d.typesMust = !d.typesMust; break;
@@ -1348,7 +1375,7 @@ document.addEventListener('change', ev => {
   const t = ev.target, d = cur();
   if (t.id === 'deck-name' && d){ d.name = t.value.trim() || 'Untitled deck'; d.example = false; touch(); }
   else if (t.id === 'p-name'){ S.profile.name = t.value.trim() || 'Planeswalker'; touch(); }
-  else if (t.id === 'aim-add' && t.value && d){ d.aims.push(t.value); touch(); render(); }
+  else if (t.id === 'aim-add' && t.value && d){ d.aimAuto = false; aimsChanged(d); d.aims.push(t.value); touch(); render(); ensureEdh(); }
   else if (t.id === 'tribe' && d){ d.tribe = t.value; touch(); render(); }
   else if (t.id === 'type-add' && d){ const v = t.value.trim().toLowerCase(), m = creatureTypes().find(x => x.toLowerCase() === v); if (m){ d.types = (d.types || []).filter(x => x !== m).concat(m); touch(); render(); } else if (v) toast('That is not a creature type in the card data.'); }
   else if (t.id === 'key-add' && t.value && d){ d.keys = (d.keys || []).concat(t.value); touch(); render(); }
