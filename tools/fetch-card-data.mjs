@@ -39,4 +39,6 @@ for (const n of names){ const s = slug(n); meta.edhrec[n] = [];
   for (const [suffix, path] of [['', s], ['.budget', s + '/budget'], ['.expensive', s + '/expensive']]){
     try { const j = await get('https://json.edhrec.com/pages/commanders/' + path + '.json', 3); if (j){ fs.writeFileSync('out/edhrec/' + s + suffix + '.json', JSON.stringify(j)); meta.edhrec[n].push(suffix || 'main'); } } catch (e) { meta.notes.push('edhrec ' + path + ': ' + e.message); }
     await sleep(400); } }
+// Combos the app reads for finishing routes (Commander Spellbook); see tools/build-combos.mjs.
+try { const {buildCombos} = await import('./build-combos.mjs'); const c = await buildCombos(); fs.writeFileSync('out/combos.json.gz', zlib.gzipSync(JSON.stringify(c))); meta.combos = c.combos.length; } catch (e) { meta.notes.push('combos: ' + e.message); }
 fs.writeFileSync('out/meta.json', JSON.stringify(meta, null, 1)); console.log(JSON.stringify(meta, null, 1));
