@@ -4,7 +4,7 @@
 //   {at, source, version, cards:[names], combos:[[cardIndexes], identity, kind 'w'|'e', what, decks, bracketTag, note]}
 // The source is ~30 MB gzipped and over 500 MB as text, so it is streamed: each combo object is parsed on its own.
 // Usage: import {buildCombos}, or: node tools/build-combos.mjs [variants.json.gz path or URL] [out file]
-import fs from 'node:fs'; import zlib from 'node:zlib'; import {Readable} from 'node:stream';
+import fs from 'node:fs'; import zlib from 'node:zlib'; import {Readable} from 'node:stream'; import {StringDecoder} from 'node:string_decoder';
 const SRC = 'https://json.commanderspellbook.com/variants.json.gz';
 const WIN = /^(Win the game|Infinite damage|Infinite lifeloss|Infinite combat phases|Infinite turns|Infinite creature tokens with haste|Infinitely large creature|Infinite mill|Infinite opponent|Each opponent loses|Infinite drain|Lock)/i;
 // damage that only reaches creatures clears a board; it does not win
@@ -28,7 +28,12 @@ export async function buildCombos(src = SRC, minDecks = 20){
     if (v.status !== 'OK' || !(v.legalities || {}).commander || v.spoiler || (v.requires || []).length || v.uses.length > 3 || (v.popularity || 0) < minDecks) return;
     const feats = (v.produces || []).map(p => p.feature.name), win = feats.filter(f => WIN.test(f) && !CREATURES_ONLY.test(f)), eng = feats.filter(f => ENG.test(f)); if (!win.length && !eng.length) return;
     out.push([v.uses.map(u => id(u.card.name)), v.identity || 'C', win.length ? 'w' : 'e', win[0] || eng[0], v.popularity || 0, v.bracketTag || '', (v.notablePrerequisites || '').slice(0, 120)]); });
-  await new Promise((res, rej) => { const g = raw.pipe(zlib.createGunzip()); g.setEncoding('utf8'); g.on('data', feed); g.on('end', res); g.on('error', rej); raw.on('error', rej); });
+  // The server sends the file with Content-Encoding: gzip, so fetch may already have unzipped it; a file on disk is still
+  // gzipped. The first two bytes (1f 8b) say which.
+  await new Promise((res, rej) => { let gz = null, first = true; const dec = new StringDecoder('utf8');
+    raw.on('data', chunk => { if (first){ first = false; if (chunk[0] === 0x1f && chunk[1] === 0x8b){ gz = zlib.createGunzip(); gz.setEncoding('utf8'); gz.on('data', feed); gz.on('end', res); gz.on('error', rej); } }
+      if (gz) gz.write(chunk); else feed(dec.write(chunk)); });
+    raw.on('end', () => { if (gz) gz.end(); else { feed(dec.end()); res(); } }); raw.on('error', rej); });
   if (!seen) throw new Error('no combos found in the source (format changed?)');
   out.sort((a, b) => b[4] - a[4]);
   return {at:new Date().toISOString(), source:'Commander Spellbook', read:seen, cards:names, combos:out};
