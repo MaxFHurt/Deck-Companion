@@ -7,7 +7,7 @@ on:
     - cron: '17 9 * * 1'
   push:
     branches: [main]
-    paths: ['.github/workflows/card-data.yml', 'tools/fetch-card-data.mjs', 'tools/commanders.txt']
+    paths: ['.github/workflows/card-data.yml', 'tools/fetch-card-data.mjs', 'tools/build-combos.mjs', 'tools/commanders.txt']
 permissions:
   contents: write
 concurrency:

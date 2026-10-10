@@ -6,7 +6,7 @@ const STARTER = parseStarter(STARTER_RAW);
 buildIndex(STARTER);
 let DBINFO = {source:'starter', count:STARTER.length, when:null};
 const S = {profile:{name:'Planeswalker', decks:[], updatedAt:0, example:true}, view:'home', open:false, deckId:null, swaps:10, sync:'local',
-  search:{q:'', color:'', type:'', fmt:'', max:'', theme:''}, gen:{cmd:'', tier:'budget'}, confirmDel:null, busy:''};
+  search:{q:'', color:'', type:'', fmt:'', max:'', theme:''}, gen:{cmd:'', tier:'budget', partner:'', sets:[], setsMust:false}, confirmDel:null, busy:''};
 // A new deck is a draft until the player saves it; cur() is whichever deck is open, draft or saved.
 const cur = () => (S.draft && S.draft.id === S.deckId ? S.draft : S.profile.decks.find(d => d.id === S.deckId)) || null;
 
@@ -109,26 +109,46 @@ async function printSearch(q){
   S.printPending = ''; if (S.search.q.trim() === q && S.search.prints){ const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }
 }
 const edhSlug = n => String(n).split(' // ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-');
+// A commander's EDHREC data as its own object (the global EDH untouched): from this browser's weekly cache, else EDHREC.
+async function fetchEdh(name){
+  const E = {key:name, map:null, decks:0, state:'loading', pre:null, tags:[], tmap:{}}, slug = edhSlug(name), cached = lsGet('dc.edh.' + slug);
+  const apply = rows => { E.map = new Map(rows.map(r => [norm(r[0]), {inc:r[1], syn:r[2]}])); E.state = 'ok'; };
+  if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length && cached.tags){ E.decks = cached.decks; E.pre = cached.pre || null; E.tags = cached.tags; apply(cached.rows); }
+  else { try { const r = await fetch('https://json.edhrec.com/pages/commanders/' + slug + '.json'); if (!r.ok) throw new Error('status ' + r.status);
+      const j = await r.json(), seen = new Map(); let decks = 0;
+      ((j.container && j.container.json_dict && j.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => { if (!v.name || !v.potential_decks) return; decks = Math.max(decks, v.potential_decks);
+        const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, inc, +(v.synergy || 0).toFixed(3)]); }));
+      if (!seen.size) throw new Error('no cards'); E.decks = decks; E.tags = parseTags(j);
+      const pn = j.container && j.container.json_dict && j.container.json_dict.card && j.container.json_dict.card.precon;
+      if (pn){ try { const pr = await fetch('https://json.edhrec.com/pages/precon/' + edhSlug(pn) + '.json'); if (pr.ok) E.pre = parsePrecon(await pr.json()); } catch (e) { E.pre = null; } }
+      apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()], pre:E.pre, tags:E.tags});
+    } catch (e) { E.state = 'fail'; return E; } }
+  // theme pages already saved in this browser
+  E.tags.forEach(t => { const c = lsGet('dc.edht.' + slug + '__' + t.slug); if (c && c.rows && Date.now() - c.ts < 7 * 864e5) E.tmap[t.slug] = new Map(c.rows.map(r => [r[0], {inc:r[1], syn:r[2]}])); });
+  return E;
+}
+// Which of the player's decks each card is a suggested upgrade for: each saved Commander deck's upgrade paths, worked out
+// one deck at a time in the background with that deck's own commander data, and kept until the deck changes.
+const UPX = {map:new Map(), busy:false, sig:''};
+const strHash = s => { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); };
+const deckSig = d => strHash(JSON.stringify([d.commander, d.partner, d.aims, d.tribe, d.tier, d.colors, d.cards.map(e => e.n + '×' + e.q), d.dismissed, d.sets, d.setsMust, d.types, d.keys, d.typesMust, d.keysMust, DBINFO.count, COMBOS.list.length, libCount()]));
+async function buildUpgradeIndex(){
+  if (UPX.busy || !DBINFO.complete) return; const decks = S.profile.decks.filter(d => d.format === 'commander' && find(d.commander) && isAimed(d) && !(d.plan && d.plan.length));
+  const sig = decks.map(d => d.id + ':' + deckSig(d)).join('|'); if (sig === UPX.sig) return; UPX.busy = true;
+  const map = new Map();
+  for (const d of decks){ const key = 'dc.upx.' + d.id, ds = deckSig(d), c0 = lsGet(key); let rows = c0 && c0.sig === ds ? c0.rows : null;
+    if (!rows){ const E = await fetchEdh(find(d.commander).n); const saved = EDH; EDH = E.state === 'ok' ? E : {key:'', map:null, decks:0, state:'fail', pre:null, tags:[], tmap:{}};
+      try { upgradePaths.own = ownSet(); const R = upgradePaths(d); rows = R.paths.flatMap(L => Object.entries(L.opts).filter(([, p]) => p && p.add).map(([t, p]) => [p.add, p.cut, t])); } catch (e) { rows = []; } finally { EDH = saved; }
+      if (E.state === 'ok') lsSet(key, {sig:ds, rows}); await new Promise(r => setTimeout(r, 0)); }   // without play data the rows are kept for this visit only
+    rows.forEach(([add, cut, t]) => { const k = norm(add); if (!map.has(k)) map.set(k, []); const L = map.get(k); if (!L.some(x => x.id === d.id && x.t === t)) L.push({id:d.id, name:d.name, cut, t}); }); }
+  UPX.map = map; UPX.sig = sig; UPX.busy = false; if (S.view === 'search'){ const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }
+}
+const upFor = c => c ? UPX.map.get(c._n) || [] : [];
+function upBadge(c){ const L = upFor(c); if (!L.length) return ''; const n = new Set(L.map(x => x.id)).size; return '<span class="upb" title="Suggested upgrade for ' + esc([...new Set(L.map(x => x.name))].join(', ')) + '">Upgrade · ' + (n === 1 ? esc(L[0].name) : n + ' decks') + '</span>'; }
 async function loadEdh(name){
   if (!name) return; if (EDH.key === name && EDH.state) return EDH.wait;
-  EDH = {key:name, map:null, decks:0, state:'loading', pre:null, tags:[], tmap:{}};
-  const mine = EDH, apply = rows => { mine.map = new Map(rows.map(r => [norm(r[0]), {inc:r[1], syn:r[2]}])); mine.state = 'ok'; };
-  mine.wait = (async () => {
-    const slug = edhSlug(name), cached = lsGet('dc.edh.' + slug);
-    if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length && cached.tags){ mine.decks = cached.decks; mine.pre = cached.pre || null; mine.tags = cached.tags; apply(cached.rows); return; }
-    try {
-      const r = await fetch('https://json.edhrec.com/pages/commanders/' + slug + '.json'); if (!r.ok) throw new Error('status ' + r.status);
-      const j = await r.json(), seen = new Map(); let decks = 0;
-      ((j.container && j.container.json_dict && j.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => {
-        if (!v.name || !v.potential_decks) return; decks = Math.max(decks, v.potential_decks);
-        const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, inc, +(v.synergy || 0).toFixed(3)]); }));
-      if (!seen.size) throw new Error('no cards'); mine.decks = decks; mine.tags = parseTags(j);
-      // The precon this commander leads, if any: what its owners cut and add. Optional; the commander's own data stands alone.
-      const pn = j.container && j.container.json_dict && j.container.json_dict.card && j.container.json_dict.card.precon;
-      if (pn){ try { const pr = await fetch('https://json.edhrec.com/pages/precon/' + edhSlug(pn) + '.json'); if (pr.ok) mine.pre = parsePrecon(await pr.json()); } catch (e) { mine.pre = null; } }
-      apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()], pre:mine.pre, tags:mine.tags});
-    } catch (e) { mine.state = 'fail'; }
-  })();
+  EDH = {key:name, map:null, decks:0, state:'loading', pre:null, tags:[], tmap:{}}; const mine = EDH;
+  mine.wait = fetchEdh(name).then(E => { Object.assign(mine, {map:E.map, decks:E.decks, pre:E.pre, tags:E.tags, tmap:Object.assign(E.tmap, mine.tmap), state:E.state}); });
   return mine.wait;
 }
 // Play data inside each chosen commander theme (EDHREC theme pages), cached for a week like the commander page.
@@ -211,10 +231,10 @@ const SVG = {
 function pips(text){ return esc(text || '').replace(/\{([^}]+)\}/g, (m, k) => { const cls = 'WUBRG'.includes(k) && k.length === 1 ? 'p' + k : 'pN'; return '<i class="pip ' + cls + '">' + (k === 'T' ? '↷' : k) + '</i>'; }); }
 function money(c){ return !c || c.p == null ? '—' : (c.src === 'starter' ? '~' : '') + '$' + c.p.toFixed(2); }
 function frameCls(c){ if (!c) return ''; if (/\bLand\b/.test(frontType(c))) return 'fL'; return c.ci.length > 1 ? 'fM' : c.ci.length ? 'f' + c.ci[0] : ''; }
-function cardHtml(c, mini, pr){
+function cardHtml(c, mini, pr, extra){
   const tag = mini ? 'button' : 'div', attrs = mini ? ' data-act="card" data-n="' + esc(c.n) + '"' + (pr ? ' data-p="' + pr.id + '"' : '') : '';
-  if (c.id) return '<' + tag + ' class="card real"' + attrs + '><img loading="lazy" alt="' + esc(c.n) + '" src="' + imgUrl('normal', pr ? pr.id : pidOf(c)) + '"><div class="ft"><span>' + esc(pr && pr.set ? pr.set + (pr.yr ? ' · ' + pr.yr : '') : mini ? c.n : '') + '</span><span>' + (pr && pr.set ? (pr.p != null ? '$' + pr.p.toFixed(2) : '—') : money(c) + (c.std ? ' · STD' : '')) + '</span></div></' + tag + '>';
-  return '<' + tag + ' class="card ' + frameCls(c) + (mini ? ' mini' : '') + '"' + attrs + '><div class="ct"><span>' + esc(c.n) + '</span><span>' + pips(c.m) + '</span></div><img alt="" src="' + artFor(c) + '"><div class="ty">' + esc(c.t) + '</div><div class="tx">' + pips(c.o) + '</div><div class="ft"><span>' + money(c) + (c.std ? ' · STD' : '') + '</span>' + (c.pt ? '<span class="pt">' + esc(c.pt) + '</span>' : '') + '</div></' + tag + '>';
+  if (c.id) return '<' + tag + ' class="card real"' + attrs + '><img loading="lazy" alt="' + esc(c.n) + '" src="' + imgUrl('normal', pr ? pr.id : pidOf(c)) + '"><div class="ft"><span>' + esc(pr && pr.set ? pr.set + (pr.yr ? ' · ' + pr.yr : '') : mini ? c.n : '') + '</span><span>' + (pr && pr.set ? (pr.p != null ? '$' + pr.p.toFixed(2) : '—') : money(c) + (c.std ? ' · STD' : '')) + '</span></div>' + (extra || '') + '</' + tag + '>';
+  return '<' + tag + ' class="card ' + frameCls(c) + (mini ? ' mini' : '') + '"' + attrs + '><div class="ct"><span>' + esc(c.n) + '</span><span>' + pips(c.m) + '</span></div><img alt="" src="' + artFor(c) + '"><div class="ty">' + esc(c.t) + '</div><div class="tx">' + pips(c.o) + '</div><div class="ft"><span>' + money(c) + (c.std ? ' · STD' : '') + '</span>' + (c.pt ? '<span class="pt">' + esc(c.pt) + '</span>' : '') + '</div>' + (extra || '') + '</' + tag + '>';
 }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3200); }
 
@@ -254,6 +274,24 @@ function cardLogHtml(){
     (log.length > 1 ? '<div class="allrows">' + log.slice(1).map(x => '<div class="note">' + esc(fmt(x.at)) + ' · ' + (x.n || 0).toLocaleString() + ' cards · ' + esc(x.why || '') + '</div>').join('') + '</div>' : '') +
     '<p class="note" style="margin:0">This record is part of your profile, so it is also in your backup file. If Safari clears this site’s storage, restoring the backup brings the record back; the card data itself has to be downloaded once more.</p></div>';
 }
+// Combos: Commander Spellbook's list, trimmed by the weekly card-data job (tools/build-combos.mjs) and served from the repo's
+// card-data branch. Saved in this browser and refreshed after a week. Without it, everything works; decks just don't
+// show combos or finishing routes.
+const COMBO_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/combos.json.gz';
+let COMBO_RAW = null;
+async function loadCombos(force){
+  try {
+    if (!COMBO_RAW){ const v = await idb('readonly', st => st.get('combos')); if (v && v.j) COMBO_RAW = v; }
+    if (COMBO_RAW && LIB.length) useCombos(COMBO_RAW.j);
+    if (!force && COMBO_RAW && Date.now() - COMBO_RAW.ts < 7 * 864e5) return;
+    if (typeof DecompressionStream === 'undefined'){ if (!COMBOS.list.length) COMBOS.state = 'unsupported'; return; }
+    COMBOS.state = COMBOS.list.length ? COMBOS.state : 'loading';
+    const r = await fetch(COMBO_URL, {cache:'no-cache'}); if (!r.ok) throw new Error('status ' + r.status);
+    const j = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json(); if (!j || !Array.isArray(j.combos) || !j.combos.length) throw new Error('empty');
+    COMBO_RAW = {j, ts:Date.now()}; try { await idb('readwrite', st => st.put(COMBO_RAW, 'combos')); } catch (e) {}
+    if (LIB.length) useCombos(j); render();
+  } catch (e) { if (!COMBOS.list.length) COMBOS.state = 'fail'; }
+}
 async function loadSavedLibrary(){
   let complete = false, hadRows = false;
   try { const v = await idb('readonly', s => s.get('cards')); if (v && v.rows && v.rows.length){ hadRows = true; complete = !!v.ts && v.rows.some(r => r.sc) && v.rows.some(r => r.rar) && v.rows.some(r => 'gc' in r) && v.rows.some(r => 'cn' in r); useFull(v.rows, v.when, complete); render(); } } catch (e) {}
@@ -263,6 +301,7 @@ async function loadSavedLibrary(){
   // restored, that record brings back when the data was last rewritten and which release it covered.
   { const cd = S.profile && S.profile.cardData; if (cd && cd.at){ if (!lsGet('dc.dlAt')) lsSet('dc.dlAt', cd.at); if (!lsGet('dc.relSig') && cd.sig) lsSet('dc.relSig', cd.sig); } }
   if (!complete) autoUpdate(null, hadRows ? 'Saved card data was from an older version of the app' : 'No card data was saved in this browser'); else checkReleases();
+  loadCombos();
   bracketTags();
 }
 // Bracket card lists from Scryfall's card tags: mass land denial and extra turns. Kept for a week, then refreshed, so
@@ -294,7 +333,7 @@ async function ingest(stream, size, when){
 }
 async function finalize(rows, when, ts){
   const best = new Map(); for (const c of rows){ const k = norm(c.n), o = best.get(k); if (!o || (o.p == null && c.p != null)) best.set(k, c); }
-  const list = [...best.values()]; useFull(list, when, !!ts);
+  const list = [...best.values()]; useFull(list, when, !!ts); if (COMBO_RAW) useCombos(COMBO_RAW.j);
   try { await idb('readwrite', s => s.put({rows:list.map(c => { const x = Object.assign({}, c); delete x._n; delete x._t; delete x._ft; return x; }), when, ts}, 'cards')); } catch (e) {}
   return list.length;
 }
@@ -379,7 +418,7 @@ async function autoUpdate(sig, reason){
     try { const P = S.profile, rec = {at:Date.now(), n, data:DBINFO.when || '', why:reason || 'Automatic update', sig:lsGet('dc.relSig')}; P.cardData = rec; P.cardLog = [{at:rec.at, n, why:rec.why}].concat(P.cardLog || []).slice(0, 12); persist(); } catch (e) {} }
   else toast('Scryfall refused the card download. Open Profile for details.');
   DBINFO.err = n ? '' : why.join(' · ');
-  autoUpdate.busy = false; setStatus(''); render(); if (!$('#modal').hidden && $('#gen-q')) openGenerate();
+  autoUpdate.busy = false; if (n && COMBO_RAW) useCombos(COMBO_RAW.j); setStatus(''); render(); if (!$('#modal').hidden && $('#gen-q')) openGenerate();
 }
 
 // ---------- backup file ----------
@@ -469,6 +508,27 @@ function setDrop(input, box){
   box.innerHTML = hit.map(s => '<button style="grid-template-columns:1fr auto" data-act="lib-set-pick" data-v="' + esc(s.name + ' (' + s.code.toUpperCase() + ')') + '"><span>' + esc(s.name) + '<small>' + s.yr + ' · ' + s.n + ' cards</small></span><span class="chip">' + esc(s.code.toUpperCase()) + '</span></button>').join('') || '<p class="note" style="margin:8px">No set matches that.</p>';
   box.hidden = false;
 }
+// A set from what the player typed: "Name (CODE)", a code, or a name.
+function resolveSet(text){ const t = String(text || '').trim(); if (!t) return null; const m = /\(([A-Za-z0-9]{2,6})\)\s*$/.exec(t), list = S.setList || [];
+  return m ? list.find(x => x.code === m[1].toLowerCase()) || {code:m[1].toLowerCase(), name:m[1].toUpperCase()} : list.find(x => x.code === t.toLowerCase()) || list.find(x => x.name.toLowerCase() === t.toLowerCase()) || list.find(x => x.name.toLowerCase().includes(t.toLowerCase())) || (/^[A-Za-z0-9]{2,6}$/.test(t) ? {code:t.toLowerCase(), name:t.toUpperCase()} : null); }
+const setName = code => ((S.setList || []).find(x => x.code === code) || {name:code.toUpperCase()}).name;
+// Card sets as a build filter: every card printed in each chosen set, read from Scryfall once and kept in this browser.
+async function loadSetCards(codes){
+  const miss = (codes || []).filter(c => !SETCARDS.has(c)); if (!miss.length) return true; let ok = true;
+  for (const code of miss){ const cached = lsGet('dc.setcards.' + code); if (cached && cached.length){ SETCARDS.set(code, new Set(cached)); continue; }
+    const names = new Set(); try { await scry('e:' + code, '', 20, o => { names.add(norm(o.name)); (o.card_faces || []).length && names.add(norm(String(o.name).split(' // ')[0])); }); } catch (e) { ok = false; continue; }
+    SETCARDS.set(code, names); lsSet('dc.setcards.' + code, [...names]); }
+  return ok;
+}
+// A set list that could not be read is not asked for again until the browser comes back online or the set is added again.
+const SETFAIL = new Set(); addEventListener('online', () => { if (SETFAIL.size){ SETFAIL.clear(); render(); } });
+function ensureSetCards(d){ if (!d || !(d.sets || []).length || ensureSetCards.busy) return; const miss = d.sets.filter(c => !SETCARDS.has(c) && !SETFAIL.has(c)); if (!miss.length) return;
+  ensureSetCards.busy = true; loadSetCards(miss).then(ok => { ensureSetCards.busy = false; miss.forEach(c => { if (!SETCARDS.has(c)) SETFAIL.add(c); }); if (!ok) toast('Some set lists could not be read from Scryfall; those sets match only by each card’s shown printing.'); render(); }); }
+function setFilterHtml(sets, must, actPre, dis){
+  return '<div class="row">' + sets.map((c, i) => '<button class="chip gold" data-act="' + actPre + '-rm" data-v="' + i + '"' + (dis || '') + '>' + esc(setName(c)) + ' ×</button>').join('') +
+    (dis || sets.length >= 4 ? '' : '<input type="search" id="' + actPre + '-add" list="set-list" placeholder="+ Card set…" autocomplete="off" style="flex:1 1 130px;min-width:0;width:auto"><datalist id="set-list">' + (S.setList || []).slice(0, 400).map(x => '<option value="' + esc(x.name + ' (' + x.code.toUpperCase() + ')') + '">').join('') + '</datalist>') +
+    (sets.length ? '<button class="btn sm' + (must ? ' pri' : '') + '" data-act="' + actPre + '-must"' + (dis || '') + ' title="Switch between a preference and a rule">' + (must ? 'Only these sets' : 'Preferred') + '</button>' : '') + '</div>';
+}
 async function libAddSet(text){
   const t = String(text || '').trim(); if (!t) return; const m = /\(([A-Za-z0-9]{2,6})\)\s*$/.exec(t), list = S.setList || [];
   const s = m ? list.find(x => x.code === m[1].toLowerCase()) || {code:m[1].toLowerCase(), name:m[1].toUpperCase()} : list.find(x => x.code === t.toLowerCase()) || list.find(x => x.name.toLowerCase() === t.toLowerCase()) || list.find(x => x.name.toLowerCase().includes(t.toLowerCase())) || (/^[A-Za-z0-9]{2,6}$/.test(t) ? {code:t.toLowerCase(), name:t.toUpperCase()} : null);
@@ -504,10 +564,14 @@ function openLibPaste(){
   $('#modal').hidden = false;
 }
 // "Best deck with every new card under $X" (per card; owned cards are free): its own engine run, cached like recsFor.
-function capFor(d, t){ const cap = TIERS[t].cap, key = JSON.stringify([t, d, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); capFor.c = capFor.c || {};
+function capFor(d, t){ const cap = TIERS[t].cap, key = JSON.stringify([t, d, [...SETCARDS.keys()].join(), COMBOS.list.length, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); capFor.c = capFor.c || {};
   if (!capFor.c[t] || capFor.c[t].k !== key){ upgradePaths.own = ownSet(); capFor.c[t] = {k:key, v:upgradePaths(d, {cap})}; } return capFor.c[t].v; }
 function capList(d, t){ return capFor(d, t).paths.map(L => L.opts.apex).filter(p => p && entryOf(d, p.cut) && !entryOf(d, p.add)); }
-function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d); } return recsFor.v; }
+function recsFor(d){ const key = JSON.stringify([d, S.swaps, [...SETCARDS.keys()].join(), COMBOS.list.length, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d);
+    // The card-search upgrade index reuses this result, so a deck the player has looked at costs nothing to index.
+    try { const c = find(d.commander); if (d.format === 'commander' && c && EDH.key === c.n && EDH.state === 'ok' && !(d.plan && d.plan.length) && S.profile.decks.some(x => x.id === d.id)){
+      lsSet('dc.upx.' + d.id, {sig:deckSig(d), rows:recsFor.v.paths.flatMap(L => Object.entries(L.opts).filter(([, p]) => p && p.add).map(([t, p]) => [p.add, p.cut, t]))}); UPX.sig = ''; } } catch (e) {} }
+  return recsFor.v; }
 
 // ---------- views ----------
 function navHtml(){
@@ -564,7 +628,7 @@ function aimPanel(d, ctx){
         (ctx.cmdThemes.length ? '<p class="note" style="margin:0">Upgrades always lean toward what this commander does, on top of the aims you set.</p>' : ''); }
     else { const leg = d.cards.map(e => find(e.n)).filter(c => c && /Legendary/.test(c.t) && /Creature/.test(frontType(c))).slice(0, 6);
       h += (d.commander ? '<p class="note" style="margin:0"><span class="unk">' + esc(d.commander) + '</span> is not in the card library. Load the full card database in Profile, or pick another.</p>' : '') +
-        '<div class="dd"><input type="search" id="cmd-q" placeholder="Search legendary creatures" autocomplete="off"><div class="ddl" id="cmd-res" hidden></div></div>' +
+        '<div class="dd"><input type="search" id="cmd-q" placeholder="Search commanders" autocomplete="off"><div class="ddl" id="cmd-res" hidden></div></div>' +
         (leg.length ? '<div class="row"><span class="note">From your list:</span>' + leg.map(c => '<button class="btn sm" data-act="set-cmd" data-n="' + esc(c.n) + '">' + esc(c.n) + '</button>').join('') + '</div>' : ''); }
     h += '</div>';
   }
@@ -582,12 +646,14 @@ function aimPanel(d, ctx){
     h += '<div class="grp"><span class="lab">Filters · optional</span>' +
       '<div class="row">' + ty.map((t, i) => '<button class="chip gold" data-act="type-rm" data-v="' + i + '"' + dis + '>' + esc(t) + ' ×</button>').join('') + (lock || ty.length >= 4 ? '' : '<input type="search" id="type-add" list="ctype-list" placeholder="+ Creature type…" autocomplete="off" style="flex:1 1 130px;min-width:0;width:auto"><datalist id="ctype-list">' + creatureTypes().map(t => '<option value="' + esc(t) + '">').join('') + '</datalist>') + (ty.length ? tog('types-must', d.typesMust, 'Preferred', 'Creatures must match') : '') + '</div>' +
       '<div class="row">' + ky.map((k, i) => '<button class="chip gold" data-act="key-rm" data-v="' + i + '"' + dis + '>' + esc((KEYWORDS[k] || {label:k}).label) + ' ×</button>').join('') + (lock || ky.length >= 4 ? '' : '<select id="key-add" aria-label="Add a keyword" style="flex:1 1 130px;min-width:0;width:auto"><option value="">+ Keyword or effect…</option>' + Object.keys(KEYWORDS).filter(k => !ky.includes(k)).map(k => '<option value="' + k + '">' + KEYWORDS[k].label + '</option>').join('') + '</select>') + (ky.length ? tog('keys-must', d.keysMust, 'Preferred', 'Theme cards must match') : '') + '</div>' +
-      '<p class="note" style="margin:0">' + (d.typesMust || d.keysMust ? 'A rule narrows the choices: ' + (d.typesMust ? 'every creature must be one of your types' : '') + (d.typesMust && d.keysMust ? ', and ' : '') + (d.keysMust ? 'every theme card must have one of your keywords' : '') + '. Lands, ramp, card draw and removal are still chosen freely.' : 'Preferred filters push matching cards up the list. Switch one to a rule to allow only matching cards.') + '</p></div>'; }
+      setFilterHtml(d.sets || [], d.setsMust, 'dset', lock ? dis : '') +
+      '<p class="note" style="margin:0">' + ((d.sets || []).length && d.setsMust ? 'Only cards printed in ' + d.sets.map(setName).join(', ') + ' (and basic lands) are suggested. ' : '') + (d.typesMust || d.keysMust ? 'A rule narrows the choices: ' + (d.typesMust ? 'every creature must be one of your types' : '') + (d.typesMust && d.keysMust ? ', and ' : '') + (d.keysMust ? 'every theme card must have one of your keywords' : '') + '. Lands, ramp, card draw and removal are still chosen freely.' : 'Preferred filters push matching cards up the list. Switch one to a rule to allow only matching cards.') + '</p></div>'; }
   const pool = d.format === 'commander' ? ctx.ident : ['W', 'U', 'B', 'R', 'G'];
   h += '<div class="grp"><span class="lab">Land colors to focus on' + (d.format === 'commander' && ctx.ident.length ? ' · ' + ctx.focus.length + ' of ' + ctx.ident.length : '') + '</span>';
   if (!pool.length) h += '<p class="note" style="margin:0">' + (d.format === 'commander' ? (ctx.cmd ? 'Colorless commander: the deck uses Wastes and colorless cards.' : 'Pick a commander to set the colors.') : '') + '</p>';
   else h += '<div class="row">' + pool.map(c => '<button class="pip p' + c + ((d.colors || []).includes(c) ? ' on' : '') + '" data-act="color" data-v="' + c + '" aria-pressed="' + (d.colors || []).includes(c) + '"' + dis + '>' + c + '</button>').join('') + '</div><p class="note" style="margin:0">' + (d.format === 'commander' ? 'Focus colors get most of the basic lands and first pick of upgrades. The rest become a light splash.' : 'Pick one to three colors. Every card must fit inside them.') + '</p>';
   h += '</div>';
+  if (d.format === 'commander' && ctx.cmd && aimed) h += '<div class="grp"><span class="lab">Generate</span><div class="row"><button class="btn pri" data-act="build-gen">Generate a build with these settings</button></div><p class="note" style="margin:0">Designs a full 100-card build for ' + esc(ctx.cmd.n.split(',')[0]) + (ctx.par ? ' and ' + esc(ctx.par.n.split(',')[0]) : '') + ' from the mechanics above, in their order, and your filters and colors. It opens as a new deck; this one stays as it is. Cards you hold here are kept.</p></div>';
   h += '<div class="row"><span class="chip ' + (aimed ? 'good' : 'warn') + '">' + (aimed ? 'Deck is aimed' : 'Not aimed yet') + '</span><span class="note">' + (S.sync === 'cloud' ? 'Saved to your profile' : 'Saved in this browser') + '</span></div></section>';
   return h;
 }
@@ -837,14 +903,16 @@ function planInstall(d, x, key){
   d.plan = d.plan.filter(y => y !== x); if (!d.plan.length) delete d.plan; return true;
 }
 // Start a generated deck as a build plan.
-function startPlan(cmdName, seeds, extraAims, partner){
+function startPlan(cmdName, seeds, extraAims, partner, opts){
   const c = find(cmdName); if (!c) return null;
-  const nd = newDeck({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander'}); setCommander(nd, c.n);
+  const nd = newDeck(Object.assign({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander'}, opts && opts.sets && opts.sets.length ? {sets:opts.sets.slice(), setsMust:!!opts.setsMust} : {})); setCommander(nd, c.n);
   { const p = partner && find(partner); if (p && canPair(c, p)){ nd.partner = p.n; nd.name = c.n.split(',')[0] + ' & ' + p.n.split(',')[0] + ' (generated)'; nd.colors = ctxOf(nd).ident.slice(); ctxOf(nd).cmdThemes.forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); }); } }
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
   if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
   nd.plan = buildPlan(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
-  toast('Designed a ' + nd.plan.reduce((s, x) => s + x.q, 0) + '-card build for ' + c.n + '. Add the cards you want from the Upgrades tab.'); return nd;
+  { const n = nd.plan.reduce((s, x) => s + x.q, 0), want = 100 - 1 - (nd.partner ? 1 : 0);
+    toast('Designed a ' + n + '-card build for ' + c.n + '.' + (n < want ? ' Only ' + n + ' of ' + want + ' slots could be filled' + ((nd.sets || []).length && nd.setsMust ? ' from the chosen sets' : '') + '; the rest stay open.' : '') + ' Add the cards you want from the Upgrades tab.'); }
+  return nd;
 }
 function ownToggle(kind){ const n = libCount(); return '<div class="row"><button class="chk' + (S.gen.own && n ? ' on' : '') + '" data-act="gen-own" data-v="' + kind + '"' + (n ? '' : ' disabled') + ' role="checkbox" aria-checked="' + !!(S.gen.own && n) + '"><i></i>Generate a deck with cards I already own</button>' + (n ? '<span class="note">Uses your library of ' + n.toLocaleString() + ' cards first, then fills the gaps.</span>' : '<span class="note">Your library is empty. Add the cards you own on a deck’s Library tab.</span>') + '</div>'; }
 // Commander Brackets: the deck's target bracket, its Game Changers, and anything the bracket leaves out.
@@ -864,6 +932,46 @@ function gcChip(p, R){
   if (!p.gc) return ''; const after = R.gcIn + (p.gcOut ? 0 : p.q), nb = bracketOf(after, R.mldIn || 0);
   return '<span class="chip warn">Game Changer' + (p.gcOut ? ' · replaces one' : nb > R.bracket ? ' · moves deck to Bracket ' + nb : R.bracket === 3 ? ' · ' + after + ' of 3 in Bracket 3' : '') + '</span>';
 }
+// Deck score: the whole-deck evaluator (engine evaluateDeck), cached until the deck, its build or the data behind it changes.
+const EVC = new Map(), APX = new Map();
+// The Apex reference for a deck's build settings (engine apexRef): designed once in the background, then saved in this browser.
+function apexFor(d){
+  if (d.format !== 'commander' || !find(d.commander) || !DBINFO.complete || (EDH.key === find(d.commander).n && EDH.state === 'loading')) return null; const k = apexKey(d), lk = 'dc.apx.' + strHash(k);
+  if (APX.has(k)) return APX.get(k); const c = lsGet(lk); if (c && c.key === k){ APX.set(k, c); return c; }
+  if (!apexFor.busy){ apexFor.busy = true; setTimeout(() => { let r = null; try { r = apexRef(d); } catch (e) {} apexFor.busy = false; APX.set(k, r); if (r) lsSet(lk, r); render(); }, 60); }
+  return null;
+}
+function evalFor(d){
+  const key = [d.commander, d.partner || '', (d.aims || []).join(','), d.tribe || '', EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, DBINFO.count, [...SETCARDS.keys()].join(), COMBOS.list.length, d.cards.map(e => e.n + '×' + e.q).sort().join('|')].join('#');
+  const ar = apexFor(d), k2 = key + '#' + (ar ? 'apex' : 'pending');
+  const old = EVC.get(d.id); if (old && old.key === k2) return old.v;
+  const sim = old && old.base === key && old.v ? old.v.sim : undefined;   // same cards: the practice games need not be replayed
+  let v = null; try { v = evaluateDeck(d, {games:300, apex:ar, sim}); } catch (e) {} EVC.set(d.id, {key:k2, base:key, v}); return v;
+}
+function scoreHtml(d, A){
+  if (d.format !== 'commander' || !A.ctx.cmd || A.size < 90 || !DBINFO.complete) return '';
+  const e = evalFor(d); if (!e) return '';
+  const L = {synergy:'Synergy', balance:'Balance', quality:'Card quality', routes:'Win routes', mana:'Mana and curve'};
+  const bar = k => { const v = e.parts[k], cls = v >= 75 ? 'good' : v >= 50 ? 'warn' : 'bad'; return '<div class="meter ' + cls + '"><span>' + L[k] + '</span><i><b style="width:' + v + '%"></b></i><span>' + v + '</span></div>'; };
+  const pr = e.profile, cmdN = esc(A.ctx.cmd.n.split(',')[0]), wins = e.combos.win, near = e.combos.near.filter(x => x.x.win).slice(0, 3);
+  let more = '<p class="note" style="margin:0">' + Object.keys(L).map(k => '<b>' + L[k] + '</b> (' + EV_W[k] + '% of the score): ' + esc(e.why[k])).join('<br>') + '</p>' +
+    '<p class="note" style="margin:0">60 is like a typical real deck for its commander; 85 is like the best tenth. Mana and curve come from ' + e.sim.games + ' practice games played out by the app (no opponents). The score judges how the deck is built, not how a game will go.</p>';
+  if (pr && (pr.plan || e.needs.length)) more += '<span class="lab">How ' + cmdN + ' works</span>' + (pr.plan ? '<p class="note" style="margin:0">' + esc(pr.plan) + '</p>' : '') +
+    (e.needs.length ? '<div class="row">' + e.needs.map(x => '<span class="chip ' + (x.have >= x.min ? 'good' : 'warn') + '">' + esc(x.label) + ' · ' + (x.share ? Math.round(x.have * 100) + '%' : x.have) + (x.have >= x.min ? '' : ' (wants ' + (x.share ? Math.round(x.min * 100) + '%' : x.min) + '+)') + '</span>').join('') + '</div>' : '') +
+    (pr.reviewed ? '' : '<p class="note" style="margin:0">Read from the commander’s text; not a reviewed profile.</p>');
+  if (e.weak.length){ const by = new Map(); e.weak.forEach(w => { if (!by.has(w.n)) by.set(w.n, w); });
+    more += '<span class="lab">Cards this deck barely supports</span>' + [...by.values()].slice(0, 6).map(w => '<p class="note" style="margin:0"><b>' + esc(w.n) + '</b> needs ' + esc(w.label) + ': the deck has ' + (w.share ? Math.round(w.have * 100) + '%' : w.have) + ' (usually ' + (w.share ? Math.round(w.min * 100) + '%' : w.min) + ' or more).</p>').join(''); }
+  more += '<span class="lab">How it wins</span>' +
+    (wins.length ? wins.slice(0, 3).map(x => '<p class="note" style="margin:0"><b>Combo:</b> ' + esc(x.names.join(' + ')) + ' · ' + esc(x.what.toLowerCase()) + '</p>').join('') : '') +
+    (e.finishers.length ? '<div class="row">' + e.finishers.slice(0, 10).map(n => '<button class="chip" data-act="card" data-n="' + esc(n) + '">' + esc(n) + '</button>').join('') + '</div>' : '<p class="note" style="margin:0">No clear finisher: nothing that ends a game quickly (a mass pump, extra combat, drain, or big evasive threat).</p>') +
+    (near.length ? near.map(x => '<p class="note" style="margin:0">One card from a combo: add <b>' + esc(x.miss) + '</b> to ' + esc(x.x.names.filter(n => n !== x.miss).join(' + ')) + ' · ' + esc(x.x.what.toLowerCase()) + '</p>').join('') : '') +
+    (COMBOS.state === 'fail' ? '<p class="note" style="margin:0">Combo data could not be downloaded, so combos are not shown.</p>' : COMBOS.state === 'loading' ? '<p class="note" style="margin:0">Loading combo data…</p>' : '') +
+    (COMBOS.list.length ? '<p class="note" style="margin:0">Combos from Commander Spellbook.</p>' : '');
+  const qq = e.quality || {}, qLine = qq.pending ? '<p class="note" style="margin:-2px 0 4px">Card quality is being measured against this deck’s Apex build…</p>'
+    : '<p class="note" style="margin:-2px 0 4px">Card quality: ' + qq.vsApex + '% of the Apex build (the best cards for this deck at any price)' + (qq.tier ? ' · ' + qq.tier.pct + '% of the best build with every card under $' + (qq.tier.tier === 'budget' ? 3 : 12) : '') + '</p>';
+  return '<div class="grp"><span class="lab">Deck score · ' + e.total + ' of 100</span>' + Object.keys(L).map(k => bar(k) + (k === 'quality' ? qLine : '')).join('') +
+    '<details class="more" id="score-more"' + (S.scoreOpen ? ' open' : '') + '><summary>Why, how ' + cmdN + ' works, and how the deck wins</summary><div class="grp" style="margin-top:8px">' + more + '</div></details></div>';
+}
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
   let h = '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
@@ -872,6 +980,7 @@ function upPanel(d, A){
   if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
   if (d.format === 'commander') h += bracketHtml(d, A);
   h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';
+  if (!(d.plan && d.plan.length)) h += scoreHtml(d, A);
   h += '<div class="grp"><span class="lab">Card types</span><div class="row">' + TYPE_ORDER.filter(k => A.types[k]).map(k => '<span class="chip">' + (k === 'Sorcery' ? 'Sorceries' : k + 's') + ' · ' + A.types[k] + '</span>').join('') + '</div></div>';
   { const mp0 = manaPlan(d), cols = 'WUBRG'.split('').filter(k => mp0.pips[k] || mp0.have[k]); if (cols.length) h += '<div class="grp"><span class="lab">Colored mana · spells need vs basic lands</span><div class="row">' + cols.map(k => '<span class="chip' + (mp0.basics && Math.abs(mp0.want[k] - mp0.have[k]) >= 2 ? ' warn' : '') + '"><i class="pip p' + k + '">' + k + '</i> ' + mp0.pips[k] + ' symbols · ' + mp0.have[k] + ' ' + COLOR_BASIC[k] + '</span>').join('') + '</div></div>'; }
   const mx = Math.max(1, ...A.curve);
@@ -950,12 +1059,13 @@ function searchResults(){
     const ok = new Set(searchCards('', filt, 1e6).cards.map(c => c._n));
     const rows = S.printRes.out.filter(x => ok.has(x.c._n) && (!filt.max || (x.p != null && x.p <= filt.max)))
       .sort((a, b) => (b.sc === PRINT.key) - (a.sc === PRINT.key) || a.c.n.localeCompare(b.c.n) || b.yr.localeCompare(a.yr));
-    return '<p class="note" style="margin:0">' + (S.printRes.err ? 'Scryfall could not be reached. ' : '') + rows.length + ' printing' + (rows.length === 1 ? '' : 's') + (rows.length > 120 ? ' · showing the first 120' : '') + (PRINT.key && rows.some(x => x.sc === PRINT.key) ? ' · your commander’s set first' : '') + '</p><div class="cards">' + rows.slice(0, 120).map(x => cardHtml(x.c, true, x)).join('') + '</div>';
+    return '<p class="note" style="margin:0">' + (S.printRes.err ? 'Scryfall could not be reached. ' : '') + rows.length + ' printing' + (rows.length === 1 ? '' : 's') + (rows.length > 120 ? ' · showing the first 120' : '') + (PRINT.key && rows.some(x => x.sc === PRINT.key) ? ' · your commander’s set first' : '') + '</p><div class="cards">' + rows.slice(0, 120).map(x => cardHtml(x.c, true, x, upBadge(x.c))).join('') + '</div>';
   }
   const r = searchCards(f.q, filt, 60);
-  return '<p class="note" style="margin:0">' + r.total.toLocaleString() + ' card' + (r.total === 1 ? '' : 's') + (r.total > 60 ? ' · showing the first 60' : '') + ' · ' + (DBINFO.source === 'starter' ? 'starter library' : 'full database') + (PRINT.key && PRINT.map.size ? ' · showing your commander’s set printing where one exists' : '') + '</p><div class="cards">' + r.cards.map(c => cardHtml(c, true)).join('') + '</div>';
+  return '<p class="note" style="margin:0">' + r.total.toLocaleString() + ' card' + (r.total === 1 ? '' : 's') + (r.total > 60 ? ' · showing the first 60' : '') + ' · ' + (DBINFO.source === 'starter' ? 'starter library' : 'full database') + (PRINT.key && PRINT.map.size ? ' · showing your commander’s set printing where one exists' : '') + (UPX.busy ? ' · checking your decks for upgrades…' : r.cards.some(c => upFor(c).length) ? ' · cards marked “Upgrade” are suggested for one of your decks' : '') + '</p><div class="cards">' + r.cards.map(c => cardHtml(c, true, null, upBadge(c))).join('') + '</div>';
 }
 function viewSearch(){
+  clearTimeout(viewSearch.t); viewSearch.t = setTimeout(buildUpgradeIndex, 1500);   // after the player pauses; decks already indexed cost nothing
   const f = S.search, opt = (v, l, curv) => '<option value="' + v + '"' + (v === curv ? ' selected' : '') + '>' + l + '</option>';
   return '<section class="panel"><div class="ph"><h2>Card search</h2><small>Tap a card for full details</small></div><div class="filters">' +
     '<input type="search" id="s-q" placeholder="Name, type or rules text" value="' + esc(f.q) + '" autocomplete="off">' +
@@ -1011,11 +1121,37 @@ async function loadPreconLive(slug, label){
     toast('Loaded ' + d.name + ' (' + analyze(d).size + ' cards).' + (unk ? ' ' + unk + ' need the full card data to show details.' : ''));
   } catch (e) { toast('That decklist could not be loaded from EDHREC.'); }
 }
+// Generate from a commander: a commander with Partner (or a Background, or a Doctor's companion) can take its second
+// commander before the deck is designed, so the build uses both commanders' colors and strategies from the start.
+function genPartnerBox(c){
+  const k = pairKind(c); if (!k || k === 'isbg') return '';
+  const p = find(S.gen.partner), d0 = {format:'commander', commander:c.n, aims:[], cards:[], colors:[]}, ctx = ctxOf(d0);
+  const res = LIB.filter(x => x.cmd && canPair(c, x)).map(x => ({c:x, s:baseScore(x, d0, Object.assign({}, ctx, {focus:x.ci, ident:x.ci, edh:null})).s})).sort((a, b) => b.s - a.s).slice(0, 8);
+  if (!res.length) return '';
+  return '<div class="grp"><span class="lab">Second commander · optional (' + esc(pairLabel(c)) + ')</span><div class="row">' +
+    '<button class="chip' + (p ? '' : ' gold') + '" data-act="gen-partner" data-n="" aria-pressed="' + !p + '">None</button>' +
+    res.map(x => '<button class="chip' + (p && p.n === x.c.n ? ' gold' : '') + '" data-act="gen-partner" data-n="' + esc(x.c.n) + '" aria-pressed="' + !!(p && p.n === x.c.n) + '">' + esc(x.c.n.split(',')[0]) + ' ' + x.c.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '</button>').join('') +
+    '</div>' + (p ? '<p class="note" style="margin:0">The deck will be designed for ' + esc(c.n.split(',')[0]) + ' and ' + esc(p.n.split(',')[0]) + ' together: ' + ctxOf(Object.assign({}, d0, {partner:p.n})).ident.join('') + ' colors.</p>' : '') + '</div>';
+}
+// Customize menu: design a new build for this deck's commander(s) with the current mechanics (in order), filters and colors.
+// It opens as a new, unsaved deck; this deck is not changed. Cards held in this deck are kept in the new build.
+function regenBuild(d){
+  const c = find(d.commander); if (!c || d.format !== 'commander') return null;
+  const seeds = d.cards.filter(e => e.l).map(e => find(e.n)).filter(Boolean);
+  const nd = newDeck({name:d.name.replace(/ \(generated\)$/, '') + ' (generated)', format:'commander', tier:'apex', aims:d.aims.slice(), tribe:d.tribe || '', colors:(d.colors || []).slice(), types:(d.types || []).slice(), keys:(d.keys || []).slice(), typesMust:!!d.typesMust, keysMust:!!d.keysMust, sets:(d.sets || []).slice(), setsMust:!!d.setsMust, custom:true, aimAuto:d.aimAuto});
+  setCommander(nd, c.n); if (d.partner){ const p = find(d.partner); if (p && canPair(c, p)) nd.partner = p.n; }
+  nd.colors = (d.colors || []).length ? d.colors.slice() : ctxOf(nd).ident.slice(); nd.tribe = d.tribe || nd.tribe;   // setCommander resets them; keep the player's
+  nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
+  toast('Designed a new ' + nd.plan.reduce((s, x) => s + x.q, 0) + '-card build with your mechanics. Your original deck is unchanged.'); return nd;
+}
 function openGenerate(){
+  if (!S.setList && !S.setErr) ensureSets().then(() => { if (S.setList && !$('#modal').hidden && $('#gen-q')) openGenerate(); });
   const g = S.gen, c = find(g.cmd), st = detectStrategy(c);
   let h = '<div class="panel" role="dialog" aria-label="Generate from a commander"><div class="ph"><h2>Generate from a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Pick any legendary creature. Deck Companion reads what the commander does, sets the build to match, and designs the strongest 100-card build for it, with cheaper Mid and Budget stand-ins for every expensive card. Nothing goes into the decklist until you add it.</p>' +
-    '<div class="grp"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search legendary creatures" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
+    '<div class="grp"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search commanders" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
   if (c) h += '<div class="detail">' + cardHtml(c, false) + '<div class="grp"><span class="lab">Strategy it will follow</span><div class="row">' + (st.themes.length ? st.themes.map(k => '<span class="chip gold">' + (k === 'tribal' ? st.tribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. The deck opens in the Builder so you can pick the mechanics, then fill it.</span>') + '</div>' +
+    genPartnerBox(c) +
+    '<div class="grp"><span class="lab">Card sets · optional</span>' + setFilterHtml(S.gen.sets || [], S.gen.setsMust, 'gset') + '<p class="note" style="margin:0">' + ((S.gen.sets || []).length ? (S.gen.setsMust ? 'Only cards printed in these sets (and basic lands) go into the build.' : 'Cards printed in these sets are preferred.') : 'Build from one set or a few: add a set, then choose Preferred or Only these sets.') + '</p></div>' +
     ownToggle('gen') +
     '<div class="row">' + edhNote(c) + '</div>' +
     (DBINFO.complete ? '<div class="row"><button class="btn pri" data-act="gen-go"' + (EDH.key === c.n && EDH.state === 'loading' ? ' disabled' : '') + '>Generate this deck</button></div>'
@@ -1099,7 +1235,7 @@ function render(){
   document.querySelector('.app').classList.toggle('narrow', isNarrow()); document.querySelector('.app').classList.toggle('editing', S.view === 'decks' && S.open && !!cur()); fitWork();
   for (const id in keep){ const el = document.getElementById(id); if (el && keep[id]) el.scrollTop = keep[id]; }
   watchSoon();
-  ensureTheme(); ensureEdh();
+  ensureTheme(); ensureEdh(); ensureSetCards(S.view === 'decks' && S.open ? cur() : null);
 }
 function ctlHtml(n){
   const d = cur(), e = d && d.cards.find(x => x.n === n); if (!e) return '';
@@ -1145,7 +1281,7 @@ function openEntry(n){
 }
 function openCard(name, pid){
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
-  const legend = /Legendary/.test(c.t) && /Creature/.test(frontType(c)), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
+  const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
   S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') : 'Colorless') + '</dd>' +
@@ -1154,6 +1290,7 @@ function openCard(name, pid){
     (c.gc || BTAGS.mld.has(c._n) || BTAGS.turns.has(c._n) ? '<dt>Brackets</dt><dd>' + [c.gc ? 'Game Changer (Bracket 3 allows up to three; 4 and 5 any)' : '', BTAGS.mld.has(c._n) ? 'Mass land denial (Bracket 4 and up)' : '', BTAGS.turns.has(c._n) ? 'Extra turn (a few at most below Bracket 4)' : ''].filter(Boolean).join('; ') + '</dd>' : '') +
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +
     '<dt>Does</dt><dd>' + ([...tg.roles].map(r => ROLE_LABEL[r] || ({counter:'Counterspell', tutor:'Tutor', protect:'Protection'})[r]).concat(tg.land ? ['Land'] : []).join(', ') || 'Threat / synergy piece') + '</dd>' +
+    (upFor(c).length ? '<dt>Upgrade for</dt><dd>' + upFor(c).map(x => '<button class="btn sm" data-act="open-deck" data-v="' + esc(x.id) + '">' + esc(x.name) + '</button> replaces ' + esc(x.cut) + ' <span class="chip">' + ({apex:'Apex', mid:'Mid', budget:'Budget'})[x.t] + '</span>').join('<br>') + '</dd>' : '') +
     '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' +
     '<div class="row">' + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.n + '"') + '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';
@@ -1229,7 +1366,7 @@ function handleAct(act, v, n, pArg){
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; d.cmdCn = x.cn || ''; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
-    case 'open-deck': S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; changed = false; break;
+    case 'open-deck': $('#modal').hidden = true; S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; changed = false; break;
     case 'tab': S.tab = v; changed = false; break;
     case 'deck-back': S.open = false; S.confirmDel = null; changed = false; break;
     case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; S.tab = null; } changed = false; break;
@@ -1331,9 +1468,17 @@ function handleAct(act, v, n, pArg){
     case 'seed-paste-go': { const r = parseDeckText(($('#seed-text') || {}).value || ''); let k = 0, miss = 0; (r.commander ? [{n:r.commander}] : []).concat(r.partner ? [{n:r.partner}] : [], r.cards).forEach(x => { const c = find(x.n); if (!c){ miss++; return; } if (!S.seed.cards.includes(c.n)){ S.seed.cards.push(c.n); k++; } }); S.seed.paste = false; openSeed(); toast('Added ' + k + ' card' + (k === 1 ? '' : 's') + (miss ? ' · ' + miss + ' not recognised' : '') + '.'); return; }
     case 'seed-go': { $('#modal').hidden = true; toast('Building your deck…'); const go = () => seedBuild(n, v); loadEdh(n).then(go, go); return; }
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
-    case 'gen-pick': S.gen.cmd = n; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
+    case 'gset-rm': S.gen.sets.splice(+v, 1); if (!S.gen.sets.length) S.gen.setsMust = false; openGenerate(); return;
+    case 'gset-must': S.gen.setsMust = !S.gen.setsMust; openGenerate(); return;
+    case 'dset-rm': (d.sets || []).splice(+v, 1); if (!d.sets.length) d.setsMust = false; aimsChanged(d); break;
+    case 'dset-must': d.setsMust = !d.setsMust; aimsChanged(d); break;
+    case 'gen-partner': S.gen.partner = n || ''; openGenerate(); return;
+    case 'build-gen': { if (S.draft){ const dr = S.draft; S.profile.decks.unshift(dr); S.draft = null; toast('Saved ' + dr.name + ' to your decks first.'); } if (!regenBuild(d)) return; break; }
+    case 'gen-pick': S.gen.cmd = n; S.gen.partner = ''; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
     case 'gen-tier': S.gen.tier = v; openGenerate(); return;
-    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; startPlan(c.n, []); break; }
+    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const p = find(S.gen.partner), sets = (S.gen.sets || []).slice(), must = !!S.gen.setsMust;
+      if (sets.length){ setStatus('Reading the chosen sets from Scryfall…'); loadSetCards(sets).then(ok => { setStatus(''); if (!ok) toast('Some set lists could not be read from Scryfall; those sets match only by each card’s shown printing.'); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, {sets, setsMust:must}); touch(); render(); }); return; }
+      startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null); break; }
     case 'gen-own': S.gen.own = !S.gen.own; if (v === 'seed') openSeed(); else openGenerate(); return;
     case 'plan-more': S.planShow = (S.planShow || 16) + 24; changed = false; break;
     case 'plan-basics': { let k = 0; (d.plan || []).slice().forEach(x => { if (x.basic && planInstall(d, x, 'a')) k += x.q; }); toast('Added ' + k + ' basic land' + (k === 1 ? '' : 's') + '.' + (d.plan ? '' : ' The deck is complete.')); break; }
@@ -1361,7 +1506,7 @@ let st = 0;
 document.addEventListener('input', ev => {
   const t = ev.target, d = cur();
   if (t.id === 'deck-q'){ S.deckQ = t.value; const el = $('#rows'), dk = cur(); if (el && dk) el.innerHTML = listRows(dk, S.deckQ); return; }
-  if (t.id === 's-q'){ S.search.q = t.value; clearTimeout(st); st = setTimeout(() => { const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }, 160); }
+  if (t.id === 's-q'){ S.search.q = t.value; clearTimeout(viewSearch.t); viewSearch.t = setTimeout(buildUpgradeIndex, 1500); clearTimeout(st); st = setTimeout(() => { const el = $('#s-res'); if (el) el.innerHTML = searchResults(); }, 160); }
   else if (t.id === 'add-q' && d){ const A = ctxOf(d); dropdown(t, $('#add-res'), {fmt:d.format, within:d.format === 'standard' && A.ident.length ? A.ident : null}, 'pick-add'); }
   else if (t.id === 'lib-q') dropdown(t, $('#lib-res'), {}, 'lib-add');
   else if (t.id === 'lib-set') setDrop(t, $('#set-res'));
@@ -1378,6 +1523,9 @@ document.addEventListener('change', ev => {
   else if (t.id === 'aim-add' && t.value && d){ d.aimAuto = false; aimsChanged(d); d.aims.push(t.value); touch(); render(); ensureEdh(); }
   else if (t.id === 'tribe' && d){ d.tribe = t.value; touch(); render(); }
   else if (t.id === 'type-add' && d){ const v = t.value.trim().toLowerCase(), m = creatureTypes().find(x => x.toLowerCase() === v); if (m){ d.types = (d.types || []).filter(x => x !== m).concat(m); touch(); render(); } else if (v) toast('That is not a creature type in the card data.'); }
+  else if ((t.id === 'gset-add' || t.id === 'dset-add') && t.value){ const st = resolveSet(t.value); if (!st){ toast('No set matches “' + t.value + '”.'); return; }
+    if (t.id === 'gset-add'){ S.gen.sets = (S.gen.sets || []).filter(x => x !== st.code).concat(st.code); openGenerate(); loadSetCards([st.code]); }
+    else if (d){ SETFAIL.delete(st.code); d.sets = (d.sets || []).filter(x => x !== st.code).concat(st.code); aimsChanged(d); touch(); render(); ensureSetCards(d); } }
   else if (t.id === 'key-add' && t.value && d){ d.keys = (d.keys || []).concat(t.value); touch(); render(); }
   else if (t.id === 'swaps'){ S.swaps = +t.value; render(); }
   else if (/^s-(fmt|color|type|max|theme|prints)$/.test(t.id)){ S.search[t.id.slice(2)] = t.value; $('#s-res').innerHTML = searchResults(); }
@@ -1385,6 +1533,7 @@ document.addEventListener('change', ev => {
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
 });
+document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; }, true);
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
 addEventListener('orientationchange', () => setTimeout(() => { wasNarrow = isNarrow(); render(); }, 250));
