@@ -111,18 +111,22 @@ async function printSearch(q){
 const edhSlug = n => String(n).split(' // ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-');
 async function loadEdh(name){
   if (!name) return; if (EDH.key === name && EDH.state) return EDH.wait;
-  EDH = {key:name, map:null, decks:0, state:'loading'};
+  EDH = {key:name, map:null, decks:0, state:'loading', pre:null};
   const mine = EDH, apply = rows => { mine.map = new Map(rows.map(r => [norm(r[0]), {inc:r[1], syn:r[2]}])); mine.state = 'ok'; };
   mine.wait = (async () => {
     const slug = edhSlug(name), cached = lsGet('dc.edh.' + slug);
-    if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length){ mine.decks = cached.decks; apply(cached.rows); return; }
+    if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length){ mine.decks = cached.decks; mine.pre = cached.pre || null; apply(cached.rows); return; }
     try {
       const r = await fetch('https://json.edhrec.com/pages/commanders/' + slug + '.json'); if (!r.ok) throw new Error('status ' + r.status);
       const j = await r.json(), seen = new Map(); let decks = 0;
       ((j.container && j.container.json_dict && j.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => {
         if (!v.name || !v.potential_decks) return; decks = Math.max(decks, v.potential_decks);
-        const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, +inc.toFixed(3), +(v.synergy || 0).toFixed(3)]); }));
-      if (!seen.size) throw new Error('no cards'); mine.decks = decks; apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()]});
+        const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, inc, +(v.synergy || 0).toFixed(3)]); }));
+      if (!seen.size) throw new Error('no cards'); mine.decks = decks;
+      // The precon this commander leads, if any: what its owners cut and add. Optional; the commander's own data stands alone.
+      const pn = j.container && j.container.json_dict && j.container.json_dict.card && j.container.json_dict.card.precon;
+      if (pn){ try { const pr = await fetch('https://json.edhrec.com/pages/precon/' + edhSlug(pn) + '.json'); if (pr.ok) mine.pre = parsePrecon(await pr.json()); } catch (e) { mine.pre = null; } }
+      apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()], pre:mine.pre});
     } catch (e) { mine.state = 'fail'; }
   })();
   return mine.wait;
@@ -410,7 +414,7 @@ function doSwap(d, p, step){
   if (en){ if (keep) en.step = keep; if (hist.length) en.hist = hist.slice(-8); }
   if (old && !isBasic(p.cut) && !d.cards.some(x => x.n === p.cut)) ruleOut(d, p.cut);
 }
-function ruleOut(d, n){ d.dismissed = (d.dismissed || []).filter(x => norm(x) !== norm(n)).concat(n).slice(-80); }
+function ruleOut(d, n){ const k = keyOf(n); d.dismissed = (d.dismissed || []).filter(x => keyOf(x) !== k).concat(n).slice(-80); }   // the latest 80 are kept
 function undoSwap(d, n){
   const en = d.cards.find(x => x.n === n), hh = en && en.hist && en.hist[en.hist.length - 1]; if (!hh) return false;
   if (d.cards.some(x => x.n === hh.n) && copyLimit(d, find(hh.n)) <= 1){ toast(hh.n + ' is already back in the deck.'); delete en.hist; return true; }
@@ -476,6 +480,10 @@ function openLibPaste(){
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Add a list to your library"><div class="ph"><h2>Add a list to your library</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Paste a decklist or any list of cards you own, one per line, like “1 Sol Ring”.</p><textarea id="lib-text" placeholder="1 Sol Ring&#10;1 Cultivate&#10;2 Llanowar Elves"></textarea><div class="row"><button class="btn pri" data-act="lib-paste-go">Add to library</button><button class="btn" data-act="close">Cancel</button></div></div>';
   $('#modal').hidden = false;
 }
+// "Best deck with every new card under $X" (per card; owned cards are free): its own engine run, cached like recsFor.
+function capFor(d, t){ const cap = TIERS[t].cap, key = JSON.stringify([t, d, DBINFO.count, EDH.key, EDH.state, S.libV || 0, libCount(), BTAGS.v]); capFor.c = capFor.c || {};
+  if (!capFor.c[t] || capFor.c[t].k !== key){ upgradePaths.own = ownSet(); capFor.c[t] = {k:key, v:upgradePaths(d, {cap})}; } return capFor.c[t].v; }
+function capList(d, t){ return capFor(d, t).paths.map(L => L.opts.apex).filter(p => p && entryOf(d, p.cut) && !entryOf(d, p.add)); }
 function recsFor(d){ const key = JSON.stringify([d, S.swaps, DBINFO.count, EDH.key, EDH.state, S.libV || 0, libCount(), BTAGS.v]); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d); } return recsFor.v; }
 
 // ---------- views ----------
@@ -493,7 +501,7 @@ function viewHome(){
     tile('decks', 'decks', 'Decks', 'Open a saved deck to edit it, tune its build, and follow its Budget, Mid and Apex upgrade paths.', n ? n + ' saved deck' + (n === 1 ? '' : 's') : '') +
     tile('search', 'search', 'Card search', 'Look up any card with its full details, price and every printing.') +
     '</div><div class="row" style="justify-content:center"><button class="btn" data-act="nav" data-v="profile" style="display:inline-flex;gap:8px;align-items:center"><span class="hicon sm">' + SVG.profile + '</span>Profile and backups</button></div>' +
-    '<ol class="steps"><li><b>Get a deck in.</b> Generate one, load a precon, or paste your own list.</li><li><b>Set the build.</b> Rank the mechanics that matter and pick your colors. For Commander, the deck follows what your commander does.</li><li><b>Follow the upgrade paths.</b> Every card shows what to swap it for at Budget (up to $3), Mid (up to $12) and Apex, and how far along it already is.</li></ol>';
+    '<ol class="steps"><li><b>Get a deck in.</b> Generate one, load a precon, or paste your own list.</li><li><b>Set the build.</b> Rank the mechanics that matter and pick your colors. For Commander, the deck follows what your commander does.</li><li><b>Follow the upgrade paths.</b> Every card shows its strongest upgrade (Apex) and cheaper cards that do the same job (Mid under $12, Budget under $3), and how far along it already is.</li></ol>';
 }
 function viewDecks(){
   const P = S.profile, od = S.open ? cur() : null;
@@ -674,10 +682,10 @@ function watchAlerts(d){
   { const c0 = d.format === 'commander' ? find(d.commander) : null; if (c0 && (EDH.key !== c0.n || EDH.state === 'loading' || !EDH.state)) return []; }   // wait for the play data before holding any pick
   const R = recsFor(d), out = []; let ch = false; if (!d.recP) d.recP = {};
   (R.unlock || []).forEach(k => { if (d.recP[k]){ delete d.recP[k]; ch = true; } });   // a clearly better card took the slot
-  R.paths.forEach(L => ['budget', 'mid'].forEach(t => { const p = L.opts[t]; if (!p || p.beaten) return; const c = find(p.add); if (!c || c.p == null) return; const k = norm(p.add), cap = TIERS[t].cap, r = d.recP[k];
-    if (!r){ if (c.p <= cap){ d.recP[k] = {t, p:c.p, at:new Date().toISOString().slice(0, 10), pair:JSON.parse(JSON.stringify(p))}; ch = true; } return; }
+  R.paths.forEach(L => ['apex', 'mid', 'budget'].forEach(t => { const p = L.opts[t]; if (!p || p.beaten) return; const c = find(p.add); if (!c) return; const k = norm(p.add), cap = TIERS[t].cap, r = d.recP[k];
+    if (!r){ if (t === 'apex' || underCap(c.p, t)){ d.recP[k] = {t, p:c.p, at:new Date().toISOString().slice(0, 10), pair:JSON.parse(JSON.stringify(p))}; ch = true; } return; }
     if (!r.pair && r.t === t){ r.pair = JSON.parse(JSON.stringify(p)); ch = true; }
-    if (r.t === t && c.p > cap * PRICE_JUMP && !r.ack) out.push({kind:'price', n:p.add, t, was:r.p, now:c.p, cut:L.cut}); }));
+    if (t !== 'apex' && r.t === t && c.p != null && c.p > cap * PRICE_JUMP && !r.ack) out.push({kind:'price', n:p.add, t, was:r.p, now:c.p, cut:L.cut}); }));
   const ok = new Set((d.okIllegal || []).map(norm));
   d.cards.forEach(en => { const c = find(en.n); if (c && !legalIn(c, d.format) && !ok.has(norm(en.n))) out.push({kind:'legal', n:en.n}); });
   if (ch) persistSoon();
@@ -775,23 +783,17 @@ function planHtml(d){
 // The deck is being built toward its Apex version. The best card found for a slot is that slot's Apex card, whatever it
 // costs: when no stronger card exists above a pick, that pick stands for every tier above it.
 // A weak upgrade is shown as an option but does not count: the slot's card for a tier is the best substantial pick.
-function realPick(p){ return !!p && !p.beaten && !p.weak; }
-function bestAt(L, t){ for (let k = TIER_KEYS.indexOf(t); k >= 0; k--){ const p = L.opts[TIER_KEYS[k]]; if (realPick(p)) return {p, t:TIER_KEYS[k]}; } return null; }
-function tierSum(d, R, t){ let n = 0, cost = 0; R.paths.forEach(L => { const b = bestAt(L, t); if (!b || !d.cards.some(x => x.n === b.p.cut)) return; n += b.p.q; const a = find(b.p.add), c = find(b.p.cut); cost += ((a && a.p || 0) - (c && c.p || 0)) * b.p.q; }); return {n, cost}; }
-// How much of an upgrade a pick is over the card before it: the tier below if there is one, else the card in the deck now.
-// A slot's strength is the current card's value plus the swap's improvement score, so every step is measured on one scale.
-// A weak current card can score near zero, so the base has a floor and the figure is capped.
-function upPct(L, t){
-  const p = L.opts[t]; if (!p || p.cv == null) return null; const i = TIER_KEYS.indexOf(t); let prev = null, pt = '';
-  for (let k = i - 1; k >= 0; k--){ const q = L.opts[TIER_KEYS[k]]; if (q && q.cv != null && !q.beaten){ prev = q; pt = TIER_KEYS[k]; break; } }
-  const base = Math.max(2, p.cv + (prev ? prev.gain : 0)), pct = Math.round(100 * ((p.cv + p.gain) - (p.cv + (prev ? prev.gain : 0))) / base);
-  return {pct, over:prev ? 'the ' + TIERS[pt].label + ' pick' : 'your current card'};
-}
-function upChip(L, t){ const x = upPct(L, t), p = L.opts[t]; if (!x) return '';
-  // Over the card in the deck a percentage misleads (a weak card scores near zero), so the first step gets a plain rating.
-  if (x.over === 'your current card') return '<span class="chip good" title="Estimated from the app’s upgrade score">' + (p.gain >= 7 ? 'Major upgrade' : p.gain >= 4 ? 'Strong upgrade' : 'Solid upgrade') + '</span>';
-  if (p.weak) return '<span class="chip warn" title="Better, but short of a full step: Mid needs 10% over Budget; Apex needs 10% over Mid and 20% over Budget">Weak upgrade · +' + Math.max(1, x.pct) + '% over ' + x.over + '</span>';
-  return '<span class="chip good" title="Estimated from the app’s upgrade score">+' + (x.pct > 300 ? '300%+' : x.pct + '%') + ' over ' + x.over + '</span>'; }
+// Each tier's package uses, for every slot, the Apex card when it already costs less than that tier's limit, otherwise the
+// tier's own cheaper card (tierPick in engine.js). A card you own costs nothing.
+function capBox(d, t){ const L = capList(d, t), cap = TIERS[t].cap; if (!L.length) return '<p class="note" style="margin:6px 0 0">Best deck with every new card under $' + cap + ': no worthwhile swaps.</p>';
+  const cost = L.reduce((s, p) => { const a = find(p.add), c = find(p.cut); return s + ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }, 0);
+  return '<div class="capbox" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><b style="font-size:.9em">Or: best deck with every new card under $' + cap + '</b><span>' + L.length + ' swap' + (L.length === 1 ? '' : 's') + ' · ' + (cost >= 0 ? '+' : '−') + '$' + Math.abs(cost).toFixed(0) + '</span>' +
+    '<button class="btn sm" data-act="swap-cap" data-v="' + t + '">Apply all</button><em>the strongest upgrades using only cards under $' + cap + ' each; they need not match the Apex card’s job</em>' +
+    '<details><summary>See the ' + L.length + ' swap' + (L.length === 1 ? '' : 's') + '</summary><ul style="margin:4px 0 0;padding-left:18px">' + L.map(p => '<li>' + esc(p.cut) + ' → <b>' + esc(p.add) + '</b>' + (p.own ? ' (you own it)' : ' ($' + ((find(p.add) || {}).p || 0).toFixed(2) + ')') + (p.why && p.why[0] ? ' · ' + esc(p.why[0]) : '') + '</li>').join('') + '</ul></details></div>'; }
+function tierSum(d, R, t){ let n = 0, cost = 0; R.paths.forEach(L => { const p = tierPick(L, t); if (!p || !entryOf(d, p.cut)) return; n += p.q; const a = find(p.add), c = find(p.cut); cost += ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }); return {n, cost}; }
+// How big a step a pick is over the card it replaces, from the app's upgrade score. Words rather than percentages: a weak
+// current card scores near zero, so a percentage would mislead.
+function upChip(L, t){ const p = L.opts[t]; if (!p || p.gain == null) return ''; return '<span class="chip good" title="Estimated from the app’s upgrade score">' + (p.gain >= 7 ? 'Major upgrade' : p.gain >= 4 ? 'Strong upgrade' : 'Solid upgrade') + '</span>'; }
 // What applying a whole tier does to the deck's jobs and curve (from the engine's package check).
 function packLine(R, t, n){ const k = R.pack && R.pack[t]; if (!k || !n) return ''; const lab = {ramp:'Ramp', draw:'Draw', removal:'Removal', wipe:'Wipes'};
   const ch = Object.keys(lab).filter(j => k.jobs[j][0] !== k.jobs[j][1]).map(j => lab[j] + ' ' + k.jobs[j][0] + '→' + k.jobs[j][1]);
@@ -868,24 +870,32 @@ function upPanel(d, A){
       R.drops.map((c, i) => '<div class="path">' + side('out', c.n, c.q) + '<div class="row"><span class="chip warn">' + esc(c.why[0]) + '</span><button class="btn danger sm" data-act="drop" data-v="' + i + '" style="margin-left:auto">Remove</button></div></div>').join('') + '</div>';
     { const bf = R.fixes.filter(p => isBasic(p.add)); if (bf.length) h += basicsBox(bf.map(p => ({n:p.add, q:p.q})), 'fix-basics', 'Make these land changes', 'These go in for: ' + bf.map(p => (p.q > 1 ? p.q + '× ' : '') + esc(p.cut)).join(', ') + '.'); }
   }
+  if (R.conflicts && R.conflicts.length) h += '<div class="grp"><span class="lab">Held picks that can’t go in · ' + R.conflicts.length + '</span><p class="note" style="margin:0">These picks were held for this deck but can no longer be added, so they are left out of every tier until you decide.</p>' +
+    R.conflicts.map(x => '<div class="path"><div class="row"><b>' + esc(x.add) + '</b><span class="note">for ' + esc(x.cut) + ' · ' + TIERS[x.t].label + '</span><span class="chip bad">' + esc(x.why) + '</span><button class="btn sm" data-act="hold-release" data-n="' + esc(x.add) + '" style="margin-left:auto">Release this pick</button></div></div>').join('') + '</div>';
   { const hs = d.cards.filter(x => x.hist && x.hist.length);
     if (hs.length) h += '<div class="grp"><span class="lab">Swaps you’ve made · ' + hs.length + '</span><p class="note" style="margin:0">Nothing is lost when a card is swapped out. Each slot keeps its history, and Undo puts the previous card back.</p>' + hs.map(histHtml).join('') + '</div>'; }
   const any = R.paths.length;
-  const out0 = (d.dismissed || []).filter(n => !d.cards.some(x => norm(x.n) === norm(n)));
-  const outHtml = out0.length ? '<div class="grp"><span class="lab">Cards ruled out for this deck · ' + out0.length + '</span><p class="note" style="margin:0">Cards you swapped out, removed or marked “Not this card” are not suggested again. Tap one to allow it back.</p><div class="row">' + out0.map(n => '<button class="chip" data-act="undismiss" data-n="' + esc(n) + '">' + esc(n) + ' ×</button>').join('') + '</div></div>' : '';
+  const out0 = (d.dismissed || []).filter(n => !entryOf(d, n));
+  const outHtml = out0.length ? '<div class="grp"><span class="lab">Excluded cards for this deck · ' + out0.length + '</span><p class="note" style="margin:0">These are not suggested for this deck: cards you swapped out or removed, and cards you chose “Don’t suggest for this deck” for. Your deck itself is unchanged. The list keeps the latest 80. Tap a card to allow it in recommendations again.</p><div class="row">' + out0.map(n => '<button class="chip" data-act="undismiss" data-n="' + esc(n) + '" aria-label="Allow ' + esc(n) + ' in recommendations">Allow ' + esc(n) + '</button>').join('') + '</div></div>' : '';
   h += '<div class="grp"><span class="lab">Upgrade paths' + (any ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
   if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
   else {
     if (R.count.free) h += '<div class="tip good"><b><small>Tip</small>' + R.count.free + ' free swap' + (R.count.free === 1 ? '' : 's') + ' from your library</b><ul><li class="pro"><i>+</i>You already own ' + (R.count.free === 1 ? 'a card' : 'cards') + ' that would improve this deck, so there is nothing to buy. They are listed first below.</li></ul><div class="row" style="margin-top:8px"><button class="btn sm" data-act="swap-all" data-v="free">Make all free swaps</button></div></div>';
-    h += '<div class="tiers">' + TIER_KEYS.map(t => { const ts = tierSum(d, R, t); return '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>' + (ts.n ? ts.n + ' swap' + (ts.n === 1 ? '' : 's') : 'No worthwhile upgrades') + '</span><span>' + (ts.n ? (ts.cost >= 0 ? '+' : '−') + '$' + Math.abs(ts.cost).toFixed(0) : '') + '</span><button class="btn sm" data-act="swap-all" data-v="' + t + '"' + (ts.n ? '' : ' disabled') + '>Apply all</button><em>' + (t === 'apex' ? 'the strongest build' : t === 'mid' ? 'best card per slot under $12' : 'best card per slot under $3') + '</em>' + packLine(R, t, ts.n) + '</div>'; }).join('') + '</div>' +
-      '<p class="note" style="margin:0">Each card below shows what to swap it for at each tier. ' + (R.smart ? 'Budget options cost up to $3, Mid up to $12, Apex any price. The deck is being built toward its Apex version. A full step up is at least 10% stronger than the tier below, and an Apex pick must also be 20% stronger than the Budget pick. A card that is better but falls short of that is still shown, marked as a weak upgrade, and is left out of Apply all. When there is no full step up, the cheaper pick is the Apex card for that slot. Each tier’s swaps are also checked together: the line under each tier shows what applying all of them does to the deck.' : 'Budget options cost up to $3, Mid up to $12, Apex any price; each step up has to be clearly stronger than the one before, whatever it costs.') + ' The bar marks how far along its path the card already is. Swaps keep the same card type where they can; one that changes type is marked, and each tier shows what applying it all would do to the deck’s mix.</p>';
+    h += '<div class="tiers">' + TIER_KEYS.map(t => { const ts = tierSum(d, R, t); return '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>' + (ts.n ? ts.n + ' swap' + (ts.n === 1 ? '' : 's') : 'No worthwhile upgrades') + '</span><span>' + (ts.n ? (ts.cost >= 0 ? '+' : '−') + '$' + Math.abs(ts.cost).toFixed(0) : '') + '</span><button class="btn sm" data-act="swap-all" data-v="' + t + '"' + (ts.n ? '' : ' disabled') + '>Apply all</button><em>' + (t === 'apex' ? 'the strongest card for each slot, any price' : 'the Apex card where it costs under $' + TIERS[t].cap + ', otherwise a cheaper card that does the same job') + '</em>' + packLine(R, t, ts.n) + (t === 'apex' ? '' : capBox(d, t)) + '</div>'; }).join('') + '</div>' +
+      '<p class="note" style="margin:0">Apex is the strongest card found for each slot, whatever it costs, so a cheap card can be the Apex pick. Mid and Budget are cheaper cards that do the same job as the Apex card: under $12 and under $3, and cheaper than the Apex card. When nothing qualifies the tier stays empty and says why. When the Apex card already costs less than a tier’s limit, that tier uses it. Mid and Budget also offer the best deck with every new card under their limit (per card; cards you own count as free). That list is chosen on its own, so it can replace different cards than the Apex list. The Apex swaps are also checked together: the line under Apex shows what applying all of them does to the deck. Picks you have been shown are held in place until you swap them in, exclude them, or regenerate.</p>' +
+      '<p class="note" style="margin:0"><b>Don’t suggest for this deck</b> excludes that card from this deck’s recommendations. Your deck stays unchanged, and you can allow the card again under Excluded cards for this deck.</p>';
     const show = S.pathShow || 12;
     h += '<div class="paths">' + R.paths.slice(0, show).map((L, i) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
       const fp = L.opts.free;
-      return '<div class="path">' + side('out', L.cut, 1) + histHtml(en) +
+      const cw = (L.opts.apex || L.opts.mid || L.opts.budget || {}).cutWhy || [];
+      // the explanation shares the swap-history row, so every card keeps the same 7 rows and lines up with its neighbours
+      return '<div class="path">' + side('out', L.cut, 1) + '<div>' + (cw.length ? '<p class="note" style="margin:0">Why it can go: ' + esc(cw.join(' · ')) + '</p>' : '') + histHtml(en) + '</div>' +
         '<div class="prog" role="img" aria-label="Upgrade progress: ' + (step ? TIERS[TIER_KEYS[step - 1]].label : 'not started') + '">' + ['Now'].concat(TIER_KEYS.map(t => TIERS[t].label)).map((lab, k) => '<span class="' + (k <= step ? 'done' : '') + (k === step ? ' here' : '') + (k > 0 && L.opts[TIER_KEYS[k - 1]] ? ' has' : '') + '"><i></i>' + lab + '</span>').join('') + '</div>' +
         (fp ? '<div class="tip good free"><b><small>Tip</small>Free swap · you already own this</b>' + side('in', fp.add, fp.q) + '<div class="row">' + gcChip(fp, R) + (fp.cross ? '<span class="chip warn">' + fp.from + ' → ' + fp.to + '</span>' : '') + fp.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div><div class="row"><button class="btn sm" data-act="lib-not-own" data-n="' + esc(fp.add) + '">I don’t own this card</button><button class="btn pri sm" data-act="swap" data-v="' + i + '|free" style="margin-left:auto">Swap</button></div></div>' : '<div></div>') +
-        TIER_KEYS.map(t => { const p = L.opts[t]; return p ? '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.beaten ? '<span class="chip good">You own a better card</span>' : '') + upChip(L, t) + driftChip(d, p.add, t) + gcChip(p, R) + (p.cross ? '<span class="chip warn">' + p.from + ' → ' + p.to + '</span>' : '') + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '<button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" style="margin-left:auto" title="Don’t suggest this card for this deck">Not this card</button><button class="btn ' + (p.beaten ? '' : 'pri ') + 'sm" data-act="swap" data-v="' + i + '|' + t + '">Swap</button></div></div>' : (() => { const b = bestAt(L, t), hi = TIER_KEYS.slice(TIER_KEYS.indexOf(t) + 1).some(k => realPick(L.opts[k])); return b ? '<div class="opt none"><span class="chip' + (hi ? '' : ' gold') + '">' + TIERS[t].label + '</span><p>Same as ' + TIERS[b.t].label + (hi ? '' : ' · ' + esc(b.p.add.split(' // ')[0]) + ' is the ' + (t === 'apex' ? 'Apex' : TIERS[t].label) + ' card for this slot') + '</p></div>' : '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>Nothing under $' + TIERS[t].cap + ' improves on this card</p></div>'; })(); }).join('') + '</div>'; }).join('') + '</div>';
+        TIER_KEYS.map(t => { const p = L.opts[t]; if (!p) return '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + esc((L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') + '</p></div>';
+          return '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + upChip(L, t) + driftChip(d, p.add, t) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
+            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Don’t suggest ' + esc(p.add) + ' for this deck">Don’t suggest for this deck</button><button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>';
+}).join('') + '</div>'; }).join('') + '</div>';
     if (any > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, any - show) + ' more</button>';
   }
   h += '</div>';
@@ -1176,10 +1186,11 @@ function handleAct(act, v, n, pArg){
     case 'close': $('#modal').hidden = true; S.watchOpen = false; return;
     case 'regen': openRegen(); return;
     case 'regen-go': doRegen(); return;
+    case 'hold-release': if (d.recP) delete d.recP[norm(n)]; toast(n + ' is no longer held for this deck.'); break;
     case 'regen-undo': if (d.recPrev){ d.recP = d.recPrev; delete d.recPrev; } $('#modal').hidden = true; toast('Put the previous picks back.'); break;
     case 'watch-keep': { const r = d.recP && d.recP[norm(n)]; if (r) r.ack = true; toast(n + ' stays where it was recommended.'); break; }
     case 'watch-move': if (d.recP) delete d.recP[norm(n)]; toast(n + ' will be placed by today’s price.'); break;
-    case 'watch-drop': if (d.recP) delete d.recP[norm(n)]; ruleOut(d, n); toast(n + ' won’t be suggested for this deck again.'); break;
+    case 'watch-drop': if (d.recP) delete d.recP[norm(n)]; ruleOut(d, n); toast(n + ' excluded from this deck’s recommendations.'); break;
     case 'watch-ok': d.okIllegal = (d.okIllegal || []).filter(x => norm(x) !== norm(n)).concat(n); break;
     case 'watch-fix': $('#modal').hidden = true; S.watchOpen = false; S.tab = 'up'; changed = false; break;
     case 'card': openCard(n, b.dataset.p); return;
@@ -1213,17 +1224,27 @@ function handleAct(act, v, n, pArg){
     case 'color': { const s = new Set(d.colors || []); if (s.has(v)){ if (s.size > 1 || d.format === 'standard') s.delete(v); } else { if (d.format === 'standard' && s.size >= 3){ toast('Standard decks here focus on up to three colors.'); return; } s.add(v); } d.colors = 'WUBRG'.split('').filter(x => s.has(x)); break; }
     case 'clear-cmd': if (d.commander) d.prevCmd = d.commander; d.commander = ''; delete d.cmdPid; delete d.cmdSet; break;
     case 'set-cmd': if (d.commander && d.commander !== n) d.prevCmd = d.commander; delete d.cmdPid; delete d.cmdSet; setCommander(d, n); if (S.pick && S.pick.n === n && S.pick.sc){ d.cmdPid = S.pick.id; d.cmdSet = S.pick.sc; } $('#modal').hidden = true; toast(n + ' is now your commander.'); break;
-    case 'inc': { const en = d.cards.find(x => x.n === n); if (en && en.q >= copyLimit(d, find(n))){ toast(d.format === 'commander' ? 'Commander decks run one copy of each card.' : 'Four copies is the limit.'); return; } addCard(d, n, 1); break; }
+    case 'inc': { const en = entryOf(d, n); if (en && en.q >= copyLimit(d, find(n))){ toast(d.format === 'commander' ? 'Commander decks run one copy of each card.' : 'Four copies is the limit.'); return; } addCard(d, n, 1); break; }
     case 'dec': cutCard(d, n, 1); break;
     case 'rm': cutCard(d, n, 999); if (!isBasic(n)) ruleOut(d, n); break;
-    case 'dismiss': ruleOut(d, n); toast(n + ' won’t be suggested for this deck again.'); break;
-    case 'undismiss': d.dismissed = (d.dismissed || []).filter(x => norm(x) !== norm(n)); break;
+    case 'dismiss': ruleOut(d, n); toast(n + ' excluded from this deck’s recommendations.'); break;
+    case 'undismiss': { const k = keyOf(n); d.dismissed = (d.dismissed || []).filter(x => keyOf(x) !== k); toast(n + ' allowed in this deck’s recommendations.'); break; }
     case 'lock': { const e = d.cards.find(x => x.n === n); if (e) e.l = !e.l; break; }
-    case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
+    case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = entryOf(d, n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck' + (en0.n !== n ? ' as ' + en0.n : '') + '.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
     case 'want': { doSwap(d, {cut:v, add:n, q:1}, 0); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
-    case 'add-to-deck': { const en0 = d.cards.find(x => x.n === n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
-    case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; if (gcBlocked(d, p)){ toast(gcBlockMsg(d)); return; } const top = !TIER_KEYS.slice(TIER_KEYS.indexOf(t) + 1).some(k => realPick(L.opts[k])); doSwap(d, p, top && t !== 'free' && !p.weak ? TIER_KEYS.length : TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.' + (top && t !== 'free' && t !== 'apex' ? ' That is the Apex card for this slot.' : '')); break; }
-    case 'swap-all': { const R = recsFor(d); let k = 0; R.paths.forEach(L => { const b = v === 'free' ? (L.opts.free ? {p:L.opts.free, t:'free'} : null) : bestAt(L, v), p = b && b.p; if (p && !p.beaten && d.cards.some(x => x.n === p.cut) && !d.cards.some(x => x.n === p.add) && !gcBlocked(d, p)){ const top = v !== 'free' && !TIER_KEYS.slice(TIER_KEYS.indexOf(b.t) + 1).some(k2 => realPick(L.opts[k2])); doSwap(d, p, v === 'free' ? TIER_KEYS.indexOf(v) + 1 : top ? TIER_KEYS.length : TIER_KEYS.indexOf(v) + 1); k++; } }); toast('Made ' + k + ' ' + (v === 'free' ? 'free' : TIERS[v].label) + ' swap' + (k === 1 ? '' : 's') + '.'); break; }
+    case 'add-to-deck': { const en0 = entryOf(d, n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } addCard(d, n, 1); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
+    case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; if (gcBlocked(d, p)){ toast(gcBlockMsg(d)); return; } const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ' (' + bad[0].card + ')' : '') + '.'); return; } const top = !!L.opts.apex && L.opts.apex.add === p.add; doSwap(d, p, top ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(t) + 1)); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'swap-cap': { const list = capList(d, v);
+      // its own package, not a tier: holds on the cards it replaces end when those cards leave the deck
+      const bad = validatePackage(d, list.map(p => ({cut:p.cut, add:p.add, q:p.q, t:'cap'})));
+      if (bad.length){ toast('Nothing applied: ' + bad.length + ' problem' + (bad.length === 1 ? '' : 's') + ' found (' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ': ' + bad[0].card : '') + ').'); return; }
+      list.forEach(p => doSwap(d, Object.assign({}, p, {t:v}), Math.max(0, TIER_KEYS.indexOf(v) + 1)));
+      toast('Made ' + list.length + ' swap' + (list.length === 1 ? '' : 's') + ' using cards under $' + TIERS[v].cap + ' each.'); break; }
+    case 'swap-all': { const R = recsFor(d), list = R.paths.map(L => ({L, p:v === 'free' ? L.opts.free : tierPick(L, v)})).filter(x => x.p && entryOf(d, x.p.cut) && !entryOf(d, x.p.add));
+      const bad = validatePackage(d, list.map(x => ({cut:x.p.cut, add:x.p.add, q:x.p.q, t:x.p.t})));
+      if (bad.length){ toast('Nothing applied: ' + bad.length + ' problem' + (bad.length === 1 ? '' : 's') + ' found (' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ': ' + bad[0].card : '') + ').'); return; }
+      list.forEach(x => doSwap(d, x.p, x.L.opts.apex && x.L.opts.apex.add === x.p.add ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(x.p.t) + 1)));
+      toast('Made ' + list.length + ' ' + (v === 'free' ? 'free' : TIERS[v].label) + ' swap' + (list.length === 1 ? '' : 's') + '.'); break; }
     case 'undo': if (!undoSwap(d, n)) return; break;
     case 'lib-add': { document.querySelectorAll('.ddl').forEach(x => x.hidden = true); const q0 = $('#lib-q'); if (q0) q0.value = ''; libAdd(n, 1); toast('Added ' + n + ' to your library.'); break; }
     case 'lib-not-own': { const L = lib(), k = Object.keys(L).find(x => norm(x) === norm(n)); if (k) delete L[k]; S.libV = (S.libV || 0) + 1; if (d && d.plan) d.plan.forEach(x => { if (norm(x.a) === norm(n)) delete x.own; }); toast('Removed ' + n + ' from your library.'); break; }
