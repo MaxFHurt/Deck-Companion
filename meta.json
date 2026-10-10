@@ -1,0 +1,148 @@
+{
+ "at": "2026-10-10T21:37:15.829Z",
+ "notes": [
+  "cards: gave up: https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingua :: HTTP 429 {\n  \"object\": \"error\",\n  \"code\": \"rate_limited\",\n  \"status\": 429,\n  \"details\": \"You are being rate-limited, try again after 60 seconds. DO NOT IGNORE THIS WARNI"
+ ],
+ "cards": 32115,
+ "cardsAt": "2026-10-10T21:22:19.675Z",
+ "truth": {
+  "removal": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "creature-removal": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "spot-removal": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "fight": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "bite": 160,
+  "ramp": 2151,
+  "mana-rock": 357,
+  "mana-dork": 419,
+  "draw": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "card-advantage": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "boardwipe": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "sweeper": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "board-wipe": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "counterspell": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "tutor": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "fog": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "protection": 1185,
+  "gives-hexproof": 155,
+  "gives-indestructible": 266,
+  "gives-protection": 117,
+  "recursion": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "burn": "fail: imited, try again after 60 seconds. DO NOT IGNORE THIS WARNI",
+  "edict": 411
+ },
+ "alt": 576,
+ "altQuery": "has:flavorname",
+ "edhrec": {
+  "Captain America, Team Leader": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Doctor Doom, King of Latveria": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Ghalta, Primal Hunger": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Heroes in a Half Shell": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "T'Challa, the Black Panther": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Lathril, Blade of the Elves": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Emmara, Soul of the Accord": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Isperia, Supreme Judge": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Gisa and Geralf": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Kardur, Doomscourge": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Atarka, World Render": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Wilhelt, the Rotcleaver": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Neyali, Suns' Vanguard": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Hakbal of the Surging Soul": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Pantlaza, Sun-Favored": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Bello, Bard of the Brambles": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Atraxa, Praetors' Voice": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Urza, Chief Artificer": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Anikthea, Hand of Erebos": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Edgar Markov": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "The Ur-Dragon": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Leonardo, the Balance": [
+   "main",
+   ".budget",
+   ".expensive"
+  ]
+ },
+ "combos": 11715
+}
