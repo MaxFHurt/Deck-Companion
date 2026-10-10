@@ -5,6 +5,7 @@ A Magic: The Gathering deck builder for Commander and Standard.
 - Import a plain-text decklist or pick cards through search
 - Aim the deck: ranked mechanics and land-color focus
 - Upgrade recommendations, Apex first: the strongest card for each slot at any price, then cheaper cards that do the same job (Mid under $12, Budget under $3 per card), plus a best-deck option using only cards under each limit; nonbasic lands are upgraded too
+- Mechanics come from the commander: its own themes as players build them (EDHREC), in priority order you can change to steer upgrades and generated decks
 - Commander Brackets: each Commander deck shows which bracket it currently sits in, with a progress bar for Game Changers. It is a label, not a limit: nothing is blocked, and upgrades that would move the deck up a bracket are marked. The card lists come from Scryfall and update on their own.
 - Official preconstructed Commander decklists for new players
 - Generate a deck from any commander
