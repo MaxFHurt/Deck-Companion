@@ -1263,7 +1263,7 @@ function upgradePaths(d, opt){
 // curve, no way to win). Each swap takes out a card the deck can best spare (never a held card, the commander, or a card
 // whose job the deck is already short of) and puts in the strongest card that fixes the problem, at the deck's price level.
 // o.val: the deck's own card values (the upgrade list's), o.n: how many swaps to offer.
-const FIX_KINDS = {ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes', landsUp:'More lands', landsDown:'Fewer lands', curve:'Lower curve', wins:'A way to win'};
+const FIX_KINDS = {ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes', landsUp:'More lands', landsDown:'Fewer lands', curve:'Lower curve', wins:'A way to win', mana:'Better mana'};
 function fixSwaps(d, kind, o){
   o = o || {}; if (d.format !== 'commander' || !find(d.commander)) return [];
   const ctx = ctxOf(d), A = analyze(d), T = A.T, val = o.val || (c => baseScore(c, d, ctx).s), n = o.n || 6;
@@ -1288,6 +1288,19 @@ function fixSwaps(d, kind, o){
   if (kind === 'landsDown'){ const L = d.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !x.e.l && tags(x.c).land).map(x => ({n:x.e.n, v:isBasic(x.c.n) ? -1 : val(x.c) - (landSpeed(x.c) === 'tapped' ? 5 : 0)})).sort((a, b) => a.v - b.v);
     const need = ['ramp', 'draw', 'removal', 'wipe'].sort((a, b) => (A.roles[a] - T[a]) - (A.roles[b] - T[b]))[0];
     return pairUp(best(c => !tags(c).land && tags(c).roles.has(need), n), L, 'Swaps a land for ' + FIX_KINDS[need].toLowerCase()); }
+  if (kind === 'mana'){ if (ctx.ident.length < 2) return [];   // one-colour decks can't be stuck on a colour
+    const cols = c => [...landColors(c)].filter(z => ctx.ident.includes(z)).length;
+    // in: lands that make two or more of the deck's colours and can enter untapped. Out: lands that always enter tapped, then
+    // spare basics (from the most common type). Other lands may do something besides make mana, so they are left alone.
+    const adds = best(c => tags(c).land && cols(c) >= 2 && landSpeed(c) !== 'tapped', n + 3);
+    const basicsBy = {}; d.cards.forEach(e => { const c = find(e.n); if (c && isBasic(c.n)) basicsBy[c.n] = (basicsBy[c.n] || 0) + e.q; });
+    const L = d.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !x.e.l && tags(x.c).land && (landSpeed(x.c) === 'tapped' || isBasic(x.c.n)))
+      .map(x => ({n:x.e.n, v:(landSpeed(x.c) === 'tapped' && !isBasic(x.c.n) ? 0 : 10) - (isBasic(x.c.n) ? basicsBy[x.c.n] || 0 : 0) * 0.1 + cols(x.c)}));
+    const cuts = []; L.sort((a, b) => a.v - b.v).forEach(x => { if (isBasic(x.n)) { const k = cuts.filter(y => y.n === x.n).length; if (k < Math.min(3, (basicsBy[x.n] || 0) - 1)) for (let q = 0; q < 1; q++) cuts.push(x); } else cuts.push(x); });
+    // a basic can be cut more than once: each pairing takes one copy
+    const used = new Map(), out = []; for (const a of adds){ if (out.length >= n) break; const cu = cuts.find(x => (used.get(x.n) || 0) < (isBasic(x.n) ? Math.min(3, (basicsBy[x.n] || 0) - 1) : 1)); if (!cu) break;
+      used.set(cu.n, (used.get(cu.n) || 0) + 1); const v = o.landScore ? o.landScore(cu.n, a.c.n) : undefined; out.push({cut:cu.n, add:a.c.n, q:1, kind, why:landSpeed(find(cu.n)) === 'tapped' ? 'Replaces a land that enters tapped' : 'Replaces a basic with a land making more of your colours', dScore:v}); }
+    return out.filter(x => x.dScore == null || x.dScore >= -0.05).sort((a, b) => (b.dScore || 0) - (a.dScore || 0)); }
   if (kind === 'curve'){ const hi = spells.filter(x => (x.c.cmc || 0) >= 5 && !short([...x.roles].find(r => JOBS.includes(r)) || 'x')).sort((a, b) => (a.v - (a.c.cmc || 0)) - (b.v - (b.c.cmc || 0)));
     const out = []; const used = new Set(); for (const h of hi){ if (out.length >= n) break; const j = [...h.roles].find(r => JOBS.includes(r));
       const a = LIB.filter(c => addOk(c) && !used.has(c._k) && !tags(c).land && (c.cmc || 0) <= 2 && (!j || tags(c).roles.has(j)) && evid(c)).map(c => ({c, v:val(c)})).sort((x, y) => y.v - x.v)[0];
