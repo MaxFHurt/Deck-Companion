@@ -727,7 +727,7 @@ function themeFirstToggle(d, dis){ const T = themeCtx(d); if (!T.fam.size && !T.
 const GROUPS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['Instant', 'Instants'], ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
 function listRows(d, q){
   const buckets = {}, unknown = [], lq = String(q || '').toLowerCase().trim(); let shown = 0;
-  for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
+  const lr = S.listRole || ''; for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; if (lr && !(c && (lr === 'gc' ? c.gc : jobsOf(c.n).includes(lr)))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
     '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + (lacks(d, e.n) ? ' <span class="chip warn" title="You marked this card as one you don’t have; it is on the buy list">Don’t have</span>' : '') + (c && c.gc && d.format === 'commander' ? ' <span class="chip gc" title="On Wizards’ Game Changer list">GC</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
     '<span class="pr">' + (e.pp != null ? '$' + e.pp.toFixed(2) : money(c)) + '</span></button>';
@@ -736,17 +736,23 @@ function listRows(d, q){
   if (d.format === 'commander'){ const cm = [d.commander, d.partner].filter(Boolean).map(n => find(n) || {n}).filter(c => !lq || c.n.toLowerCase().includes(lq) || (c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq));
     if (cm.length) h += '<div class="cmdgrp"><div class="gh"><span>Commander' + (cm.length > 1 ? 's' : '') + '</span><span>' + cm.length + '</span></div>' + cm.map(c => '<button class="dl cmdrow" data-act="card" data-n="' + esc(c.n) + '">' + (c.id ? '<img alt="" src="' + artFor(c, {}) + '">' : '<span></span>') + '<span class="q">1×</span><span class="nm">' + esc(c.n) + ' <span class="chip gold">Commander</span></span><span class="cost">' + (c.m ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c.id ? c : null) + '</span></button>').join('') + '</div>'; }
   if (!d.cards.length) h += '<p class="note">This deck is empty. Add cards from the Upgrades tab, or set the build and fill the open slots there.</p>';
-  else if (lq && !shown) h += '<p class="note">No card in this deck matches “' + esc(q) + '”.</p>';
-  for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; b.sort((x, y) => x[1].n.localeCompare(y[1].n));
+  else if ((lq || lr) && !shown) h += '<p class="note">No card in this deck matches' + (lq ? ' “' + esc(q) + '”' : '') + (lr ? (lq ? ' and' : '') + ' the ' + esc(LIST_ROLE[lr].toLowerCase()) + ' filter' : '') + '.</p>';
+  for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; const so = S.listSort || 'name', pr = x => x[0].pp != null ? x[0].pp : x[1].p != null ? x[1].p : -1; b.sort((x, y) => (so === 'mv' ? x[1].cmc - y[1].cmc : so === 'price' ? pr(y) - pr(x) : 0) || x[1].n.localeCompare(y[1].n));
     h += '<div><div class="gh"><span>' + label + '</span><span>' + b.reduce((s, x) => s + x[0].q, 0) + '</span></div>' + b.map(x => rowH(x[0], x[1])).join('') + '</div>'; }
   if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card data yet</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These stay in your list but can’t be analyzed until the full card data has loaded.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
   return h;
 }
 const deckStat = (d, A) => A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0');
+// Decklist sort and role filter: cards stay grouped by type; inside each group they sort A–Z (default), by mana value or by
+// price, and the role filter shows only the cards doing that job.
+const LIST_SORT = {name:'A–Z', mv:'Mana value', price:'Price'}, LIST_ROLE = {'':'All', ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes', protect:'Protection', counter:'Counterspells', tutor:'Tutors', gc:'Game Changers'};
+function listBar(d){ const so = S.listSort || 'name', lr = S.listRole || '', cnt = k => d.cards.reduce((a, e) => { const c = find(e.n); return a + (c && (k === 'gc' ? c.gc : jobsOf(c.n).includes(k)) ? e.q : 0); }, 0);
+  return '<div class="row typebar" role="group" aria-label="Sort the decklist"><span class="lab" style="margin:0">Sort</span>' + Object.keys(LIST_SORT).map(k => '<button class="btn sm' + (so === k ? ' pri' : '') + '" data-act="listsort" data-v="' + k + '" aria-pressed="' + (so === k) + '">' + LIST_SORT[k] + '</button>').join('') + '</div>' +
+    '<div class="row typebar" role="group" aria-label="Show only one role"><span class="lab" style="margin:0">Role</span>' + Object.keys(LIST_ROLE).filter(k => !k || cnt(k)).map(k => '<button class="btn sm' + (lr === k ? ' pri' : '') + '" data-act="listrole" data-v="' + k + '" aria-pressed="' + (lr === k) + '">' + LIST_ROLE[k] + (k ? ' · ' + cnt(k) : '') + '</button>').join('') + '</div>'; }
 function listPanel(d, A){
   return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="list-all">View all</button></div>' +
     '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn pri" data-act="export-open">Export</button></div>' +
-    '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + '</div>';
+    listBar(d) + '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + '</div>';
 }
 // Buy list: grouped by the card being replaced. Each group lists every card that could take its place,
 // weakest to strongest. Groups are ordered by the replaced card's color, then A–Z.
@@ -2036,6 +2042,8 @@ function handleAct(act, v, n, pArg){
         '<p class="note" style="margin:0">But few players use it here: ' + (a.decks ? 'only ' + Math.round(a.inc * 100) + '% of ' + a.decks.toLocaleString() + ' ' + esc(cmdN) + ' decks play it.' : 'there is little play data for it with ' + esc(cmdN) + '.') + '</p>' +
         '<p class="note" style="margin:0">The suggested card is what players who build ' + esc(cmdN) + ' actually choose, so it leads. The deck score is the app’s own measure (synergy, balance, card quality, ways to win and practice games); it can spot a strong card players overlook, and it can also overrate one. Try it if its reasons fit how you play.</p>' +
         '<div class="row"><button class="btn" data-act="card" data-n="' + esc(a.n) + '">View card</button><button class="btn pri" data-act="close">Close</button></div></div>'; $('#modal').hidden = false; return; }
+    case 'listsort': S.listSort = LIST_SORT[v] ? v : 'name'; changed = false; break;
+    case 'listrole': S.listRole = LIST_ROLE[v] != null ? v : ''; changed = false; break;
     case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
     case 'theme-first': if (!d) return; d.themeFirst = !d.themeFirst; toast(d.themeFirst ? 'Theme first is on: on-theme cards are preferred in this deck’s upgrades and builds.' : 'Theme first is off: upgrades come from any set.'); break;
     case 'gen-own': S.gen.own = !S.gen.own; if (v === 'seed') openSeed(); else openGenerate(); return;
