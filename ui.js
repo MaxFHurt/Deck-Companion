@@ -749,10 +749,18 @@ const LIST_SORT = {name:'A–Z', mv:'Mana value', price:'Price'}, LIST_ROLE = {'
 function listBar(d){ const so = S.listSort || 'name', lr = S.listRole || '', cnt = k => d.cards.reduce((a, e) => { const c = find(e.n); return a + (c && (k === 'gc' ? c.gc : jobsOf(c.n).includes(k)) ? e.q : 0); }, 0);
   return '<div class="row typebar" role="group" aria-label="Sort the decklist"><span class="lab" style="margin:0">Sort</span>' + Object.keys(LIST_SORT).map(k => '<button class="btn sm' + (so === k ? ' pri' : '') + '" data-act="listsort" data-v="' + k + '" aria-pressed="' + (so === k) + '">' + LIST_SORT[k] + '</button>').join('') + '</div>' +
     '<div class="row typebar" role="group" aria-label="Show only one role"><span class="lab" style="margin:0">Role</span>' + Object.keys(LIST_ROLE).filter(k => !k || cnt(k)).map(k => '<button class="btn sm' + (lr === k ? ' pri' : '') + '" data-act="listrole" data-v="' + k + '" aria-pressed="' + (lr === k) + '">' + LIST_ROLE[k] + (k ? ' · ' + cnt(k) : '') + '</button>').join('') + '</div>'; }
+// Considering: cards the player is thinking about for this deck. They are kept with the deck but are not in it: they don't
+// count toward its 100 cards, its score or its upgrades. Each can be moved into the deck or taken off the list.
+const considerOf = d => d.consider || (d.consider = []);
+function considerBox(c){ const d = cur(); if (!d || !c || (S.view !== 'decks' && S.view !== 'deck')) return ''; const on = considerOf(d).some(x => keyOf(x.n) === c._k), f = wantFit(d, c);
+  if (f || entryOf(d, c.n)) return ''; return '<div class="grp" id="considerbox"><span class="lab">Considering</span><div class="row">' + (on ? '<span class="chip gold">On ' + esc(d.name) + '’s Considering list</span><button class="btn sm" data-act="consider-rm" data-n="' + esc(c.n) + '">Take off the list</button>' : '<button class="btn sm" data-act="consider-add" data-n="' + esc(c.n) + '">Consider for ' + esc(d.name) + '</button>') + '</div><p class="note" style="margin:0">Considering keeps a card with this deck without putting it in: it doesn’t count toward the deck or its score.</p></div>'; }
+function considerHtml(d){ const L = considerOf(d); if (!L.length) return '';
+  return '<div><div class="gh"><span>Considering · not in the deck</span><span>' + L.length + '</span></div>' + L.map(x => { const c = find(x.n);
+    return '<div class="row" style="flex-wrap:nowrap;gap:6px"><div style="flex:1;min-width:0"><button class="dl" data-act="card" data-n="' + esc(x.n) + '">' + (c ? '<img alt="" src="' + artFor(c, {}) + '">' : '<span></span>') + '<span class="q">1×</span><span class="nm">' + esc(x.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c) + '</span></button></div><button class="btn sm" data-act="consider-in" data-n="' + esc(x.n) + '">Add to deck</button><button class="ico" data-act="consider-rm" data-n="' + esc(x.n) + '" aria-label="Take ' + esc(x.n) + ' off the Considering list">×</button></div>'; }).join('') + '</div>'; }
 function listPanel(d, A){
   return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="list-all">View all</button></div>' +
     '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn pri" data-act="export-open">Export</button></div>' +
-    listBar(d) + '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + '</div>';
+    listBar(d) + '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + considerHtml(d) + '</div>';
 }
 // Buy list: grouped by the card being replaced. Each group lists every card that could take its place,
 // weakest to strongest. Groups are ordered by the replaced card's color, then A–Z.
@@ -1755,7 +1763,7 @@ function openCard(name, pid){
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +
     '<dt>Does</dt><dd>' + ([...tg.roles].map(r => ROLE_LABEL[r] || ({counter:'Counterspell', tutor:'Tutor', protect:'Protection'})[r]).concat(tg.land ? ['Land'] : []).join(', ') || 'Threat / synergy piece') + '</dd>' +
     (upFor(c).length ? '<dt>Upgrade for</dt><dd>' + upFor(c).map(x => '<button class="btn sm" data-act="open-deck" data-v="' + esc(x.id) + '">' + esc(x.name) + '</button> replaces ' + esc(x.cut) + ' <span class="chip">' + ({apex:'Apex', mid:'Mid', budget:'Budget'})[x.t] + '</span>').join('<br>') + '</dd>' : '') +
-    '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' + wantBox(c) +
+    '<dt>Fits</dt><dd>' + (th.join(', ') || 'No specific mechanic') + '</dd><dt>Source</dt><dd>' + (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) + '</dd></dl>' + considerBox(c) + wantBox(c) +
     '<div class="row">' + (d && d.format === 'commander' && legend && !d.aimLocked ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>' : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' + encodeURIComponent('!"' + c.n + '"') + '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';
   $('#modal').hidden = false;
@@ -1820,6 +1828,7 @@ const CONFIRM = {
   'partner-clear':() => ['Remove the second commander?', 'The deck goes back to one commander and its colours.', 'Remove'],
   'restore-replace':() => ['Replace all your decks with the backup?', 'Every deck now in this browser is replaced by the decks in the backup file.', 'Replace all'],
   'stats-reset':() => ['Start counting from now?', 'Score, swap and spending changes will be counted from today instead of the earlier date.', 'Start from now'],
+  'consider-rm':(v, n) => ['Take ' + n + ' off the Considering list?', 'It stays out of the deck and comes off this deck’s Considering list.', 'Take it off'],
   'seed-del':(v, n) => ['Remove ' + n + '?', n + ' comes off the list of cards to build around.', 'Remove'],
   'aim-rm':() => ['Remove this mechanic?', 'The build stops aiming for it, so the upgrade list changes. You can add it back from the Build panel.', 'Remove'],
   'type-rm':() => ['Remove this creature type?', 'The build stops preferring it. You can add it back from the Build panel.', 'Remove'],
@@ -2042,6 +2051,9 @@ function handleAct(act, v, n, pArg){
         '<p class="note" style="margin:0">But few players use it here: ' + (a.decks ? 'only ' + Math.round(a.inc * 100) + '% of ' + a.decks.toLocaleString() + ' ' + esc(cmdN) + ' decks play it.' : 'there is little play data for it with ' + esc(cmdN) + '.') + '</p>' +
         '<p class="note" style="margin:0">The suggested card is what players who build ' + esc(cmdN) + ' actually choose, so it leads. The deck score is the app’s own measure (synergy, balance, card quality, ways to win and practice games); it can spot a strong card players overlook, and it can also overrate one. Try it if its reasons fit how you play.</p>' +
         '<div class="row"><button class="btn" data-act="card" data-n="' + esc(a.n) + '">View card</button><button class="btn pri" data-act="close">Close</button></div></div>'; $('#modal').hidden = false; return; }
+    case 'consider-add': { const c = find(n); if (!d || !c) return; if (!considerOf(d).some(x => keyOf(x.n) === c._k)) considerOf(d).push({n:c.n, at:Date.now()}); toast(c.n + ' is on ' + d.name + '’s Considering list. It is not in the deck.'); const b = $('#considerbox'); if (b) b.outerHTML = considerBox(c); break; }
+    case 'consider-rm': { if (!d) return; d.consider = considerOf(d).filter(x => keyOf(x.n) !== keyOf(n)); toast(n + ' is off the Considering list.'); const c = find(n), b = $('#considerbox'); if (b && c) b.outerHTML = considerBox(c); break; }
+    case 'consider-in': { if (!d) return; const c = find(n); if (!c) return; if (wantFit(d, c)){ toast(c.n + ' can’t go in this deck: ' + wantFit(d, c) + '.'); return; } d.consider = considerOf(d).filter(x => keyOf(x.n) !== c._k); addCard(d, c.n, 1); toast('Added ' + c.n + ' to ' + d.name + ' from Considering.'); break; }
     case 'listsort': S.listSort = LIST_SORT[v] ? v : 'name'; changed = false; break;
     case 'listrole': S.listRole = LIST_ROLE[v] != null ? v : ''; changed = false; break;
     case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
