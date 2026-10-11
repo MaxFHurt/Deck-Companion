@@ -1306,8 +1306,8 @@ function statsHtml(d, A, R){
 }
 // Health alerts: each one that isn't good can be fixed (a menu of direct swaps that remedy it, each with its effect on the
 // deck score) or ignored for this deck. Fix all opens the same menu for every alert at once.
-const FIX_OF = {Lands:'landsUp', Ramp:'ramp', Draw:'draw', Removal:'removal', Wipes:'wipe', Curve:'curve', 'Win routes':'wins'};
-const FIX_WHY = {landsUp:'More lands mean fewer missed land drops.', ramp:'Ramp gets the deck’s big plays out turns earlier.', draw:'Card draw keeps your hand full so the deck doesn’t run out of gas.', removal:'Removal answers the threats that would beat you.', wipe:'Board wipes reset the game when you fall behind.', curve:'Cheaper cards let you do more each turn.', wins:'A deck needs a clear way to finish the game.'};
+const FIX_OF = {Lands:'landsUp', Ramp:'ramp', Draw:'draw', Removal:'removal', Wipes:'wipe', Curve:'curve', 'Win routes':'wins', Mana:'mana'};
+const FIX_WHY = {landsUp:'More lands mean fewer missed land drops.', mana:'Lands that make more of your colours and enter untapped mean fewer games stuck without the right colour.', ramp:'Ramp gets the deck’s big plays out turns earlier.', draw:'Card draw keeps your hand full so the deck doesn’t run out of gas.', removal:'Removal answers the threats that would beat you.', wipe:'Board wipes reset the game when you fall behind.', curve:'Cheaper cards let you do more each turn.', wins:'A deck needs a clear way to finish the game.'};
 // Path to Apex: the few steps that would move this deck furthest toward its Apex build, from the deck's own numbers:
 // its biggest score gains, how it compares with the Apex build on Game Changers, tutors and fast mana, its health alerts,
 // combos it is one card away from, and mana trouble. Each tip has a button that does or shows it.
@@ -1324,19 +1324,21 @@ function apexTips(d, A, R, e, HA, lvl){
   const hb = HA.filter(x => x.s !== 'good' && FIX_OF[x.k]); if (hb.length) T.push({w:1.5 * hb.length, h:'<b>Health:</b> ' + hb.map(x => x.k).join(', ') + (hb.length === 1 ? ' needs' : ' need') + ' attention.', b:'<button class="btn sm" data-act="h-fix" data-v="' + (hb.length === 1 ? esc(hb[0].k) : '*') + '">' + (hb.length === 1 ? 'Fix this' : 'Fix all') + '</button>'});
   const near = (e.combos.near || []).filter(x => x.x.win && find(x.miss) && !entryOf(d, x.miss)).slice(0, 1);
   if (near.length && !e.combos.win.length) T.push({w:2, h:'<b>Win route:</b> one card from a combo (' + esc(near[0].x.what.toLowerCase()) + '): add ' + esc(near[0].miss) + '.', b:'<button class="btn sm" data-act="card" data-n="' + esc(near[0].miss) + '">View card</button>'});
-  if (e.sim && e.sim.colourStuck > 0.15) T.push({w:2 * e.sim.colourStuck * 5, h:'<b>Mana:</b> in ' + Math.round(e.sim.colourStuck * 100) + '% of practice games a colour was missing. Better lands fix this.', b:'<button class="btn sm" data-act="upkind" data-v="land">Show land upgrades</button>'});
+  if (e.sim && e.sim.colourStuck > 0.15) T.push({w:2 * e.sim.colourStuck * 5, h:'<b>Mana:</b> in ' + Math.round(e.sim.colourStuck * 100) + '% of practice games a colour was missing. Better lands fix this.', b:'<button class="btn sm" data-act="h-fix" data-v="Mana">Fix mana</button>'});
   if (!T.length) return '';
   return '<div class="tip ok apextips"><b><small>Path to Apex</small>' + (lvl ? 'At ' + lvl + ' level · ' : '') + 'what would help this deck most</b><ul>' + T.sort((a, b) => b.w - a.w).slice(0, 4).map(t => '<li class="pro"><i>→</i><span>' + t.h + (t.b ? '<span class="row" style="margin-top:4px">' + t.b + '</span>' : '') + '</span></li>').join('') + '</ul></div>'; }
 function healthFixHtml(H, ign, fixable){
   const bad = H.filter(x => x.s !== 'good');
   if (!bad.length) return '';
   return '<div class="hfix"><span class="lab" style="margin:0">Needs attention</span>' + bad.map(x => '<div class="row" style="gap:6px"><span class="hi ' + (ign.has(x.k) ? 'ign' : x.s) + '" style="flex:1;min-width:0"><i></i><b>' + x.k + '</b> ' + esc(x.t) + '</span>' +
-    (ign.has(x.k) ? '<button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button>' : (FIX_OF[x.k] ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">Fix this</button>' : x.k === 'Legal' && /open slot/.test(x.t) ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>' : x.k === 'Mana' ? '<button class="btn pri sm" data-act="upkind" data-v="land">Land upgrades</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(x.k) + '">Ignore</button>') + '</div>').join('') +
+    (ign.has(x.k) ? '<button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button>' : (FIX_OF[x.k] ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">Fix this</button>' : x.k === 'Legal' && /open slot/.test(x.t) ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(x.k) + '">Ignore</button>') + '</div>').join('') +
     (fixable.length > 1 ? '<div class="row"><button class="btn pri sm" data-act="h-fix" data-v="*">Fix all (' + fixable.length + ')</button></div>' : '') + '</div>'; }
 // The swaps that fix one alert, best for the deck score first. Worked out when the menu opens.
-function fixList(d, key){ const kind = FIX_OF[key]; if (!kind) return []; const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
+function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind === 'mana' && ctxOf(d).ident.length < 2) kind = 'landsUp'; const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
   const score = e && e.exact != null ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
-  try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
+  // land swaps change the mana, so they are measured with fresh practice games (same seed for the deck before and after)
+  const landScore = kind === 'mana' ? (() => { let b0 = null; return (cut, add) => { try { if (b0 == null) b0 = evaluateDeck(d, {apex:ar, games:200}).exact; const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (e) { return null; } }; })() : null;
+  try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score, landScore}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
 function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
   const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
   const tgt = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]};
