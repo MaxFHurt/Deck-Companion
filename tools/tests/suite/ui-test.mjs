@@ -483,6 +483,19 @@ const b91 = await page.evaluate(async () => { S.view = 'search'; S.open = false;
   const m = document.querySelector('#modal'), out = {lib:!!m.querySelector('[data-act="lib-add-card"]'), buy:!!m.querySelector('[data-act="want-add"]')};
   m.querySelector('[data-act="lib-add-card"]').click(); out.owned = Object.keys(lib()).some(k => norm(k) === c._n) && /In your library · 1/.test(m.textContent); libAdd(c.n, -1); $('#modal').hidden = true; S.view = 'decks'; return out; });
 T('UI-B91-01', 'Card details have Add to library and Add to buy list; Add to library marks the card as owned', b91.lib && b91.buy && b91.owned, JSON.stringify(b91));
+// 43. Build 92: up to 5 players on the profile; a deck can belong to one (Build panel, Generate, Import); My decks shows the
+// player and filters by player; removing a player asks first and keeps their decks.
+const b92 = await page.evaluate(async () => { const out = {}; S.view = 'profile'; S.open = false; render(); const add = nm => { $('#player-add').value = nm; document.querySelector('[data-act="player-add"]').click(); };
+  ['Alex', 'Sam', 'Jo', 'Riley', 'Kim'].forEach(add); out.five = players().length === 5 && !$('#player-add'); 
+  const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'build'; d.custom = true; render();
+  const sel = document.querySelector('#deck-player'); out.sel = !!sel && sel.options.length === 6; sel.value = 'Sam'; sel.dispatchEvent(new Event('change', {bubbles:true})); out.set = d.player === 'Sam';
+  S.open = false; render(); out.chip = [...document.querySelectorAll('.tile')].some(t => /Wakanda/.test(t.textContent) && /Sam/.test(t.textContent));
+  const f = document.querySelector('#deck-filter-player'); f.value = 'Sam'; f.dispatchEvent(new Event('change', {bubbles:true})); out.filter = document.querySelectorAll('.tile').length === S.profile.decks.filter(x => x.player === 'Sam').length;
+  f.value = '*'; f.dispatchEvent(new Event('change', {bubbles:true}));
+  const g = startPlan('Captain America, Team Leader', [], null, null, {fill:'apex', player:'Jo'}); out.gen = g.player === 'Jo'; S.draft = null;
+  S.view = 'profile'; render(); document.querySelector('[data-act="player-rm"][data-n="Sam"]').click(); out.asks = !document.querySelector('#confirm').hidden; document.querySelector('#confirm [data-act="conf-yes"]').click();
+  out.removedKept = !players().includes('Sam') && d.player === 'Sam'; delete d.player; S.profile.players = []; S.view = 'decks'; render(); return out; });
+T('UI-B92-01', 'Players: up to 5 tablemates on the profile; a deck can be set to one (Build panel, Generate); My decks shows and filters by player; removing a player asks first and keeps their decks', b92.five && b92.sel && b92.set && b92.chip && b92.filter && b92.gen && b92.asks && b92.removedKept, JSON.stringify(b92));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
