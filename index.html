@@ -111,6 +111,8 @@ textarea{min-height:190px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;re
 .chip.good{border-color:#1f7a4a;color:var(--good);background:#08210f}
 .chip.warn{border-color:#8a5a14;color:var(--warn);background:#241606}
 .chip.bad{border-color:#8a2440;color:var(--bad);background:#27070f}
+.chip.gc{border-color:var(--violet);color:#fff;background:linear-gradient(135deg,#4a2a9a,#7a3fd0)}
+.chip.gc::before{content:"★";font-size:11px}
 
 /* ---------- mana ---------- */
 .pip{display:inline-grid;place-items:center;width:1.25em;height:1.25em;border-radius:50%;font:700 .72em/1 var(--label);font-style:normal;color:#14101c;vertical-align:-.2em;margin:0 1px;box-shadow:inset 0 -2px 2px rgba(0,0,0,.35),0 1px 1px rgba(0,0,0,.6)}
@@ -226,7 +228,7 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .tmeter u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--chrome);text-decoration:none}
 .tm-lab{position:relative;height:14px;font:600 10px var(--label);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}.tm-lab span{position:absolute;top:3px;transform:translateX(-50%);white-space:nowrap}
 .hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;font-size:13px}
-.hi{display:flex;gap:6px;align-items:baseline;min-width:0}.hi i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--good);transform:translateY(1px)}.hi.warn i{background:var(--warn)}.hi.bad i{background:var(--bad)}.hi b{font:600 12px var(--label);letter-spacing:.06em;text-transform:uppercase}
+.hi{display:flex;gap:6px;align-items:baseline;min-width:0}.hi i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--good);transform:translateY(1px)}.hi.warn i{background:var(--warn)}.hi.bad i{background:var(--bad)}.hi.ign i{background:var(--chrome);opacity:.45}.hi.ign{opacity:.7}.hi b{font:600 12px var(--label);letter-spacing:.06em;text-transform:uppercase}
 /* mana symbols: borderless, sized from the text around them so they scale with the device; this rule outranks the card-art thumbnail rules */
 /* the commander row wraps so its Commander chip stays visible on a phone */
 .dl.cmdrow .nm{white-space:normal;overflow:visible;text-overflow:clip}
@@ -290,7 +292,15 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .tile p{margin:0;color:var(--mute);font-size:13.5px}
 .modal{position:fixed;inset:0;z-index:50;background:rgba(3,1,8,.8);backdrop-filter:blur(3px);display:grid;place-items:center;padding:16px;overflow:auto}
 .modal .panel{width:min(760px,100%);max-height:calc(100% - 8px);overflow:auto}
+.modal .panel.framed{display:flex;flex-direction:column;overflow:hidden}
+.modal .panel.framed > .ph{flex:none}
+.mbody{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:inherit;padding-right:4px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.modal .panel.framed > .mscroll{flex:1 1 auto}
 .modal .panel.full{width:100%;height:100%;max-height:none;align-self:stretch;justify-self:stretch;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.hfix{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.fixsw{display:flex;flex-direction:column;gap:6px}.fixsw .sw{width:100%}
+#undo-fab{position:fixed;left:16px;bottom:16px;z-index:40;display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:22px;border:1px solid var(--glow);background:#2a1660;color:#fff;font:600 13px var(--label);letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+#undo-fab[hidden]{display:none}#main{padding-bottom:72px}#undo-fab svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .mscroll{flex:1 1 0;min-height:120px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;border-top:1px solid var(--line);padding-top:8px;-webkit-overflow-scrolling:touch}
 .detail{display:grid;grid-template-columns:270px 1fr;gap:16px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:14px;align-content:start}
@@ -378,7 +388,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 80;
+window.BUILD = 81;
 (function(){
   var last = 0;
   function check(){
@@ -390,9 +400,9 @@ window.BUILD = 80;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=80"></script>
-<script src="lists.js?v=80"></script>
-<script src="engine.js?v=80"></script>
-<script src="ui.js?v=80"></script>
+<script src="data.js?v=81"></script>
+<script src="lists.js?v=81"></script>
+<script src="engine.js?v=81"></script>
+<script src="ui.js?v=81"></script>
 </body>
 </html>

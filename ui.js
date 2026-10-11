@@ -6,7 +6,7 @@ const STARTER = parseStarter(STARTER_RAW);
 buildIndex(STARTER);
 let DBINFO = {source:'starter', count:STARTER.length, when:null};
 const S = {profile:{name:'Planeswalker', decks:[], updatedAt:0, example:true}, view:'home', open:false, deckId:null, swaps:10, sync:'local',
-  search:{q:'', color:'', type:'', fmt:'', max:'', theme:''}, gen:{cmd:'', tier:'budget', partner:'', sets:[], setsMust:false}, confirmDel:null, busy:''};
+  search:{q:'', color:'', type:'', fmt:'', max:'', theme:''}, gen:{cmd:'', tier:'apex', partner:'', sets:[], setsMust:false, best:true, theme:false, mech:[], warn:''}, confirmDel:null, busy:''};
 // A new deck is a draft until the player saves it; cur() is whichever deck is open, draft or saved.
 const cur = () => (S.draft && S.draft.id === S.deckId ? S.draft : S.profile.decks.find(d => d.id === S.deckId)) || null;
 
@@ -220,6 +220,7 @@ function artFor(c, e){
 
 // ---------- small renderers ----------
 const SVG = {
+  undo:'<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg>',
   decks:'<svg viewBox="0 0 24 24"><rect x="4" y="6" width="11" height="15" rx="1.5"/><path d="M8 3h11v15"/></svg>',
   deck:'<svg viewBox="0 0 24 24"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z"/></svg>',
   search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>',
@@ -246,7 +247,17 @@ function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = fals
 // ---------- storage ----------
 let cloud = null, saving = false, dirty = false, saveT = 0;
 function loadLocal(){ try { const p = JSON.parse(localStorage.getItem('dc.profile') || 'null'); if (p && Array.isArray(p.decks)) S.profile = p; } catch (e) {} const dr = lsGet('dc.draft'); if (dr && Array.isArray(dr.cards)) S.draft = dr; }
-function touch(){ S.profile.updatedAt = Date.now(); S.profile.example = false; clearTimeout(saveT); saveT = setTimeout(persist, 700); }
+// Undo (main screen): every change to your decks, buy lists or library is recorded when it is saved, one step per action, so
+// the Undo button puts back the state before the last action, whatever it was. Kept for this visit only (the last 30 steps).
+const UNDO = {stack:[], base:null, seq:0, at:-1, label:''};
+const undoSnap = () => JSON.stringify({p:S.profile, dr:S.draft || null}, (k, v) => k === 'updatedAt' ? undefined : v);
+function undoMark(){ const cur = undoSnap(); if (UNDO.base == null){ UNDO.base = cur; return; } if (cur === UNDO.base) return;
+  if (UNDO.at !== UNDO.seq){ UNDO.stack.push({s:UNDO.base, label:UNDO.label}); if (UNDO.stack.length > 30) UNDO.stack.shift(); UNDO.at = UNDO.seq; } UNDO.base = cur; }
+function undoLast(){ const u = UNDO.stack.pop(); if (!u) return; const o = JSON.parse(u.s); S.profile = Object.assign(o.p, {updatedAt:Date.now()}); S.draft = o.dr || null;
+  if (S.deckId && !S.profile.decks.some(x => x.id === S.deckId) && !(S.draft && S.draft.id === S.deckId)){ S.deckId = (S.profile.decks[0] || {}).id || null; if (!S.deckId) S.open = false; }
+  UNDO.base = undoSnap(); UNDO.seq++; UNDO.at = UNDO.seq; recsFor.k = null; clearTimeout(saveT); saveT = setTimeout(persist, 300); if (S.draft) lsSet('dc.draft', S.draft); else localStorage.removeItem('dc.draft');
+  $('#modal').hidden = true; render(); toast('Undid: ' + (u.label || 'last change') + '.'); }
+function touch(){ undoMark(); S.profile.updatedAt = Date.now(); S.profile.example = false; clearTimeout(saveT); saveT = setTimeout(persist, 700); }
 async function persist(){
   const json = JSON.stringify(S.profile);
   try { localStorage.setItem('dc.profile', json); } catch (e) {}
@@ -263,7 +274,7 @@ async function initCloud(){
     const id = await user.id(); if (!id) return;
     const ref = db.doc('data/users/' + id + '/profile'), snap = await ref.get(); cloud = ref; S.sync = 'cloud';
     if (snap.exists){ const data = snap.data(); let p = null; try { p = JSON.parse(data.json); } catch (e) {}
-      if (p && Array.isArray(p.decks) && (S.profile.example || (p.updatedAt || 0) >= (S.profile.updatedAt || 0))){ S.profile = p; if (!cur()){ S.deckId = p.decks[0] ? p.decks[0].id : null; if (!S.deckId) S.view = 'decks'; } }
+      if (p && Array.isArray(p.decks) && (S.profile.example || (p.updatedAt || 0) >= (S.profile.updatedAt || 0))){ S.profile = p; UNDO.base = null; UNDO.stack = []; if (!cur()){ S.deckId = p.decks[0] ? p.decks[0].id : null; if (!S.deckId) S.view = 'decks'; } }
       else if (!S.profile.example) persist(); }
     else if (!S.profile.example) persist();
     render();
@@ -592,6 +603,8 @@ function navHtml(){
   const b = (v, label) => '<button data-act="nav" data-v="' + v + '"' + (S.view === v ? ' aria-current="page"' : '') + '>' + SVG[v] + label + '</button>';
   $('#nav-l').innerHTML = b('decks', 'Decks') + b('deck', 'Builder') + b('search', '<span><span class="xs-hide">Card&nbsp;</span>Search</span>');
   $('#nav-r').innerHTML = b('profile', 'Profile');
+  let u = $('#undo-fab'); if (!u){ u = document.createElement('button'); u.id = 'undo-fab'; u.dataset.act = 'undo'; document.body.appendChild(u); }
+  const last = UNDO.stack[UNDO.stack.length - 1]; u.hidden = !last; u.innerHTML = SVG.undo + '<span>Undo</span>'; u.setAttribute('aria-label', last ? 'Undo: ' + (last.label || 'last change') : 'Undo'); u.title = last ? 'Undo: ' + (last.label || 'last change') : '';
 }
 function viewHome(){
   const n = S.profile.decks.filter(d => !d.example).length;
@@ -613,14 +626,14 @@ function viewDecks(){
     const tb = (k, label, cls) => '<button class="tab' + (tab === k ? ' on' : '') + (cls || '') + '" data-act="tab" data-v="' + k + '" role="tab" aria-selected="' + (tab === k) + '">' + label + '</button>';
     return '<div class="row bar"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
       ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
-      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
+      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
     return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') + (d.partner ? ' + ' + esc(d.partner) : '') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.plan && d.plan.length ? '<span class="chip warn">Build in progress</span>' : '') + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
   return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
     (S.draft ? '<div class="gate"><b>Unsaved deck: ' + esc(S.draft.name) + '</b>' + (S.draft.plan && S.draft.plan.length ? '<span class="chip warn">Build in progress</span> ' : '') + 'You started this deck but haven’t saved it to your profile.<div class="row" style="margin-top:10px"><button class="btn" data-act="draft-open">Keep editing</button><button class="btn pri" data-act="draft-save">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button></div></div>' : '') +
-    (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>';
+    (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>' + myWantHtml();
 }
 // Plain-English descriptions of every mechanic, shown in the mechanic picker and when you tap a mechanic already in the build.
 const MECH_DESC = {
@@ -704,16 +717,19 @@ function aimPanel(d, ctx){
   if (!pool.length) h += '<p class="note" style="margin:0">' + (d.format === 'commander' ? (ctx.cmd ? 'Colorless commander: the deck uses Wastes and colorless cards.' : 'Pick a commander to set the colors.') : '') + '</p>';
   else h += '<div class="row">' + pool.map(c => '<button class="pip p' + c + ((d.colors || []).includes(c) ? ' on' : '') + '" data-act="color" data-v="' + c + '" aria-pressed="' + (d.colors || []).includes(c) + '"' + dis + '>' + c + '</button>').join('') + '</div><p class="note" style="margin:0">' + (d.format === 'commander' ? 'Focus colors get most of the basic lands and first pick of upgrades. The rest become a light splash.' : 'Pick one to three colors. Every card must fit inside them.') + '</p>';
   h += '</div>';
-  if (d.format === 'commander' && ctx.cmd && aimed) h += '<div class="grp"><span class="lab">Generate</span><div class="row"><button class="btn pri" data-act="build-gen">Generate a build with these settings</button></div><p class="note" style="margin:0">Designs a full 100-card build for ' + esc(ctx.cmd.n.split(',')[0]) + (ctx.par ? ' and ' + esc(ctx.par.n.split(',')[0]) : '') + ' from the mechanics above, in their order, and your filters and colors. It opens as a new deck; this one stays as it is. Cards you hold here are kept.</p></div>';
+  if (d.format === 'commander' && ctx.cmd && aimed) h += '<div class="grp"><span class="lab">Generate</span><div class="row"><button class="btn pri" data-act="build-gen">Generate a build with these settings</button></div><p class="note" style="margin:0">Designs a full 100-card build for ' + esc(ctx.cmd.n.split(',')[0]) + (ctx.par ? ' and ' + esc(ctx.par.n.split(',')[0]) : '') + ' from the mechanics above, in their order, and your filters and colors, at the ' + TIERS[S.gen.tier || 'apex'].label + ' price level, straight into a new deck. This one stays as it is. Cards you hold here are kept.</p>' + themeFirstToggle(d, lock ? dis : '') + '</div>';
   h += '<div class="row"><span class="chip ' + (aimed ? 'good' : 'warn') + '">' + (aimed ? 'Deck is aimed' : 'Not aimed yet') + '</span><span class="note">' + (S.sync === 'cloud' ? 'Saved to your profile' : 'Saved in this browser') + '</span></div></section>';
   return h;
 }
+// Theme first on an existing deck: its upgrades and builds put the commander's own set and creature types first.
+function themeFirstToggle(d, dis){ const T = themeCtx(d); if (!T.fam.size && !T.types.size) return '';
+  return '<div class="row"><button class="chk' + (d.themeFirst ? ' on' : '') + '" data-act="theme-first" role="switch" aria-checked="' + !!d.themeFirst + '"' + (dis || '') + '><i></i>Theme first</button><span class="note">Cards from ' + esc([...T.fam, ...[...T.types].slice(0, 2)].join(', ')) + ' are preferred, a little below the strongest cards from any set.</span></div>'; }
 const GROUPS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['Instant', 'Instants'], ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
 function listRows(d, q){
   const buckets = {}, unknown = [], lq = String(q || '').toLowerCase().trim(); let shown = 0;
   for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
-    '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + (lacks(d, e.n) ? ' <span class="chip warn" title="You marked this card as one you don’t have; it is on the buy list">Don’t have</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
+    '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + (lacks(d, e.n) ? ' <span class="chip warn" title="You marked this card as one you don’t have; it is on the buy list">Don’t have</span>' : '') + (c && c.gc && d.format === 'commander' ? ' <span class="chip gc" title="On Wizards’ Game Changer list">GC</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
     '<span class="pr">' + (e.pp != null ? '$' + e.pp.toFixed(2) : money(c)) + '</span></button>';
   let h = '';
   // The commander (and partner) lead the list with a Commander chip; they are not part of the 99.
@@ -721,7 +737,7 @@ function listRows(d, q){
     if (cm.length) h += '<div class="cmdgrp"><div class="gh"><span>Commander' + (cm.length > 1 ? 's' : '') + '</span><span>' + cm.length + '</span></div>' + cm.map(c => '<button class="dl cmdrow" data-act="card" data-n="' + esc(c.n) + '">' + (c.id ? '<img alt="" src="' + artFor(c, {}) + '">' : '<span></span>') + '<span class="q">1×</span><span class="nm">' + esc(c.n) + ' <span class="chip gold">Commander</span></span><span class="cost">' + (c.m ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c.id ? c : null) + '</span></button>').join('') + '</div>'; }
   if (!d.cards.length) h += '<p class="note">This deck is empty. Add cards from the Upgrades tab, or set the build and fill the open slots there.</p>';
   else if (lq && !shown) h += '<p class="note">No card in this deck matches “' + esc(q) + '”.</p>';
-  for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; b.sort((x, y) => x[1].cmc - y[1].cmc || x[1].n.localeCompare(y[1].n));
+  for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; b.sort((x, y) => x[1].n.localeCompare(y[1].n));
     h += '<div><div class="gh"><span>' + label + '</span><span>' + b.reduce((s, x) => s + x[0].q, 0) + '</span></div>' + b.map(x => rowH(x[0], x[1])).join('') + '</div>'; }
   if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card data yet</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These stay in your list but can’t be analyzed until the full card data has loaded.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
   return h;
@@ -951,6 +967,9 @@ function slotKinds(d, ps){ const k = new Set(), ctx = ctxOf(d); ps.forEach(p => 
   jobsOf(c.n).forEach(j => { if (KIND_LAB[j]) k.add(j); }); if (c.gc) k.add('gc'); if ((p.why || []).some(w => /^Adds /.test(w))) k.add('balance');
   if ((d.aims || []).some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1) || p.theme) k.add('synergy');
   if (![...k].some(x => x !== 'gc')) k.add('power'); }); return k; }
+const SORT_LAB = {impact:'Biggest impact', engine:'Recommended order', price:'Cheapest first'};
+function sortBar(){ const so = S.upSort || 'impact', b = v => '<button class="btn sm' + (so === v ? ' pri' : '') + '" data-act="upsort" data-v="' + v + '" aria-pressed="' + (so === v) + '">' + SORT_LAB[v] + '</button>';
+  return '<div class="row typebar" role="group" aria-label="Sort upgrades"><span class="lab" style="margin:0">Sort</span>' + Object.keys(SORT_LAB).map(b).join('') + '</div>'; }
 function kindBar(sets){ const cnt = {}; sets.forEach(s => s.forEach(t => cnt[t] = (cnt[t] || 0) + 1)); const ks = Object.keys(KIND_LAB).filter(k => cnt[k]);
   if (ks.length < 2 && !upK()) return ''; const b = (v, l) => '<button class="btn sm' + (upK() === v ? ' pri' : '') + '" data-act="upkind" data-v="' + v + '" aria-pressed="' + (upK() === v) + '">' + l + '</button>';
   return '<div class="row typebar" role="group" aria-label="Filter by kind of upgrade"><span class="lab" style="margin:0">Kind</span>' + b('', 'All') + ks.map(k => b(k, KIND_LAB[k] + ' · ' + cnt[k])).join('') + '</div>'; }
@@ -1007,6 +1026,27 @@ function planHtml(d){
 // Each tier's package uses, for every slot, the Apex card when it already costs less than that tier's limit, otherwise the
 // tier's own cheaper card (tierPick in engine.js). A card you own costs nothing.
 // The best-under-$X package is a second full search, so it is worked out when you ask for it (it is then kept for this deck).
+// The pick shown for a tier: its own pick; else the Apex card when it already costs under the tier's price; else, for a higher
+// tier, the best cheaper pick (no stronger card was found, so it is the best at every tier above it).
+function effTier(L, t){ const O = L.opts, ap = O.apex && find(O.apex.add);
+  if (t === 'apex') return O.apex ? 'apex' : O.mid ? 'mid' : O.budget ? 'budget' : null;
+  if (O[t]) return t; if (O.apex && (O.apex.own || (ap && underCap(ap.p, t)))) return 'apex';
+  if (t === 'mid') return O.budget ? 'budget' : null; const mc = O.mid && find(O.mid.add); return O.mid && mc && underCap(mc.p, 'budget') ? 'mid' : null; }
+// The upgrade table's three slots for one row. The best card is always in the Apex slot. A cheaper slot whose pick would just
+// repeat a card already shown above it gets the next worthwhile card instead: one doing the same job, under that slot's
+// price, raising the deck score by at least half as much as the best card (the alternatives rule). Only when there is none
+// does the slot repeat the card, marked as the best at that price too.
+const ROWC = {k:null, m:new Map()};
+function rowCols(d, R, L, i){
+  const ck = recsFor.k + '#' + i; if (ROWC.k !== recsFor.k){ ROWC.k = recsFor.k; ROWC.m = new Map(); } if (ROWC.m.has(ck)) return ROWC.m.get(ck);
+  const out = {}, shown = new Set(); let alts = null;
+  for (const t of TIER_KEYS.slice().reverse()){ const src = effTier(L, t), p = src && L.opts[src]; if (!p){ out[t] = null; continue; }
+    if (!shown.has(norm(p.add))){ out[t] = {p, src, kind:src === t ? 'own' : 'inh'}; shown.add(norm(p.add)); continue; }
+    if (!alts){ const best = out.apex && out.apex.p; try { alts = best && R.dOf ? altList(d, {kind:'up', n:best.add, q:best.q, cut:best.cut, dScore:best.dScore}).sort((a, b) => b.dScore - a.dScore) : []; } catch (e) { alts = []; } }
+    const a = alts.find(x => !shown.has(norm(x.n)) && (t === 'apex' || (x.p != null && underCap(x.p, t))));
+    if (a){ shown.add(norm(a.n)); out[t] = {p:{cut:p.cut, add:a.n, q:p.q, dScore:a.dScore, why:[a.theme || 'Close behind the Apex pick'].filter(Boolean), gc:!!(find(a.n) || {}).gc}, src, kind:'alt'}; }
+    else out[t] = {p, src, kind:'inh'}; }
+  ROWC.m.set(ck, out); return out; }
 function capBox(d, t){ const cap = TIERS[t].cap; if (!(S.capOpen && S.capOpen[d.id + t])) return '<div class="capbox" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><button class="btn sm" data-act="cap-show" data-v="' + t + '">Best deck with every card under $' + cap + '</button></div>';
   const L = capList(d, t); if (!L.length) return '<p class="note" style="margin:6px 0 0">Best deck with every new card under $' + cap + ': no worthwhile swaps.</p>';
   const cost = L.reduce((s, p) => { const a = find(p.add), c = find(p.cut); return s + ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }, 0);
@@ -1068,6 +1108,14 @@ function useAlt(d, v, n){ const s = altSrc(d, v), c = find(n); if (!s || !c) ret
   if (!d.recP) d.recP = {}; delete d.recP[norm(s.n)];
   d.recP[norm(c.n)] = {t:s.t, p:c.p, at:new Date().toISOString().slice(0, 10), pair:{cut:s.cut, add:c.n, q:s.q, t:s.t}, chosen:true};
   toast(c.n + ' is now the ' + TIERS[s.t].label + ' pick for ' + s.cut + '.'); return true; }
+// Add every plan slot at one price level (or only the cards you own), best picks first, as many as there is room for.
+function planAll(d, v){ let k = 0, room = planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0); const rk = x => x.seed ? 0 : x.own ? 1 : x.basic ? 4 : x.land ? 3 : 2;
+  // Mid and Budget are strict price levels: a slot whose only pick is over the price (no same-job stand-in) is left open,
+  // and the open slots are filled by the generator at that price level instead.
+  const over = n => { const c = find(n); return (v === 'mid' || v === 'budget') && c && c.p != null && !underCap(c.p, v); };
+  (d.plan || []).slice().sort((a, b) => rk(a) - rk(b) || a.id - b.id).forEach(x => { if (room <= 0 || (v === 'own' && !x.own)) return; if (x.q > room){ if (x.basic){ addCard(d, x.a, room); x.q -= room; k += room; room = 0; } return; } if (v === 'own'){ room -= x.q; if (planInstall(d, x, 'a')) k += x.q; return; } const n = x.own || x.seed || x.basic ? x.a : planPick(x, v); if (!x.own && !x.seed && over(n)) return; room -= x.q; if (planInstall(d, x, n === x.b ? 'b' : n === x.m ? 'm' : 'a')) k += x.q; });
+  if ((v === 'mid' || v === 'budget') && room > 0){ const t0 = d.tier, n0 = d.cards.reduce((a, e) => a + e.q, 0); d.tier = v; try { fillDeck(d); } finally { d.tier = t0; } k += d.cards.reduce((a, e) => a + e.q, 0) - n0; syncPlan(d); }
+  return k; }
 function planInstall(d, x, key){
   const n = key === 'b' ? x.b : key === 'm' ? x.m : x.a; if (!n) return false;
   addCard(d, n, x.q); const en = d.cards.find(y => y.n === n); if (en && !x.basic){ en.step = key === 'b' ? 1 : key === 'm' ? 2 : 3; if (x.seed) en.l = true; }
@@ -1082,12 +1130,15 @@ function startPlan(cmdName, seeds, extraAims, partner, opts){
   { const p = partner && find(partner); if (p && canPair(c, p)){ nd.partner = p.n; nd.name = c.n.split(',')[0] + ' & ' + p.n.split(',')[0] + ' (generated)'; nd.colors = ctxOf(nd).ident.slice(); ctxOf(nd).cmdThemes.forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); }); } }
   // Apex generation builds around what players build this commander around (EDHREC's top themes, with their theme pages
   // loaded): measured against the strongest real decks (bracket 4–5) it matches them more closely than the detected mechanics.
-  if (opts && opts.aims && opts.aims.length){ nd.aims = opts.aims.slice(0, 3); nd.aimAuto = true; }
+  if (opts && opts.aims && opts.aims.length){ nd.aims = opts.aims.slice(0, 3); nd.aimAuto = !opts.mechChosen; if (opts.mechChosen) nd.aimLocked = true; }
+  if (opts && opts.themeFirst) nd.themeFirst = true;
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
   if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
   nd.plan = buildPlan(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
-  { const n = nd.plan.reduce((s, x) => s + x.q, 0), want = 100 - 1 - (nd.partner ? 1 : 0);
-    toast('Designed a ' + n + '-card build for ' + c.n + '.' + (n < want ? ' Only ' + n + ' of ' + want + ' slots could be filled' + ((nd.sets || []).length && nd.setsMust ? ' from the chosen sets' : '') + '; the rest stay open.' : '') + ' Add the cards you want from the Upgrades tab.'); }
+  { const n = nd.plan.reduce((s, x) => s + x.q, 0), want = 100 - 1 - (nd.partner ? 1 : 0), short = n < want ? ' Only ' + n + ' of ' + want + ' slots could be filled' + ((nd.sets || []).length && nd.setsMust ? ' from the chosen sets' : '') + '; the rest stay open.' : '';
+    // The deck is built straight into the decklist at the chosen price level; the stronger picks stay as its upgrades.
+    if (opts && opts.fill){ const k = planAll(nd, opts.fill); delete nd.plan; nd.tier = opts.fill; S.tab = 'list'; toast('Built ' + k + ' cards for ' + c.n.split(',')[0] + ' at ' + TIERS[opts.fill].label + '.' + short + (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.')); }
+    else toast('Designed a ' + n + '-card build for ' + c.n + '.' + short + ' Add the cards you want from the Upgrades tab.'); }
   return nd;
 }
 function ownToggle(kind){ const n = libCount(); return '<div class="row"><button class="chk' + (S.gen.own && n ? ' on' : '') + '" data-act="gen-own" data-v="' + kind + '"' + (n ? '' : ' disabled') + ' role="checkbox" aria-checked="' + !!(S.gen.own && n) + '"><i></i>Generate a deck with cards I already own</button>' + (n ? '<span class="note">Uses your library of ' + n.toLocaleString() + ' cards first, then fills the gaps.</span>' : '<span class="note">Your library is empty. Add the cards you own on a deck’s Library tab.</span>') + '</div>'; }
@@ -1099,14 +1150,14 @@ function bracketHtml(d, A){
   if (b === 2){ bar = '<div class="meter good"><span>Game Changers</span><i><b style="width:0%"></b></i><span>0</span></div>'; note = 'No Game Changers, so the deck sits in Bracket 2. The first Game Changer you add moves it to Bracket 3.'; }
   else if (b === 3){ bar = '<div class="meter ' + (gc >= 3 ? 'warn' : 'good') + '"><span>Game Changers</span><i><b style="width:' + Math.min(100, gc / 3 * 100) + '%"></b></i><span>' + gc + ' / 3</span></div>'; note = gc >= 3 ? 'The deck is at the top of Bracket 3. One more Game Changer moves it to Bracket 4.' : 'Room for ' + (3 - gc) + ' more Game Changer' + (3 - gc === 1 ? '' : 's') + ' before the deck moves to Bracket 4.'; }
   else { bar = '<div class="meter good"><span>Game Changers</span><i><b style="width:100%"></b></i><span>' + gc + '</span></div>'; note = (mld && gc <= 3 ? 'Mass land denial puts the deck in Bracket 4. ' : gc + ' Game Changers put the deck in Bracket 4. ') + 'There is no limit from here up.'; }
-  const chips = A.gc.map(n => '<button class="chip gold" data-act="card" data-n="' + esc(n) + '">' + esc(n) + '</button>').concat(A.mld.map(n => '<button class="chip warn" data-act="card" data-n="' + esc(n) + '">Land denial · ' + esc(n) + '</button>'), turns ? ['<span class="chip">' + turns + ' extra-turn card' + (turns === 1 ? '' : 's') + (b < 4 && turns > 2 ? ' · Brackets 2 and 3 expect only a few' : '') + '</span>'] : []);
+  const chips = A.gc.map(n => '<button class="chip gc" data-act="card" data-n="' + esc(n) + '">' + esc(n) + '</button>').concat(A.mld.map(n => '<button class="chip warn" data-act="card" data-n="' + esc(n) + '">Land denial · ' + esc(n) + '</button>'), turns ? ['<span class="chip">' + turns + ' extra-turn card' + (turns === 1 ? '' : 's') + (b < 4 && turns > 2 ? ' · Brackets 2 and 3 expect only a few' : '') + '</span>'] : []);
   return '<div class="grp"><span class="lab">Commander bracket · ' + b + ' · ' + BRACKETS[b].label + '</span>' + track + bar + (chips.length ? '<div class="row">' + chips.join('') + '</div>' : '') +
     '<p class="note" style="margin:0">' + note + ' This is a label showing where the deck stands, not a limit: nothing is blocked, and upgrades that would move the deck up a bracket are marked. Brackets 1 and 5 depend on how you intend to play, so the app does not assign them.</p></div>';
 }
 // Label for a Game Changer upgrade: where it leaves the deck.
 function gcChip(p, R){
   if (!p.gc) return ''; const after = R.gcIn + (p.gcOut ? 0 : p.q), nb = bracketOf(after, R.mldIn || 0);
-  return '<span class="chip warn">Game Changer' + (p.gcOut ? ' · replaces one' : nb > R.bracket ? ' · moves deck to Bracket ' + nb : R.bracket === 3 ? ' · ' + after + ' of 3 in Bracket 3' : '') + '</span>';
+  return '<span class="chip gc" title="On Wizards’ Game Changer list: among the cards that most change games. They are often what moves a deck up a tier.">Game Changer' + (p.gcOut ? ' · replaces one' : nb > R.bracket ? ' · moves deck to Bracket ' + nb : R.bracket === 3 ? ' · ' + after + ' of 3 in Bracket 3' : '') + '</span>';
 }
 // Deck score: the whole-deck evaluator (engine evaluateDeck), cached until the deck, its build or the data behind it changes.
 const EVC = new Map(), APX = new Map();
@@ -1172,7 +1223,7 @@ function statsHtml(d, A, R){
   if (e && e.sim){ const m = e.sim, bad = Math.max(m.colourStuck, m.screwT5); H.push({k:'Mana', s:bad <= 0.12 ? 'good' : bad <= 0.22 ? 'warn' : 'bad', t:Math.round(m.colourStuck * 100) + '% colour-stuck · ' + Math.round(m.screwT5 * 100) + '% short of lands'}); }
   if (e){ const w = e.combos.win.length, f = e.finishers.length; H.push({k:'Win routes', s:w || f >= 4 ? 'good' : f >= 2 ? 'warn' : 'bad', t:f + ' finisher' + (f === 1 ? '' : 's') + (w ? ' · ' + w + ' combo' + (w === 1 ? '' : 's') : '')});
     const un = e.needs.filter(x => x.have < x.min); if (e.needs.length) H.push({k:'Commander', s:un.length ? 'warn' : 'good', t:un.length ? 'short on ' + un.map(x => x.label).slice(0, 2).join(', ') : 'its needs are met'}); }
-  const nBad = H.filter(x => x.s === 'bad').length, nWarn = H.filter(x => x.s === 'warn').length, hs = nBad ? 'bad' : nWarn ? 'warn' : 'good';
+  const ign = new Set(d.ignoreH || []), HA = H.filter(x => !ign.has(x.k)), nBad = HA.filter(x => x.s === 'bad').length, nWarn = HA.filter(x => x.s === 'warn').length, hs = nBad ? 'bad' : nWarn ? 'warn' : 'good', fixable = HA.filter(x => x.s !== 'good' && FIX_OF[x.k]);
   // upgrade totals
   const sw = d.cards.filter(x => x.hist && x.hist.length), nSw = sw.reduce((a, x) => a + x.hist.length, 0), own = ownSet();
   const spent = sw.reduce((a, x) => { const c = find(x.n); return a + (c && !own.has(c._n) ? val(x.n) * x.q : 0); }, 0), worth = d.cards.reduce((a, x) => a + val(x.n) * x.q, 0);
@@ -1187,7 +1238,7 @@ function statsHtml(d, A, R){
     (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') + (A.ctx.bracket ? '<span>Bracket <b>' + A.ctx.bracket + '</b></span>' : '') +
     '<span>Swaps <b>' + nSw + '</b></span><span>Spent <b>$' + spent.toFixed(0) + '</b></span><span class="hdot ' + hs + '">Health ' + (nBad + nWarn ? nBad + nWarn + ' to watch' : 'good') + '</span></div>';
   const open1 = S.statsOpen !== false;
-  return strip + '<details class="stats grp" id="stats-more"' + (open1 ? ' open' : '') + '><summary><span class="lab" style="margin:0">Build stats</span></summary>' +
+  return strip + apexTips(d, A, R, e, HA, lvl) + '<details class="stats grp" id="stats-more"' + (open1 ? ' open' : '') + '><summary><span class="lab" style="margin:0">Build stats</span></summary>' +
     '<div class="sgrid"><div><small>Deck score</small><b>' + (e ? e.total : '—') + '</b>' + (e ? statDelta(e.total, B && B.score) + (B && B.score !== e.total ? '<span class="note"> since ' + B.at + '</span>' : '') : '') + '</div>' +
     '<div><small>Card quality</small><b>' + (qp == null ? '—' : qp + '%') + '</b><span class="note">of Apex</span></div>' +
     '<div><small>Bracket</small><b>' + (A.ctx.bracket || '—') + '</b><span class="note">' + (A.ctx.bracket ? esc(BRACKETS[A.ctx.bracket].label) : '') + '</span></div>' +
@@ -1196,10 +1247,58 @@ function statsHtml(d, A, R){
     '<div><small>Buy list</small><b>' + want.length + '</b><span class="note">$' + wCost.toFixed(0) + '</span></div></div>' +
     '<span class="lab">Tier meter</span>' + tierMeter +
     (left.length ? '<span class="lab">Upgrades left</span><div class="row">' + left.map(x => '<span class="chip' + (x.s.n ? '' : ' good') + '">' + TIERS[x.t].label + ' · ' + (x.s.n ? x.s.n + ' swap' + (x.s.n === 1 ? '' : 's') + ' · ' + (x.s.cost >= 0 ? '+' : '−') + '$' + Math.abs(x.s.cost).toFixed(0) : 'done') + '</span>').join('') + '</div>' : '') +
-    '<span class="lab">Health</span><div class="hgrid">' + H.map(x => '<span class="hi ' + x.s + '"><i></i><b>' + x.k + '</b> ' + esc(x.t) + '</span>').join('') + '</div>' +
+    '<span class="lab">Health</span><div class="hgrid">' + H.map(x => '<span class="hi ' + (ign.has(x.k) ? 'ign' : x.s) + '"><i></i><b>' + x.k + '</b> ' + esc(x.t) + (ign.has(x.k) ? ' · ignored' : '') + '</span>').join('') + '</div>' + healthFixHtml(H, ign, fixable) +
     (B ? '<div class="row"><span class="note">Changes are counted from ' + B.at + ' (score ' + B.score + (B.q != null ? ', card quality ' + B.q + '%' : '') + ').</span><button class="btn sm" data-act="stats-reset" style="margin-left:auto">Start counting from now</button></div>' : '') +
     '</details>';
 }
+// Health alerts: each one that isn't good can be fixed (a menu of direct swaps that remedy it, each with its effect on the
+// deck score) or ignored for this deck. Fix all opens the same menu for every alert at once.
+const FIX_OF = {Lands:'landsUp', Ramp:'ramp', Draw:'draw', Removal:'removal', Wipes:'wipe', Curve:'curve', 'Win routes':'wins'};
+const FIX_WHY = {landsUp:'More lands mean fewer missed land drops.', ramp:'Ramp gets the deck’s big plays out turns earlier.', draw:'Card draw keeps your hand full so the deck doesn’t run out of gas.', removal:'Removal answers the threats that would beat you.', wipe:'Board wipes reset the game when you fall behind.', curve:'Cheaper cards let you do more each turn.', wins:'A deck needs a clear way to finish the game.'};
+// Path to Apex: the few steps that would move this deck furthest toward its Apex build, from the deck's own numbers:
+// its biggest score gains, how it compares with the Apex build on Game Changers, tutors and fast mana, its health alerts,
+// combos it is one card away from, and mana trouble. Each tip has a button that does or shows it.
+const isTutor = c => tags(c).roles.has('tutor'), isFast = c => typeof FAST_MANA !== 'undefined' && FAST_MANA.has(c._n);
+function apexTips(d, A, R, e, HA, lvl){
+  if (!e || !R || R.pending || lvl === 'Apex' && !HA.some(x => x.s === 'bad')) return lvl === 'Apex' ? '<div class="tip good"><b><small>Path to Apex</small>This deck is at Apex level</b></div>' : '';
+  const T = [], ar = apexFor(d), cnt = (L, f) => L.reduce((a, x) => { const c = find(x.n); return a + (c && f(c) ? x.q : 0); }, 0);
+  const top = R.paths.map(L => L.opts.apex).filter(p => p && p.dScore != null && p.dScore > 0).sort((a, b) => b.dScore - a.dScore).slice(0, 3);
+  if (top.length) T.push({w:top.reduce((s, p) => s + p.dScore, 0), h:'<b>Biggest gains:</b> ' + top.map(p => esc(p.add.split(' // ')[0]) + ' for ' + esc(p.cut.split(' // ')[0])).join('; ') + ' · together about +' + top.reduce((s, p) => s + p.dScore, 0).toFixed(1) + ' score', b:'<button class="btn sm" data-act="upsort" data-v="impact">Show by impact</button>'});
+  if (ar && ar.cards){ const mine = d.cards, ap = ar.cards.apex;
+    const kinds = R.paths.map(L => slotKinds(d, Object.values(L.opts)));
+    [['Game Changers', c => c.gc, 'gc'], ['tutors', isTutor, 'tutor'], ['fast mana', isFast, '']].forEach(([lab, f, k]) => { const a = cnt(ap, f), m = cnt(mine, f), rows = k ? kinds.filter(x => x.has(k)).length : 0;
+      if (a - m >= 2) T.push({w:1.2 * (a - m), h:'<b>' + lab[0].toUpperCase() + lab.slice(1) + ':</b> the Apex build for this commander runs ' + a + ', this deck runs ' + m + '.' + (k === 'gc' ? ' Game Changers are often what moves a deck up a tier.' : '') + (k && !rows && d.tier && d.tier !== 'apex' ? ' Most cost more than this deck’s ' + TIERS[d.tier].label + ' price level.' : ''), b:rows ? '<button class="btn sm" data-act="upkind" data-v="' + k + '">Show ' + rows + ' ' + lab + '</button>' : ''}); }); }
+  const hb = HA.filter(x => x.s !== 'good' && FIX_OF[x.k]); if (hb.length) T.push({w:1.5 * hb.length, h:'<b>Health:</b> ' + hb.map(x => x.k).join(', ') + (hb.length === 1 ? ' needs' : ' need') + ' attention.', b:'<button class="btn sm" data-act="h-fix" data-v="' + (hb.length === 1 ? esc(hb[0].k) : '*') + '">' + (hb.length === 1 ? 'Fix this' : 'Fix all') + '</button>'});
+  const near = (e.combos.near || []).filter(x => x.x.win && find(x.miss) && !entryOf(d, x.miss)).slice(0, 1);
+  if (near.length && !e.combos.win.length) T.push({w:2, h:'<b>Win route:</b> one card from a combo (' + esc(near[0].x.what.toLowerCase()) + '): add ' + esc(near[0].miss) + '.', b:'<button class="btn sm" data-act="card" data-n="' + esc(near[0].miss) + '">View card</button>'});
+  if (e.sim && e.sim.colourStuck > 0.15) T.push({w:2 * e.sim.colourStuck * 5, h:'<b>Mana:</b> in ' + Math.round(e.sim.colourStuck * 100) + '% of practice games a colour was missing. Better lands fix this.', b:'<button class="btn sm" data-act="upkind" data-v="land">Show land upgrades</button>'});
+  if (!T.length) return '';
+  return '<div class="tip ok apextips"><b><small>Path to Apex</small>' + (lvl ? 'At ' + lvl + ' level · ' : '') + 'what would help this deck most</b><ul>' + T.sort((a, b) => b.w - a.w).slice(0, 4).map(t => '<li class="pro"><i>→</i><span>' + t.h + (t.b ? '<span class="row" style="margin-top:4px">' + t.b + '</span>' : '') + '</span></li>').join('') + '</ul></div>'; }
+function healthFixHtml(H, ign, fixable){
+  const bad = H.filter(x => x.s !== 'good');
+  if (!bad.length) return '';
+  return '<div class="hfix"><span class="lab" style="margin:0">Needs attention</span>' + bad.map(x => '<div class="row" style="gap:6px"><span class="hi ' + (ign.has(x.k) ? 'ign' : x.s) + '" style="flex:1;min-width:0"><i></i><b>' + x.k + '</b> ' + esc(x.t) + '</span>' +
+    (ign.has(x.k) ? '<button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button>' : (FIX_OF[x.k] ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">Fix this</button>' : x.k === 'Legal' && /open slot/.test(x.t) ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>' : x.k === 'Mana' ? '<button class="btn pri sm" data-act="upkind" data-v="land">Land upgrades</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(x.k) + '">Ignore</button>') + '</div>').join('') +
+    (fixable.length > 1 ? '<div class="row"><button class="btn pri sm" data-act="h-fix" data-v="*">Fix all (' + fixable.length + ')</button></div>' : '') + '</div>'; }
+// The swaps that fix one alert, best for the deck score first. Worked out when the menu opens.
+function fixList(d, key){ const kind = FIX_OF[key]; if (!kind) return []; const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
+  const score = e && e.exact != null ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
+  try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score}); } catch (err) { return []; } }
+function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
+  const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
+  const tgt = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]};
+  const need = k => tgt[k] ? Math.max(1, tgt[k][1] - tgt[k][0]) : 1;
+  const sw = (g, p, i) => { const a = find(p.add), c = find(p.cut); return '<div class="opt fixsw"><button class="sw out" data-act="card" data-n="' + esc(p.cut) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span><small>Cut</small>' + esc(p.cut) + '</span><em>' + money(c) + '</em></button><button class="sw in" data-act="card" data-n="' + esc(p.add) + '">' + (a ? '<img alt="" src="' + artFor(a, {pid:a.id}) + '">' : '') + '<span><small>Add</small>' + esc(p.add) + '</span><em>' + money(a) + '</em></button>' +
+    '<div class="row">' + (p.dScore != null ? scoreChip(p.dScore) : '') + (a && a.gc ? '<span class="chip gc">Game Changer</span>' : '') + '<span class="chip">' + esc(p.why) + '</span>' + (a && ownSet().has(a._n) ? '<span class="chip good">You own this</span>' : '') + '<button class="btn pri sm" data-act="fix-swap" data-v="' + esc(g.k) + '|' + i + '" style="margin-left:auto">Swap</button></div></div>'; };
+  let h = '<div class="panel" role="dialog" aria-label="Fix deck health"><div class="ph"><h2>' + (keys.length > 1 ? 'Fix all alerts' : 'Fix: ' + esc(keys[0])) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="mscroll">' +
+    '<p class="note" style="margin:0">Direct swaps that fix each alert, best for the deck score first. Each swap takes out a card the deck can best spare (never one you hold, and never one doing a job the deck is short of). Every swap can be undone.</p>';
+  if (!G.length) h += '<p class="note">Nothing to fix: every alert here is ignored.</p>';
+  G.forEach(g => { const n = need(g.k), good = g.L.filter(p => p.dScore == null || p.dScore >= 0);
+    h += '<div class="grp"><span class="lab">' + esc(g.k) + (tgt[g.k] ? ' · ' + tgt[g.k][0] + ' of ' + tgt[g.k][1] : '') + '</span><p class="note" style="margin:0">' + esc(FIX_WHY[FIX_OF[g.k]] || '') + (tgt[g.k] ? ' ' + n + ' more would reach the target.' : '') + '</p>' +
+      (g.L.length ? '<div class="paths">' + g.L.map((p, i) => sw(g, p, i)).join('') + '</div>' : '<p class="note" style="margin:0">No swap found that fixes this without weakening something the deck needs.</p>') +
+      '<div class="row">' + (good.length ? '<button class="btn sm" data-act="fix-top" data-v="' + esc(g.k) + '">Make the top ' + Math.min(n, good.length) + ' swap' + (Math.min(n, good.length) === 1 ? '' : 's') + '</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(g.k) + '">Ignore this alert</button></div></div>'; });
+  h += '</div></div>'; $('#modal').innerHTML = h; $('#modal').hidden = false; }
+function fixApply(d, list){ let k = 0; list.forEach(p => { if (entryOf(d, p.cut) && !entryOf(d, p.add)){ doSwap(d, {cut:p.cut, add:p.add, q:1}, 0); k++; } }); return k; }
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
   let h = '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
@@ -1251,16 +1350,20 @@ function upPanel(d, A){
       '<p class="note" style="margin:0">Apex is the strongest card found for each slot, whatever it costs, so a cheap card can be the Apex pick. Mid and Budget are cheaper cards that do the same job as the Apex card: under $12 and under $3, and cheaper than the Apex card. When nothing qualifies the tier stays empty and says why. When the Apex card already costs less than a tier’s limit, that tier uses it. Mid and Budget also offer the best deck with every new card under their limit (per card; cards you own count as free). That list is chosen on its own, so it can replace different cards than the Apex list. The Apex swaps are also checked together: the line under Apex shows what applying all of them does to the deck. Picks you have been shown are held in place until you swap them in, exclude them, or regenerate.</p>' +
       '<p class="note" style="margin:0"><b>Don’t suggest for this deck</b> excludes that card from this deck’s recommendations. Your deck stays unchanged, and you can allow the card again under Excluded cards for this deck.</p>';
     const show = S.pathShow || 12, PT = R.paths.map(L => slotTypes(Object.values(L.opts).map(o => o.add))), PK = R.paths.map(L => slotKinds(d, Object.values(L.opts))), PV = R.paths.map((L, i) => [L, i]).filter(([, i]) => (!upT() || PT[i].has(upT())) && (!upK() || PK[i].has(upK())));
-    h += typeBar(PT, PV.length) + kindBar(PK) + (upK() && !PV.length ? '<p class="note" style="margin:0">No ' + esc(KIND_LAB[upK()].toLowerCase()) + ' upgrades right now' + (upT() ? ' of that card type' : '') + '.</p>' : '') + '<div class="paths">' + PV.slice(0, show).map(([L, i]) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
+    // Sort: by how much each upgrade raises the deck score (the default), the engine's own ranking, or cheapest first.
+    { const so = S.upSort || 'impact', imp = L => Math.max(...Object.values(L.opts).map(p => p && p.dScore != null ? p.dScore : -1e9)), cost = L => { const p = tierPick(L, d.tier || 'apex') || L.opts.apex || Object.values(L.opts)[0], c = p && find(p.add); return p && p.own ? -1 : c && c.p != null ? c.p : 1e6; };
+      if (so === 'impact') PV.sort((a, b) => imp(b[0]) - imp(a[0]) || a[1] - b[1]); else if (so === 'price') PV.sort((a, b) => cost(a[0]) - cost(b[0]) || a[1] - b[1]); }
+    h += sortBar() + typeBar(PT, PV.length) + kindBar(PK) + (upK() && !PV.length ? '<p class="note" style="margin:0">No ' + esc(KIND_LAB[upK()].toLowerCase()) + ' upgrades right now' + (upT() ? ' of that card type' : '') + '.</p>' : '') + '<div class="paths">' + PV.slice(0, show).map(([L, i]) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
       const fp = L.opts.free;
       const cw = (L.opts.apex || L.opts.mid || L.opts.budget || {}).cutWhy || [];
       // the explanation shares the swap-history row, so every card keeps the same 7 rows and lines up with its neighbours
       return '<div class="path">' + side('out', L.cut, 1) + '<div>' + (cw.length ? '<p class="note" style="margin:0">Why it can go: ' + esc(cw.join(' · ')) + '</p>' : '') + histHtml(en) + '</div>' +
         '<div class="prog" role="img" aria-label="Upgrade progress: ' + (step ? TIERS[TIER_KEYS[step - 1]].label : 'not started') + '">' + ['Now'].concat(TIER_KEYS.map(t => TIERS[t].label)).map((lab, k) => '<span class="' + (k <= step ? 'done' : '') + (k === step ? ' here' : '') + (k > 0 && L.opts[TIER_KEYS[k - 1]] ? ' has' : '') + '"><i></i>' + lab + '</span>').join('') + '</div>' +
         (fp ? '<div class="tip good free"><b><small>Tip</small>Free swap · you already own this</b>' + side('in', fp.add, fp.q) + '<div class="row">' + scoreChip(fp.dScore) + gcChip(fp, R) + (fp.cross ? '<span class="chip warn">' + fp.from + ' → ' + fp.to + '</span>' : '') + fp.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div><div class="row"><button class="btn sm" data-act="lib-not-own" data-n="' + esc(fp.add) + '">I don’t own this card</button><button class="btn pri sm" data-act="swap" data-v="' + i + '|free" style="margin-left:auto">Swap</button></div></div>' : '<div></div>') +
-        TIER_KEYS.map(t => { const p = L.opts[t]; if (!p) return '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + esc((L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') + '</p></div>';
-          return '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + upChip(L, t) + driftChip(d, p.add, t) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
-            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Don’t suggest ' + esc(p.add) + ' for this deck">Don’t suggest for this deck</button>' + altBtn('up|' + i + '|' + t) + (p.own ? '' : lackBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + t + '" style="margin-left:auto">Swap</button></div></div>';
+        TIER_KEYS.map(t => { const col = rowCols(d, R, L, i)[t], src = col && col.src, p = col && col.p; if (!p) return '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + esc((L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') + '</p></div>';
+          const inh = col.kind === 'alt' ? '<span class="chip" title="The Apex card is the best for this slot. This is the next best card under $' + TIERS[t].cap + ' that does the same job and still clearly raises the deck score.">Next best under $' + TIERS[t].cap + '</span>' : src !== t ? '<span class="chip" title="' + (TIER_KEYS.indexOf(src) < TIER_KEYS.indexOf(t) ? 'No stronger card does this job better here, so the ' + TIERS[src].label + ' pick is also the ' + TIERS[t].label + ' pick.' : 'The ' + TIERS[src].label + ' pick already costs under $' + TIERS[t].cap + '.') + '">' + (TIER_KEYS.indexOf(src) < TIER_KEYS.indexOf(t) ? 'Best at every tier' : 'Same card · under $' + TIERS[t].cap) + '</span>' : '';
+          return '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + inh + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + (col.kind === 'alt' ? scoreChip(p.dScore) : upChip(L, src) + driftChip(d, p.add, src)) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
+            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Don’t suggest ' + esc(p.add) + ' for this deck">Don’t suggest for this deck</button>' + (col.kind === 'alt' ? '' : altBtn('up|' + i + '|' + src)) + (p.own ? '' : lackBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + (col.kind === 'alt' ? t + '|alt' : src) + '" style="margin-left:auto">Swap</button></div></div>';
 }).join('') + '</div>'; }).join('') + '</div>';
     if (PV.length > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, PV.length - show) + ' more</button>';
   }
@@ -1275,7 +1378,7 @@ function upPanel(d, A){
 function viewDeck(){
   const opt = (act, v, title, text) => '<button class="tile" data-act="' + act + '"' + (v ? ' data-v="' + v + '"' : '') + '><div class="tb"><h3>' + title + '</h3><p>' + text + '</p></div></button>';
   return '<section class="panel"><div class="ph"><h2>Build a new deck</h2><small>Saved to Decks when created</small></div><div class="tiles">' +
-    opt('gen-open', '', 'Generate from a commander', 'Pick a legendary creature. The app designs the strongest build around what that commander does, with Mid and Budget stand-ins for each card.') +
+    opt('gen-open', '', 'Generate from a commander', 'Pick a legendary creature and how to build it: best overall, theme first or around mechanics, at any price level. The full deck goes straight into your decklist, with upgrades from there.') +
     opt('seed-open', '', 'Generate from cards', 'Don’t know your commander yet? Add any cards you want to play. The app suggests commanders that fit them and fills in the rest of the deck.') +
     opt('precon-open', '', 'Load a precon', 'Start from a real preconstructed Commander deck with its official card list.') +
     opt('import-open', '', 'Import a text list', 'Paste or load a decklist you already have, from Arena, Moxfield, Archidekt or a plain text file.') +
@@ -1394,16 +1497,18 @@ function regenBuild(d){
   const nd = newDeck({name:d.name.replace(/ \(generated\)$/, '') + ' (generated)', format:'commander', tier:'apex', src:'generated', aims:d.aims.slice(), tribe:d.tribe || '', colors:(d.colors || []).slice(), types:(d.types || []).slice(), keys:(d.keys || []).slice(), typesMust:!!d.typesMust, keysMust:!!d.keysMust, sets:(d.sets || []).slice(), setsMust:!!d.setsMust, custom:true, aimAuto:d.aimAuto});
   setCommander(nd, c.n); if (d.partner){ const p = find(d.partner); if (p && canPair(c, p)) nd.partner = p.n; }
   nd.colors = (d.colors || []).length ? d.colors.slice() : ctxOf(nd).ident.slice(); nd.tribe = d.tribe || nd.tribe;   // setCommander resets them; keep the player's
-  nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
-  toast('Designed a new ' + nd.plan.reduce((s, x) => s + x.q, 0) + '-card build with your mechanics. Your original deck is unchanged.'); return nd;
+  if (d.themeFirst) nd.themeFirst = true;
+  nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.planShow = 0; const k = planAll(nd, S.gen.tier || 'apex'); delete nd.plan; nd.tier = S.gen.tier || 'apex'; S.tab = 'list';
+  toast('Built a new ' + k + '-card deck with your mechanics at ' + TIERS[S.gen.tier || 'apex'].label + '. Your original deck is unchanged.'); return nd;
 }
 function openGenerate(){
+  S.gen = Object.assign({tier:'apex', best:true, theme:false, mech:[], warn:''}, S.gen); if (!TIERS[S.gen.tier]) S.gen.tier = 'apex';
   if (!S.setList && !S.setErr) ensureSets().then(() => { if (S.setList && !$('#modal').hidden && $('#gen-q')) openGenerate(); });
   const g = S.gen, c = find(g.cmd), st = detectStrategy(c);
-  let h = '<div class="panel" role="dialog" aria-label="Generate from a commander"><div class="ph"><h2>Generate from a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Pick any legendary creature. Deck Companion reads what the commander does, sets the build to match, and designs the strongest 100-card build for it, with cheaper Mid and Budget stand-ins for every expensive card. Nothing goes into the decklist until you add it.</p>' +
+  let h = '<div class="panel" role="dialog" aria-label="Generate from a commander"><div class="ph"><h2>Generate from a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Pick any legendary creature and how to build it. Deck Companion builds the full 100 cards straight into a new deck, then offers upgrades from there.</p>' +
     '<div class="grp"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search commanders" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
   if (c) h += '<div class="detail">' + cardHtml(c, false) + '<div class="grp"><span class="lab">Strategy it will follow</span><div class="row">' + (st.themes.length ? st.themes.map(k => '<span class="chip gold">' + (k === 'tribal' ? st.tribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. The deck opens in the Builder so you can pick the mechanics, then fill it.</span>') + '</div>' +
-    genPartnerBox(c) +
+    genPartnerBox(c) + genModeBox(c, st) +
     '<div class="grp"><span class="lab">Card sets · optional</span>' + setFilterHtml(S.gen.sets || [], S.gen.setsMust, 'gset') + '<p class="note" style="margin:0">' + ((S.gen.sets || []).length ? (S.gen.setsMust ? 'Only cards printed in these sets (and basic lands) go into the build.' : 'Cards printed in these sets are preferred.') : 'Build from one set or a few: add a set, then choose Preferred or Only these sets.') + '</p></div>' +
     ownToggle('gen') +
     '<div class="row">' + edhNote(c) + '</div>' +
@@ -1413,6 +1518,23 @@ function openGenerate(){
   h += '<div class="grp"><span class="lab">Or a 60-card Standard deck from a theme</span>' + STD_STARTERS.map((p, i) => '<div class="pre" style="grid-template-columns:minmax(0,1fr) auto"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + p.colors.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') + '<div class="note">' + esc(p.note) + '</div></div><div><button class="btn pri sm" data-act="std-starter" data-v="' + i + '">Generate</button></div></div>').join('') + '</div></div>';
   $('#modal').innerHTML = h; $('#modal').hidden = false;
 }
+// How to build it: Best overall, Theme first and a mechanic focus are switches. Theme first and mechanics combine; Best overall
+// (the strongest deck from any set, built on what top players build the commander around) can't put anything else first, so
+// choosing it switches the others off and the reverse, and the player is told why. The price level always combines.
+const GEN_PRICE = {apex:'The strongest card for every slot.', mid:'Nothing over $12; stand-ins that do the same job.', budget:'Nothing over $3; stand-ins that do the same job.'};
+function genMechs(c, st){ const L = []; if (c && EDH.key === c.n && EDH.state === 'ok') (EDH.tags || []).slice(0, 10).forEach(t => L.push(['edh:' + t.slug, t.label]));
+  (st.themes || []).forEach(k => { const lab = k === 'tribal' ? st.tribe + ' tribal' : THEMES[k].label; if (!L.some(x => x[1].toLowerCase() === lab.toLowerCase())) L.push([k, lab]); }); return L; }
+function genModeBox(c, st){ const g = S.gen, T = themeCtx({commander:c.n, partner:g.partner || ''}), fam = [...T.fam][0], ty = [...T.types].slice(0, 2), M = genMechs(c, st);
+  const sw = (act, on, title, note, dis) => '<button class="chk' + (on ? ' on' : '') + '" data-act="' + act + '" role="switch" aria-checked="' + !!on + '"' + (dis ? ' disabled' : '') + '><i></i><span><b>' + title + '</b><small class="note" style="display:block">' + note + '</small></span></button>';
+  const themeNote = fam || ty.length ? 'Cards from ' + [fam ? esc(fam) : '', ty.length ? esc(ty.join(' and ')) + ' cards' : ''].filter(Boolean).join(' and ') + ' first, then the strongest of the rest.' : 'This commander has no set family or creature type to build on.';
+  return '<div class="grp" id="genmode"><span class="lab">How to build it</span>' +
+    sw('gen-best', g.best, 'Best overall', 'The strongest deck for this commander, from any set, built on what top players build it around.') +
+    sw('gen-theme', g.theme, 'Theme first', themeNote, !fam && !ty.length) +
+    sw('gen-mechon', g.mech.length || g.mechOpen, 'Focus on mechanics', g.mech.length ? 'In this order: ' + g.mech.map(a => esc((M.find(x => x[0] === a) || [a, aimLabel(a, st.tribe)])[1])).join(', ') + '.' : 'Pick up to three mechanics; the first counts most.') +
+    ((g.mech.length || g.mechOpen) ? '<div class="row" role="group" aria-label="Mechanics">' + (M.length ? M.map(([a, lab]) => { const i = g.mech.indexOf(a); return '<button class="btn sm' + (i >= 0 ? ' pri' : '') + '" data-act="gen-mech" data-v="' + esc(a) + '" aria-pressed="' + (i >= 0) + '">' + (i >= 0 ? (i + 1) + ' · ' : '') + esc(lab) + '</button>'; }).join('') : '<span class="note">' + (EDH.key === c.n && EDH.state === 'loading' ? 'Loading this commander’s mechanics…' : 'No mechanics found for this commander.') + '</span>') + '</div>' : '') +
+    (g.warn ? '<div class="tip ok" role="alert"><b><small>Choices changed</small>' + esc(g.warn) + '</b></div>' : '') +
+    (!g.best && !g.theme && !g.mech.length ? '<p class="note" style="margin:0">Nothing is switched on, so the deck is built as Best overall.</p>' : '') +
+    '<span class="lab">Price level</span><div class="row" role="group" aria-label="Price level">' + TIER_KEYS.slice().reverse().map(t => '<button class="btn sm' + (g.tier === t ? ' pri' : '') + '" data-act="gen-tier" data-v="' + t + '" aria-pressed="' + (g.tier === t) + '">' + TIERS[t].label + '</button>').join('') + '</div><p class="note" style="margin:0">' + GEN_PRICE[g.tier] + ' Every choice above works at every price level' + (g.tier === 'apex' && g.theme ? ': Apex with Theme first is the strongest deck that keeps the theme' : '') + '.</p></div>'; }
 // Generate from cards: the player names cards they want to play; the app proposes commanders that fit them and builds the rest.
 function seedThemes(cards){
   const n = {}; cards.forEach(c => { const th = tags(c).th; for (const k in th) if (th[k] === 1) n[k] = (n[k] || 0) + 1; });
@@ -1481,7 +1603,7 @@ function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h
 function fitWork(){ const w = document.querySelector('.work'); if (!w) return; const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
 function render(){
   const keep = {}; document.querySelectorAll('[data-keep]').forEach(el => keep[el.id] = el.scrollTop);
-  navHtml(); const m = $('#main');
+  if (UNDO.base == null) UNDO.base = undoSnap(); navHtml(); const m = $('#main');
   document.querySelector('.top').classList.toggle('home', S.view === 'home'); document.querySelector('.app').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = S.view === 'home' ? '10px' : '16px';
@@ -1593,15 +1715,23 @@ async function openAnalysis(){
 // Card details: add the card to one of the player's buy lists. The deck it upgrades (or the open deck) is chosen first; decks it
 // cannot go in are listed with the reason and cannot be picked.
 function wantBox(c){
-  const decks = S.profile.decks.concat(S.draft ? [S.draft] : []); if (!decks.length) return '<div id="wantbox"></div>';
-  const fit = d => wantFit(d, c), up = upFor(c).map(x => x.id), cd = cur();
-  let sel = S.wantDeck && decks.some(d => d.id === S.wantDeck && !fit(d)) ? S.wantDeck : (up.find(id => decks.some(d => d.id === id && !fit(d))) || (cd && !fit(cd) ? cd.id : (decks.find(d => !fit(d)) || {}).id));
-  const d = decks.find(x => x.id === sel), on = d && wantOf(d).some(x => keyOf(x.n) === c._k), inDeck = d && entryOf(d, c.n);
-  return '<div class="grp" id="wantbox"><span class="lab">Add to a buy list</span><div class="row"><select id="want-deck" aria-label="Deck" style="flex:1 1 180px;min-width:0;width:auto">' +
+  const decks = S.profile.decks.concat(S.draft ? [S.draft] : []), fit = d => wantFit(d, c), up = upFor(c).map(x => x.id), cd = cur(), mineOn = myWant().some(x => keyOf(x.n) === (c && c._k));
+  let sel = S.wantDeck === MINE || (S.wantDeck && decks.some(d => d.id === S.wantDeck && !fit(d))) ? S.wantDeck : (up.find(id => decks.some(d => d.id === id && !fit(d))) || (cd && !fit(cd) ? cd.id : MINE));
+  const d = decks.find(x => x.id === sel), on = sel === MINE ? mineOn : d && wantOf(d).some(x => keyOf(x.n) === c._k), inDeck = d && entryOf(d, c.n);
+  return '<div class="grp" id="wantbox"><span class="lab">Add to a buy list</span><div class="row"><select id="want-deck" aria-label="Buy list" style="flex:1 1 180px;min-width:0;width:auto">' +
+    '<option value="' + MINE + '"' + (sel === MINE ? ' selected' : '') + '>My buy list · not for a deck</option>' +
     decks.map(x => { const f = fit(x); return '<option value="' + esc(x.id) + '"' + (x.id === sel ? ' selected' : '') + (f ? ' disabled' : '') + '>' + esc(x.name) + (up.includes(x.id) ? ' · upgrade' : '') + (f ? ' (' + esc(f) + ')' : '') + '</option>'; }).join('') + '</select>' +
-    (d ? (on ? '<button class="btn sm" data-act="want-undo" data-n="' + esc(c.n) + '">On the buy list · remove</button>' : '<button class="btn pri sm" data-act="want-add" data-n="' + esc(c.n) + '">Add to buy list</button>') : '') + '</div>' +
-    (!d ? '<p class="note" style="margin:0">This card can’t go in any of your decks: ' + esc(fit(decks[0])) + '.</p>' : inDeck ? '<p class="note" style="margin:0">' + esc(d.name) + ' already has this card.</p>' : ownSet().has(c._n) ? '<p class="note" style="margin:0">You already own this card (it’s in your library).</p>' : '') + '</div>';
+    (on ? '<button class="btn sm" data-act="want-undo" data-n="' + esc(c.n) + '">On the buy list · remove</button>' : '<button class="btn pri sm" data-act="want-add" data-n="' + esc(c.n) + '">Add to buy list</button>') + '</div>' +
+    '<p class="note" style="margin:0">' + (sel === MINE ? 'Your own buy list keeps cards you want without putting them in any deck. It is on the My decks page.' : 'Added to ' + esc(d.name) + '’s buy list only; the deck itself does not change.') + (inDeck ? ' ' + esc(d.name) + ' already has this card.' : ownSet().has(c._n) ? ' You already own this card (it’s in your library).' : '') + '</p></div>';
 }
+// My buy list: cards the player wants that belong to no deck. Saved with the profile (and so in backup files).
+const MINE = '__mine';
+function myWant(){ return S.profile.want || (S.profile.want = []); }
+function myWantHtml(){ const W = myWant(); if (!W.length) return '';
+  const tot = W.reduce((a, x) => { const c = find(x.n); return a + (c && c.p || 0) * x.q; }, 0);
+  return '<section class="panel" id="mywant"><div class="ph"><h2>My buy list</h2><small>' + W.length + ' card' + (W.length === 1 ? '' : 's') + ' · ' + (DBINFO.source === 'starter' ? '~' : '') + '$' + tot.toFixed(2) + '</small></div><p class="note" style="margin:0">Cards you want that are not tied to a deck. Add more from any card’s details.</p><div class="rows">' +
+    W.map((x, i) => '<div class="row" style="flex-wrap:nowrap;gap:6px"><div style="flex:1;min-width:0"><button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + '</span><span></span><span class="pr">' + money(find(x.n)) + '</span></button></div><button class="ico" data-act="mywant-rm" data-v="' + i + '" aria-label="Remove ' + esc(x.n) + ' from my buy list" title="Remove from my buy list">×</button></div>').join('') +
+    '</div><div class="row"><button class="btn pri sm" data-act="mywant-copy">Copy as text</button></div></section>'; }
 function openCard(name, pid){
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
   const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
@@ -1610,7 +1740,7 @@ function openCard(name, pid){
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => symImg(x)).join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
-    (c.gc || BTAGS.mld.has(c._n) || BTAGS.turns.has(c._n) ? '<dt>Brackets</dt><dd>' + [c.gc ? 'Game Changer (Bracket 3 allows up to three; 4 and 5 any)' : '', BTAGS.mld.has(c._n) ? 'Mass land denial (Bracket 4 and up)' : '', BTAGS.turns.has(c._n) ? 'Extra turn (a few at most below Bracket 4)' : ''].filter(Boolean).join('; ') + '</dd>' : '') +
+    (c.gc || BTAGS.mld.has(c._n) || BTAGS.turns.has(c._n) ? '<dt>Brackets</dt><dd>' + [c.gc ? '<span class="chip gc">Game Changer</span> Bracket 3 allows up to three; 4 and 5 any' : '', BTAGS.mld.has(c._n) ? 'Mass land denial (Bracket 4 and up)' : '', BTAGS.turns.has(c._n) ? 'Extra turn (a few at most below Bracket 4)' : ''].filter(Boolean).join('; ') + '</dd>' : '') +
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +
     '<dt>Does</dt><dd>' + ([...tg.roles].map(r => ROLE_LABEL[r] || ({counter:'Counterspell', tutor:'Tutor', protect:'Protection'})[r]).concat(tg.land ? ['Land'] : []).join(', ') || 'Threat / synergy piece') + '</dd>' +
     (upFor(c).length ? '<dt>Upgrade for</dt><dd>' + upFor(c).map(x => '<button class="btn sm" data-act="open-deck" data-v="' + esc(x.id) + '">' + esc(x.name) + '</button> replaces ' + esc(x.cut) + ' <span class="chip">' + ({apex:'Apex', mid:'Mid', budget:'Budget'})[x.t] + '</span>').join('<br>') + '</dd>' : '') +
@@ -1663,14 +1793,24 @@ function manaCheck(d, act, v, n){
 }
 document.addEventListener('click', ev => {
   if (ev.target.id === 'modal'){ $('#modal').hidden = true; S.watchOpen = false; return; }
-  const b = ev.target.closest('[data-act]'); if (b) handleAct(b.dataset.act, b.dataset.v, b.dataset.n, b.dataset.p);
+  const b = ev.target.closest('[data-act]'); if (b){ if (b.dataset.act !== 'undo'){ UNDO.label = (b.getAttribute('aria-label') || b.textContent || b.dataset.act).replace(/\s+/g, ' ').trim().slice(0, 48); } handleAct(b.dataset.act, b.dataset.v, b.dataset.n, b.dataset.p); }
 });
+// Pop-up frame: the window's frame and title stay still and only the content scrolls. Every pop-up's content (all but its
+// title row) is moved into one scrolling body when it is shown; a pop-up that already has its own scrolling list keeps it.
+function frameModal(){ const m = $('#modal'); if (!m || m.hidden) return; const p = m.querySelector(':scope > .panel'); if (!p || p.classList.contains('full') || p.classList.contains('framed')) return;
+  p.classList.add('framed'); if (p.querySelector(':scope > .mscroll')) return; const kids = [...p.children].filter(x => !x.classList.contains('ph')); if (!kids.length) return;
+  const b = document.createElement('div'); b.className = 'mbody'; kids.forEach(x => b.appendChild(x)); p.appendChild(b); }
+{ const fm = () => { const m = $('#modal'); if (m && typeof MutationObserver !== 'undefined') new MutationObserver(frameModal).observe(m, {childList:true, attributes:true, attributeFilter:['hidden']}); }; if (document.readyState === 'loading') addEventListener('DOMContentLoaded', fm); else fm(); }
 function handleAct(act, v, n, pArg){
+  if (act !== 'undo') UNDO.seq++;
   const b = {dataset:{p:pArg}}, d = cur(); let changed = true;
   if (manaCheck(d, act, v, n)) return;
   switch (act){
     case 'nav': S.view = v; S.open = false; S.confirmDel = null; changed = false; break;
     case 'close': $('#modal').hidden = true; S.watchOpen = false; return;
+    case 'undo': undoLast(); return;
+    case 'dup-deck': { const src = S.profile.decks.find(x => x.id === v); if (!src) return; const cp = JSON.parse(JSON.stringify(src)); cp.id = uid(); cp.name = src.name.replace(/ \(copy( \d+)?\)$/, '') + ' (copy)'; cp.example = false; delete cp.regenUndo; delete cp.base;
+      S.profile.decks.splice(S.profile.decks.indexOf(src) + 1, 0, cp); S.deckId = cp.id; S.open = true; S.view = 'decks'; toast('Duplicated as “' + cp.name + '”. The original is unchanged.'); break; }
     case 'regen': openRegen(); return;
     case 'plan-regen': { if (!d || !d.plan) return; const room = Math.max(0, planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0));
       $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Regenerate around my cards"><div class="ph"><h2>Regenerate around my cards?</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
@@ -1736,7 +1876,7 @@ function handleAct(act, v, n, pArg){
     case 'pick-add': { if (offColor(d, find(n))){ document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; } const en0 = entryOf(d, n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast(n + ' is already in this deck' + (en0.n !== n ? ' as ' + en0.n : '') + '.'); return; } document.querySelectorAll('.ddl').forEach(x => x.hidden = true); openCard(n); return; }
     case 'want': { doSwap(d, {cut:v, add:n, q:1}, 0); if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Swapped ' + v + ' out for ' + n + '.'); break; }
     case 'add-to-deck': { const en0 = entryOf(d, n); if (en0 && en0.q >= copyLimit(d, find(n))){ toast('That card is already in the deck at its copy limit.'); return; } } { const sl = planSlotFor(d, n); if (sl){ planInstall(d, sl, sl.b && keyOf(sl.b) === keyOf(n) ? 'b' : sl.m && keyOf(sl.m) === keyOf(n) ? 'm' : 'a'); } else addCard(d, n, 1); } if (S.pick && S.pick.n === n && S.pick.set){ const en = d.cards.find(e2 => e2.n === n); if (en){ setPrint(en, S.pick); } } $('#modal').hidden = true; toast('Added ' + n + ' to ' + d.name + '.'); break;
-    case 'swap': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], p = L && L.opts[t]; if (!p) return; if (gcBlocked(d, p)){ toast(gcBlockMsg(d)); return; } const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ' (' + bad[0].card + ')' : '') + '.'); return; } const top = !!L.opts.apex && L.opts.apex.add === p.add; doSwap(d, p, top ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(t) + 1)); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'swap': { const [i, t, al] = v.split('|'), L = recsFor(d).paths[+i], col = al && L ? rowCols(d, recsFor(d), L, +i)[t] : null, p = col ? col.p : L && L.opts[t]; if (!p) return; if (gcBlocked(d, p)){ toast(gcBlockMsg(d)); return; } const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ' (' + bad[0].card + ')' : '') + '.'); return; } const ea = effTier(L, 'apex'), top = !!ea && L.opts[ea].add === p.add; doSwap(d, p, top ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(t) + 1)); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'swap-cap': { const list = capList(d, v);
       // its own package, not a tier: holds on the cards it replaces end when those cards leave the deck
       const bad = validatePackage(d, list.map(p => ({cut:p.cut, add:p.add, q:p.q, t:'cap'})));
@@ -1819,7 +1959,12 @@ function handleAct(act, v, n, pArg){
       else { (d.lack = d.lack || []).push(name); if (addWant(d, name)) wantOf(d)[wantOf(d).length - 1].from = 'lack'; toast(name + ' marked as one you don’t have and added to the ' + d.name + ' buy list.'); }
       break; }
     case 'an-apply': { const B = buildThemes(d); if (!B.suggest.length || d.aimLocked) return; aimsChanged(d); d.aims = B.suggest.slice(); if (B.tribe) d.tribe = B.tribe; d.aimAuto = false; d.custom = true; touch(); render(); openAnalysis(); toast('The build now follows your cards: ' + d.aims.map(k => aimLabel(k, d.tribe)).join(' › ') + '.'); return; }
-    case 'want-add': case 'want-undo': { const c = find(n), dk = S.profile.decks.concat(S.draft ? [S.draft] : []).find(x => x.id === (($('#want-deck') || {}).value || '')); if (!c || !dk) return;
+    case 'mywant-rm': { const W = myWant(), x = W[+v]; if (!x) return; W.splice(+v, 1); toast('Removed ' + x.n + ' from your buy list.'); break; }
+    case 'mywant-copy': copyText(['// My buy list'].concat(myWant().map(x => x.q + ' ' + x.n)).join('\n'), 'Buy list copied.'); return;
+    case 'want-add': case 'want-undo': { const c = find(n), sel = ($('#want-deck') || {}).value || MINE;
+      if (c && sel === MINE){ const W = myWant(); if (act === 'want-add'){ if (!W.some(x => keyOf(x.n) === c._k)) W.push({n:c.n, q:1, at:Date.now()}); toast('Added ' + c.n + ' to your buy list.'); } else { S.profile.want = W.filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from your buy list.'); }
+        S.wantDeck = MINE; touch(); const b = $('#wantbox'); if (b) b.outerHTML = wantBox(c); return; }
+      const dk = S.profile.decks.concat(S.draft ? [S.draft] : []).find(x => x.id === sel); if (!c || !dk) return;
       if (act === 'want-add'){ if (wantFit(dk, c)) return; addWant(dk, c.n); toast('Added ' + c.n + ' to the ' + dk.name + ' buy list.'); } else { dk.want = wantOf(dk).filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from the ' + dk.name + ' buy list.'); }
       S.wantDeck = dk.id; touch(); const b = $('#wantbox'); if (b) b.outerHTML = wantBox(c); return; }
     case 'want-rm': { const w = wantOf(d), x = w[+v]; if (!x) return; w.splice(+v, 1); if (x.from === 'lack') d.lack = (d.lack || []).filter(y => keyOf(y) !== keyOf(x.n)); toast('Removed ' + x.n + ' from the buy list.'); break; }
@@ -1830,17 +1975,31 @@ function handleAct(act, v, n, pArg){
     case 'gen-partner': S.gen.partner = n || ''; openGenerate(); return;
     case 'build-gen': { if (S.draft){ const dr = S.draft; S.profile.decks.unshift(dr); S.draft = null; toast('Saved ' + dr.name + ' to your decks first.'); } if (!regenBuild(d)) return; break; }
     case 'gen-pick': S.gen.cmd = n; S.gen.partner = ''; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
-    case 'gen-tier': S.gen.tier = v; openGenerate(); return;
-    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const p = find(S.gen.partner), sets = (S.gen.sets || []).slice(), must = !!S.gen.setsMust;
-      if (sets.length){ setStatus('Reading the chosen sets from Scryfall…'); loadSetCards(sets).then(ok => { setStatus(''); if (!ok) toast('Some set lists could not be read from Scryfall; those sets match only by each card’s shown printing.'); edhAimsFor(c).then(aims => { startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({sets, setsMust:must}, aims.length ? {aims} : {})); touch(); render(); }); }); return; }
-      (async () => { setStatus('Reading how players build ' + c.n.split(',')[0] + '…'); const aims = await edhAimsFor(c); setStatus(''); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, aims.length ? {aims} : null); touch(); render(); })(); return; }
+    case 'gen-tier': S.gen.tier = TIERS[v] ? v : 'apex'; S.gen.warn = ''; openGenerate(); return;
+    case 'gen-best': { const g = S.gen; g.warn = ''; if (!g.best && (g.theme || g.mech.length)){ g.warn = 'Best overall builds from any set around what top players build this commander around, so it can’t also put ' + [g.theme ? 'the theme' : '', g.mech.length ? 'your mechanics' : ''].filter(Boolean).join(' or ') + ' first. ' + [g.theme ? 'Theme first' : '', g.mech.length ? 'Focus on mechanics' : ''].filter(Boolean).join(' and ') + (g.theme && g.mech.length ? ' were' : ' was') + ' switched off.'; g.theme = false; g.mech = []; g.mechOpen = false; } g.best = !g.best; openGenerate(); return; }
+    case 'gen-theme': { const g = S.gen; g.warn = ''; if (!g.theme && g.best){ g.best = false; g.warn = 'Theme first puts the commander’s own set and creature types ahead of the strongest cards from any set, so Best overall was switched off. Theme first and mechanics can be used together.'; } g.theme = !g.theme; openGenerate(); return; }
+    case 'gen-mechon': { const g = S.gen; g.warn = ''; if (g.mech.length || g.mechOpen){ g.mech = []; g.mechOpen = false; } else { g.mechOpen = true; if (g.best){ g.best = false; g.warn = 'Focusing on mechanics builds around the ones you pick instead of what top players build this commander around, so Best overall was switched off.'; } } openGenerate(); return; }
+    case 'gen-mech': { const g = S.gen, i = g.mech.indexOf(v); g.warn = ''; if (i >= 0) g.mech.splice(i, 1); else if (g.mech.length >= 3) g.warn = 'Up to three mechanics. Tap one you picked to remove it first.'; else g.mech.push(v); if (g.best && g.mech.length){ g.best = false; g.warn = 'Focusing on mechanics builds around the ones you pick, so Best overall was switched off.'; } openGenerate(); return; }
+    case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const g = S.gen, p = find(g.partner), sets = (g.sets || []).slice(), must = !!g.setsMust;
+      (async () => { if (sets.length){ setStatus('Reading the chosen sets from Scryfall…'); const ok = await loadSetCards(sets); if (!ok) toast('Some set lists could not be read from Scryfall; those sets match only by each card’s shown printing.'); }
+        setStatus('Reading how players build ' + c.n.split(',')[0] + '…'); let aims = [];
+        if (g.mech.length){ await loadEdh(c.n); const ed = g.mech.filter(isEdhAim); if (ed.length) await loadThemes(c.n, ed); aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]); }
+        else aims = await edhAimsFor(c);
+        setStatus(''); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length}, sets.length ? {sets, setsMust:must} : {}, aims.length ? {aims} : {})); touch(); render(); })(); return; }
+    case 'h-fix': { const H0 = Object.keys(FIX_OF); if (v === '*'){ const st = $('.hfix'); const ks = st ? [...st.querySelectorAll('[data-act="h-fix"]')].map(b => b.dataset.v).filter(x => x !== '*') : H0; openFix(ks); } else openFix([v]); return; }
+    case 'h-ignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v).concat(v); toast('The ' + v + ' alert is ignored for this deck. You can stop ignoring it under Health.'); if (!$('#modal').hidden && S.fixKeys){ const ks = S.fixKeys.filter(x => x !== v); if (ks.length) openFix(ks); else $('#modal').hidden = true; } break;
+    case 'h-unignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v); toast('The ' + v + ' alert is back on.'); break;
+    case 'fix-swap': { const [k, i] = String(v).split('|'), g = (S.fixG || []).find(x => x.k === k), p = g && g.L[+i]; if (!d || !p) return; if (fixApply(d, [p])) toast('Swapped ' + p.cut + ' for ' + p.add + '.'); touch(); render(); openFix(S.fixKeys); return; }
+    case 'fix-top': { const g = (S.fixG || []).find(x => x.k === v); if (!d || !g) return; const A = analyze(d), tg = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]}[v], n = tg ? Math.max(1, tg[1] - tg[0]) : 1;
+      const k = fixApply(d, g.L.filter(p => p.dScore == null || p.dScore >= 0).slice(0, n)); toast('Made ' + k + ' swap' + (k === 1 ? '' : 's') + ' for ' + v + '.'); touch(); render(); openFix(S.fixKeys); return; }
+    case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
+    case 'theme-first': if (!d) return; d.themeFirst = !d.themeFirst; toast(d.themeFirst ? 'Theme first is on: on-theme cards are preferred in this deck’s upgrades and builds.' : 'Theme first is off: upgrades come from any set.'); break;
     case 'gen-own': S.gen.own = !S.gen.own; if (v === 'seed') openSeed(); else openGenerate(); return;
     case 'plan-more': S.planShow = (S.planShow || 16) + 24; changed = false; break;
     case 'plan-basics': { let k = 0; (d.plan || []).slice().forEach(x => { if (x.basic && planInstall(d, x, 'a')) k += x.q; }); toast('Added ' + k + ' basic land' + (k === 1 ? '' : 's') + '.' + (d.plan ? '' : ' The deck is complete.')); break; }
     case 'fix-basics': { const F = recsFor(d).fixes.filter(p => isBasic(p.add)); let k = 0; F.forEach(p => { doSwap(d, p, 0); k += p.q; }); toast('Made ' + k + ' basic land change' + (k === 1 ? '' : 's') + '.'); break; }
     case 'plan-add': { const [id, key] = String(v).split('|'), x = (d.plan || []).find(y => y.id === +id); if (!x || !planInstall(d, x, key)) return; if (!d.plan) toast('Every card is in. The deck is complete.'); break; }
-    case 'plan-all': { let k = 0, room = planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0); const rk = x => x.seed ? 0 : x.own ? 1 : x.basic ? 4 : x.land ? 3 : 2;
-      (d.plan || []).slice().sort((a, b) => rk(a) - rk(b) || a.id - b.id).forEach(x => { if (room <= 0 || (v === 'own' && !x.own)) return; if (x.q > room){ if (x.basic){ addCard(d, x.a, room); x.q -= room; room = 0; } return; } room -= x.q; if (v === 'own'){ if (planInstall(d, x, 'a')) k++; return; } const n = x.own || x.seed || x.basic ? x.a : planPick(x, v); if (planInstall(d, x, n === x.b ? 'b' : n === x.m ? 'm' : 'a')) k++; }); toast('Added ' + k + ' slot' + (k === 1 ? '' : 's') + ' to the deck.' + (d.plan ? '' : ' The deck is complete.')); break; }
+    case 'plan-all': { const k = planAll(d, v); toast('Added ' + k + ' slot' + (k === 1 ? '' : 's') + ' to the deck.' + (d.plan ? '' : ' The deck is complete.')); break; }
     case 'std-starter': { $('#modal').hidden = true; const p = STD_STARTERS[+v], nd = newDeck({name:p.name, format:'standard', aims:p.aims.slice(), tribe:p.tribe || '', colors:p.colors.slice(), src:'generated'}); fillDeck(nd); toast('Standard deck generated.'); break; }
     case 'import-go': {
       const txt = $('#imp-text').value; if (!txt.trim()){ toast('Paste a list or choose a text file first.'); return; }
@@ -1873,7 +2032,7 @@ document.addEventListener('input', ev => {
   else if (t.id === 'gen-q') dropdown(t, $('#gen-res'), {fmt:'commander', legend:true}, 'gen-pick');
   else if (t.id === 'cmd-q') dropdown(t, $('#cmd-res'), {fmt:'commander', legend:true}, 'set-cmd');
 });
-document.addEventListener('change', ev => {
+document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' + ((ev.target.getAttribute && (ev.target.getAttribute('aria-label') || ev.target.id)) || 'setting');
   const t = ev.target, d = cur();
   if (t.id === 'deck-name' && d){ d.name = t.value.trim() || 'Untitled deck'; d.example = false; touch(); }
   else if (t.id === 'p-name'){ S.profile.name = t.value.trim() || 'Planeswalker'; touch(); }
