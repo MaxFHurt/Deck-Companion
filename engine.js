@@ -511,7 +511,11 @@ function tags(c){
   return c._t = {land, th, roles};
 }
 function matchAim(c, key, tribe){
-  if (isEdhAim(key)){ const m = EDH.tmap && EDH.tmap[key.slice(4)], x = m && edhOf(m, c), all = EDH.map && edhOf(EDH.map, c); return x && x.inc >= 0.2 && x.inc >= (all ? all.inc : 0) + 0.05 ? 1 : 0; }
+  if (isEdhAim(key)){ const m = EDH.tmap && EDH.tmap[key.slice(4)], x = m && edhOf(m, c), all = EDH.map && edhOf(EDH.map, c); if (!x || x.inc < 0.2) return 0;
+    // A card that is a core piece of the theme (in UP.dom of its decks or more) fits it even when it is just as common across
+    // all of this commander's decks (Zombie lords for Gisa, whose players mostly build Zombies anyway).
+    if (UP.dom && x.inc >= UP.dom && x.inc >= (all ? all.inc : 0)) return 1;
+    return x.inc >= (all ? all.inc : 0) + 0.05 ? 1 : 0; }
   if (key === 'tribal'){
     if (!tribe) return 0;
     // Creature types are capitalised in rules text; a named Role token ("Young Hero Role") is not the type.
@@ -732,6 +736,7 @@ function filtBonus(c, d){
   if ((d.sets || []).length && !d.setsMust && inSets(c, d)){ s += FILT_W; why.push('From your chosen set'); }
   return {s, why};
 }
+const FAST_MANA = new Set(['Sol Ring', 'Mana Crypt', 'Mana Vault', 'Chrome Mox', 'Mox Diamond', 'Jeweled Lotus', 'Lotus Petal', 'Mox Opal', 'Mox Amber', 'Grim Monolith', 'Ancient Tomb', 'Arcane Signet', 'Fellwar Stone', 'Mind Stone', 'Simian Spirit Guide', 'Elvish Spirit Guide', 'Dark Ritual', 'Cabal Ritual', 'Culling the Weak', 'Jeska\'s Will', 'Gemstone Caverns'].map(n => norm(n)));
 function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
   (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe)); } } });
@@ -750,6 +755,12 @@ function baseScore(c, d, ctx){
   if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6 * STAPLE_K;
   else if (c.r && c.r < 400) s += STAPLE_K * 6 * Math.log(400 / c.r) / Math.log(400 / 60);
   if (!hit && (CORE.has(c._n) || (c.r && c.r < 250)) && !(ft && ft !== ctx.tribe)){ hit = true; why.push('Proven staple'); }
+  // Apex power: what the strongest real decks (bracket 4–5) run that average decks skip. Wizards' Game Changer list (the
+  // cards that warp games most), tutors and fast mana. Only for the Apex build (d.tier apex), so Budget and Mid are unchanged.
+  if ((UP.pw || UP.pt || UP.pf) && (d.tier === 'apex' || !d.tier) && d.format === 'commander' && !(ft && ft !== ctx.tribe)){ const r = tags(c).roles;
+    if (c.gc && UP.pw){ s += UP.pw; why.push('Game Changer: among the strongest cards in Commander'); }
+    if (r.has('tutor') && UP.pt) s += UP.pt;
+    if (UP.pf && FAST_MANA.has(c._n)) s += UP.pf; }
   return {s, hit, why, a:a0};
 }
 function splitBasics(k, ctx){
@@ -947,7 +958,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
