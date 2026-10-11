@@ -1042,14 +1042,16 @@ function rowCols(d, R, L, i){
   // The score check ranks every slot (engine scoreCheck): Apex is the card that raises the deck score most, Mid and Budget the
   // best of the rest under $12 and $3, and each card appears once. Before the check finishes the engine's picks are shown.
   const O = L.opts, out = {}, shown = new Set();
-  for (const t of ['apex', 'mid', 'budget']){ const p = O[t]; if (p && !shown.has(norm(p.add))){ out[t] = {p, src:t, kind:'own'}; shown.add(norm(p.add)); } else out[t] = {p:null, note:(L.none && L.none[t]) || (O.apex ? 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score after the cards above it.' : '')}; }
+  // the best card for the slot is its Apex card: with no Apex pick of its own, the best cheaper pick moves up (not copied)
+  const best = O.apex || O.mid || O.budget; if (best && !O.apex){ out.apex = {p:best, src:O.mid ? 'mid' : 'budget', kind:'moved'}; shown.add(norm(best.add)); }
+  for (const t of ['apex', 'mid', 'budget']){ if (out[t]) continue; const p = O[t]; if (p && !shown.has(norm(p.add))){ out[t] = {p, src:t, kind:'own'}; shown.add(norm(p.add)); } else out[t] = {p:null, note:(L.none && L.none[t]) || (O.apex ? 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score after the cards above it.' : '')}; }
   out.shown = shown; ROWC.m.set(i, out); return out; }
 // Alternatives: cards that raise the deck score but lose to their own price tier's pick (at least half its gain), best three,
 // worked out with the ranking in the score check.
 function alt3Html(d, R, rowShown, p, i, t){ const L = R.paths[i], A = L && L.alts && L.alts[t] || []; if (!p || p.own || !A.length) return '';
   return '<div class="alt3"><small class="lab" style="margin:0">Alternatives</small>' + A.map(a => { const c = find(a.n);
     return '<div class="a3"><button class="sw in" data-act="card" data-n="' + esc(a.n) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span>' + esc(a.n) + (a.theme ? ' <span class="chip gold">' + esc(a.theme) + '</span>' : '') + (c && c.gc ? ' <span class="chip gc">GC</span>' : '') + '</span><em>' + money(c) + '</em></button>' +
-      '<div class="row">' + scoreChip(a.dScore) + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
+      '<div class="row">' + scoreChip(a.dScore) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
 function capBox(d, t){ const cap = TIERS[t].cap; if (!(S.capOpen && S.capOpen[d.id + t])) return '<div class="capbox" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><button class="btn sm" data-act="cap-show" data-v="' + t + '">Best deck with every card under $' + cap + '</button></div>';
   const L = capList(d, t); if (!L.length) return '<p class="note" style="margin:6px 0 0">Best deck with every new card under $' + cap + ': no worthwhile swaps.</p>';
   const cost = L.reduce((s, p) => { const a = find(p.add), c = find(p.cut); return s + ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }, 0);
@@ -1812,7 +1814,11 @@ const CONFIRM = {
   'partner-clear':() => ['Remove the second commander?', 'The deck goes back to one commander and its colours.', 'Remove'],
   'restore-replace':() => ['Replace all your decks with the backup?', 'Every deck now in this browser is replaced by the decks in the backup file.', 'Replace all'],
   'stats-reset':() => ['Start counting from now?', 'Score, swap and spending changes will be counted from today instead of the earlier date.', 'Start from now'],
-  'seed-del':(v, n) => ['Remove ' + n + '?', n + ' comes off the list of cards to build around.', 'Remove'] };
+  'seed-del':(v, n) => ['Remove ' + n + '?', n + ' comes off the list of cards to build around.', 'Remove'],
+  'aim-rm':() => ['Remove this mechanic?', 'The build stops aiming for it, so the upgrade list changes. You can add it back from the Build panel.', 'Remove'],
+  'type-rm':() => ['Remove this creature type?', 'The build stops preferring it. You can add it back from the Build panel.', 'Remove'],
+  'key-rm':() => ['Remove this keyword?', 'The build stops preferring it. You can add it back from the Build panel.', 'Remove'],
+  'dset-rm':() => ['Remove this card set?', 'The build stops using this set. You can add it back from the Build panel.', 'Remove'] };
 function askConfirm(act, v, n, p, label){ const [t, x, ok] = CONFIRM[act](v, n || ''); let c = $('#confirm'); if (!c){ c = document.createElement('div'); c.id = 'confirm'; c.className = 'modal'; c.style.zIndex = 60; document.body.appendChild(c); }
   askConfirm.pending = {act, v, n, p, label}; c.innerHTML = '<div class="panel" role="alertdialog" aria-modal="true" aria-label="' + esc(t) + '" style="width:min(440px,100%)"><div class="ph"><h2>' + esc(t) + '</h2></div><p class="note" style="margin:0">' + esc(x) + '</p><div class="row" style="justify-content:flex-end"><button class="btn" data-act="conf-no">Cancel</button><button class="btn danger" data-act="conf-yes">' + esc(ok) + '</button></div></div>';
   c.hidden = false; const y = c.querySelector('[data-act="conf-no"]'); if (y) y.focus(); }
@@ -2024,6 +2030,12 @@ function handleAct(act, v, n, pArg){
       const k = fixApply(d, g.L.filter(p => p.dScore == null || p.dScore >= 0).slice(0, n)); toast('Made ' + k + ' swap' + (k === 1 ? '' : 's') + ' for ' + v + '.'); touch(); render(); openFix(S.fixKeys); return; }
     case 'swap-a3': { const [i, t] = v.split('|'), R = recsFor(d), L = R.paths[+i], col = L && rowCols(d, R, L, +i)[t]; if (!col || !col.p || !n) return; const p = {cut:col.p.cut, add:n, q:col.p.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'unpop': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], a = L && ((L.alts || {})[t] || []).find(x => x.n === n); if (!a) return; const cmdN = (find(d.commander) || {n:''}).n.split(',')[0];
+      $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Unpopular pick"><div class="ph"><h2>Unpopular pick: ' + esc(a.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+        '<p class="note" style="margin:0">The app’s deck score says this card helps this deck <b>more</b> than the suggested card: it raises the score by ' + a.dScore.toFixed(1) + ', against ' + (a.vsScore != null ? a.vsScore.toFixed(1) : '?') + ' for ' + esc(a.vs) + '.</p>' +
+        '<p class="note" style="margin:0">But few players use it here: ' + (a.decks ? 'only ' + Math.round(a.inc * 100) + '% of ' + a.decks.toLocaleString() + ' ' + esc(cmdN) + ' decks play it.' : 'there is little play data for it with ' + esc(cmdN) + '.') + '</p>' +
+        '<p class="note" style="margin:0">The suggested card is what players who build ' + esc(cmdN) + ' actually choose, so it leads. The deck score is the app’s own measure (synergy, balance, card quality, ways to win and practice games); it can spot a strong card players overlook, and it can also overrate one. Try it if its reasons fit how you play.</p>' +
+        '<div class="row"><button class="btn" data-act="card" data-n="' + esc(a.n) + '">View card</button><button class="btn pri" data-act="close">Close</button></div></div>'; $('#modal').hidden = false; return; }
     case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
     case 'theme-first': if (!d) return; d.themeFirst = !d.themeFirst; toast(d.themeFirst ? 'Theme first is on: on-theme cards are preferred in this deck’s upgrades and builds.' : 'Theme first is off: upgrades come from any set.'); break;
     case 'gen-own': S.gen.own = !S.gen.own; if (v === 'seed') openSeed(); else openGenerate(); return;

@@ -972,13 +972,19 @@ function scoreCheck(d, R, o){
       const C = [...pick.values()].map(c => ({c, w:dOf({cut:L.cut, add:c.n, q:ref.q}), th:themeOf(c, T)})).filter(x => x.w != null && x.w >= Math.max(scoreFloor(), UP.rankMin)).sort((a, b) => b.w - a.w || vv(b.c) - vv(a.c));
       const take = (list, t) => { if (!list.length) return null; const top = list[0], th = list.find(x => x.th && x.w >= top.w - Math.abs(top.w) * RANK_THEME); return th || top; };
       // a held pick (the player has seen it and it holds its place until swapped, ruled out or regenerated) keeps its tier
-      const out = {}, left = C.slice(); ['apex', 'mid', 'budget'].forEach(t => { const p = O[t]; if (!p || !p.held) return; const i = left.findIndex(y => y.c._n === norm(p.add)); out[t] = Object.assign({}, p, {dScore:i >= 0 ? left[i].w : p.dScore}); if (i >= 0) left.splice(i, 1); });
-      for (const t of ['apex', 'mid', 'budget']){ if (out[t]) continue; const x = take(t === 'apex' ? left : left.filter(y => underCap(y.c.p, t)), t); if (!x) continue; left.splice(left.indexOf(x), 1);
+      const out = {}, left = C.slice(); ['apex', 'mid', 'budget'].forEach(t => { const p = O[t]; if (!p || (UP.rankPick && !p.held)) return; const i = left.findIndex(y => y.c._n === norm(p.add)); out[t] = Object.assign({}, p, {dScore:i >= 0 ? left[i].w : p.dScore}); if (i >= 0) left.splice(i, 1); });
+      for (const t of ['apex', 'mid', 'budget']){ if (out[t] || !UP.rankPick) continue; const x = take(t === 'apex' ? left : left.filter(y => underCap(y.c.p, t)), t); if (!x) continue; left.splice(left.indexOf(x), 1);
         const old = ['apex', 'mid', 'budget'].map(k => O[k]).find(p => p && norm(p.add) === x.c._n); out[t] = old ? Object.assign({}, old, {dScore:x.w, t}) : Object.assign(swapTo(ref, x.c.n, x.w, x.th), {t}); }
+      if (!UP.rankPick) for (let k = left.length - 1; k >= 0; k--) if (mine.has(left[k].c._n)) left.splice(k, 1);   // the slot's own picks are not their own alternatives
+      // Alternatives, by price tier: cards that raise the deck score by at least half as much as that tier's pick. With
+      // popular picks leading, one may raise the score more than the pick; when few of this commander's players run it,
+      // it is marked an unpopular pick, with the numbers behind it.
       const alts = {apex:[], mid:[], budget:[]}; left.forEach(x => { const t = x.c.p != null && underCap(x.c.p, 'budget') ? 'budget' : x.c.p != null && underCap(x.c.p, 'mid') ? 'mid' : 'apex', tp = out[t] || out.mid || out.apex;
-        if (tp && alts[t].length < 3 && x.w <= tp.dScore && x.w >= Math.max(scoreFloor(), 0.5 * tp.dScore)) alts[t].push({n:x.c.n, p:x.c.p, dScore:x.w, theme:x.th}); });
-      ['apex', 'mid', 'budget'].forEach(t => { if (out[t]) O[t] = out[t]; else if (O[t]){ delete O[t]; (L.none = L.none || {})[t] = 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score enough after the cards above it'; } });
-      Object.values(out).forEach(p => used.add(norm(p.add))); Object.values(alts).flat().forEach(a => used.add(norm(a.n))); L.alts = alts; L.ranked = true; } }
+        if (!tp || alts[t].length >= 3 || (UP.rankPick && x.w > tp.dScore) || x.w < Math.max(scoreFloor(), 0.5 * tp.dScore)) return;
+        const e = ctx0.edh && edhOf(ctx0.edh.map, x.c), inc = e ? e.inc : 0;
+        alts[t].push({n:x.c.n, p:x.c.p, dScore:x.w, theme:x.th, inc:+inc.toFixed(3), decks:ctx0.edh ? ctx0.edh.decks || 0 : 0, vs:tp.add, vsScore:tp.dScore, unpop:x.w > tp.dScore && inc < UP.unpop}); });
+      if (UP.rankPick) ['apex', 'mid', 'budget'].forEach(t => { if (out[t]) O[t] = out[t]; else if (O[t]){ delete O[t]; (L.none = L.none || {})[t] = 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score enough after the cards above it'; } });
+      ['apex', 'mid', 'budget'].forEach(t => { if (O[t]) used.add(norm(O[t].add)); }); Object.values(alts).flat().forEach(a => used.add(norm(a.n))); L.alts = alts; L.ranked = true; } }
   // re-paired picks follow the engine's own list (measured: better agreement with players than keeping their old place)
   extra.forEach(x => delete x.after); R.paths = R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])).concat(extra);
    // the engine's order (strongest upgrade first, checked against real players) is kept
@@ -993,7 +999,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {rank:1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
