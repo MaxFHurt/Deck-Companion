@@ -227,7 +227,15 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .tm-lab{position:relative;height:14px;font:600 10px var(--label);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}.tm-lab span{position:absolute;top:3px;transform:translateX(-50%);white-space:nowrap}
 .hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;font-size:13px}
 .hi{display:flex;gap:6px;align-items:baseline;min-width:0}.hi i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--good);transform:translateY(1px)}.hi.warn i{background:var(--warn)}.hi.bad i{background:var(--bad)}.hi b{font:600 12px var(--label);letter-spacing:.06em;text-transform:uppercase}
-.ms{width:1.2em;height:1.2em;vertical-align:-.22em;margin:0 1px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+/* mana symbols: borderless, sized from the text around them so they scale with the device; this rule outranks the card-art thumbnail rules */
+/* the commander row wraps so its Commander chip stays visible on a phone */
+.dl.cmdrow .nm{white-space:normal;overflow:visible;text-overflow:clip}
+img.ms.ms.ms{display:inline-block;width:1.05em;height:1.05em;min-width:0;aspect-ratio:1;vertical-align:-.16em;margin:0 .06em;padding:0;border:0;border-radius:50%;box-shadow:none;background:none;object-fit:contain;object-position:center;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55))}
+.aim button.t{background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline dotted var(--line);text-underline-offset:4px}
+.mrow{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}
+.mname{background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer;min-width:0;flex:1}.mname small{color:var(--gold);font:600 11px var(--label);letter-spacing:.08em;text-transform:uppercase}.mname .note{display:block;margin-top:2px}
+.info{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.tapi>summary{list-style:none;cursor:pointer;display:block}.tapi>summary::-webkit-details-marker{display:none}.tapi>summary .meter{display:grid}.tapi[open]>summary{opacity:.95}.tapi>summary:focus-visible{outline:2px solid var(--glow);outline-offset:2px}
 .alts{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow:auto}.opt.alt{padding-top:8px}
 .prog{display:grid;grid-template-columns:repeat(4,1fr);font:600 11px var(--label);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);text-align:center;position:relative;padding:2px 0}
 .prog span{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -269,6 +277,7 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .card.real img{aspect-ratio:488/680;border-radius:4.75%/3.5%;border:0;object-fit:cover;background:#1a1033;box-shadow:0 6px 18px rgba(0,0,0,.6)}
 .card.real .ft span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .filters{display:grid;grid-template-columns:2fr repeat(6,1fr);gap:8px}
+.tile.on{border-color:var(--gold);box-shadow:inset 0 0 0 2px var(--gold)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
 .tile{position:relative;text-align:left;border:1px solid var(--line);border-radius:9px;background:var(--well);padding:0;overflow:hidden;display:flex;flex-direction:column;color:var(--ink);box-shadow:0 4px 14px rgba(0,0,0,.5)}
 .tile:hover{border-color:var(--glow);box-shadow:0 0 22px rgba(141,92,255,.55)}
@@ -361,7 +370,7 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC; combos from <a href="https://commanderspellbook.com" target="_blank" rel="noopener">Commander Spellbook</a>. Build 77.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC; combos from <a href="https://commanderspellbook.com" target="_blank" rel="noopener">Commander Spellbook</a>. Build 78.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
@@ -369,7 +378,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 77;
+window.BUILD = 78;
 (function(){
   var last = 0;
   function check(){
@@ -381,9 +390,9 @@ window.BUILD = 77;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=77"></script>
-<script src="lists.js?v=77"></script>
-<script src="engine.js?v=77"></script>
-<script src="ui.js?v=77"></script>
+<script src="data.js?v=78"></script>
+<script src="lists.js?v=78"></script>
+<script src="engine.js?v=78"></script>
+<script src="ui.js?v=78"></script>
 </body>
 </html>

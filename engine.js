@@ -330,7 +330,7 @@ function isFinisher(c){ if (c._fin !== undefined) return c._fin; const o = c.o |
 // lands are judged under mana and curve. Also the best build with every card under $12 and under $3 (Mid and Budget), so
 // a budget deck is measured against what its price limit allows. The reference depends on the build settings, not on the
 // deck's cards, so it is worked out once per settings (apexKey) and reused while cards change.
-function apexKey(d){ return JSON.stringify([d.commander, d.partner || '', d.aims, d.tribe || '', d.colors, d.types || [], d.keys || [], d.typesMust, d.keysMust, d.sets || [], d.setsMust, (d.dismissed || []).length, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, LIB.length]); }
+function apexKey(d){ return JSON.stringify([d.commander, d.partner || '', d.aims, d.tribe || '', d.colors, d.types || [], d.keys || [], d.typesMust, d.keysMust, d.sets || [], d.setsMust, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, LIB.length]); }
 // A spell's value for card quality: baseScore, with the commander's play rates counted among players who changed the deck
 // (untouched precon copies taken out, preDeflate), so a precon card is not "great" merely because the precon ships with it.
 // How much raw card power (how widely played across all of Commander) adds to a card's quality value. 40 orders real decks
@@ -389,10 +389,10 @@ function evaluateDeck(d, opt){
   const bal = Math.max(0, 1 - pen / 2.5); why.balance = (short.length ? 'Short against what players who changed the deck run: ' + short.join(', ') : 'Every job covered') + (over.length ? '; heavy: ' + over.join(', ') : '') + '; lands ' + A.lands + '/' + T.lands + (dead.length ? '; ' + dead.length + ' card' + (dead.length > 1 ? 's' : '') + ' the deck barely supports' : '');
   // Card quality: how widely each spell is played across all of Commander (EDHREC rank), staples counting fully.
   const q = c => CORE.has(c._n) ? 1 : c.r ? Math.max(0, 1 - Math.log(c.r + 1) / Math.log(40000)) : 0.35;
-  let qual = spells.reduce((a, c) => a + q(c), 0) / n, qPct = null, qTier = null; why.quality = spells.filter(c => c.r && c.r < 400).length + ' proven staples (top 400 cards in Commander)';
+  let qual = spells.reduce((a, c) => a + q(c), 0) / n, qPct = null, qExact = null, qTier = null; why.quality = spells.filter(c => c.r && c.r < 400).length + ' proven staples (top 400 cards in Commander)';
   // With the Apex reference: card quality is how far the spells are from random playable cards (0%) to the Apex build (100%).
   const AR = opt.apex && opt.apex.key === apexKey(d) ? opt.apex : null;
-  if (AR){ const vf = opt.valOf || null, M = apexMeans(AR, d, ctx, vf), m = spellMean(d.cards, d, ctx, vf); Object.assign(AR, {apex:M.apex, mid:M.mid, budget:M.budget, floor:M.floor}); qPct = qualityPct(m, AR.apex, AR.floor);
+  if (AR){ const vf = opt.valOf || null, M = apexMeans(AR, d, ctx, vf), m = spellMean(d.cards, d, ctx, vf); Object.assign(AR, {apex:M.apex, mid:M.mid, budget:M.budget, floor:M.floor}); qPct = qualityPct(m, AR.apex, AR.floor); qExact = AR.apex > AR.floor ? Math.max(0, Math.min(100, 100 * (m - AR.floor) / (AR.apex - AR.floor))) : 0;
     why.quality = qPct + '% of the way from random playable cards to the Apex build (the best cards for this deck at any price)';
     if (d.tier === 'budget' || d.tier === 'mid'){ const ref = d.tier === 'budget' ? AR.budget : AR.mid; qTier = {tier:d.tier, pct:qualityPct(m, ref, AR.floor)}; why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12); } }
   // Win routes and resilience: complete combos that win, cards that close a game, ways to protect or rebuild, card flow.
@@ -409,13 +409,15 @@ function evaluateDeck(d, opt){
   why.mana = 'commander out by turn ' + S.cmdMedianTurn + ' (median), ' + S.manaUsedBy6 + ' mana used by turn 6, stuck on colour ' + Math.round(100 * S.colourStuck) + '%, short of lands ' + Math.round(100 * S.screwT5) + '%, flooded ' + Math.round(100 * S.floodT8) + '%'; }
   else why.mana = 'available once the deck has its full 100 cards';
   const raw = {synergy:syn, balance:bal, quality:qual, routes, mana}, parts = {}; let total = 0;
-  let wsum = 0; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], EV_ANCHOR[k])); total += parts[k] * EV_W[k] / 100; wsum += EV_W[k]; }
-  if (wsum && wsum < 100) total = total * 100 / wsum;   // the parts that could be judged, weighted as usual
+  // parts are shown as whole numbers; exact keeps the unrounded parts, so a small real gain (a better card) is not lost to rounding
+  let wsum = 0, exact = 0; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } const pe = k === 'quality' && qExact != null ? qExact : EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], EV_ANCHOR[k]);
+    parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(pe); total += parts[k] * EV_W[k] / 100; exact += pe * EV_W[k] / 100; wsum += EV_W[k]; }
+  if (wsum && wsum < 100){ total = total * 100 / wsum; exact = exact * 100 / wsum; }   // the parts that could be judged, weighted as usual
   const onPlan = spells.filter(c => (d.aims || []).some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)).length;
   const feat = {lands:A.lands, tLands:T.lands, avg:+A.avg.toFixed(2), ramp:A.roles.ramp, draw:A.roles.draw, removal:A.roles.removal, wipe:A.roles.wipe, tRamp:T.ramp, tDraw:T.draw, tRem:T.removal, tWipe:T.wipe, inter, fin:fin.length, prot, rec, tut, wins:wins.length, combos:cb.full.length,
     onPlan:onPlan / n, synPos:E && E.map ? spells.filter(c => { const x = incOf(c); return x && x.syn >= 0.1; }).length / n : 0, cheap:spells.filter(c => c.cmc <= 2).length, big:spells.filter(c => c.cmc >= 6).length, gc:A.gc.length, weak:dead.length};
   const prof = profileOf(ctx.cmd), needs = prof ? prof.needs.map(k => Object.assign({key:k, label:k.startsWith('tribe:') ? k.slice(6) + ' creatures' : NEEDS[k].label}, supportOf(d, k))) : [];
-  return {total:Math.round(total), parts, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null, marks:AR && AR.apex != null ? {budget:qualityPct(AR.budget, AR.apex, AR.floor), mid:qualityPct(AR.mid, AR.apex, AR.floor)} : null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
+  return {total:Math.round(total), exact:+exact.toFixed(3), parts, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null, marks:AR && AR.apex != null ? {budget:qualityPct(AR.budget, AR.apex, AR.floor), mid:qualityPct(AR.mid, AR.apex, AR.floor)} : null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
 }
 function parsePrecon(j){
   const jd = (j && j.container && j.container.json_dict) || {}, dk = (j && j.deck) || {}, L = t => ((jd.cardlists || []).find(x => x.tag === t) || {}).cardviews || [];
@@ -899,14 +901,46 @@ const TIER_KEYS_UP = ['apex', 'mid', 'budget'];
 const underCap = (p, t) => t === 'apex' || (p != null && p < TIERS[t].cap);
 // The card a tier's package uses for one slot: the Apex card when it already fits the tier's price, otherwise the tier's own
 // alternative (Mid falls back to the Budget pick). Unknown prices never count as fitting a cap.
+// Score check: every swap shown is played out on the whole-deck evaluator (synergy, balance, card quality, win routes, mana
+// from the deck's own practice games). A swap that does not raise the deck score is never recommended: it is dropped and the
+// tier says why. Each kept pick carries dScore, the score change it makes, which the app shows instead of a value guess.
+const SCORE_MIN = 0.05;   // a swap counts as raising the score from here
+function scoreFloor(){ return UP.smin != null ? UP.smin : 0; }   // a swap that lowers the deck score at all (unrounded) is never suggested
+function swapScore(d, base, apex, cut, add, q){ const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, q || 1); addCard(u, add, q || 1); try { return +(evaluateDeck(u, {apex, sim:base.sim}).exact - base.exact).toFixed(2); } catch (e) { return null; } }
+function scoreCheck(d, R, o){
+  o = o || {}; if (!R || d.format !== 'commander' || !find(d.commander)) return R;
+  let base; try { base = o.base || evaluateDeck(d, {apex:o.apex, games:300}); } catch (e) { return R; } if (!base || base.exact == null) return R;
+  const memo = new Map(), dOf = p => { const k = p.cut + '>' + p.add + '>' + (p.q || 1); if (!memo.has(k)) memo.set(k, swapScore(d, base, o.apex, p.cut, p.add, p.q)); return memo.get(k); };
+  const LAB = {apex:'Apex', mid:'Mid', budget:'Budget'}; let dropped = 0, refilled = 0, themed = 0;
+  const T = themeCtx(d), VM = new Map(), ctx0 = ctxOf(d), dis0 = new Set((d.dismissed || []).map(norm)); let TP = null; const own = upgradePaths.own, inUse = () => new Set(R.paths.flatMap(L => Object.values(L.opts).map(p => p.add)));
+  const swapTo = (p, n, v, why) => { const c = find(n); return Object.assign({}, p, {add:c.n, dScore:v, held:false, own:!!(own && own.has(c._n)), gc:!!c.gc, why:(why ? [why] : []).concat((p.why || []).filter(w => !/^From |theme$/.test(w))).slice(0, 2), alt:p.add}); };
+  for (const L of R.paths) for (const t of ['apex', 'mid', 'budget', 'free']){ const p = L.opts[t]; if (!p) continue; const v = dOf(p); p.dScore = v;
+    if (v != null && v < scoreFloor()){
+      // the pick would not raise the score: the strongest close card for the same job and price band that does takes its place
+      let rep = null; if (t !== 'free' && o.refill !== false){ const used = inUse(); for (const a of altsFor(d, p.add, {cut:p.cut, val:R.valOf, skip:[...used], n:3, vmemo:VM})){ const w = dOf({cut:p.cut, add:a.n, q:p.q}); if (w != null && w >= SCORE_MIN){ rep = swapTo(p, a.n, w, a.theme); break; } } }
+      if (rep){ L.opts[t] = rep; refilled++; continue; }
+      delete L.opts[t]; dropped++; if (LAB[t]) (L.none = L.none || {})[t] = 'No ' + LAB[t] + ' card for this slot raises the deck score (' + p.add.split(' // ')[0] + ' would not), so none is suggested'; continue; }
+    // AT ALL TIMES: an on-theme card (the commander's set or theme creature types) that is about as strong is the suggestion
+    if (t !== 'free' && !p.held && o.theme !== false && !themeOf(find(p.add), T) && v != null){
+      const pc = find(p.add), vc = R.valOf ? R.valOf(pc) : null, vcu = R.valOf ? R.valOf(find(p.cut)) : null, used = new Set([...inUse()].map(norm)), band = priceBand(pc.p), same = sameJobAs(pc, d, ctx0);
+      if (!TP) TP = LIB.filter(x => !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx0.ident.includes(k)) && mustOk(x, d) && themeOf(x, T) && !entryOf(d, x.n) && !dis0.has(x._n));
+      const cand = TP.filter(x => !used.has(x._n) && priceBand(x.p) === band && (x.p != null || band === 'apex') && same(x)).map(x => ({n:x.n, theme:themeOf(x, T), v:vc == null ? 0 : R.valOf(x)}))
+        .filter(a => vc == null || (a.v > vcu && a.v >= vc - 0.25 * Math.max(0, vc - vcu))).sort((a, b) => b.v - a.v);
+      for (const a of cand.slice(0, 2)){
+        const w = dOf({cut:p.cut, add:a.n, q:p.q}); if (w != null && w >= SCORE_MIN && w >= 0.75 * v){ L.opts[t] = swapTo(p, a.n, w, a.theme); themed++; break; } } } }
+  R.paths = R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t]));
+   // the engine's order (strongest upgrade first, checked against real players) is kept
+  R.scored = {base:base.exact, dropped, refilled, themed}; R.dOf = (cut, add, q) => swapScore(d, base, o.apex, cut, add, q); return R;
+}
 function tierPick(L, t){
-  const a = L.opts.apex; if (!a) return null; if (t === 'apex') return a;
+  const a = L.opts.apex; if (!a) return t === 'budget' ? (L.opts.budget || null) : (L.opts.mid || L.opts.budget || null);   // the Apex pick was dropped by the score check
+  if (t === 'apex') return a;
   const ap = (find(a.add) || {}).p; if (a.own || underCap(ap, t)) return a;
   return t === 'mid' ? (L.opts.mid || L.opts.budget || null) : (L.opts.budget || null);
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1353,19 +1387,30 @@ function buildPlan(d, seeds, ownOnly, ownAll){
   if (UP.weak && d.format === 'commander') for (let i = 0; i < 8; i++){ const w = weakHere(tmp).filter(x => !seedSet.has(norm(x.n))); if (!w.length) break;
     const ctx0 = ctxOf(tmp), worst = [...new Set(w.map(x => x.n))].map(n => ({n, s:baseScore(find(n), tmp, ctx0).s})).sort((a, b) => a.s - b.s)[0];
     cutCard(tmp, worst.n, 1); (tmp.dismissed = tmp.dismissed || []).push(worst.n); if (!fillDeck(tmp)) break; }
+  // On theme, at all times: a spell that is not from the commander's set family or of its theme creature types gives way to
+  // one that is, when that card does the same job, sits in the same price band and scores within 10% of it for this deck.
+  if (UP.theme && d.format === 'commander'){ const ctxT = ctxOf(tmp), T = themeCtx(tmp), inDeck = () => new Set(tmp.cards.map(x => norm(x.n)).concat(norm(d.commander), d.partner ? norm(d.partner) : ''));
+    const TP = LIB.filter(c => !tags(c).land && !isBasic(c.n) && legalIn(c, d.format) && c.ci.every(k => ctxT.ident.includes(k)) && mustOk(c, d) && themeOf(c, T) && !(tmp.dismissed || []).some(n => norm(n) === c._n));
+    // "within reason" is measured on the whole deck: a theme swap may cost at most 0.3 deck-score points
+    let simT = null, cur = null; const ev = () => { try { if (!simT) simT = simulate(tmp, 150, 7); return evaluateDeck(tmp, {sim:simT}).exact; } catch (err) { return null; } };
+    if (TP.length) for (const e of tmp.cards.slice()){ const c = find(e.n); if (!c || tags(c).land || seedSet.has(c._n) || (ownOnly && ownOnly.has(c._n)) || themeOf(c, T)) continue;
+      const sc = baseScore(c, tmp, ctxT).s, need = sc - Math.abs(sc) * 0.1, band = priceBand(c.p), same = sameJobAs(c, tmp, ctxT), used = inDeck();
+      let best = null, bs = -1e9; for (const x of TP){ if (used.has(x._n) || priceBand(x.p) !== band || !same(x)) continue; const xs = baseScore(x, tmp, ctxT).s; if (xs >= need && xs > bs){ best = x; bs = xs; } }
+      if (best){ if (cur == null) cur = ev(); cutCard(tmp, e.n, 1); addCard(tmp, best.n, 1); const nx = ev();
+        if (cur != null && nx != null && nx < cur - 0.3){ cutCard(tmp, best.n, 1); addCard(tmp, e.n, 1); } else if (nx != null) cur = nx; } } }
   // Mana base v2: the spells are chosen, so the lands are rebuilt for them. The player's own lands (seeds, owned) stay.
   if (UP.mb && d.format === 'commander'){ const keepL = [], drop = []; tmp.cards.forEach(e => { const c = find(e.n); if (!c || !tags(c).land) return; (seedSet.has(c._n) || (ownOnly && ownOnly.has(c._n)) ? keepL : drop).push(e); });
     const nL = drop.reduce((a, e) => a + e.q, 0); drop.forEach(e => cutCard(tmp, e.n, e.q)); manaBase(tmp, nL, keepL).forEach(x => addCard(tmp, x.n, x.q)); }
-  const ctx = ctxOf(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner));
+  const ctx = ctxOf(tmp), TH = themeCtx(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner));
   const pool = LIB.filter(c => c.p != null && c.p < 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n) && mustOk(c, d))
-    .map(c => ({c, s:baseScore(c, tmp, ctx).s, land:tags(c).land, ty:mainType(c)}));
+    .map(c => ({c, s:baseScore(c, tmp, ctx).s, land:tags(c).land, ty:mainType(c), th:!!themeOf(c, TH)}));
   // A stand-in is strictly under the tier's price and does the same job as the card it stands in for (its main job; for a
   // card with no job, the same card type), the same rule as upgrade alternatives.
   const alt = (x, cap) => { const tx = tags(x), ty = mainType(x), j = mainJob(x.n); let best = null, bs = -1e9;
     for (const p of pool){ if (p.used || !(p.c.p < cap) || !(x.p == null || p.c.p < x.p) || p.land !== tx.land) continue;
       if (!p.land && (j ? !jobsOf(p.c.n).includes(j) : (p.ty !== ty || jobsOf(p.c.n).some(r => JOBS.includes(r))))) continue;
       if (p.land && ![...landColors(x)].filter(k => ctx.ident.includes(k)).every(k => landColors(p.c).has(k))) continue;
-      let s = p.s + (p.ty === ty ? 3 : 0), share = 0; tags(p.c).roles.forEach(r => { if (tx.roles.has(r)) share++; }); s += share * 2; if (s > bs){ bs = s; best = p; } }
+      let s = p.s + (p.ty === ty ? 3 : 0) + (p.th ? 2 : 0), share = 0; tags(p.c).roles.forEach(r => { if (tx.roles.has(r)) share++; }); s += share * 2; if (s > bs){ bs = s; best = p; } }
     if (best) best.used = true; return best ? best.c.n : null; };
   const basic = (splitBasics(1, ctx)[0] || {}).n || null, own = ownAll || new Set();
   return tmp.cards.map((en, i) => {
@@ -1390,26 +1435,47 @@ function priceBand(p){ return p == null ? 'apex' : p < 3 ? 'budget' : p < 12 ? '
 // against the pick's own score. Same card type and shared roles rank first. For an upgrade (o.cut) every alternative must
 // still beat the card it replaces. An Apex-band alternative costs at most twice the pick, so it is no big step up in price.
 const ALT_TOP = 0.2;
+// Does card x do the same job as card c in this deck? Its main job; for a card with no job, the same card type and a shared
+// part of the deck's plan; a land must make every deck colour the other land makes.
+function sameJobAs(c, ref, ctx){ const land = !!tags(c).land, ty = mainType(c), j = mainJob(c.n);
+  const aimSet = x => { const s = new Set(); (ref.aims || []).forEach(a => { if (matchAim(x, a, ctx.tribe) >= 0.7) s.add(a); }); return s; }, aims = aimSet(c);
+  return x => { const t = tags(x); if (!!t.land !== land) return false;
+    if (land) return [...landColors(c)].filter(k => ctx.ident.includes(k)).every(k => landColors(x).has(k));
+    if (j) return jobsOf(x.n).includes(j);
+    if (mainType(x) !== ty || jobsOf(x.n).some(r => JOBS.includes(r))) return false;
+    return !aims.size || [...aimSet(x)].some(a => aims.has(a)); }; }
 function altsFor(d, name, o){
   o = o || {}; const c = find(name); if (!c) return [];
   const ref = JSON.parse(JSON.stringify(d)); delete ref.plan; if (o.deck) ref.cards = o.deck.map(x => ({n:x.n, q:x.q}));
   const ctx = ctxOf(ref), val = o.val || (x => baseScore(x, ref, ctx).s), band = priceBand(c.p), tc = tags(c), land = !!tc.land, ty = mainType(c), j = mainJob(c.n);
   const used = new Set(ref.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner)); used.add(c._n);
   (o.skip || []).forEach(n => used.add(norm(n))); const dis = new Set((d.dismissed || []).map(norm));
-  const aimSet = x => { const s = new Set(); (ref.aims || []).forEach(a => { if (matchAim(x, a, ctx.tribe) >= 0.7) s.add(a); }); return s; }, aims = aimSet(c);
-  const same = x => { const t = tags(x); if (!!t.land !== land) return false;
-    if (land) return [...landColors(c)].filter(k => ctx.ident.includes(k)).every(k => landColors(x).has(k));
-    if (j) return jobsOf(x.n).includes(j);
-    if (mainType(x) !== ty || jobsOf(x.n).some(r => JOBS.includes(r))) return false;
-    return !aims.size || [...aimSet(x)].some(a => aims.has(a)); };
+  const same = sameJobAs(c, ref, ctx);
   const vcut = o.cut && find(o.cut) ? val(find(o.cut)) : null;
-  const C = LIB.filter(x => !used.has(x._n) && !dis.has(x._n) && !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx.ident.includes(k)) && mustOk(x, d) && (x.p != null || band === 'apex') && priceBand(x.p) === band && (band !== 'apex' || c.p == null || x.p == null || x.p <= 2 * c.p) && same(x))
-    .map(x => { let share = 0; tags(x).roles.forEach(r => { if (tc.roles.has(r)) share++; }); const v = val(x); return {c:x, v, fit:v + (mainType(x) === ty ? 3 : 0) + 2 * share}; });
+  // The deck's playable pool (format, colours, filter rules) is the same for every search on this deck, so it is kept.
+  const pk = [d.format, ctx.ident.join(''), JSON.stringify([d.setsMust && d.sets, d.typesMust && d.types, d.keysMust && d.keys]), LIB.length, SETCARDS.size].join('|');
+  if (!altsFor.pool || altsFor.pool.k !== pk) altsFor.pool = {k:pk, L:LIB.filter(x => !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx.ident.includes(k)) && mustOk(x, d))};
+  const vm = o.vmemo || new Map(), V = x => { if (!vm.has(x._k)) vm.set(x._k, val(x)); return vm.get(x._k); };
+  const C = altsFor.pool.L.filter(x => !used.has(x._n) && !dis.has(x._n) && (x.p != null || band === 'apex') && priceBand(x.p) === band && (band !== 'apex' || c.p == null || x.p == null || x.p <= 2 * c.p) && same(x))
+    .map(x => { let share = 0; tags(x).roles.forEach(r => { if (tc.roles.has(r)) share++; }); const v = V(x); return {c:x, v, fit:v + (mainType(x) === ty ? 3 : 0) + 2 * share}; });
   if (!C.length) return [];
+  // Cards from the commander's own set (or franchise) and cards of its theme creature types come first, always; they need
+  // half of the pick's gain over the card in the slot, where the rest need the top-of-field floor.
+  const T = themeCtx(ref), vc = val(c), half = vcut != null ? vcut + 0.5 * (vc - vcut) : vc - Math.abs(vc) * 0.25;
+  C.forEach(y => { y.theme = themeOf(y.c, T); });
   const vs = C.map(y => y.v).sort((a, b) => b - a), floor = vs[Math.min(vs.length - 1, Math.floor(vs.length * ALT_TOP))];
-  return C.filter(y => y.v >= floor && (vcut == null || y.v > vcut)).sort((a, b) => b.fit - a.fit || (a.c.p || 0) - (b.c.p || 0)).slice(0, o.n || 6)
-    .map(y => ({n:y.c.n, p:y.c.p, v:+y.v.toFixed(2), band, job:j || '', type:mainType(y.c)}));
+  const ok = C.filter(y => (vcut == null || y.v > vcut) && (o.all || y.v >= floor || (y.theme && y.v >= half)));
+  return ok.sort((a, b) => (!!b.theme - !!a.theme) || b.fit - a.fit || (a.c.p || 0) - (b.c.p || 0)).slice(0, o.all ? 400 : o.n || 6)
+    .map(y => ({n:y.c.n, p:y.c.p, v:+y.v.toFixed(2), band, job:j || '', type:mainType(y.c), theme:y.theme}));
 }
+// On theme: the commander's own set family (a Universes Beyond franchise counts as one: every Marvel set is Marvel), or a
+// creature type the commander or the deck's tribe is built on. Class types every set uses (Human, Warrior, Wizard…) don't count.
+const GENERIC_TYPES = new Set('Human Warrior Soldier Wizard Cleric Rogue Shaman Knight Noble Advisor Artificer Scout Citizen Peasant Monk Druid Assassin Berserker Archer Scientist Detective Spellshaper Mercenary Coward Performer Rebel Pilot Spirit Construct Avatar'.split(' '));
+function franchiseOf(c){ const s = (c && c.set) || ''; if (/^Marvel/.test(s)) return 'Marvel'; return s.replace(/\s+(Commander|Eternal|Jumpstart.*|Art Series|Alchemy.*|Promos|Tokens)$/, '').trim(); }
+function subtypesOf(c){ const t = c ? frontType(c) : ''; return /Creature|Kindred|Tribal/.test(t) && t.includes('—') ? t.split('—')[1].trim().split(/\s+/) : []; }
+function themeCtx(d){ const cs = [find(d.commander), d.partner && find(d.partner)].filter(Boolean), fam = new Set(), types = new Set();
+  cs.forEach(c => { const f = franchiseOf(c); if (f) fam.add(f); subtypesOf(c).forEach(t => { if (!GENERIC_TYPES.has(t)) types.add(t); }); }); if (d.tribe) types.add(d.tribe); return {fam, types}; }
+function themeOf(c, T){ if (!c || !T) return ''; const f = franchiseOf(c); if (f && T.fam.has(f)) return 'From ' + f; const st = subtypesOf(c).find(x => T.types.has(x)); return st ? 'Fits the ' + st + ' theme' : ''; }
 function planPick(s, t){ return t === 'apex' ? s.a : t === 'mid' ? (s.m || s.a) : (s.b || s.m || s.a); }
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }
 function setCommander(d, name){
