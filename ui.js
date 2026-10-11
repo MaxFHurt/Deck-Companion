@@ -782,6 +782,8 @@ function openCompare(otherId){ const d = cur(); if (!d) return; const others = S
     '<p class="note" style="margin:0">' + both + ' card' + (both === 1 ? '' : 's') + ' in both decks.</p><div class="row" style="align-items:flex-start;gap:12px">' + col(d, onlyA) + col(o, onlyB) + '</div></div>';
   $('#modal').hidden = false; }
 // How many cards in the deck have an upgrade (each card once, however many options it has), plus cards to fix or drop.
+// Never suggest a card the deck already has (Commander allows one copy): a last check on every pick, alternative and fix shown.
+function hasCard(d, n){ if (!d || !n) return false; const k = keyOf(n), c = find(n), k2 = c ? keyOf(c.n) : k; return d.cards.some(e => { const x = keyOf(e.n); if (x === k || x === k2) return true; const ec = find(e.n); return !!ec && !!c && ec._k === c._k; }) || [d.commander, d.partner].some(x => x && (keyOf(x) === k || keyOf(x) === k2)); }
 function upCardCount(R){ const s = new Set(); R.paths.forEach(L => { if (['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])) s.add(keyOf(L.cut)); }); (R.fixes || []).forEach(p => s.add(keyOf(p.cut))); (R.drops || []).forEach(p => s.add(keyOf(p.n))); return s.size; }
 function listPanel(d, A){
   return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="list-all">View all</button></div>' +
@@ -1083,12 +1085,12 @@ function rowCols(d, R, L, i){
   // best of the rest under $12 and $3, and each card appears once. Before the check finishes the engine's picks are shown.
   const O = L.opts, out = {}, shown = new Set();
   // the best card for the slot is its Apex card: with no Apex pick of its own, the best cheaper pick moves up (not copied)
-  const best = O.apex || O.mid || O.budget; if (best && !O.apex){ out.apex = {p:best, src:O.mid ? 'mid' : 'budget', kind:'moved'}; shown.add(norm(best.add)); }
-  for (const t of ['apex', 'mid', 'budget']){ if (out[t]) continue; const p = O[t]; if (p && !shown.has(norm(p.add))){ out[t] = {p, src:t, kind:'own'}; shown.add(norm(p.add)); } else out[t] = {p:null, note:(L.none && L.none[t]) || (O.apex ? 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score after the cards above it.' : '')}; }
+  const okp = p => p && !(d.format === 'commander' && hasCard(d, p.add)), best = [O.apex, O.mid, O.budget].find(okp); if (best && best !== O.apex){ out.apex = {p:best, src:best === O.mid ? 'mid' : 'budget', kind:'moved'}; shown.add(norm(best.add)); }
+  for (const t of ['apex', 'mid', 'budget']){ if (out[t]) continue; const p = O[t] && !(d.format === 'commander' && hasCard(d, O[t].add)) ? O[t] : null; if (p && !shown.has(norm(p.add))){ out[t] = {p, src:t, kind:'own'}; shown.add(norm(p.add)); } else out[t] = {p:null, note:(L.none && L.none[t]) || (O.apex ? 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score after the cards above it.' : '')}; }
   out.shown = shown; ROWC.m.set(i, out); return out; }
 // Alternatives: cards that raise the deck score but lose to their own price tier's pick (at least half its gain), best three,
 // worked out with the ranking in the score check.
-function alt3Html(d, R, rowShown, p, i, t){ const L = R.paths[i], A = L && L.alts && L.alts[t] || []; if (!p || p.own || !A.length) return '';
+function alt3Html(d, R, rowShown, p, i, t){ const L = R.paths[i], A = (L && L.alts && L.alts[t] || []).filter(a => !(d.format === 'commander' && hasCard(d, a.n))); if (!p || p.own || !A.length) return '';
   return '<div class="alt3"><small class="lab" style="margin:0">Alternatives</small>' + A.map(a => { const c = find(a.n);
     return '<div class="a3"><button class="sw in" data-act="card" data-n="' + esc(a.n) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span>' + esc(a.n) + (a.theme ? ' <span class="chip gold">' + esc(a.theme) + '</span>' : '') + (c && c.gc ? ' <span class="chip gc">GC</span>' : '') + '</span><em>' + money(c) + '</em></button>' +
       '<div class="row">' + scoreChip(a.dScore) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
@@ -1130,7 +1132,7 @@ function altList(d, s){
   const R = recsFor(d), L = altsFor(d, s.n, {cut:s.cut, val:R.valOf, skip:R.paths.flatMap(L => Object.values(L.opts).map(o => o.add)), n:14});
   if (!R.dOf) return L.slice(0, 6);
   const need = Math.max(SCORE_MIN, s.dScore != null ? 0.5 * s.dScore : SCORE_MIN);
-  return L.map(a => Object.assign(a, {dScore:R.dOf(s.cut, a.n, s.q)})).filter(a => a.dScore != null && a.dScore >= need).slice(0, 6); }
+  return L.filter(a => !(d.format === 'commander' && hasCard(d, a.n))).map(a => Object.assign(a, {dScore:R.dOf(s.cut, a.n, s.q)})).filter(a => a.dScore != null && a.dScore >= need).slice(0, 6); }
 function openAlts(v){
   const d = cur(), s = d && altSrc(d, v); if (!s) return; S.modalCard = null;
   const c = find(s.n), band = tierOfPrice(c), job = mainJob(s.n), head = '<div class="panel" role="dialog" aria-label="Alternatives"><div class="ph"><h2>Alternatives to ' + esc(s.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>';
@@ -1328,7 +1330,7 @@ function healthFixHtml(H, ign, fixable){
 // The swaps that fix one alert, best for the deck score first. Worked out when the menu opens.
 function fixList(d, key){ const kind = FIX_OF[key]; if (!kind) return []; const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
   const score = e && e.exact != null ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
-  try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score}); } catch (err) { return []; } }
+  try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
 function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
   const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
   const tgt = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]};
