@@ -626,7 +626,7 @@ function viewDecks(){
     const tb = (k, label, cls) => '<button class="tab' + (tab === k ? ' on' : '') + (cls || '') + '" data-act="tab" data-v="' + k + '" role="tab" aria-selected="' + (tab === k) + '">' + label + '</button>';
     return '<div class="row bar"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
       ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
-      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
+      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
@@ -757,6 +757,17 @@ function considerBox(c){ const d = cur(); if (!d || !c || (S.view !== 'decks' &&
 function considerHtml(d){ const L = considerOf(d); if (!L.length) return '';
   return '<div><div class="gh"><span>Considering · not in the deck</span><span>' + L.length + '</span></div>' + L.map(x => { const c = find(x.n);
     return '<div class="row" style="flex-wrap:nowrap;gap:6px"><div style="flex:1;min-width:0"><button class="dl" data-act="card" data-n="' + esc(x.n) + '">' + (c ? '<img alt="" src="' + artFor(c, {}) + '">' : '<span></span>') + '<span class="q">1×</span><span class="nm">' + esc(x.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c) + '</span></button></div><button class="btn sm" data-act="consider-in" data-n="' + esc(x.n) + '">Add to deck</button><button class="ico" data-act="consider-rm" data-n="' + esc(x.n) + '" aria-label="Take ' + esc(x.n) + ' off the Considering list">×</button></div>'; }).join('') + '</div>'; }
+// Compare two decks: the cards only in each, how many they share, and their size, price, score and bracket side by side.
+function openCompare(otherId){ const d = cur(); if (!d) return; const others = S.profile.decks.filter(x => x.id !== d.id); if (!others.length){ toast('Save another deck to compare with.'); return; }
+  const o = others.find(x => x.id === otherId) || others.find(x => x.id === S.cmpWith) || others[0]; S.cmpWith = o.id;
+  const set = x => new Map(x.cards.map(e => [keyOf(e.n), e])), A = set(d), B = set(o), onlyA = [...A].filter(([k]) => !B.has(k)).map(([, e]) => e), onlyB = [...B].filter(([k]) => !A.has(k)).map(([, e]) => e), both = [...A.keys()].filter(k => B.has(k)).length;
+  const sc = x => { if (x.format !== 'commander' || analyze(x).size < 90 || !DBINFO.complete) return '—'; const e = evalFor(x); return e ? e.total + '/100' : '…'; };
+  const col = (x, L) => { const Ax = analyze(x); return '<div style="flex:1 1 260px;min-width:0"><b>' + esc(x.name) + '</b><p class="note" style="margin:2px 0 6px">' + esc(x.commander || x.format) + ' · ' + Ax.size + ' cards · $' + (Ax.price || 0).toFixed(0) + ' · score ' + sc(x) + (Ax.ctx.bracket ? ' · bracket ' + Ax.ctx.bracket : '') + '</p><span class="lab">Only in this deck · ' + L.reduce((a, e) => a + e.q, 0) + '</span>' +
+    L.slice().sort((a, b) => a.n.localeCompare(b.n)).map(e => { const c = find(e.n); return '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span><span class="nm">' + esc(e.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c) + '</span></button>'; }).join('') + '</div>'; };
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Compare decks"><div class="ph"><h2>Compare decks</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<div class="row"><label class="lab" for="cmp-with" style="margin:0">Compare ' + esc(d.name) + ' with</label><select id="cmp-with" style="flex:1 1 200px;min-width:0;width:auto">' + others.map(x => '<option value="' + esc(x.id) + '"' + (x.id === o.id ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('') + '</select></div>' +
+    '<p class="note" style="margin:0">' + both + ' card' + (both === 1 ? '' : 's') + ' in both decks.</p><div class="row" style="align-items:flex-start;gap:12px">' + col(d, onlyA) + col(o, onlyB) + '</div></div>';
+  $('#modal').hidden = false; }
 function listPanel(d, A){
   return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="list-all">View all</button></div>' +
     '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn pri" data-act="export-open">Export</button></div>' +
@@ -2054,6 +2065,7 @@ function handleAct(act, v, n, pArg){
     case 'consider-add': { const c = find(n); if (!d || !c) return; if (!considerOf(d).some(x => keyOf(x.n) === c._k)) considerOf(d).push({n:c.n, at:Date.now()}); toast(c.n + ' is on ' + d.name + '’s Considering list. It is not in the deck.'); const b = $('#considerbox'); if (b) b.outerHTML = considerBox(c); break; }
     case 'consider-rm': { if (!d) return; d.consider = considerOf(d).filter(x => keyOf(x.n) !== keyOf(n)); toast(n + ' is off the Considering list.'); const c = find(n), b = $('#considerbox'); if (b && c) b.outerHTML = considerBox(c); break; }
     case 'consider-in': { if (!d) return; const c = find(n); if (!c) return; if (wantFit(d, c)){ toast(c.n + ' can’t go in this deck: ' + wantFit(d, c) + '.'); return; } d.consider = considerOf(d).filter(x => keyOf(x.n) !== c._k); addCard(d, c.n, 1); toast('Added ' + c.n + ' to ' + d.name + ' from Considering.'); break; }
+    case 'cmp-open': openCompare(); return;
     case 'listsort': S.listSort = LIST_SORT[v] ? v : 'name'; changed = false; break;
     case 'listrole': S.listRole = LIST_ROLE[v] != null ? v : ''; changed = false; break;
     case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
@@ -2103,6 +2115,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
   else if (t.id === 'aim-add' && t.value && d){ d.aimAuto = false; aimsChanged(d); d.aims.push(t.value); touch(); render(); ensureEdh(); }
   else if (t.id === 'tribe' && d){ d.tribe = t.value; touch(); render(); }
   else if (t.id === 'type-add' && d){ const v = t.value.trim().toLowerCase(), m = creatureTypes().find(x => x.toLowerCase() === v); if (m){ d.types = (d.types || []).filter(x => x !== m).concat(m); touch(); render(); } else if (v) toast('That is not a creature type in the card data.'); }
+  else if (t.id === 'cmp-with'){ openCompare(t.value); }
   else if (t.id === 'want-deck'){ S.wantDeck = t.value; const c = find(S.modalCard), b = $('#wantbox'); if (c && b) b.outerHTML = wantBox(c); }
   else if ((t.id === 'gset-add' || t.id === 'dset-add') && t.value){ const st = resolveSet(t.value); if (!st){ toast('No set matches “' + t.value + '”.'); return; }
     if (t.id === 'gset-add'){ S.gen.sets = (S.gen.sets || []).filter(x => x !== st.code).concat(st.code); openGenerate(); loadSetCards([st.code]); }
