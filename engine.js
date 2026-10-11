@@ -905,19 +905,25 @@ const underCap = (p, t) => t === 'apex' || (p != null && p < TIERS[t].cap);
 // from the deck's own practice games). A swap that does not raise the deck score is never recommended: it is dropped and the
 // tier says why. Each kept pick carries dScore, the score change it makes, which the app shows instead of a value guess.
 const SCORE_MIN = 0.05;   // a swap counts as raising the score from here
-function scoreFloor(){ return UP.smin != null ? UP.smin : 0; }   // a swap that lowers the deck score at all (unrounded) is never suggested
+function scoreFloor(){ return UP.smin != null ? UP.smin : SCORE_MIN; }   // every suggestion must raise the deck score by a margin the practice games cannot undo
 function swapScore(d, base, apex, cut, add, q){ const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, q || 1); addCard(u, add, q || 1); try { return +(evaluateDeck(u, {apex, sim:base.sim}).exact - base.exact).toFixed(2); } catch (e) { return null; } }
 function scoreCheck(d, R, o){
   o = o || {}; if (!R || d.format !== 'commander' || !find(d.commander)) return R;
   let base; try { base = o.base || evaluateDeck(d, {apex:o.apex, games:300}); } catch (e) { return R; } if (!base || base.exact == null) return R;
   const memo = new Map(), dOf = p => { const k = p.cut + '>' + p.add + '>' + (p.q || 1); if (!memo.has(k)) memo.set(k, swapScore(d, base, o.apex, p.cut, p.add, p.q)); return memo.get(k); };
-  const LAB = {apex:'Apex', mid:'Mid', budget:'Budget'}; let dropped = 0, refilled = 0, themed = 0;
+  const LAB = {apex:'Apex', mid:'Mid', budget:'Budget'}; let dropped = 0, refilled = 0, themed = 0, repaired = 0; const extra = [];
   const T = themeCtx(d), VM = new Map(), ctx0 = ctxOf(d), dis0 = new Set((d.dismissed || []).map(norm)); let TP = null; const own = upgradePaths.own, inUse = () => new Set(R.paths.flatMap(L => Object.values(L.opts).map(p => p.add)));
   const swapTo = (p, n, v, why) => { const c = find(n); return Object.assign({}, p, {add:c.n, dScore:v, held:false, own:!!(own && own.has(c._n)), gc:!!c.gc, why:(why ? [why] : []).concat((p.why || []).filter(w => !/^From |theme$/.test(w))).slice(0, 2), alt:p.add}); };
   for (const L of R.paths) for (const t of ['apex', 'mid', 'budget', 'free']){ const p = L.opts[t]; if (!p) continue; const v = dOf(p); p.dScore = v;
     if (v != null && v < scoreFloor()){
       // the pick would not raise the score: the strongest close card for the same job and price band that does takes its place
-      let rep = null; if (t !== 'free' && o.refill !== false){ const used = inUse(); for (const a of altsFor(d, p.add, {cut:p.cut, val:R.valOf, skip:[...used], n:3, vmemo:VM})){ const w = dOf({cut:p.cut, add:a.n, q:p.q}); if (w != null && w >= SCORE_MIN){ rep = swapTo(p, a.n, w, a.theme); break; } } }
+      let rep = null;
+      // first: the same card against another weak card in the deck (the cut, not the card, was the problem)
+      if (t !== 'free' && o.repair !== false && R.valOf){ const cutsInUse = new Set(R.paths.map(x => x.cut).concat(extra.map(x => x.cut))), addC = find(p.add), addLand = addC && !!tags(addC).land;
+        const pool = d.cards.filter(e => !e.l && !cutsInUse.has(e.n) && !isBasic(e.n) && e.n !== p.cut).map(e => ({e, c:find(e.n)})).filter(x => x.c && !!tags(x.c).land === addLand && !x.c.gc === !p.gcOut).map(x => ({n:x.e.n, v:R.valOf(x.c)})).sort((a, b) => a.v - b.v).slice(0, 6);
+        let best = null; for (const x of pool){ const w = dOf({cut:x.n, add:p.add, q:1}); if (w != null && w >= SCORE_MIN && (!best || w > best.w)) best = {n:x.n, w}; }
+        if (best){ delete L.opts[t]; extra.push({after:L, cut:best.n, opts:{[t]:Object.assign({}, p, {cut:best.n, q:1, dScore:best.w, cutWhy:['Weakest fit for the build'], repaired:p.cut})}, none:{}, gain:p.gain}); repaired++; if (LAB[t]) (L.none = L.none || {})[t] = p.add.split(' // ')[0] + ' is suggested in place of ' + best.n.split(' // ')[0] + ' instead, where it raises the deck score'; continue; } }
+      if (t !== 'free' && o.refill !== false){ const used = inUse(); for (const a of altsFor(d, p.add, {cut:p.cut, val:R.valOf, skip:[...used], n:3, vmemo:VM})){ const w = dOf({cut:p.cut, add:a.n, q:p.q}); if (w != null && w >= SCORE_MIN){ rep = swapTo(p, a.n, w, a.theme); break; } } }
       if (rep){ L.opts[t] = rep; refilled++; continue; }
       delete L.opts[t]; dropped++; if (LAB[t]) (L.none = L.none || {})[t] = 'No ' + LAB[t] + ' card for this slot raises the deck score (' + p.add.split(' // ')[0] + ' would not), so none is suggested'; continue; }
     // AT ALL TIMES: an on-theme card (the commander's set or theme creature types) that is about as strong is the suggestion
@@ -928,9 +934,10 @@ function scoreCheck(d, R, o){
         .filter(a => vc == null || (a.v > vcu && a.v >= vc - 0.25 * Math.max(0, vc - vcu))).sort((a, b) => b.v - a.v);
       for (const a of cand.slice(0, 2)){
         const w = dOf({cut:p.cut, add:a.n, q:p.q}); if (w != null && w >= SCORE_MIN && w >= 0.75 * v){ L.opts[t] = swapTo(p, a.n, w, a.theme); themed++; break; } } } }
-  R.paths = R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t]));
+  // re-paired picks follow the engine's own list (measured: better agreement with players than keeping their old place)
+  extra.forEach(x => delete x.after); R.paths = R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])).concat(extra);
    // the engine's order (strongest upgrade first, checked against real players) is kept
-  R.scored = {base:base.exact, dropped, refilled, themed}; R.dOf = (cut, add, q) => swapScore(d, base, o.apex, cut, add, q); return R;
+  R.scored = {base:base.exact, dropped, refilled, themed, repaired}; R.dOf = (cut, add, q) => swapScore(d, base, o.apex, cut, add, q); return R;
 }
 function tierPick(L, t){
   const a = L.opts.apex; if (!a) return t === 'budget' ? (L.opts.budget || null) : (L.opts.mid || L.opts.budget || null);   // the Apex pick was dropped by the score check
