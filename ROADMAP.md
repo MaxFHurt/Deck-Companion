@@ -12,11 +12,40 @@ Live: Build 87. Each item ships as its own build: build, run the full test suite
 3. **Decks you can build**: which commanders your owned cards fit best (Generate
    can already build from cards you own).
 
+## More features (from the competitor review)
+
+4. **Deck folders and tags**: organize many decks.
+5. **Visible practice games**: watch the app's practice games and test opening
+   hands (the deck score already plays them in the background).
+6. **Search cards by what they do**: e.g. "every card that draws when a creature
+   dies", without AI.
+7. **Card lists by job**: the best ramp, draw or removal for this commander.
+8. **Collection value and stats**: what the library is worth.
+9. **Lands helper**: how many of each land type the deck needs.
+
+## Accuracy work
+
+10. **Smarter deck score**: it overrates some cards (e.g. Bontu's Monument for
+    Doom, cards counted for two jobs). Fixing it makes the Unpopular pick chip
+    more trustworthy. Measure against player data before and after.
+11. **Game Changer extra rows**: the up-to-3 extra Game Changer rows (Build 81)
+    slightly lower how often the top 10 suggestions match what players add on
+    small decks. Decide whether to keep them as they are.
+12. **Card search sort by the app's measures** (score impact, role, popularity):
+    the Upgrades list and decklist have it; Card search doesn't.
+
+## Checks and cleanup
+
+13. **Real-device check**: card pictures have never been verified on a real phone
+    and iPad (the test environment blocks the image server).
+14. **Remove leftover code** from replaced features (no visible change).
+
 ## Open decisions
 
 - **Unpopular pick chip**: about half of all alternatives carry it, because the
   deck score often likes cards players skip. Option: show it only when the gap
   over the suggested card is large.
+- **Game Changer extra rows**: keep, trim or remove (see item 11).
 - **Deck-score ranking** (tried in Build 82, reverted in 83): ranking slots purely
   by the app's deck score cut agreement with real players to about zero, so popular
   picks lead. Revisit only with proof the score beats player data.

@@ -15,7 +15,8 @@ replace old entries instead of adding to them, and delete anything no longer rel
 ## Current state
 
 - Live: **Build 87**. All tests pass. Test suite saved (`tools/tests/suite/`).
-- Next on the roadmap: 1) share link, 2) price history, 3) decks you can build.
+- Roadmap (`ROADMAP.md`) has 14 items: 9 features, 3 accuracy items, 2 checks.
+  Next up: 1) share link, 2) price history, 3) decks you can build.
 
 ## To Work
 
@@ -23,4 +24,4 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 ## To Chat
 
-- Build 87 is live and working. Ready for the next request.
+- Build 87 is live and working. Roadmap now lists every pending item. Ready for the next request.
