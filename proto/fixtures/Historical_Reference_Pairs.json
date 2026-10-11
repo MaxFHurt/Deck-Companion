@@ -1,0 +1,83 @@
+{
+  "status": "Partial historical reference; provisional judgments, not objective ground truth",
+  "reportedHistoricalPairCount": 29,
+  "availableExactPairCount": 9,
+  "coverage": {
+    "avengers-assemble": {
+      "reported": 7,
+      "provided": 0
+    },
+    "doom-prevails": {
+      "reported": 7,
+      "provided": 7
+    },
+    "tramplesaurus-rex": {
+      "reported": 6,
+      "provided": 0
+    },
+    "turtle-power": {
+      "reported": 7,
+      "provided": 0
+    },
+    "wakanda-forever": {
+      "reported": 2,
+      "provided": 2
+    }
+  },
+  "pairs": [
+    {
+      "deck": "doom-prevails",
+      "cut": "Batroc the Leaper",
+      "add": "Leader, Super-Genius",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "doom-prevails",
+      "cut": "Kang Dynasty",
+      "add": "Doom Reigns Supreme",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "doom-prevails",
+      "cut": "Superior Foes of Spider-Man",
+      "add": "Green Goblin, Nemesis",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "doom-prevails",
+      "cut": "Extract Power",
+      "add": "Counterspell",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "doom-prevails",
+      "cut": "Tri-Sentinel, Act of Vengeance",
+      "add": "Reanimate",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "doom-prevails",
+      "cut": "Lady Loki, Agent of Chaos",
+      "add": "Taskmaster, Mercenary Mimic",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "doom-prevails",
+      "cut": "Titania, Proud Pummeler",
+      "add": "Archfiend of Ifnir",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "wakanda-forever",
+      "cut": "Fleecemane Lion",
+      "add": "Bronze Guardian",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    },
+    {
+      "deck": "wakanda-forever",
+      "cut": "Harmonize",
+      "add": "Mystic Forge",
+      "status": "Revalidate against current Oracle, prices and final deck; not a lock."
+    }
+  ]
+}

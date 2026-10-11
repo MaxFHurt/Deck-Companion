@@ -1,0 +1,1528 @@
+{
+ "collected": "2026-10-10",
+ "decks": {
+  "avengers-assemble": [
+   {
+    "title": "Avengers Assemble Upgrade Guide: 15 Easy Changes You Can Make",
+    "author": "A.L. Walser",
+    "date": "2026-06-18",
+    "url": "https://draftsim.com/avengers-assembler-upgrade-guide/",
+    "budget": "not stated (modest card-quality upgrades, no expensive staples)",
+    "cuts": [
+     "Metallic Mimic",
+     "Hulkbuster Armor",
+     "Love on the Battlefield",
+     "Avengers Quinjet",
+     "Heroic Return",
+     "Make Your Move",
+     "Vision, Synthezoid Avenger",
+     "Avenge",
+     "Captain America, Living Legend",
+     "Speed, Young Avenger",
+     "Dismantling Wave",
+     "Arcane Denial",
+     "Tome of Legends",
+     "Hawkeye, Avenging Archer",
+     "Austere Command"
+    ],
+    "adds": [
+     "Agent Phil Coulson",
+     "Akki Battle Squad",
+     "Araña, Heart of the Spider",
+     "Avengers Assemble!",
+     "Biorganic Carapace",
+     "Captain Marvel, Shooting Star",
+     "Danny Pink",
+     "Damning Verdict",
+     "Daredevil, Man Without Fear",
+     "Matt Murdock, Justice Seeker",
+     "Night Nurse, Healer of Heroes",
+     "Ripples of Potential",
+     "Spectacular Spider-Man",
+     "Spider-Woman, Stunning Savior",
+     "Wave Goodbye"
+    ],
+    "pairs": [
+     [
+      "Metallic Mimic",
+      "Agent Phil Coulson"
+     ],
+     [
+      "Hulkbuster Armor",
+      "Akki Battle Squad"
+     ],
+     [
+      "Love on the Battlefield",
+      "Araña, Heart of the Spider"
+     ],
+     [
+      "Avengers Quinjet",
+      "Avengers Assemble!"
+     ],
+     [
+      "Heroic Return",
+      "Biorganic Carapace"
+     ],
+     [
+      "Make Your Move",
+      "Captain Marvel, Shooting Star"
+     ],
+     [
+      "Vision, Synthezoid Avenger",
+      "Danny Pink"
+     ],
+     [
+      "Avenge",
+      "Damning Verdict"
+     ],
+     [
+      "Captain America, Living Legend",
+      "Daredevil, Man Without Fear"
+     ],
+     [
+      "Speed, Young Avenger",
+      "Matt Murdock, Justice Seeker"
+     ],
+     [
+      "Dismantling Wave",
+      "Night Nurse, Healer of Heroes"
+     ],
+     [
+      "Arcane Denial",
+      "Ripples of Potential"
+     ],
+     [
+      "Tome of Legends",
+      "Spectacular Spider-Man"
+     ],
+     [
+      "Hawkeye, Avenging Archer",
+      "Spider-Woman, Stunning Savior"
+     ],
+     [
+      "Austere Command",
+      "Wave Goodbye"
+     ]
+    ],
+    "commander": "Captain America, Team Leader",
+    "extraction_note": "Cut names taken from the card-image gallery under each 'Suggested Cut:' heading (alt text); verified against final decklist in article."
+   },
+   {
+    "title": "Avengers Assemble Precon Upgrade Guide",
+    "author": "Noah Cochrane",
+    "date": "2026-07-26",
+    "url": "https://gametyrant.com/news/avengers-assemble-precon-upgrade-guide",
+    "budget": "~$25",
+    "cuts": [
+     "Austere Command",
+     "Captain America, Living Legend",
+     "Dismantling Wave",
+     "Heroic Return",
+     "Hulkbuster Armor",
+     "Jocasta, Automaton Avenger",
+     "Metallic Mimic",
+     "Patriot, Shield Wielder",
+     "Speed, Young Avenger",
+     "Tome of Legends"
+    ],
+    "adds": [
+     "Agent Phil Coulson",
+     "Araña, Heart of the Spider",
+     "Captain America, Super Soldier",
+     "Monica Rambeau // Photon, Living Light",
+     "Spider-Woman, Stunning Savior",
+     "Damning Verdict",
+     "Wave Goodbye",
+     "Ripples of Potential",
+     "Avengers Assemble!",
+     "Impostor Syndrome"
+    ],
+    "pairs": [
+     [
+      "Patriot, Shield Wielder",
+      "Captain America, Super Soldier"
+     ]
+    ],
+    "commander": "Captain America, Team Leader",
+    "honorable_mentions": [
+     "The Ozolith"
+    ],
+    "name_normalizations": {
+     "Captain America, Super Soldier": "Captain America, Super-Soldier"
+    },
+    "pairing_note": "Only Patriot->Captain America explicitly paired; article says Austere Command is replaced by removal that leaves own board intact (Damning Verdict / Wave Goodbye)."
+   },
+   {
+    "title": "Avengers Assemble: Budget Commander Precon Upgrade Guide",
+    "author": "Ben Atwood",
+    "date": "2026-07-31",
+    "url": "https://flipsidegaming.com/blogs/magic-blog/avengers-assemble-budget-commander-precon-upgrade-guide",
+    "budget": "budget (no total stated; cheap cards, prices cited in cents)",
+    "cuts": [
+     "Captain Mar-Vell, Space-Born",
+     "Captain Marvel, Apex Avenger",
+     "Speed, Young Avenger",
+     "Captain America, Living Legend",
+     "Rescue, Pepper Potts",
+     "Thor, Asgard's Avenger",
+     "She-Hulk, Wallbreaker",
+     "Ant-Man, Elusive Avenger",
+     "Heroic Return",
+     "Thought Vessel"
+    ],
+    "adds": [
+     "Agent Phil Coulson",
+     "Matt Murdock, Justice Seeker",
+     "The Wondrous Wasp",
+     "The Wasp, Janet Van Dyne",
+     "Jessica Jones, Private Eye",
+     "Araña, Heart of the Spider",
+     "Captain America, Wings of Freedom",
+     "Spider-Woman, Stunning Savior",
+     "Kid Loki",
+     "Hawkeye, Master Marksman"
+    ],
+    "pairs": [],
+    "commander": "Captain America, Team Leader",
+    "extraction_note": "Adds are referred to in prose by short names (e.g. 'Phil Coulson', 'Matt Murdock', 'The Wondrous Wasp', 'Janet Van Dyne', 'Jessica Jones', 'Araña', 'Cap Wings', 'Kid Loki', 'Hawkeye, Master Marksman'); full names resolved from the article's card images and Scryfall. 'Matt Murdock, Justice Seeker' and 'The Wasp, Janet Van Dyne' are inferred (images unlabeled)."
+   },
+   {
+    "title": "Avengers Assemble - Marvel Super Heroes Precon Guide (Upgrading the Deck section)",
+    "author": "Cooper Gottfried",
+    "date": "2026-06-15",
+    "url": "https://edhrec.com/articles/avengers-assemble-marvel-super-heroes-precon-guide",
+    "budget": "tiered: 5 budget adds / 5 no-budget adds / 3 Game Changers (Bracket 3)",
+    "cuts": [
+     "Hawkeye, Avenging Archer",
+     "Hercules, Olympian Hero",
+     "Patriot, Shield Wielder",
+     "The Wasp, Winsome Avenger",
+     "Hero's Blade"
+    ],
+    "adds": [
+     "Envoy of the Ancestors",
+     "Chocobo Knights",
+     "Honor-Worn Shaku",
+     "Scholar of New Horizons",
+     "Wave Goodbye",
+     "The Ozolith",
+     "Ripples of Potential",
+     "Shared Animosity",
+     "Mana Echoes",
+     "Flowering of the White Tree",
+     "Jeska's Will",
+     "Rhystic Study",
+     "The One Ring"
+    ],
+    "pairs": [],
+    "commander": "Captain America, Team Leader",
+    "adds_by_tier": {
+     "budget": [
+      "Envoy of the Ancestors",
+      "Chocobo Knights",
+      "Honor-Worn Shaku",
+      "Scholar of New Horizons",
+      "Wave Goodbye"
+     ],
+     "no_budget": [
+      "The Ozolith",
+      "Ripples of Potential",
+      "Shared Animosity",
+      "Mana Echoes",
+      "Flowering of the White Tree"
+     ],
+     "game_changers": [
+      "Jeska's Will",
+      "Rhystic Study",
+      "The One Ring"
+     ]
+    },
+    "extraction_note": "Human-written EDHREC precon review article (not the auto-generated precon data page)."
+   },
+   {
+    "title": "Upgrading Marvel Super Heroes Precons",
+    "author": "Ben Guilfoyle",
+    "date": "2026-07-23",
+    "url": "https://www.threeforonetrading.com/en/upgrading-marvel-commander-decks",
+    "budget": "tiered: 3 budget / 3 all-of-Magic / 3 Game Changer-expensive",
+    "cuts": [],
+    "adds": [
+     "Araña, Heart of the Spider",
+     "SP//dr, Piloted by Peni",
+     "Champions from Beyond",
+     "Akroma's Will",
+     "Resourceful Defense",
+     "Panharmonicon",
+     "Roaming Throne",
+     "Chronicle of Victory",
+     "Teferi's Protection"
+    ],
+    "pairs": [],
+    "commander": "Captain America, Team Leader",
+    "adds_by_tier": {
+     "budget": [
+      "Araña, Heart of the Spider",
+      "SP//dr, Piloted by Peni",
+      "Champions from Beyond"
+     ],
+     "all_of_magic": [
+      "Akroma's Will",
+      "Resourceful Defense",
+      "Panharmonicon"
+     ],
+     "expensive_game_changers": [
+      "Roaming Throne",
+      "Chronicle of Victory",
+      "Teferi's Protection"
+     ]
+    },
+    "extraction_note": "Adds only; article names no specific cuts for Avengers (only 'trim some heroes that are just there for the type')."
+   }
+  ],
+  "doom-prevails": [
+   {
+    "title": "Marvel Super Heroes Doom Prevails Commander Deck Upgrade Guide",
+    "author": "Jacob Lackner",
+    "date": "2026-06-22",
+    "url": "https://blog.cardkingdom.com/marvel-super-heroes-doom-prevails-commander-deck-upgrade-guide/",
+    "budget": "$50",
+    "cuts": [
+     "Abomination, World Ravager",
+     "Killmonger, Ruthless Usurper",
+     "Klaw, Master of Sound",
+     "Madame Hydra",
+     "Puppet Master, String Puller",
+     "Superior Foes of Spider-Man",
+     "Titania, Proud Pummeler",
+     "Propaganda",
+     "Stilt-Man, Towering Terror",
+     "Syphon Mind",
+     "Patchwork Banner"
+    ],
+    "adds": [
+     "Norman Osborn // Green Goblin",
+     "Green Goblin, Nemesis",
+     "Body Launderer",
+     "Spymaster's Vault",
+     "Ledger Shredder",
+     "Homunculus Horde",
+     "Archfiend of Ifnir",
+     "Glint-Horn Buccaneer",
+     "Cool but Rude",
+     "Psychic Frog",
+     "Skirge Familiar"
+    ],
+    "pairs": [],
+    "commander": "Doctor Doom, King of Latveria",
+    "further_upgrades_higher_budget": [
+     "Monument to Endurance",
+     "Surly Badgersaur",
+     "Sheoldred, the Apocalypse",
+     "Loki, God of Mischief",
+     "Yawgmoth, Thran Physician"
+    ],
+    "extraction_note": "Article written as 'Norman Osborn // Green Goblin | Green Goblin, Nemesis'. Full list on Moxfield https://moxfield.com/decks/wciFoFEOUk2McvY2sD4O-A (not fetched: Moxfield blocks automated access)."
+   },
+   {
+    "title": "MTG Marvel deck upgrade guide - 12 ways to improve your Doom Prevails precon",
+    "author": "Matt Bassil",
+    "date": "2026-06-19",
+    "url": "https://www.wargamer.com/magic-the-gathering/marvel-doom-prevails-precon-upgrade",
+    "budget": "not stated",
+    "cuts": [
+     "Klaw, Master of Sound",
+     "Damocles Base, Sword of Kang",
+     "Skullclamp",
+     "Helmut Zemo, Mastermind",
+     "Abomination, World Ravager",
+     "Tri-Sentinel, Act of Vengeance",
+     "The Frightful Four",
+     "Crumbling Necropolis",
+     "Night's Whisper",
+     "Puppet Master, String Puller",
+     "Progenitor's Icon",
+     "Swamp"
+    ],
+    "adds": [
+     "Leader, Super-Genius",
+     "Norman Osborn / Green Goblin",
+     "Monument to Endurance",
+     "Green Goblin, Revenant",
+     "Ultimate Green Goblin",
+     "Doctor Octopus, Master Planner",
+     "Cool but Rude",
+     "Oscorp Industries",
+     "Unstable Experiment",
+     "Carnage, Crimson Chaos",
+     "Crucible of Worlds",
+     "Spymaster's Vault"
+    ],
+    "pairs": [
+     [
+      "Klaw, Master of Sound",
+      "Leader, Super-Genius"
+     ],
+     [
+      "Damocles Base, Sword of Kang",
+      "Norman Osborn / Green Goblin"
+     ],
+     [
+      "Skullclamp",
+      "Monument to Endurance"
+     ],
+     [
+      "Helmut Zemo, Mastermind",
+      "Green Goblin, Revenant"
+     ],
+     [
+      "Abomination, World Ravager",
+      "Ultimate Green Goblin"
+     ],
+     [
+      "Tri-Sentinel, Act of Vengeance",
+      "Doctor Octopus, Master Planner"
+     ],
+     [
+      "The Frightful Four",
+      "Cool but Rude"
+     ],
+     [
+      "Crumbling Necropolis",
+      "Oscorp Industries"
+     ],
+     [
+      "Night's Whisper",
+      "Unstable Experiment"
+     ],
+     [
+      "Puppet Master, String Puller",
+      "Carnage, Crimson Chaos"
+     ],
+     [
+      "Progenitor's Icon",
+      "Crucible of Worlds"
+     ],
+     [
+      "Swamp",
+      "Spymaster's Vault"
+     ]
+    ],
+    "commander": "Doctor Doom, King of Latveria",
+    "name_normalizations": {
+     "Norman Osborn / Green Goblin": "Norman Osborn // Green Goblin"
+    }
+   },
+   {
+    "title": "DOOM Prevails Precon Upgrade Guide",
+    "author": "Noah Cochrane",
+    "date": "2026-07-27",
+    "url": "https://gametyrant.com/news/doom-prevails-precon-upgrade-guide",
+    "budget": "~$65 core (plus higher-budget options)",
+    "cuts": [
+     "Damocles Base, Sword of Kang",
+     "Endless Ranks of HYDRA",
+     "Kang Prime",
+     "Kang, Temporal Tyrant",
+     "Madame Hydra",
+     "Mountain",
+     "Progenitor's Icon",
+     "Superior Foes of Spider-Man",
+     "Syphon Mind",
+     "Titania, Proud Pummeler"
+    ],
+    "adds": [
+     "Archfiend of Ifnir",
+     "Captain Howler, Sea Scourge",
+     "Doctor Octopus, Master Planner",
+     "Green Goblin, Nemesis",
+     "Hobgoblin, Mantled Marauder",
+     "Leader, Super Genius",
+     "Norman Osborn // Green Goblin",
+     "Behold the Sinister Six!",
+     "Cool but Rude",
+     "Oscorp Industries"
+    ],
+    "pairs": [
+     [
+      "Mountain",
+      "Oscorp Industries"
+     ]
+    ],
+    "commander": "Doctor Doom, King of Latveria",
+    "higher_budget": [
+     "Bone Miser",
+     "Monument to Endurance"
+    ],
+    "name_normalizations": {
+     "Leader, Super Genius": "Leader, Super-Genius"
+    },
+    "pairing_note": "Mountain cut explicitly to make room for a better land (Oscorp Industries is the only land added)."
+   },
+   {
+    "title": "Doom Prevails - Marvel Super Heroes Precon Guide (Upgrading the Deck section)",
+    "author": "Mike Carrozza",
+    "date": "2026-06-17",
+    "url": "https://edhrec.com/articles/doom-prevails-marvel-super-heroes-precon-guide",
+    "budget": "tiered: 5 budget adds / 5 no-budget adds / Game Changers",
+    "cuts": [
+     "Helmut Zemo, Mastermind",
+     "Syphon Mind",
+     "Lady Loki, Agent of Chaos",
+     "Klaw, Master of Sound",
+     "Sol Ring",
+     "Madame Hydra"
+    ],
+    "adds": [
+     "Mysterio, Master of Illusion",
+     "Feed the Swarm",
+     "Doctor Octopus, Master Planner",
+     "Anger",
+     "Wonder",
+     "Filth",
+     "Crucible of Worlds",
+     "Reanimate",
+     "Monument to Endurance",
+     "Norman Osborn",
+     "Bone Miser",
+     "Notion Thief",
+     "Cyclonic Rift",
+     "Rhystic Study"
+    ],
+    "pairs": [],
+    "commander": "Doctor Doom, King of Latveria",
+    "adds_by_tier": {
+     "budget": [
+      "Mysterio, Master of Illusion",
+      "Feed the Swarm",
+      "Doctor Octopus, Master Planner",
+      "Anger",
+      "Wonder",
+      "Filth"
+     ],
+     "no_budget": [
+      "Crucible of Worlds",
+      "Reanimate",
+      "Monument to Endurance",
+      "Norman Osborn",
+      "Bone Miser"
+     ],
+     "game_changers": [
+      "Notion Thief",
+      "Cyclonic Rift",
+      "Rhystic Study"
+     ]
+    },
+    "name_normalizations": {
+     "Norman Osborn": "Norman Osborn // Green Goblin"
+    },
+    "extraction_note": "Section titled 'Five Cards to Remove' lists six (incl. Sol Ring in prose). Filth mentioned in prose but not in the card-image row; Rhystic Study only in the Game Changers image row."
+   },
+   {
+    "title": "Doom Prevails: Doctor Doom Precon Budget Upgrade Guide",
+    "author": "Ben Atwood",
+    "date": "2026-07-24",
+    "url": "https://flipsidegaming.com/blogs/magic-blog/doom-prevails-doctor-doom-precon-budget-upgrade-guide",
+    "budget": "budget (no total stated; skipped Norman Osborn for ~$20 price)",
+    "cuts": [
+     "Helmut Zemo, Mastermind",
+     "Extract Power",
+     "Killmonger, Ruthless Usurper",
+     "Endless Ranks of HYDRA",
+     "Lady Loki, Agent of Chaos",
+     "Syphon Mind",
+     "Moonstone, Harsh Mistress",
+     "Chaos Warp",
+     "Kang, Temporal Tyrant",
+     "The Frightful Four",
+     "Prowler, Clawed Thief",
+     "Madame Hydra",
+     "Damocles Base, Sword of Kang"
+    ],
+    "adds": [
+     "Compulsion",
+     "Trade Routes",
+     "Tectonic Reformation",
+     "Ivora, Insatiable Heir",
+     "Reckoner Bankbuster",
+     "Azor's Gateway",
+     "Muddle the Mixture",
+     "Ethereal Usher",
+     "Doom Reigns Supreme",
+     "Construct a Cosmic Cube",
+     "The Masters of Evil",
+     "Leader, Super-Genius",
+     "M.O.D.O.K."
+    ],
+    "pairs": [],
+    "commander": "Doctor Doom, King of Latveria",
+    "considered_not_added": [
+     "Cryptcaller Chariot",
+     "Marchesa, the Black Rose",
+     "Norman Osborn // Green Goblin"
+    ],
+    "extraction_note": "Article writes 'Ivora' (resolved to Ivora, Insatiable Heir) and 'M.O.D.O.K.' (the main-set card, image msh-106). Keeps Molecule Man and builds support for it."
+   },
+   {
+    "title": "Doom Prevails Upgrade Guide: 16 Easy Changes You Can Make",
+    "author": "Pedro Furtado (djorso)",
+    "date": "2026-06-17",
+    "url": "https://draftsim.com/doom-prevails-upgrade-guide/",
+    "budget": "budget-conscious (avoids pricey new Marvel cards; no total stated)",
+    "cuts": [
+     "Choked Estuary",
+     "Night's Whisper",
+     "Containment Construct",
+     "Damocles Base, Sword of Kang",
+     "Moonstone, Harsh Mistress",
+     "Superior Foes of Spider-Man",
+     "Glorious Purpose",
+     "Foreboding Ruins",
+     "Progenitor's Icon",
+     "Madame Hydra",
+     "Syphon Mind",
+     "Molecule Man",
+     "Klaw, Master of Sound",
+     "Iron Monger, Sadistic Tycoon",
+     "The Frightful Four",
+     "Propaganda"
+    ],
+    "adds": [
+     "Oscorp Industries",
+     "An Offer You Can't Refuse",
+     "The Master, Multiplied",
+     "Sundial of the Infinite",
+     "Doom Reigns Supreme",
+     "Green Goblin, Revenant",
+     "Norman Osborn / Green Goblin",
+     "Mysterio, Master of Illusion",
+     "Carnage, Crimson Chaos",
+     "HYDRA Assault Robot",
+     "Crimson Cowl, Master of Evil",
+     "Kingpin, Wilson Fisk",
+     "Living Lies of Loki",
+     "Doctor Octopus, Master Planner",
+     "Super-Adaptoid",
+     "The Spot's Portal"
+    ],
+    "pairs": [
+     [
+      "Choked Estuary",
+      "Oscorp Industries"
+     ],
+     [
+      "Night's Whisper",
+      "An Offer You Can't Refuse"
+     ],
+     [
+      "Containment Construct",
+      "The Master, Multiplied"
+     ],
+     [
+      "Damocles Base, Sword of Kang",
+      "Sundial of the Infinite"
+     ],
+     [
+      "Moonstone, Harsh Mistress",
+      "Doom Reigns Supreme"
+     ],
+     [
+      "Superior Foes of Spider-Man",
+      "Green Goblin, Revenant"
+     ],
+     [
+      "Glorious Purpose",
+      "Norman Osborn / Green Goblin"
+     ],
+     [
+      "Foreboding Ruins",
+      "Mysterio, Master of Illusion"
+     ],
+     [
+      "Progenitor's Icon",
+      "Carnage, Crimson Chaos"
+     ],
+     [
+      "Madame Hydra",
+      "HYDRA Assault Robot"
+     ],
+     [
+      "Syphon Mind",
+      "Crimson Cowl, Master of Evil"
+     ],
+     [
+      "Molecule Man",
+      "Kingpin, Wilson Fisk"
+     ],
+     [
+      "Klaw, Master of Sound",
+      "Living Lies of Loki"
+     ],
+     [
+      "Iron Monger, Sadistic Tycoon",
+      "Doctor Octopus, Master Planner"
+     ],
+     [
+      "The Frightful Four",
+      "Super-Adaptoid"
+     ],
+     [
+      "Propaganda",
+      "The Spot's Portal"
+     ]
+    ],
+    "commander": "Loki, the Deceiver (NOT Doctor Doom)",
+    "name_normalizations": {
+     "Norman Osborn / Green Goblin": "Norman Osborn // Green Goblin"
+    },
+    "caveat": "Author explicitly chose the alternate commander Loki, the Deceiver and cut Doom-specific synergy cards; treat as a weaker benchmark for a Doctor Doom-led deck. Cuts extracted from card-image alt text under 'Suggested Cut:'."
+   },
+   {
+    "title": "Upgrading Marvel Super Heroes Precons",
+    "author": "Ben Guilfoyle",
+    "date": "2026-07-23",
+    "url": "https://www.threeforonetrading.com/en/upgrading-marvel-commander-decks",
+    "budget": "tiered: 3 budget / 3 all-of-Magic / 3 Game Changer-expensive",
+    "cuts": [],
+    "adds": [
+     "Containment Construct",
+     "Collector's Vault",
+     "Squee, Goblin Nabob",
+     "Psychic Frog",
+     "Monument to Endurance",
+     "Bone Miser",
+     "Gamble",
+     "Yawgmoth, Thran Physician",
+     "Wheel of Fortune"
+    ],
+    "pairs": [],
+    "commander": "Doctor Doom, King of Latveria",
+    "caveat": "Adds only. Note Containment Construct appears to already be in the precon (Draftsim cuts it), so that 'add' may be an author error.",
+    "adds_by_tier": {
+     "budget": [
+      "Containment Construct",
+      "Collector's Vault",
+      "Squee, Goblin Nabob"
+     ],
+     "all_of_magic": [
+      "Psychic Frog",
+      "Monument to Endurance",
+      "Bone Miser"
+     ],
+     "expensive_game_changers": [
+      "Gamble",
+      "Yawgmoth, Thran Physician",
+      "Wheel of Fortune"
+     ]
+    }
+   }
+  ],
+  "wakanda-forever": [
+   {
+    "title": "Wakanda Forever Precon Upgrade Guide",
+    "author": "Noah Cochrane",
+    "date": "2026-07-28",
+    "url": "https://gametyrant.com/news/wakanda-forever-precon-upgrade-guide",
+    "budget": "not stated as a total; budget-minded (calls ~$30 Doubling Season an exception) plus higher-budget options",
+    "cuts": [
+     "Divine Visitation",
+     "Everett K. Ross, Hapless Attaché",
+     "Hatut Zeraze Strike Force",
+     "Heart-Shaped Herb",
+     "King Solomon's Frogs",
+     "Loyal Guardian",
+     "M'Baku, Jabari Chieftain",
+     "Skybreaker, Sword of Bashenga",
+     "Trading Post",
+     "Wakandan War Panther"
+    ],
+    "adds": [
+     "Brightglass Gearhulk",
+     "Bronze Guardian",
+     "Foundry Inspector",
+     "Kutzil, Malamet Exemplar",
+     "The Vision",
+     "Adaptive Omnitool",
+     "Chimil, the Inner Sun",
+     "Mystic Forge",
+     "The Ten Rings",
+     "Doubling Season"
+    ],
+    "pairs": [],
+    "commander": "T'Challa, the Black Panther",
+    "higher_budget": [
+     "The Aetherspark",
+     "The Mind Stone"
+    ]
+   },
+   {
+    "title": "Wakanda Forever Upgrade Guide: 20 Easy Changes You Can Make",
+    "author": "Pedro Furtado (djorso)",
+    "date": "2026-06-22",
+    "url": "https://draftsim.com/wakanda-forever-upgrade-guide/",
+    "budget": "budget (no total stated)",
+    "cuts": [
+     "Divine Visitation",
+     "King Solomon's Frogs",
+     "Ancestral Communion",
+     "Loyal Guardian",
+     "Sword of the Animist",
+     "Royal Talon Fighter Jet",
+     "Nakia, Wakandan Operative",
+     "M'Baku, Jabari Chieftain",
+     "Fleecemane Lion",
+     "Everett K. Ross, Hapless Attaché",
+     "Gilded Lotus",
+     "Trading Post",
+     "Coveted Jewel",
+     "Heart-Shaped Herb",
+     "Overwhelming Stampede",
+     "Forest",
+     "Forest",
+     "Forest",
+     "Plains",
+     "Plains"
+    ],
+    "adds": [
+     "Swordsman's Steel",
+     "Thought Vessel",
+     "Terrasymbiosis",
+     "Brightglass Gearhulk",
+     "Verdurous Gearhulk",
+     "Jhoira's Familiar",
+     "Avacyn's Pilgrim",
+     "Steel Seraph",
+     "Harrow",
+     "Michiko's Reign of Truth // Portrait of Michiko",
+     "Reprieve",
+     "Mystic Forge",
+     "Batterskull",
+     "Altar of the Goyf",
+     "Shadowspear",
+     "Darksteel Citadel",
+     "Thornglint Bridge",
+     "Rogue's Passage",
+     "Branchloft Pathway // Boulderloft Pathway",
+     "War Room"
+    ],
+    "pairs": [
+     [
+      "Divine Visitation",
+      "Swordsman's Steel"
+     ],
+     [
+      "King Solomon's Frogs",
+      "Thought Vessel"
+     ],
+     [
+      "Ancestral Communion",
+      "Terrasymbiosis"
+     ],
+     [
+      "Loyal Guardian",
+      "Brightglass Gearhulk"
+     ],
+     [
+      "Sword of the Animist",
+      "Verdurous Gearhulk"
+     ],
+     [
+      "Royal Talon Fighter Jet",
+      "Jhoira's Familiar"
+     ],
+     [
+      "Nakia, Wakandan Operative",
+      "Avacyn's Pilgrim"
+     ],
+     [
+      "M'Baku, Jabari Chieftain",
+      "Steel Seraph"
+     ],
+     [
+      "Fleecemane Lion",
+      "Harrow"
+     ],
+     [
+      "Everett K. Ross, Hapless Attaché",
+      "Michiko's Reign of Truth // Portrait of Michiko"
+     ],
+     [
+      "Gilded Lotus",
+      "Reprieve"
+     ],
+     [
+      "Trading Post",
+      "Mystic Forge"
+     ],
+     [
+      "Coveted Jewel",
+      "Batterskull"
+     ],
+     [
+      "Heart-Shaped Herb",
+      "Altar of the Goyf"
+     ],
+     [
+      "Overwhelming Stampede",
+      "Shadowspear"
+     ]
+    ],
+    "commander": "T'Challa, the Black Panther",
+    "extraction_note": "Lands section: 'Suggested Cuts: 3 Forest, 2 Plains' for a five-land package (unpaired). Other cuts from card-image alt text under 'Suggested Cut:'."
+   },
+   {
+    "title": "Wakanda Forever - Marvel Super Heroes Precon Guide (Upgrading the Deck section)",
+    "author": "Kurohitsuki",
+    "date": "2026-06-18",
+    "url": "https://edhrec.com/articles/wakanda-forever-marvel-super-heroes-precon-guide/",
+    "budget": "tiered: 5 budget adds / 5 no-budget adds / 3 Game Changers",
+    "cuts": [
+     "Whispersilk Cloak",
+     "M'Baku, Jabari Chieftain",
+     "T'Chaka, Venerable King",
+     "Divine Visitation"
+    ],
+    "adds": [
+     "Dyadrine, Synthesis Amalgam",
+     "Valor's Flagship",
+     "Yotian Dissident",
+     "Digsite Engineer",
+     "Steel Hellkite",
+     "Emiel the Blessed",
+     "Caretaker's Talent",
+     "Amulet of Vigor",
+     "Mondrak, Glory Dominus",
+     "Black Panther, Wakandan King",
+     "The One Ring",
+     "Teferi's Protection",
+     "Enlightened Tutor"
+    ],
+    "pairs": [],
+    "commander": "T'Challa, the Black Panther",
+    "adds_by_tier": {
+     "budget": [
+      "Dyadrine, Synthesis Amalgam",
+      "Valor's Flagship",
+      "Yotian Dissident",
+      "Digsite Engineer",
+      "Steel Hellkite"
+     ],
+     "no_budget": [
+      "Emiel the Blessed",
+      "Caretaker's Talent",
+      "Amulet of Vigor",
+      "Mondrak, Glory Dominus",
+      "Black Panther, Wakandan King"
+     ],
+     "game_changers": [
+      "The One Ring",
+      "Teferi's Protection",
+      "Enlightened Tutor"
+     ]
+    }
+   },
+   {
+    "title": "Marvel Super Heroes Wakanda Forever Commander Deck Upgrade Guide",
+    "author": "Kristen Gregory",
+    "date": "2026-06-19",
+    "url": "https://blog.cardkingdom.com/marvel-super-heroes-wakanda-forever-commander-deck-upgrade-guide/",
+    "budget": "no fixed budget; multiple upgrade paths (Marvel-only, beyond-Marvel T'Challa, beyond-Marvel Shuri)",
+    "cuts": [],
+    "adds": [
+     "Black Panther, Most Dangerous",
+     "Captain America, Liberator",
+     "Winter Soldier, Reborn Avenger",
+     "Hulkbuster Armor",
+     "Cosmic Cube",
+     "Arc Reactor",
+     "Viv Vision, Teen Synthezoid",
+     "Heroic Feast",
+     "Jocasta, Automaton Avenger",
+     "T'Challa's Protection",
+     "Black Panther, Wakandan King",
+     "Iron Spider, Stark Upgrade",
+     "Machinist's Arsenal",
+     "Court of Garenbrig",
+     "Jaheira, Friend of the Forest",
+     "Ironsoul Enforcer",
+     "Terrasymbiosis"
+    ],
+    "pairs": [],
+    "commander": "T'Challa, the Black Panther",
+    "adds_by_tier": {
+     "marvel_only": [
+      "Black Panther, Most Dangerous",
+      "Captain America, Liberator",
+      "Winter Soldier, Reborn Avenger",
+      "Hulkbuster Armor",
+      "Cosmic Cube",
+      "Arc Reactor",
+      "Viv Vision, Teen Synthezoid",
+      "Heroic Feast",
+      "Jocasta, Automaton Avenger",
+      "T'Challa's Protection",
+      "Black Panther, Wakandan King",
+      "Iron Spider, Stark Upgrade"
+     ],
+     "beyond_marvel_tchalla": [
+      "Machinist's Arsenal",
+      "Court of Garenbrig",
+      "Jaheira, Friend of the Forest",
+      "Ironsoul Enforcer",
+      "Terrasymbiosis"
+     ],
+     "beyond_marvel_shuri_not_included_in_adds": [
+      "Avacyn's Pilgrim",
+      "Elspeth, Storm Slayer",
+      "Dyadrine, Synthesis Amalgam",
+      "Illustrious Wanderglyph",
+      "Thousand Moons Smithy // Barracks of the Thousand"
+     ]
+    },
+    "caveat": "Adds only, no cuts named ('few obviously cuttable cards'). Some Marvel-path adds (Heroic Feast, Viv Vision, Jocasta) are framed for a Shuri build."
+   },
+   {
+    "title": "Upgrading Marvel Super Heroes Precons",
+    "author": "Ben Guilfoyle",
+    "date": "2026-07-23",
+    "url": "https://www.threeforonetrading.com/en/upgrading-marvel-commander-decks",
+    "budget": "tiered: 3 budget / 3 all-of-Magic / 3 Game Changer-expensive",
+    "cuts": [],
+    "adds": [
+     "Mystic Forge",
+     "Basalt Monolith",
+     "Sonic Screwdriver",
+     "Karn, Legacy Reforged",
+     "Wurmcoil Engine",
+     "Unwinding Clock",
+     "The One Ring",
+     "The Great Henge",
+     "Mishra's Workshop"
+    ],
+    "pairs": [],
+    "commander": "T'Challa, the Black Panther",
+    "adds_by_tier": {
+     "budget": [
+      "Mystic Forge",
+      "Basalt Monolith",
+      "Sonic Screwdriver"
+     ],
+     "all_of_magic": [
+      "Karn, Legacy Reforged",
+      "Wurmcoil Engine",
+      "Unwinding Clock"
+     ],
+     "expensive_game_changers": [
+      "The One Ring",
+      "The Great Henge",
+      "Mishra's Workshop"
+     ]
+    },
+    "extraction_note": "Adds only; says to remove 'much of the go-wide theme and some less powerful inclusions' without naming cards."
+   }
+  ],
+  "turtle-power": [
+   {
+    "title": "Turtle Power Upgrade Guide: 14 Easy Changes You Can Make",
+    "author": "Pedro Furtado (djorso)",
+    "date": "2026-02-26",
+    "url": "https://draftsim.com/turtle-power-upgrade-guide/",
+    "budget": "budget (no total stated; 'no Doubling Season or similar staples')",
+    "cuts": [
+     "Fast Forward",
+     "Biogenic Ooze",
+     "Voracious Hydra",
+     "Level Up",
+     "Irma, Part-Time Mutant",
+     "Harmonize",
+     "Foot Chopper",
+     "Tokka & Rahzar, Unsupervised",
+     "Krang, the All-Powerful",
+     "Mole Module",
+     "Coin of Mastery",
+     "Exploding Barrel",
+     "Acidic Slime",
+     "Electric Seaweed"
+    ],
+    "adds": [
+     "Mikey & Leo, Chaos & Order",
+     "Kodama's Reach",
+     "Michelangelo, Weirdness to 11",
+     "The Cabbage Merchant",
+     "Lotho, Corrupt Shirriff",
+     "Evolution Witness",
+     "Kami of Whispered Hopes",
+     "Tireless Provisioner",
+     "Anim Pakal, Thousandth Moon",
+     "Tendershoot Dryad",
+     "Gilded Goose",
+     "Swords to Plowshares",
+     "Adeline, Resplendent Cathar",
+     "Basking Broodscale"
+    ],
+    "pairs": [
+     [
+      "Fast Forward",
+      "Mikey & Leo, Chaos & Order"
+     ],
+     [
+      "Biogenic Ooze",
+      "Kodama's Reach"
+     ],
+     [
+      "Voracious Hydra",
+      "Michelangelo, Weirdness to 11"
+     ],
+     [
+      "Level Up",
+      "The Cabbage Merchant"
+     ],
+     [
+      "Irma, Part-Time Mutant",
+      "Lotho, Corrupt Shirriff"
+     ],
+     [
+      "Harmonize",
+      "Evolution Witness"
+     ],
+     [
+      "Foot Chopper",
+      "Kami of Whispered Hopes"
+     ],
+     [
+      "Tokka & Rahzar, Unsupervised",
+      "Tireless Provisioner"
+     ],
+     [
+      "Krang, the All-Powerful",
+      "Anim Pakal, Thousandth Moon"
+     ],
+     [
+      "Mole Module",
+      "Tendershoot Dryad"
+     ],
+     [
+      "Coin of Mastery",
+      "Gilded Goose"
+     ],
+     [
+      "Exploding Barrel",
+      "Swords to Plowshares"
+     ],
+     [
+      "Acidic Slime",
+      "Adeline, Resplendent Cathar"
+     ],
+     [
+      "Electric Seaweed",
+      "Basking Broodscale"
+     ]
+    ],
+    "commander": "Leonardo, the Balance + Michelangelo, the Heart",
+    "name_normalizations": {
+     "Voracious Hydra": "printed in precon as 'Aggro Amalgam' (Universes Beyond reskin)",
+     "Acidic Slime": "printed in precon as 'Marauding Mutagen'"
+    }
+   },
+   {
+    "title": "MTG Teenage Mutant Ninja Turtles precon deck upgrade guide",
+    "author": "Matt Bassil",
+    "date": "2026-02-20",
+    "url": "https://www.wargamer.com/magic-the-gathering/turtle-power-precon-upgrade",
+    "budget": "not stated",
+    "cuts": [
+     "Acidic Slime",
+     "Krang, The All-Powerful",
+     "Rat King, Pale Piper",
+     "Electric Seaweed",
+     "Mole Module",
+     "Tokka & Rahzar, Unsupervised",
+     "Biogenic Ooze",
+     "Roadkill Rodney",
+     "Continue?",
+     "Steelbane Hydra",
+     "Harmonize"
+    ],
+    "adds": [
+     "Academy Manufacturer",
+     "Mona Lisa, Ever Adaptable",
+     "Ulvenwald Mysteries",
+     "Benthic Biomancer",
+     "Chomping Changeling",
+     "Mutagen Man, Living Ooze",
+     "Evolution Witness",
+     "Michelangelo, Weirdness to 11",
+     "Agent Frank Horrigan",
+     "Lessons from Life",
+     "Jason Bright, Glowing Prophet"
+    ],
+    "pairs": [
+     [
+      "Acidic Slime",
+      "Chomping Changeling"
+     ],
+     [
+      "Continue?",
+      "Evolution Witness"
+     ],
+     [
+      "Harmonize",
+      "Lessons from Life"
+     ]
+    ],
+    "commander": "Leonardo, the Balance + April O'Neil (partner)",
+    "name_normalizations": {
+     "Academy Manufacturer": "Academy Manufactor",
+     "Krang, The All-Powerful": "Krang, the All-Powerful",
+     "Acidic Slime": "printed in precon as 'Marauding Mutagen'"
+    },
+    "pairing_note": "Pairs are explicit in text ('good replacement to Acidic Slime', 'Harmonize but better', Evolution Witness replaces Continue? recursion)."
+   },
+   {
+    "title": "MTG TMNT Turtle Power! Precon Upgrade Guide - Best Budget Upgrades for the Ninja Turtles Precon",
+    "author": "Noah Cochrane",
+    "date": "2026-03-10",
+    "url": "https://gametyrant.com/news/universes-beyond-teenage-mutant-ninja-turtles-turtle-power-precon-upgrade-guide",
+    "budget": "~$60",
+    "cuts": [
+     "April O'Neil, Live on the Scene",
+     "Biogenic Ooze",
+     "Coin of Mastery",
+     "Electric Seaweed",
+     "Fast Forward",
+     "Krang, the All Powerful",
+     "Marauding Mutagen",
+     "Tempestra, Dame of Games",
+     "Tokka & Rahzar, Unsupervised"
+    ],
+    "adds": [
+     "Mikey & Leo, Chaos & Order",
+     "Butterbur, Bree Innkeeper",
+     "Sterling Grove",
+     "Unlucky Cabbage Merchant",
+     "The Cabbage Merchant",
+     "Pizza Face, Gastromancer",
+     "Tainted Treats",
+     "The Earth Crystal",
+     "Michelangelo, Weirdness to 11",
+     "Michelangelo, Mutant BFF"
+    ],
+    "pairs": [
+     [
+      "Marauding Mutagen",
+      "Tainted Treats"
+     ]
+    ],
+    "commander": "Leonardo, the Balance + Donatello, the Brains (recommended pairing)",
+    "honorable_mentions": [
+     "Gruul War Chant",
+     "Turtle Power!",
+     "Taeko, the Patient Avalanche"
+    ],
+    "name_normalizations": {
+     "Krang, the All Powerful": "Krang, the All-Powerful",
+     "Marauding Mutagen": "Acidic Slime (Oracle name)"
+    },
+    "extraction_note": "10 adds vs 9 named cuts in the article."
+   },
+   {
+    "title": "Turtle Power! Teenage Mutant Ninja Turtles Commander Precon Upgrade Guide",
+    "author": "Kristen Gregory",
+    "date": "2026-02-24",
+    "url": "https://blog.cardkingdom.com/turtle-power-teenage-mutant-ninja-turtles-commander-precon-upgrade-guide/",
+    "budget": "$69",
+    "cuts": [
+     "Harmonize",
+     "Exploding Barrel"
+    ],
+    "adds": [
+     "Dusk Legion Duelist",
+     "Faeburrow Elder",
+     "Evolution Witness",
+     "Michelangelo, Weirdness to 11",
+     "Arasta of the Endless Web",
+     "Academy Manufactor",
+     "Kappa Tech-Wrecker",
+     "Sphere Grid",
+     "Uncivil Unrest",
+     "Slippery Bogbonder"
+    ],
+    "pairs": [
+     [
+      "Harmonize",
+      "Dusk Legion Duelist"
+     ],
+     [
+      "Exploding Barrel",
+      "Faeburrow Elder"
+     ]
+    ],
+    "commander": "Leonardo, the Balance + Michelangelo, the Heart",
+    "further_upgrades": [
+     "Tataru Taru",
+     "Lotho, Corrupt Shirriff",
+     "Adeline, Resplendent Cathar",
+     "Kami of Whispered Hopes",
+     "Adrix and Nev, Twincasters",
+     "Smothering Tithe",
+     "Fierce Guardianship",
+     "Teferi's Protection",
+     "Ouroboroid"
+    ],
+    "caveat": "Full cut list is only in the Moxfield sideboard (https://moxfield.com/decks/_fibfix5kkmPdUN9n4EBdA / https://moxfield.com/decks/p8yzqwi2xUmzGke-tr73WA), which could not be fetched (Moxfield blocks automated access). Only the two cuts implied in prose are recorded."
+   }
+  ],
+  "tramplesaurus-rex": [
+   {
+    "title": "Tramplesaurus Upgrade Guide: 19 Easy Changes You Can Make",
+    "author": "A.L. Walser",
+    "date": "2026-10-05",
+    "url": "https://draftsim.com/mtg-tramplesaurus-rex-upgrade-guide/",
+    "budget": "not stated",
+    "cuts": [
+     "Carnage Tyrant",
+     "Beast Whisperer",
+     "Curious Altisaur",
+     "Regal Imperiosaur",
+     "Challenger Troll",
+     "Rishkar, Peema Renegade",
+     "Shamanic Revelation",
+     "Ripjaw Raptor",
+     "Thrashing Brontodon",
+     "Arasta of the Endless Web",
+     "Terrian, World Tyrant",
+     "Gigantosaurus",
+     "Harmonize",
+     "Rhonas's Monument",
+     "Commander's Sphere",
+     "Verdant Sun's Avatar",
+     "Whisperer of the Wilds",
+     "Paradise Druid",
+     "Unnatural Growth"
+    ],
+    "adds": [
+     "Ghalta the Unstoppable",
+     "Greater Good",
+     "Majestic Genesis",
+     "Selvala, Heart of the Wilds",
+     "Kogla, the Titan Ape",
+     "Slumbering Trudge",
+     "Outcaster Trailblazer",
+     "Berserk",
+     "Rampaging Baloths",
+     "Nessian Boar",
+     "Boon of Boseiju",
+     "Tifa's Limit Break",
+     "Smuggler's Surprise",
+     "Tyvar's Stand",
+     "Bridgeworks Battle // Tanglespan Bridgeworks",
+     "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+     "Wild Growth",
+     "Utopia Sprawl",
+     "Arbor Elf"
+    ],
+    "pairs": [
+     [
+      "Carnage Tyrant",
+      "Ghalta the Unstoppable"
+     ],
+     [
+      "Beast Whisperer",
+      "Greater Good"
+     ],
+     [
+      "Curious Altisaur",
+      "Majestic Genesis"
+     ],
+     [
+      "Regal Imperiosaur",
+      "Selvala, Heart of the Wilds"
+     ],
+     [
+      "Challenger Troll",
+      "Kogla, the Titan Ape"
+     ],
+     [
+      "Rishkar, Peema Renegade",
+      "Slumbering Trudge"
+     ],
+     [
+      "Shamanic Revelation",
+      "Outcaster Trailblazer"
+     ],
+     [
+      "Ripjaw Raptor",
+      "Berserk"
+     ],
+     [
+      "Thrashing Brontodon",
+      "Rampaging Baloths"
+     ],
+     [
+      "Arasta of the Endless Web",
+      "Nessian Boar"
+     ],
+     [
+      "Terrian, World Tyrant",
+      "Boon of Boseiju"
+     ],
+     [
+      "Gigantosaurus",
+      "Tifa's Limit Break"
+     ],
+     [
+      "Harmonize",
+      "Smuggler's Surprise"
+     ],
+     [
+      "Rhonas's Monument",
+      "Tyvar's Stand"
+     ],
+     [
+      "Commander's Sphere",
+      "Bridgeworks Battle // Tanglespan Bridgeworks"
+     ],
+     [
+      "Verdant Sun's Avatar",
+      "Turntimber Symbiosis // Turntimber, Serpentine Wood"
+     ],
+     [
+      "Whisperer of the Wilds",
+      "Wild Growth"
+     ],
+     [
+      "Paradise Druid",
+      "Utopia Sprawl"
+     ],
+     [
+      "Unnatural Growth",
+      "Arbor Elf"
+     ]
+    ],
+    "commander": "Ghalta, Primal Hunger",
+    "extraction_note": "Fetched via https://draftsim.com/?p=325130 (same article). Two sections pair two adds with two cuts ('Boon of Boseiju + Tifa's Limit Break' for Terrian + Gigantosaurus; 'Wild Growth + Utopia Sprawl' for Whisperer of the Wilds + Paradise Druid); pairing within those sections is by listed order, not explicit. All 19 cuts verified present in the article's precon decklist."
+   },
+   {
+    "title": "Tramplesaurus Rex MTG Foundations Commander Upgrade Guide",
+    "author": "Cas Hinds",
+    "date": "2026-10-05",
+    "url": "https://www.tcgplayer.com/content/article/Tramplesaurus-Rex-MTG-Foundations-Commander-Upgrade-Guide/2d5e52ca-14c0-4c37-a8ac-3bb433ca4b3d/",
+    "budget": "budget/beginner (no total stated) plus pricier 'grow the deck' list",
+    "cuts": [
+     "Commander's Sphere",
+     "Tangleweave Armor",
+     "Harmonize",
+     "Bite Down",
+     "Collective Resistance",
+     "Colossal Majesty",
+     "Clifftop Lookout",
+     "Arasta of the Endless Web",
+     "Forest"
+    ],
+    "adds": [
+     "Topiary Stomper",
+     "Outcaster Trailblazer",
+     "Kogla, the Titan Ape",
+     "Greater Good",
+     "Return of the Wildspeaker",
+     "Disciple of Freyalise",
+     "Cactus Preserve",
+     "Majestic Genesis",
+     "Smuggler's Surprise"
+    ],
+    "pairs": [
+     [
+      "Commander's Sphere",
+      "Topiary Stomper"
+     ],
+     [
+      "Harmonize",
+      "Outcaster Trailblazer"
+     ],
+     [
+      "Bite Down",
+      "Kogla, the Titan Ape"
+     ],
+     [
+      "Collective Resistance",
+      "Kogla, the Titan Ape"
+     ],
+     [
+      "Forest",
+      "Cactus Preserve"
+     ]
+    ],
+    "commander": "Ghalta, Primal Hunger",
+    "further_upgrades": [
+     "Heroic Intervention",
+     "Castle Garenbrig",
+     "Zopandrel, Hunger Dominus",
+     "Tribute to the World Tree",
+     "Selvala, Heart of the Wilds",
+     "Gwenna, Eyes of Gaea"
+    ],
+    "name_normalizations": {
+     "Disciple of Freyalise": "Disciple of Freyalise // Garden of Freyalise"
+    },
+    "extraction_note": "Page is JS-rendered; text read from TCGplayer's public content API for the same article UUID. Kogla is said to replace both Bite Down and Collective Resistance."
+   },
+   {
+    "title": "Tramplesaurus Rex - Foundations Precon Guide (Upgrading section)",
+    "author": "Owain Roberts",
+    "date": "2026-10-02",
+    "url": "https://edhrec.com/guides/tramplesaurus-rex-foundations-precon-guide",
+    "budget": "tiered: budget (<$5 each) / spendy / Bracket 3 Game Changers",
+    "cuts": [
+     "Commander's Sphere",
+     "Arasta of the Endless Web",
+     "Clifftop Lookout",
+     "Rishkar, Peema Renegade",
+     "Paradise Druid"
+    ],
+    "adds": [
+     "Cultivate",
+     "Majestic Genesis",
+     "Return of the Wildspeaker",
+     "Selvala, Heart of the Wilds",
+     "Wayward Swordtooth",
+     "Heroic Intervention",
+     "Fanatic of Rhonas",
+     "The Skullspore Nexus",
+     "Gwenna, Eyes of Gaea",
+     "The Great Henge",
+     "Worldly Tutor",
+     "Natural Order",
+     "Gaea's Cradle"
+    ],
+    "pairs": [],
+    "commander": "Ghalta, Primal Hunger",
+    "adds_by_tier": {
+     "budget": [
+      "Cultivate",
+      "Majestic Genesis",
+      "Return of the Wildspeaker",
+      "Selvala, Heart of the Wilds",
+      "Wayward Swordtooth"
+     ],
+     "spendy": [
+      "Heroic Intervention",
+      "Fanatic of Rhonas",
+      "The Skullspore Nexus",
+      "Gwenna, Eyes of Gaea",
+      "The Great Henge"
+     ],
+     "game_changers_bracket3": [
+      "Worldly Tutor",
+      "Natural Order",
+      "Gaea's Cradle"
+     ]
+    },
+    "also_mentioned": [
+     "Kodama's Reach (alongside Cultivate)",
+     "combo suggestions: Aerie Ouphes (with Surrak and Goreclaw), Umbral Mantle (with Llanowar Tribe)"
+    ],
+    "extraction_note": "Human-written EDHREC guide article (not the auto-generated precon data page)."
+   }
+  ]
+ },
+ "notes": "Human-written expert guides only; EDHREC auto-generated precon data pages were excluded (EDHREC entries here are the editorial 'Precon Guide' articles). Card names are recorded as written in each article; where the article's spelling differs from the Oracle name, a per-source 'name_normalizations' map gives the canonical name (all other names were checked against Scryfall exact-name lookup). 'pairs' are only included when the article pairs a cut with an add (Draftsim/Wargamer formats are fully paired; GameTyrant/Card Kingdom/Flipside/EDHREC/TCGplayer are mostly unpaired lists). Extra per-source fields: commander (the build's commander choice; note Draftsim's Doom Prevails guide builds around Loki, the Deceiver and several Turtle Power guides pick different Character Select partners), adds_by_tier, further_upgrades/higher_budget/honorable_mentions (not counted in adds), caveat, extraction_note. TMNT precon uses Universes Beyond reskins (e.g., Marauding Mutagen = Acidic Slime, Aggro Amalgam = Voracious Hydra); articles mix printed and Oracle names. Sources skipped as likely SEO/AI content or low value: cardgamebase.com, nerdsnack.com, moxmythic.com, mtgpicker.com, preconforge.com, ratemydecks.com, scrollvault.net, playgroup.gg. Moxfield-linked full lists (Card Kingdom, GameTyrant) could not be fetched (Moxfield API returns 403)."
+}

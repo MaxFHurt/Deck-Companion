@@ -1,0 +1,486 @@
+{
+  "policyVersion": "2026-10-10",
+  "format": "commander",
+  "verifiedDate": "2026-10-10",
+  "officialSource": "https://magic.wizards.com/en/banned-restricted-list",
+  "namedBans": [
+    {
+      "officialListName": "Ancestral Recall",
+      "canonicalName": "Ancestral Recall",
+      "oracleId": "550c74d4-1fcb-406a-b02a-639a760a4380"
+    },
+    {
+      "officialListName": "Balance",
+      "canonicalName": "Balance",
+      "oracleId": "17fa98cd-ed8f-483f-9525-7e989a82ebb2"
+    },
+    {
+      "officialListName": "Black Lotus",
+      "canonicalName": "Black Lotus",
+      "oracleId": "5089ec1a-f881-4d55-af14-5d996171203b"
+    },
+    {
+      "officialListName": "Chaos Orb",
+      "canonicalName": "Chaos Orb",
+      "oracleId": "edb455f4-8dc9-4b7c-b25c-cb51b7dfbb41"
+    },
+    {
+      "officialListName": "Channel",
+      "canonicalName": "Channel",
+      "oracleId": "d1b815d1-2848-40d4-a555-66822d1becbc"
+    },
+    {
+      "officialListName": "Dockside Extortionist",
+      "canonicalName": "Dockside Extortionist",
+      "oracleId": "697bcfe1-ecbf-42a1-bfc7-0766d48ca56b"
+    },
+    {
+      "officialListName": "Emrakul, the Aeons Torn",
+      "canonicalName": "Emrakul, the Aeons Torn",
+      "oracleId": "900ca697-ad38-4b2b-bc74-2ff7eb6ea951"
+    },
+    {
+      "officialListName": "Erayo, Soratami Ascendant",
+      "canonicalName": "Erayo, Soratami Ascendant // Erayo's Essence",
+      "oracleId": "d83bb32d-f409-421a-9d93-bd7ea3240b47"
+    },
+    {
+      "officialListName": "Falling Star",
+      "canonicalName": "Falling Star",
+      "oracleId": "f5ca7b13-8003-4361-b827-7095c89f2750"
+    },
+    {
+      "officialListName": "Fastbond",
+      "canonicalName": "Fastbond",
+      "oracleId": "e27193b7-1a47-4555-865d-b1fd4c6d597f"
+    },
+    {
+      "officialListName": "Flash",
+      "canonicalName": "Flash",
+      "oracleId": "3e057471-e415-4105-9064-8236a0a5047d"
+    },
+    {
+      "officialListName": "Golos, Tireless Pilgrim",
+      "canonicalName": "Golos, Tireless Pilgrim",
+      "oracleId": "efe9c3e0-7315-408e-9903-9d25a681039b"
+    },
+    {
+      "officialListName": "Griselbrand",
+      "canonicalName": "Griselbrand",
+      "oracleId": "f759d112-76db-4091-a22b-b9f19ab6fa5f"
+    },
+    {
+      "officialListName": "Hullbreacher",
+      "canonicalName": "Hullbreacher",
+      "oracleId": "2f533667-e29b-4bec-897a-e7a9eee08314"
+    },
+    {
+      "officialListName": "Iona, Shield of Emeria",
+      "canonicalName": "Iona, Shield of Emeria",
+      "oracleId": "5e816472-561d-43d1-ad28-80a829e2a91a"
+    },
+    {
+      "officialListName": "Karakas",
+      "canonicalName": "Karakas",
+      "oracleId": "59119143-c0fa-49dd-adf0-e2fd3029c48b"
+    },
+    {
+      "officialListName": "Jeweled Lotus",
+      "canonicalName": "Jeweled Lotus",
+      "oracleId": "23216e59-f147-4bb7-a698-12777c2f8584"
+    },
+    {
+      "officialListName": "Leovold, Emissary of Trest",
+      "canonicalName": "Leovold, Emissary of Trest",
+      "oracleId": "d5d91377-fd66-4dbe-a092-07f2ea379ca7"
+    },
+    {
+      "officialListName": "Library of Alexandria",
+      "canonicalName": "Library of Alexandria",
+      "oracleId": "2111588d-9af5-4a33-989e-b074d83f0463"
+    },
+    {
+      "officialListName": "Limited Resources",
+      "canonicalName": "Limited Resources",
+      "oracleId": "5b287dcc-f853-4df1-8ddf-5b8b2adc2873"
+    },
+    {
+      "officialListName": "Mana Crypt",
+      "canonicalName": "Mana Crypt",
+      "oracleId": "2c63e4e1-89d2-4bc6-a232-94e75c4b1c8a"
+    },
+    {
+      "officialListName": "Mox Emerald",
+      "canonicalName": "Mox Emerald",
+      "oracleId": "376ee366-e082-402f-b4db-6592fcfcacd2"
+    },
+    {
+      "officialListName": "Mox Jet",
+      "canonicalName": "Mox Jet",
+      "oracleId": "0677f49e-f8bf-4349-af52-2ccde9287c2e"
+    },
+    {
+      "officialListName": "Mox Pearl",
+      "canonicalName": "Mox Pearl",
+      "oracleId": "824597b8-c89a-47ec-8526-7efc6e24ef0e"
+    },
+    {
+      "officialListName": "Mox Ruby",
+      "canonicalName": "Mox Ruby",
+      "oracleId": "ed85fa82-e4fa-434b-92a8-36b6075708d1"
+    },
+    {
+      "officialListName": "Mox Sapphire",
+      "canonicalName": "Mox Sapphire",
+      "oracleId": "d5ed1233-df87-4b90-8918-13922ec95249"
+    },
+    {
+      "officialListName": "Nadu, Winged Wisdom",
+      "canonicalName": "Nadu, Winged Wisdom",
+      "oracleId": "0ff11a61-6fe3-4c70-aba8-417023a5e54e"
+    },
+    {
+      "officialListName": "Paradox Engine",
+      "canonicalName": "Paradox Engine",
+      "oracleId": "d38937a6-ab1c-4de8-a278-d81a6ce0d921"
+    },
+    {
+      "officialListName": "Primeval Titan",
+      "canonicalName": "Primeval Titan",
+      "oracleId": "ae83ef2c-960f-4c5b-97cc-52465c687c18"
+    },
+    {
+      "officialListName": "Prophet of Kruphix",
+      "canonicalName": "Prophet of Kruphix",
+      "oracleId": "372351fd-58f7-4cb8-8644-5fbc94ccb145"
+    },
+    {
+      "officialListName": "Recurring Nightmare",
+      "canonicalName": "Recurring Nightmare",
+      "oracleId": "a6708b11-1bcd-4208-a967-fe91f2e3313c"
+    },
+    {
+      "officialListName": "Rofellos, Llanowar Emissary",
+      "canonicalName": "Rofellos, Llanowar Emissary",
+      "oracleId": "3015882b-4897-4d2c-8e33-6731c85a0d03"
+    },
+    {
+      "officialListName": "Shahrazad",
+      "canonicalName": "Shahrazad",
+      "oracleId": "fc04f621-338b-4d4c-bf57-5e5a00d990f0"
+    },
+    {
+      "officialListName": "Sundering Titan",
+      "canonicalName": "Sundering Titan",
+      "oracleId": "d17d071d-dbee-4d65-8435-137f35cd89ca"
+    },
+    {
+      "officialListName": "Sylvan Primordial",
+      "canonicalName": "Sylvan Primordial",
+      "oracleId": "52b88034-bf0f-4d29-b776-40ce421f1107"
+    },
+    {
+      "officialListName": "Time Vault",
+      "canonicalName": "Time Vault",
+      "oracleId": "99d4d99d-cf56-45aa-aa39-a250695612f2"
+    },
+    {
+      "officialListName": "Time Walk",
+      "canonicalName": "Time Walk",
+      "oracleId": "d0209d3f-3f7e-4fd5-bce5-10bce6f29c86"
+    },
+    {
+      "officialListName": "Tinker",
+      "canonicalName": "Tinker",
+      "oracleId": "254878f0-be90-4653-a395-0c41258fceaf"
+    },
+    {
+      "officialListName": "Tolarian Academy",
+      "canonicalName": "Tolarian Academy",
+      "oracleId": "dba4fd31-8931-42dd-bd86-45479c2abf74"
+    },
+    {
+      "officialListName": "Trade Secrets",
+      "canonicalName": "Trade Secrets",
+      "oracleId": "50885640-cdf1-4c62-b3bc-f37db6ab38b5"
+    },
+    {
+      "officialListName": "Upheaval",
+      "canonicalName": "Upheaval",
+      "oracleId": "7cafc972-a6f5-4cac-a3d3-8a3ae36ffb1e"
+    },
+    {
+      "officialListName": "Yawgmoth's Bargain",
+      "canonicalName": "Yawgmoth's Bargain",
+      "oracleId": "f7f76f39-a0de-4bda-86b6-0f291892fcec"
+    }
+  ],
+  "categories": [
+    {
+      "key": "conspiracy_type",
+      "predicate": "card has Conspiracy card type",
+      "bannedStatusExpansion": [
+        {
+          "officialListName": "Adriana's Valor",
+          "canonicalName": "Adriana's Valor",
+          "oracleId": "512a9ab9-ddd4-4872-b4f4-dee56f9f5575"
+        },
+        {
+          "officialListName": "Advantageous Proclamation",
+          "canonicalName": "Advantageous Proclamation",
+          "oracleId": "86373537-7424-416a-8d89-cc38f6538458"
+        },
+        {
+          "officialListName": "Assemble the Rank and Vile",
+          "canonicalName": "Assemble the Rank and Vile",
+          "oracleId": "8c912b1f-4584-4945-9931-f6850e5ebfa4"
+        },
+        {
+          "officialListName": "Backup Plan",
+          "canonicalName": "Backup Plan",
+          "oracleId": "6f14f61f-e533-4541-b861-4dbaf0d88833"
+        },
+        {
+          "officialListName": "Brago's Favor",
+          "canonicalName": "Brago's Favor",
+          "oracleId": "395b312b-8fe6-4c28-b91d-620b5fcb9e6d"
+        },
+        {
+          "officialListName": "Double Stroke",
+          "canonicalName": "Double Stroke",
+          "oracleId": "e25ab152-e166-44df-8f92-668bab0e9619"
+        },
+        {
+          "officialListName": "Echoing Boon",
+          "canonicalName": "Echoing Boon",
+          "oracleId": "22e89c6d-2304-4def-8a74-e53a6271e9b9"
+        },
+        {
+          "officialListName": "Emissary's Ploy",
+          "canonicalName": "Emissary's Ploy",
+          "oracleId": "88e936c3-cab9-430f-baa1-930ff557cbf6"
+        },
+        {
+          "officialListName": "Hired Heist",
+          "canonicalName": "Hired Heist",
+          "oracleId": "b0d84455-dc35-45d3-901e-8d28363142f4"
+        },
+        {
+          "officialListName": "Hold the Perimeter",
+          "canonicalName": "Hold the Perimeter",
+          "oracleId": "20f7f33d-0c49-49f7-80fa-aed86e33a528"
+        },
+        {
+          "officialListName": "Hymn of the Wilds",
+          "canonicalName": "Hymn of the Wilds",
+          "oracleId": "dfa62414-48c6-4e5c-8609-1ce507b41505"
+        },
+        {
+          "officialListName": "Immediate Action",
+          "canonicalName": "Immediate Action",
+          "oracleId": "5a9c1c2d-d4d7-4df3-a853-f1b81c67b3e3"
+        },
+        {
+          "officialListName": "Incendiary Dissent",
+          "canonicalName": "Incendiary Dissent",
+          "oracleId": "70caaa64-9623-4d05-9843-18460fea963b"
+        },
+        {
+          "officialListName": "Iterative Analysis",
+          "canonicalName": "Iterative Analysis",
+          "oracleId": "79172853-240c-4924-8b20-edf469946df4"
+        },
+        {
+          "officialListName": "Muzzio's Preparations",
+          "canonicalName": "Muzzio's Preparations",
+          "oracleId": "0e505699-8388-4862-93e0-059cef91cdd4"
+        },
+        {
+          "officialListName": "Natural Unity",
+          "canonicalName": "Natural Unity",
+          "oracleId": "3deb19f6-c1a3-4bca-a6ae-df5d0b42a66e"
+        },
+        {
+          "officialListName": "Power Play",
+          "canonicalName": "Power Play",
+          "oracleId": "15710c57-369a-442b-b7ea-175f3d9d164d"
+        },
+        {
+          "officialListName": "Secret Summoning",
+          "canonicalName": "Secret Summoning",
+          "oracleId": "1342ee23-c3a0-4578-833a-e30a9fc9141c"
+        },
+        {
+          "officialListName": "Secrets of Paradise",
+          "canonicalName": "Secrets of Paradise",
+          "oracleId": "f309fe9f-0732-4b81-a342-a394225cbbb1"
+        },
+        {
+          "officialListName": "Sentinel Dispatch",
+          "canonicalName": "Sentinel Dispatch",
+          "oracleId": "7df49476-7b6c-4b5d-bede-463a7d2e0a58"
+        },
+        {
+          "officialListName": "Sovereign's Realm",
+          "canonicalName": "Sovereign's Realm",
+          "oracleId": "c100a597-8186-4b07-b34a-e1eca2146838"
+        },
+        {
+          "officialListName": "Summoner's Bond",
+          "canonicalName": "Summoner's Bond",
+          "oracleId": "07b6326a-b73d-422b-bcb5-c508aa3fc558"
+        },
+        {
+          "officialListName": "Unexpected Potential",
+          "canonicalName": "Unexpected Potential",
+          "oracleId": "1acbbf61-edf7-4f67-968b-6832c2dd54d1"
+        },
+        {
+          "officialListName": "Weight Advantage",
+          "canonicalName": "Weight Advantage",
+          "oracleId": "42bede0a-de6d-4de3-90ea-9d92b0fe8c64"
+        },
+        {
+          "officialListName": "Worldknit",
+          "canonicalName": "Worldknit",
+          "oracleId": "652f6d90-b158-4f9b-a15e-3e677905331d"
+        }
+      ],
+      "additionalNotLegalRecords": [
+        {
+          "officialListName": "Command From the Shadows",
+          "canonicalName": "Command From the Shadows",
+          "oracleId": "2874b19b-8b22-48a2-a410-f7a29f8f738b"
+        },
+        {
+          "officialListName": "Everyone's an Impostor",
+          "canonicalName": "Everyone's an Impostor",
+          "oracleId": "1b36bed9-ca10-49ef-b63d-513cc7e9ab94"
+        },
+        {
+          "officialListName": "Rule with an Even Hand",
+          "canonicalName": "Rule with an Even Hand",
+          "oracleId": "23a31434-6923-47bb-9d6e-ae774573116e"
+        }
+      ]
+    },
+    {
+      "key": "ante",
+      "predicate": "card references playing for ante",
+      "snapshotExpansion": [
+        {
+          "officialListName": "Amulet of Quoz",
+          "canonicalName": "Amulet of Quoz",
+          "oracleId": "a06f8476-0a23-413a-bc28-8dc2427fdc2a"
+        },
+        {
+          "officialListName": "Bronze Tablet",
+          "canonicalName": "Bronze Tablet",
+          "oracleId": "a1ab033f-9605-4ca2-a98b-c0b2e1599609"
+        },
+        {
+          "officialListName": "Contract from Below",
+          "canonicalName": "Contract from Below",
+          "oracleId": "9e0ed4b0-28b5-44be-ab83-f1e8eb07138d"
+        },
+        {
+          "officialListName": "Darkpact",
+          "canonicalName": "Darkpact",
+          "oracleId": "74f10b9a-a286-49b2-bfa1-a427ff041bd4"
+        },
+        {
+          "officialListName": "Demonic Attorney",
+          "canonicalName": "Demonic Attorney",
+          "oracleId": "65a9f643-063f-406a-8d5a-5ebbe0f04c3d"
+        },
+        {
+          "officialListName": "Jeweled Bird",
+          "canonicalName": "Jeweled Bird",
+          "oracleId": "89f5b21c-18da-4071-bc42-9cdc433734bf"
+        },
+        {
+          "officialListName": "Rebirth",
+          "canonicalName": "Rebirth",
+          "oracleId": "d17576b2-4a47-4848-8908-3152c8b4afe2"
+        },
+        {
+          "officialListName": "Tempest Efreet",
+          "canonicalName": "Tempest Efreet",
+          "oracleId": "272016e1-df1e-4376-9851-af8b1ecba2f4"
+        },
+        {
+          "officialListName": "Timmerian Fiends",
+          "canonicalName": "Timmerian Fiends",
+          "oracleId": "2d2fab27-8793-4212-a512-c4f0c8c55eeb"
+        }
+      ]
+    },
+    {
+      "key": "official_offensive_list",
+      "source": "https://magic.wizards.com/en/news/announcements/depictions-racism-magic-2020-06-10",
+      "snapshotExpansion": [
+        {
+          "officialListName": "Cleanse",
+          "canonicalName": "Cleanse",
+          "oracleId": "a610c77c-fe31-4465-a1c1-392db4ce4ed1"
+        },
+        {
+          "officialListName": "Crusade",
+          "canonicalName": "Crusade",
+          "oracleId": "4692740f-be90-459f-8d90-c4ae71771595"
+        },
+        {
+          "officialListName": "Imprison",
+          "canonicalName": "Imprison",
+          "oracleId": "632de66b-2314-4299-847c-16a84bf9121f"
+        },
+        {
+          "officialListName": "Invoke Prejudice",
+          "canonicalName": "Invoke Prejudice",
+          "oracleId": "854ad486-0c59-4c57-9a76-ab1dff0ff37c"
+        },
+        {
+          "officialListName": "Jihad",
+          "canonicalName": "Jihad",
+          "oracleId": "b18b9869-8490-4875-a5bb-484c3299f2c5"
+        },
+        {
+          "officialListName": "Pradesh Gypsies",
+          "canonicalName": "Pradesh Gypsies",
+          "oracleId": "37c49483-bef6-47c6-9354-ead8560d48da"
+        },
+        {
+          "officialListName": "Stone-Throwing Devils",
+          "canonicalName": "Stone-Throwing Devils",
+          "oracleId": "124c8663-21f3-4cd8-a060-9d04be35c43f"
+        }
+      ]
+    }
+  ],
+  "roleRestrictions": [
+    {
+      "card": {
+        "officialListName": "Lutri, the Spellchaser",
+        "canonicalName": "Lutri, the Spellchaser",
+        "oracleId": "158a6225-a246-4fd6-aa57-0df8067b4383"
+      },
+      "prohibitedRoles": [
+        "companion"
+      ],
+      "notBannedRoles": [
+        "deck",
+        "commander"
+      ],
+      "note": "Other role eligibility, color, singleton and deck checks still apply."
+    }
+  ],
+  "notBannedReminder": [
+    "Biorhythm",
+    "Gifts Ungiven",
+    "Sway of the Stars",
+    "Braids, Cabal Minion",
+    "Coalition Victory",
+    "Panoptic Mirror"
+  ],
+  "conflictPolicy": "Preserve original source status; reconcile official rules and data before certifying; never infer commander or companion eligibility from format status alone."
+}

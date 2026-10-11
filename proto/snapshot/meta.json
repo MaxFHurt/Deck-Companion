@@ -1,0 +1,147 @@
+{
+ "at": "2026-10-06T09:01:20.123Z",
+ "notes": [
+  "cards: gave up: https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingua :: HTTP 429 {\n  \"object\": \"error\",\n  \"code\": \"rate_limited\",\n  \"status\": 429,\n  \"details\": \"You are being rate-limited, try again after 60 seconds. DO NOT IGNORE THIS WARNI"
+ ],
+ "cards": 32115,
+ "cardsAt": "2026-10-05T18:26:35.203Z",
+ "truth": {
+  "removal": 6198,
+  "creature-removal": 5292,
+  "spot-removal": 5182,
+  "fight": 0,
+  "bite": 160,
+  "ramp": 2151,
+  "mana-rock": 357,
+  "mana-dork": 419,
+  "draw": 4081,
+  "card-advantage": 5819,
+  "boardwipe": 909,
+  "sweeper": 909,
+  "board-wipe": 909,
+  "counterspell": 522,
+  "tutor": 1120,
+  "fog": 93,
+  "protection": 1285,
+  "gives-hexproof": 155,
+  "gives-indestructible": 266,
+  "gives-protection": 117,
+  "recursion": 2145,
+  "burn": 2913,
+  "edict": 411
+ },
+ "alt": 576,
+ "altQuery": "has:flavorname",
+ "edhrec": {
+  "Captain America, Team Leader": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Doctor Doom, King of Latveria": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Ghalta, Primal Hunger": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Heroes in a Half Shell": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "T'Challa, the Black Panther": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Lathril, Blade of the Elves": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Emmara, Soul of the Accord": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Isperia, Supreme Judge": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Gisa and Geralf": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Kardur, Doomscourge": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Atarka, World Render": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Wilhelt, the Rotcleaver": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Neyali, Suns' Vanguard": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Hakbal of the Surging Soul": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Pantlaza, Sun-Favored": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Bello, Bard of the Brambles": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Atraxa, Praetors' Voice": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Urza, Chief Artificer": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Anikthea, Hand of Erebos": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Edgar Markov": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "The Ur-Dragon": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Leonardo, the Balance": [
+   "main",
+   ".budget",
+   ".expensive"
+  ]
+ }
+}

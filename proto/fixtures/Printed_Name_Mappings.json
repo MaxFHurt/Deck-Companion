@@ -1,0 +1,108 @@
+{
+  "verifiedDate": "2026-10-10",
+  "source": "Scryfall cards/named exact lookups",
+  "mappings": {
+    "Awesome Android": {
+      "name": "Containment Construct",
+      "oracle_id": "54d48e54-be4a-4a78-a778-b28e74ef7134",
+      "scryfall_uri": "https://scryfall.com/card/msc/284/containment-construct?utm_source=api",
+      "flavor_name": "Awesome Android"
+    },
+    "Lady Loki's Manifestation": {
+      "name": "Titan of Littjara",
+      "oracle_id": "f62250c6-0832-46c8-a800-806589504f5f",
+      "scryfall_uri": "https://scryfall.com/card/msc/280/titan-of-littjara?utm_source=api",
+      "flavor_name": "Lady Loki's Manifestation"
+    },
+    "Loki's Double": {
+      "name": "Spark Double",
+      "oracle_id": "8dcb35e5-ae44-455f-86e3-4a77d496ff34",
+      "scryfall_uri": "https://scryfall.com/card/msc/279/spark-double?utm_source=api",
+      "flavor_name": "Loki's Double"
+    },
+    "Aggro Amalgam": {
+      "name": "Voracious Hydra",
+      "oracle_id": "ff8f5a4b-112a-425e-b489-7ee26d1d9fb3",
+      "scryfall_uri": "https://scryfall.com/card/tmc/54/voracious-hydra?utm_source=api",
+      "flavor_name": "Aggro Amalgam"
+    },
+    "Heralds of the Shredder": {
+      "name": "Vigor",
+      "oracle_id": "70787d8b-0a40-43ea-837a-9617dc13e7e5",
+      "scryfall_uri": "https://scryfall.com/card/tmc/53/vigor?utm_source=api",
+      "flavor_name": "Heralds of the Shredder"
+    },
+    "Humongous Fungus": {
+      "name": "Corpsejack Menace",
+      "oracle_id": "ca0cc02b-b106-4eca-9388-d4b48dd3be49",
+      "scryfall_uri": "https://scryfall.com/card/tmc/56/corpsejack-menace?utm_source=api",
+      "flavor_name": "Humongous Fungus"
+    },
+    "Marauding Mutagen": {
+      "name": "Acidic Slime",
+      "oracle_id": "21f45043-5419-4019-8b6c-e5294bd5f549",
+      "scryfall_uri": "https://scryfall.com/card/tmc/48/acidic-slime?utm_source=api",
+      "flavor_name": "Marauding Mutagen"
+    },
+    "Slash Clone": {
+      "name": "Steelbane Hydra",
+      "oracle_id": "e38e3723-05f5-4a51-8364-1cda19f9cc49",
+      "scryfall_uri": "https://scryfall.com/card/tmc/52/steelbane-hydra?utm_source=api",
+      "flavor_name": "Slash Clone"
+    },
+    "Raise Repulsor Shields": {
+      "name": "Raise the Palisade",
+      "oracle_id": "f55a3781-fe33-4301-9bb5-6a54b9c13c4f",
+      "scryfall_uri": "https://scryfall.com/card/msc/278/raise-the-palisade?utm_source=api",
+      "flavor_name": "Raise Repulsor Shields"
+    },
+    "Avengers Monitoring Station": {
+      "name": "Herald's Horn",
+      "oracle_id": "c02c5547-b9c9-4b2d-9d12-e87bfba8f2d2",
+      "scryfall_uri": "https://scryfall.com/card/msc/287/heralds-horn?utm_source=api",
+      "flavor_name": "Avengers Monitoring Station"
+    },
+    "S.H.I.E.L.D. Spy Satellite": {
+      "name": "Fellwar Stone",
+      "oracle_id": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+      "scryfall_uri": "https://scryfall.com/card/msc/285/fellwar-stone?utm_source=api",
+      "flavor_name": "S.H.I.E.L.D. Spy Satellite"
+    },
+    "Black Panther's Claws": {
+      "name": "Hammer of Nazahn",
+      "oracle_id": "e3955573-3db5-490e-903e-65e0172a9202",
+      "scryfall_uri": "https://scryfall.com/card/msc/286/hammer-of-nazahn?utm_source=api",
+      "flavor_name": "Black Panther's Claws"
+    },
+    "Orbital Vibranium Bomb": {
+      "name": "Scourglass",
+      "oracle_id": "78541a40-c27a-49c0-aa3e-5a48b97065f0",
+      "scryfall_uri": "https://scryfall.com/card/msc/276/scourglass?utm_source=api",
+      "flavor_name": "Orbital Vibranium Bomb"
+    },
+    "Panther Idol": {
+      "name": "Mind's Eye",
+      "oracle_id": "63fd2a57-7a47-4e07-947c-f4e9da7ee538",
+      "scryfall_uri": "https://scryfall.com/card/msc/288/minds-eye?utm_source=api",
+      "flavor_name": "Panther Idol"
+    },
+    "Skybreaker, Sword of Bashenga": {
+      "name": "Sword of the Animist",
+      "oracle_id": "d79cbc61-6c15-48ea-bbba-3cffb819ccba",
+      "scryfall_uri": "https://scryfall.com/card/msc/289/sword-of-the-animist?utm_source=api",
+      "flavor_name": "Skybreaker, Sword of Bashenga"
+    },
+    "Vibranium Dynamo": {
+      "name": "Thran Dynamo",
+      "oracle_id": "a699c663-8131-4045-9265-a83e86609374",
+      "scryfall_uri": "https://scryfall.com/card/msc/290/thran-dynamo?utm_source=api",
+      "flavor_name": "Vibranium Dynamo"
+    },
+    "Wakandan War Panther": {
+      "name": "Fleecemane Lion",
+      "oracle_id": "e3c8cdf7-a26a-45eb-9498-99b618cfba99",
+      "scryfall_uri": "https://scryfall.com/card/msc/282/fleecemane-lion?utm_source=api",
+      "flavor_name": "Wakandan War Panther"
+    }
+  }
+}

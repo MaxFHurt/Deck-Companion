@@ -1,0 +1,2966 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "fixtures": [
+    {
+      "slug": "avengers-assemble",
+      "file": "retail-avengers-assemble.txt",
+      "sha256": "1f75c257ca876b3688f4f88b8e43b4e49b07708d6cd5e03bef6e054166f99b82",
+      "totalCards": 100,
+      "officialDecklistSource": "https://magic.wizards.com/en/news/announcements/marvel-super-heroes-commander-decklists",
+      "supplementalSource": "https://json.edhrec.com/pages/precon/avengers-assemble.json",
+      "verification": "Count, exact current canonical resolution, format status and known corrections checked during handoff assembly. Full official multiset reconciliation required before new benchmark freeze.",
+      "cards": [
+        {
+          "zone": "Commander",
+          "quantity": 1,
+          "name": "Captain America, Team Leader",
+          "oracleId": "916cf34a-fd2c-47fe-bebb-f7b52b3dabed",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Austere Command",
+          "oracleId": "09cc8709-fe10-472a-b05c-e89f3523018d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Avenge",
+          "oracleId": "65a64759-3a93-4542-84fc-3af5ccb741f4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Dismantling Wave",
+          "oracleId": "25012c1f-c069-43d7-b930-a3a5a7eb1389",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Raise the Palisade",
+          "oracleId": "f55a3781-fe33-4301-9bb5-6a54b9c13c4f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rip Apart",
+          "oracleId": "cbdbf18f-0180-4ade-a79e-1e644dd42d6f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "West Coast Expansion",
+          "oracleId": "2e1bf860-22b6-4d08-9b9f-88038cd1dd3f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Avengers Tower",
+          "oracleId": "c5fc8e7c-a87e-4586-a13c-d30e0a3aafbf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Clifftop Retreat",
+          "oracleId": "d7faa3c8-46cf-46b2-bfa4-89000307cf18",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Coastal Peak",
+          "oracleId": "0e25faa2-efb0-4ca5-b280-18c38faa860c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Command Tower",
+          "oracleId": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Exotic Orchard",
+          "oracleId": "27b047e3-0d41-45e2-98e9-9391d7923a1e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Frostboil Snarl",
+          "oracleId": "7137aae6-260d-41de-8b4e-42a8cf752697",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Furycalm Snarl",
+          "oracleId": "651dea9c-2375-4e44-8e65-ba8e40f0c0ef",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Glacial Fortress",
+          "oracleId": "027dd013-baa7-4111-b3c9-f4d1414e9c45",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Glittering Massif",
+          "oracleId": "23732d20-aba6-46cc-89d0-0542629bc6b5",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Irrigated Farmland",
+          "oracleId": "406eabe2-df62-49e2-bb39-c0227509d875",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 5,
+          "name": "Island",
+          "oracleId": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 5,
+          "name": "Mountain",
+          "oracleId": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Mystic Monastery",
+          "oracleId": "834b8f71-9a45-42ae-9e99-e749fa6fb45e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Path of Ancestry",
+          "oracleId": "b473e293-59e3-4e04-acf2-622604aeb25f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 6,
+          "name": "Plains",
+          "oracleId": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Plaza of Heroes",
+          "oracleId": "9c58d241-4d9f-4b46-b8ee-f4587f9acfd6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Port Town",
+          "oracleId": "458d2b12-f578-4392-98d3-c3bc83f316c4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Prairie Stream",
+          "oracleId": "5330e24a-8568-446e-840a-594cd08bd1bc",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Radiant Summit",
+          "oracleId": "5dd0cc44-4647-4857-ad3b-22494099d08a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scavenger Grounds",
+          "oracleId": "5ece7d03-9ee7-4953-a06e-9d8e41874903",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scorched Geyser",
+          "oracleId": "f808b510-907a-4c3c-aea1-efb825c8e13e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Secluded Courtyard",
+          "oracleId": "79ba18fd-f184-43c1-86df-56ee18ce806c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Spectator Seating",
+          "oracleId": "cf6d10ed-85c3-48f2-8ba0-2960e03b408b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sulfur Falls",
+          "oracleId": "6a6c5e17-6465-4a1f-9d63-8a3ce2edc522",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Unclaimed Territory",
+          "oracleId": "584b15f2-6ae9-413a-8b8d-9244dbea4878",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arcane Signet",
+          "oracleId": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Herald's Horn",
+          "oracleId": "c02c5547-b9c9-4b2d-9d12-e87bfba8f2d2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Avengers Quinjet",
+          "oracleId": "905e4bd1-f5f2-4691-b13f-ce2628d26a38",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Door of Destinies",
+          "oracleId": "9b6d3dcf-aa5a-4516-bd48-a0723e86bfd1",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hero's Blade",
+          "oracleId": "e6bcd25d-39b6-4619-8a27-9f3d87f4a17b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hulkbuster Armor",
+          "oracleId": "abc3f55e-5fc6-44b3-a2f5-b8f49d93249f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Relic of Legends",
+          "oracleId": "4d9554de-c005-41ab-a941-39328ebff9de",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fellwar Stone",
+          "oracleId": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sol Ring",
+          "oracleId": "6ad8011d-3471-4369-9d68-b264cc027487",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Talisman of Conviction",
+          "oracleId": "6c326439-5620-4ec6-a56a-fe9c3d5d2a46",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Talisman of Creativity",
+          "oracleId": "14d2979d-5728-42d7-a027-0eb1f754655d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Talisman of Progress",
+          "oracleId": "00e35322-1a9a-41e3-9ce1-359c8eaa3bc7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thought Vessel",
+          "oracleId": "9965d9c5-2ebf-4a6c-930e-55c5890979be",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tome of Legends",
+          "oracleId": "cada2a1c-5db2-4702-9a57-cbe7da1bf208",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Folk Hero",
+          "oracleId": "c5126d6e-969c-4034-98e3-f8653163346f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Gift of Immortality",
+          "oracleId": "2c11c72f-5b04-47d8-bdf8-8d9d197ebc1b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Kindred Discovery",
+          "oracleId": "005ee549-1bf5-478f-bc3f-3e791bd7eecf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Love on the Battlefield",
+          "oracleId": "645dbd86-fe30-4897-a3ca-633f07ec5b54",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Reconnaissance Mission",
+          "oracleId": "11bf211c-95a3-4e7f-bd08-13f979d54e73",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arcane Denial",
+          "oracleId": "ab1cc360-b9de-48d9-9983-4dfe4a7d2a37",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Destroy Evil",
+          "oracleId": "b75e667a-1ceb-445a-acf4-ae1fd2dae9e7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Heroic Return",
+          "oracleId": "4b7a8c05-15cd-452e-b9fc-83800e81793d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Heroic Sacrifice",
+          "oracleId": "03c47f1c-02a7-428c-a126-9e85325ebc71",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Make Your Move",
+          "oracleId": "8226f31d-6f51-49c3-87f7-0c68f7f4f9ce",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Methods of the Mighty",
+          "oracleId": "45f91d6a-eaab-4179-ac1f-5dc9e647a3da",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Swords to Plowshares",
+          "oracleId": "b1544f21-7e98-461b-aed5-e748b0168c52",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ant-Man, Elusive Avenger",
+          "oracleId": "f334087a-deda-4e9e-ab58-68f7e226d7ce",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Bastion Protector",
+          "oracleId": "858f53ef-3fec-4aa0-867d-b7f040614b3c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Black Widow, Agile Avenger",
+          "oracleId": "df7abfb0-21df-4359-be81-0f3c09e1425e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Captain America, Living Legend",
+          "oracleId": "67aa946d-e694-494e-ba0c-44880d5bc03e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Captain Mar-Vell, Space-Born",
+          "oracleId": "b74c072d-77ac-460d-9d9c-75b25874f58b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Captain Marvel, Apex Avenger",
+          "oracleId": "6d86d783-7116-4426-8c0f-718c2d904887",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Director Nick Fury",
+          "oracleId": "04b907bf-c80c-4e92-9fea-26dc3d1aaf2a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Falcon and Redwing",
+          "oracleId": "0f7c7035-e395-4da5-8536-9f192d03e3ba",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Firebird, Blazing Ranger",
+          "oracleId": "3d917331-9f49-4d0c-bb2d-4853e3ff6ca1",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hawkeye, Avenging Archer",
+          "oracleId": "e90d6903-5415-4ddf-88c0-15ddd8614bde",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hercules, Olympian Hero",
+          "oracleId": "ee3dfdb2-07ef-4ce2-9806-0a5b7f19aa67",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Iron Man, Armored Avenger",
+          "oracleId": "c81195d4-19c6-4cac-b312-7f5c33dff962",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Jarvis, Earth's Mightiest Butler",
+          "oracleId": "63e17cbd-6dae-42d2-a074-7924db1477bf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Jocasta, Automaton Avenger",
+          "oracleId": "787e6a7b-64f9-48ba-bccd-68dda3489b0f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Metallic Mimic",
+          "oracleId": "1f91297a-ec2b-4ea8-9198-aa1daac20ff8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Patriot, Shield Wielder",
+          "oracleId": "1df7a09f-fbc8-4c2a-a903-bab9e680eda7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Photon, Mighty Marvel",
+          "oracleId": "c46d6f42-5e50-4c0d-8908-360337285f83",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Professor Hulk",
+          "oracleId": "b8a627a1-d6d7-45d1-aeea-ff7b834cbb29",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Quicksilver, Speedster",
+          "oracleId": "cc20f910-03e9-4019-a62a-2e713ddb3c06",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rescue, Pepper Potts",
+          "oracleId": "54917578-9493-499e-b200-51d5cf7978ff",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scarlet Witch, Chaotic Avenger",
+          "oracleId": "8c72d54e-97a6-408e-ae77-18d3c96b3bd8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Shang-Chi and the Ten Rings",
+          "oracleId": "5063703b-ddb3-4680-8b16-4cd342dc7d0c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "She-Hulk, Wallbreaker",
+          "oracleId": "c8d74a25-78a9-46ad-ab24-97f6221fd8dd",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Speed, Young Avenger",
+          "oracleId": "2fb0f2d2-ed1f-4181-91f2-684a71c34998",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "The Wasp, Winsome Avenger",
+          "oracleId": "4b706959-ea38-4808-870a-7c35d83f7ab2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thor, Asgard's Avenger",
+          "oracleId": "44c2fefb-5de3-4406-955a-3fabc46357d0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vision, Synthezoid Avenger",
+          "oracleId": "2f4360f6-9ac7-499f-b0a5-769550ea15ba",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "War Machine, Avenging Arsenal",
+          "oracleId": "b4f35cdd-3857-4a7d-8ef6-df5424dd40e7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Winter Soldier, Reborn Avenger",
+          "oracleId": "df81ecf2-b49e-4be2-8757-ee2050784c9e",
+          "commanderFormatStatus": "legal"
+        }
+      ]
+    },
+    {
+      "slug": "doom-prevails",
+      "file": "retail-doom-prevails.txt",
+      "sha256": "78b4b00ece3ee32ce4de1744137114849b27b5396f6089e2de582d1f2e650c25",
+      "totalCards": 100,
+      "officialDecklistSource": "https://magic.wizards.com/en/news/announcements/marvel-super-heroes-commander-decklists",
+      "supplementalSource": "https://json.edhrec.com/pages/precon/doom-prevails.json",
+      "verification": "Count, exact current canonical resolution, format status and known corrections checked during handoff assembly. Full official multiset reconciliation required before new benchmark freeze.",
+      "cards": [
+        {
+          "zone": "Commander",
+          "quantity": 1,
+          "name": "Doctor Doom, King of Latveria",
+          "oracleId": "9c9cd0fd-bfe9-409c-a9a9-146f5f4a2ef4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Canyon Slough",
+          "oracleId": "2031b17c-0536-446f-a9aa-b46fe79b7ea7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Choked Estuary",
+          "oracleId": "d473b507-8c33-4118-bc10-b0a268776074",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Coastal Peak",
+          "oracleId": "0e25faa2-efb0-4ca5-b280-18c38faa860c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Command Tower",
+          "oracleId": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Crumbling Necropolis",
+          "oracleId": "7190debf-708b-4f41-9714-0d0a5bd5a74e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Dragonskull Summit",
+          "oracleId": "63398c02-6fb1-481d-9d9f-81063532fbc0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Drowned Catacomb",
+          "oracleId": "819fc966-434e-470f-91e9-a38df974ad17",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Exotic Orchard",
+          "oracleId": "27b047e3-0d41-45e2-98e9-9391d7923a1e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fetid Pools",
+          "oracleId": "32b03b48-06da-4a74-a7ac-e5ae39a4f428",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Foreboding Ruins",
+          "oracleId": "5c87e2fa-77f1-4978-b25f-f14d227301d1",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Frostboil Snarl",
+          "oracleId": "7137aae6-260d-41de-8b4e-42a8cf752697",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 4,
+          "name": "Island",
+          "oracleId": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Luxury Suite",
+          "oracleId": "819e1765-8325-4e6f-89c1-63ea86de369f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 5,
+          "name": "Mountain",
+          "oracleId": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Path of Ancestry",
+          "oracleId": "b473e293-59e3-4e04-acf2-622604aeb25f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scavenger Grounds",
+          "oracleId": "5ece7d03-9ee7-4953-a06e-9d8e41874903",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scorched Geyser",
+          "oracleId": "f808b510-907a-4c3c-aea1-efb825c8e13e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Secluded Courtyard",
+          "oracleId": "79ba18fd-f184-43c1-86df-56ee18ce806c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Smoldering Marsh",
+          "oracleId": "390f1b56-264e-4336-83be-dc1fe79bfdcf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sulfur Falls",
+          "oracleId": "6a6c5e17-6465-4a1f-9d63-8a3ce2edc522",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sunken Hollow",
+          "oracleId": "cd2c90ac-2b04-461c-92f3-939871b6b6a3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 6,
+          "name": "Swamp",
+          "oracleId": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Terramorphic Expanse",
+          "oracleId": "1bd3e453-aa21-4ee6-95c2-d6d920ee8e7a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Unclaimed Territory",
+          "oracleId": "584b15f2-6ae9-413a-8b8d-9244dbea4878",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Villainous Hideout",
+          "oracleId": "cd2888aa-71f3-47ee-ba33-7bb95d5bc836",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Bedevil",
+          "oracleId": "bceecc64-96f1-4e7b-8904-0aef90377764",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Chaos Warp",
+          "oracleId": "07a0cba9-8768-4fd9-a3d5-b0f83b4bf8e8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Lethal Scheme",
+          "oracleId": "c4660b3c-a234-4a3e-83e7-e2fa9d556685",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Terminate",
+          "oracleId": "6257c2fd-005f-41e3-8a72-af76df1eb134",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Withering Torment",
+          "oracleId": "ffce81c5-1b58-4882-a4e7-6f8d7cb170de",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arcane Signet",
+          "oracleId": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Currency Converter",
+          "oracleId": "981298e6-ddee-49c0-9377-f47f019b4138",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Damocles Base, Sword of Kang",
+          "oracleId": "544c9ad2-86f9-483e-a53c-f64c8602c393",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Doom's Time Platform",
+          "oracleId": "78019626-1154-483f-b862-73982f9ddc7f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Loki's Scepter",
+          "oracleId": "5f8941d8-f8f7-4ec3-86c3-88af8829080b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Patchwork Banner",
+          "oracleId": "4fb00dbe-1f82-4ba6-b18c-97e816d10d3a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Progenitor's Icon",
+          "oracleId": "747f6d0f-3c10-4fef-b7ae-f578c8964ab5",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Skullclamp",
+          "oracleId": "65986c1b-8e51-4604-b685-d82fa7d1263a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sol Ring",
+          "oracleId": "6ad8011d-3471-4369-9d68-b264cc027487",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Swiftfoot Boots",
+          "oracleId": "c8b143ad-43ec-4e0d-a440-e348daa31391",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Talisman of Dominance",
+          "oracleId": "4c0a0448-b9d6-43a0-8549-64066dac63f0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Talisman of Indulgence",
+          "oracleId": "1d9aeaaa-66f6-41cb-9bac-162d6fd8662c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Abomination, World Ravager",
+          "oracleId": "e0b12c48-7234-40b5-a84c-6901d2b4e5b0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Containment Construct",
+          "oracleId": "54d48e54-be4a-4a78-a778-b28e74ef7134",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Baron Strucker, HYDRA Overlord",
+          "oracleId": "c91e64d4-e687-4ccd-a56e-796cff6e052c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Batroc the Leaper",
+          "oracleId": "ebbea7a7-c990-43fa-8f67-a5da17fbbb10",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Chameleon, Master of Disguise",
+          "oracleId": "1ce239f2-79ad-4a30-8e8f-f985045f78dc",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Helmut Zemo, Mastermind",
+          "oracleId": "657c5473-f153-4dd2-94a0-d477cbc2451d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Iron Monger, Sadistic Tycoon",
+          "oracleId": "7324d8c0-3a30-452b-b05d-ec7b6a98666c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Kang Prime",
+          "oracleId": "c8e0b90c-edfb-4024-9ed5-398966f4ac72",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Kang, Temporal Tyrant",
+          "oracleId": "b43350a8-fc4d-41ed-becd-f0277512bb5f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Killmonger, Ruthless Usurper",
+          "oracleId": "aff21bd1-87b0-409c-bfad-08f3690ef220",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Klaw, Master of Sound",
+          "oracleId": "8eaa8833-ab9e-4bd8-92de-63e195b8d912",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Titan of Littjara",
+          "oracleId": "f62250c6-0832-46c8-a800-806589504f5f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Lady Loki, Agent of Chaos",
+          "oracleId": "6efae65b-5ae5-4f62-97e7-cd4d1249fa9e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Living Laser",
+          "oracleId": "fd15e02a-dd1e-42ee-8c69-a3e5bcb5ede6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Spark Double",
+          "oracleId": "8dcb35e5-ae44-455f-86e3-4a77d496ff34",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Loki, the Deceiver",
+          "oracleId": "17e45fd8-c924-4b42-87ad-189469a8dd18",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Madame Hydra",
+          "oracleId": "d812c8e3-a475-4ad2-a93f-7208ad873676",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Molecule Man",
+          "oracleId": "ba944437-0b55-47cb-92dc-2477ce6726c3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Moonstone, Harsh Mistress",
+          "oracleId": "aeeb50f2-8e02-4d40-a1dd-28b1c5c85c7e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Prowler, Clawed Thief",
+          "oracleId": "76742bfc-ae99-4b06-b29d-e0e41d92ae14",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Puppet Master, String Puller",
+          "oracleId": "376c6257-4a1a-42d4-8931-72068f38727f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Red Ghost, Intangible Genius",
+          "oracleId": "9984d950-29dc-4d6b-8750-8d1bf86ea98f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Stilt-Man, Towering Terror",
+          "oracleId": "8ae1bda5-8f70-48ec-9df0-89e58a4ab21c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Superior Foes of Spider-Man",
+          "oracleId": "a6a7af21-e52c-4f7f-a57f-bd365d075966",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "The Frightful Four",
+          "oracleId": "6d3469dd-d39e-463b-9b41-2f6215a41feb",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "The Squadron Sinister",
+          "oracleId": "3b7352e6-6508-491c-9935-426a6eebb429",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Titania, Proud Pummeler",
+          "oracleId": "6d51f00e-46a5-4064-a0c8-e840c66dbf2b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tombstone, Career Criminal",
+          "oracleId": "6ad2cbb6-2291-420c-bfc8-ed3f079b59bf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tri-Sentinel, Act of Vengeance",
+          "oracleId": "d9cc9fc9-522e-4598-9a09-c95824d77acd",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Typhoid Mary, Fractured",
+          "oracleId": "867b3923-692c-4444-a071-518a290e43d8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ultron, Unlimited",
+          "oracleId": "436501ca-0998-43fc-975f-87c2d34caab3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Age of Ultron",
+          "oracleId": "51042581-4add-4487-a1b6-85446539b975",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Archnemesis",
+          "oracleId": "c408717c-e07b-484f-9c81-5666595adf81",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Black Market Connections",
+          "oracleId": "d2664f28-49e1-46f8-a863-b217e961a57c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Glorious Purpose",
+          "oracleId": "182baad0-ec6e-4e93-9dfc-7c80b37005de",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Kang Dynasty",
+          "oracleId": "4e420f43-a4a3-44bb-9a4e-a943f93a3534",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Propaganda",
+          "oracleId": "ea9709b6-4c37-4d5a-b04d-cd4c42e4f9dd",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Blasphemous Act",
+          "oracleId": "7a2484a9-04fd-41a0-8224-610c1c07ed10",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Endless Ranks of HYDRA",
+          "oracleId": "2fb76cdf-438b-48f5-aceb-db637381d052",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Extract Power",
+          "oracleId": "5c30a92b-2e88-4e66-b0a5-fa05304136e7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Kindred Dominance",
+          "oracleId": "ccaa44f2-96be-44e2-884f-c31baa3908d5",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Night's Whisper",
+          "oracleId": "7ffae8f8-3006-4969-a339-6d30678f87ea",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Syphon Mind",
+          "oracleId": "abc37d6c-6300-47b5-a679-9db5b83eb54f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Toxic Deluge",
+          "oracleId": "afaef788-34d1-460b-b884-9d7ae6ddeb18",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vandalblast",
+          "oracleId": "3567c3c8-b3c7-45b7-935b-b1fdbc973720",
+          "commanderFormatStatus": "legal"
+        }
+      ]
+    },
+    {
+      "slug": "wakanda-forever",
+      "file": "retail-wakanda-forever.txt",
+      "sha256": "518d74b4a6af5515b0fae713d1abcb6a69193f84d242b40ee3099cd4345676cb",
+      "totalCards": 100,
+      "officialDecklistSource": "https://magic.wizards.com/en/news/announcements/marvel-super-heroes-commander-decklists",
+      "supplementalSource": "https://json.edhrec.com/pages/precon/wakanda-forever.json",
+      "verification": "Count, exact current canonical resolution, format status and known corrections checked during handoff assembly. Full official multiset reconciliation required before new benchmark freeze.",
+      "cards": [
+        {
+          "zone": "Commander",
+          "quantity": 1,
+          "name": "T'Challa, the Black Panther",
+          "oracleId": "ae10eb15-28e7-46d1-9a2e-85763d93febf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Bountiful Promenade",
+          "oracleId": "761cb262-f83b-4a99-9345-b773182a7671",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Canopy Vista",
+          "oracleId": "dcb7e046-f01b-497c-88e5-57794eb30ce5",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Command Tower",
+          "oracleId": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Evolving Wilds",
+          "oracleId": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 12,
+          "name": "Forest",
+          "oracleId": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fortified Village",
+          "oracleId": "56f1a16a-9f41-41fb-b580-c200bca27cd6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Path of Ancestry",
+          "oracleId": "b473e293-59e3-4e04-acf2-622604aeb25f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 12,
+          "name": "Plains",
+          "oracleId": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Razorverge Thicket",
+          "oracleId": "94f6c407-e665-4032-be13-a01e40c1f306",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scattered Groves",
+          "oracleId": "3c87ea85-ca29-45a7-b5b2-758c62898b0a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scavenger Grounds",
+          "oracleId": "5ece7d03-9ee7-4953-a06e-9d8e41874903",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sungrass Prairie",
+          "oracleId": "0a28dff0-2bd6-4105-b73a-b6c4735833fd",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sunpetal Grove",
+          "oracleId": "402ec768-76fb-474e-ae74-babc90d833c4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Terramorphic Expanse",
+          "oracleId": "1bd3e453-aa21-4ee6-95c2-d6d920ee8e7a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "The Great Mound",
+          "oracleId": "6b78e417-44f8-4ab6-9d3c-e71704fc648e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Throne of the High City",
+          "oracleId": "9684447a-5955-4bc7-8ad0-8bb8b316873b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Beast Within",
+          "oracleId": "7735eeba-693b-47e2-bd51-414379cf1016",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Dispatch",
+          "oracleId": "133c99c0-3652-410f-8100-68015a47af9f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fight for the Throne",
+          "oracleId": "53129de9-4809-4c8c-9d11-37369899e70a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Generous Gift",
+          "oracleId": "fae37e28-e137-4177-b973-fa8b4dd8f409",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Valorous Stance",
+          "oracleId": "1f938353-9081-4dc1-b8e7-d18ece038bd4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arcane Signet",
+          "oracleId": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hammer of Nazahn",
+          "oracleId": "e3955573-3db5-490e-903e-65e0172a9202",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Conduit of Worlds",
+          "oracleId": "ed14be15-8f8d-4fe3-a147-f5da8ed873bf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Coveted Jewel",
+          "oracleId": "98492d7d-3b9e-4ae1-ac45-1b508d6d2670",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Gilded Lotus",
+          "oracleId": "9a02a9a7-39d9-4763-85d3-747a0540b60b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Heart-Shaped Herb",
+          "oracleId": "20418984-bc6d-42e5-ada6-30b5281925c0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Helm of the Host",
+          "oracleId": "83b43aba-bf9c-4da2-967d-9daa632e97d2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Kimoyo Beads",
+          "oracleId": "c7bdbf7a-8054-4e91-bb32-84f47e98553c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "King Solomon's Frogs",
+          "oracleId": "36396a14-9d0b-4670-bf8a-5c346fdda197",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Midnight Angel Armor",
+          "oracleId": "cdcfc66d-3d3a-4311-b864-937e7b624d61",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "N'Yami-Class Mother Ship",
+          "oracleId": "5dec1b09-4df0-4e9b-9dca-b80134be3343",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scourglass",
+          "oracleId": "78541a40-c27a-49c0-aa3e-5a48b97065f0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Panther Habit",
+          "oracleId": "75ec25b3-ae91-46be-af8b-2649727638f4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Mind's Eye",
+          "oracleId": "63fd2a57-7a47-4e07-947c-f4e9da7ee538",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Royal Talon Fighter Jet",
+          "oracleId": "d6f36172-d3ef-49e9-a55f-ce2983bb2439",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Shuri's Fabricator",
+          "oracleId": "127f6985-c1f4-487f-b5ee-c84524cd6c55",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sword of the Animist",
+          "oracleId": "d79cbc61-6c15-48ea-bbba-3cffb819ccba",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sol Ring",
+          "oracleId": "6ad8011d-3471-4369-9d68-b264cc027487",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "The Spear of Bashenga",
+          "oracleId": "e7a0b370-913d-4e96-8fb4-5df168405073",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Trading Post",
+          "oracleId": "63788566-e25a-44bb-bb55-197e1b93b3e8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thran Dynamo",
+          "oracleId": "a699c663-8131-4045-9265-a83e86609374",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vibranium Mining Mech",
+          "oracleId": "1bea6d02-186e-46d8-b788-d4cc37dbb480",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vibranium Strike Gauntlets",
+          "oracleId": "4a9d36eb-db72-459a-8de9-6d04a1d7563c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Whispersilk Cloak",
+          "oracleId": "9ad4f730-a18e-4a7c-a468-a926c718c741",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ancestral Communion",
+          "oracleId": "a45bb088-16fd-4d91-8fd6-3c52f1c24748",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Harmonize",
+          "oracleId": "7eff84f1-f772-497a-b350-bbc93d0230f7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Martial Coup",
+          "oracleId": "2b7c4dab-e432-4b34-b058-3cec5c0d72df",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Nature's Lore",
+          "oracleId": "78826359-fe63-44ad-adc4-a17ffcd710e4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Overwhelming Stampede",
+          "oracleId": "e1e96802-fd0c-41f1-aa21-3287d75a0e88",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vanquish the Horde",
+          "oracleId": "a332e80a-dc51-4dc6-bc85-e114a1c6fdb8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Wakanda Forever!",
+          "oracleId": "b8add484-8ed1-4a1c-aff9-dec65d60e4b1",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Divine Visitation",
+          "oracleId": "5917216f-5b42-41fa-8976-401bdbeb782e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Greater Good",
+          "oracleId": "dc0593c2-ccb4-4648-a592-c5bcd121dc72",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Bast, Panther Goddess",
+          "oracleId": "e3233686-7703-460c-80ee-8cd37b3014ff",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Birds of Paradise",
+          "oracleId": "d3a0b660-358c-41bd-9cd2-41fbf3491b1a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Dora Milaje Elite",
+          "oracleId": "406f1982-5d0c-4dba-9010-28b1c6a3602c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Everett K. Ross, Hapless Attach\u00e9",
+          "oracleId": "e017e323-e297-40de-bc77-dd49b610cf5a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hatut Zeraze Strike Force",
+          "oracleId": "92ac307e-6531-4465-8870-07988458f5d4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ingenious Smith",
+          "oracleId": "f3988b96-9e00-445c-b3e1-6b2df9b13dac",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Loyal Guardian",
+          "oracleId": "de1cfa83-2049-48ab-b093-2f120a3ef4f2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Loyal Retainers",
+          "oracleId": "55b88d43-ec45-4435-a316-1c8aee249ff0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "M'Baku, Jabari Chieftain",
+          "oracleId": "9e4656ba-c375-4ef8-ba1d-5a7b0833242f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Metalwork Colossus",
+          "oracleId": "64ffe529-ba53-48ec-8af1-b046fbd1f0cc",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Meteor Golem",
+          "oracleId": "d9f11aa1-9219-42a8-85a9-a8f204160706",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Nakia, Wakandan Operative",
+          "oracleId": "3f2ab9ff-10b8-494a-be7a-2fce172f62a3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Okoye, Mighty and Adored",
+          "oracleId": "8fbfc5b1-2146-4d07-a5fe-5f025da31bd6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Palace Jailer",
+          "oracleId": "180eda7c-fca2-403b-85cd-8ffebaf9f408",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Panther Robot",
+          "oracleId": "89115ed5-95bf-4b81-b352-5481c3addbed",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Queen Mother Ramonda",
+          "oracleId": "f5619a13-b229-4202-a217-bf6509706e77",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Shuri, the Black Panther",
+          "oracleId": "1ea7b298-be87-4032-9f45-37f9b39ce3fa",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Solemn Simulacrum",
+          "oracleId": "00c0543c-2a1f-4425-8283-4062d74a1637",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Storm, Queen of Wakanda",
+          "oracleId": "d8e585c5-1de3-4558-8a2f-0d9fb07edad6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "T'Chaka, Venerable King",
+          "oracleId": "2a9f2d69-328c-46f4-be37-60b85b197b72",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "W'Kabi, Shield of the Nation",
+          "oracleId": "66950068-adf4-42d7-ad72-fdb4a0e58922",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fleecemane Lion",
+          "oracleId": "e3c8cdf7-a26a-45eb-9498-99b618cfba99",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Zuri, Warrior of Wakanda",
+          "oracleId": "aa792980-0811-4c08-8343-00fba0c5cf5e",
+          "commanderFormatStatus": "legal"
+        }
+      ]
+    },
+    {
+      "slug": "turtle-power",
+      "file": "retail-turtle-power.txt",
+      "sha256": "40bd8237d990db5ecb30919c7792d5b591a6ff3ea335f28cc6ace4c597421d94",
+      "totalCards": 100,
+      "officialDecklistSource": "https://magic.wizards.com/en/news/announcements/teenage-mutant-ninja-turtles-commander-decklist",
+      "supplementalSource": "https://json.edhrec.com/pages/precon/turtle-power.json",
+      "verification": "Count, exact current canonical resolution, format status and known corrections checked during handoff assembly. Full official multiset reconciliation required before new benchmark freeze.",
+      "cards": [
+        {
+          "zone": "Commander",
+          "quantity": 1,
+          "name": "Leonardo, the Balance",
+          "oracleId": "46ea8d02-b087-44f7-8403-93ffc1d3a8ad",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ash Barrens",
+          "oracleId": "58257464-278e-45fa-8e0b-bcd9a7500bc1",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Big Apple, 3 a.m.",
+          "oracleId": "dd01ef1f-f6be-498f-82e0-dc04833e685f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Cinder Glade",
+          "oracleId": "dfac0258-e148-4d7d-8ded-fc2466d9caa6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "City of Brass",
+          "oracleId": "f25351e3-539b-4bbc-b92d-6480acf4d722",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Command Tower",
+          "oracleId": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Dragonskull Summit",
+          "oracleId": "63398c02-6fb1-481d-9d9f-81063532fbc0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Escape Tunnel",
+          "oracleId": "0056fc91-4398-471c-b561-7ff99750ac8a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Evolving Wilds",
+          "oracleId": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Exotic Orchard",
+          "oracleId": "27b047e3-0d41-45e2-98e9-9391d7923a1e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fabled Passage",
+          "oracleId": "0c85b8f7-0bd0-4680-9ec5-d4b110460a54",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 4,
+          "name": "Forest",
+          "oracleId": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Grand Coliseum",
+          "oracleId": "1cea9b82-d2e9-4758-8ec8-729fcf4bb7d7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hidden Hideout",
+          "oracleId": "b639e1fe-d099-4cab-a0d0-a1b33c7f31dd",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hinterland Harbor",
+          "oracleId": "fb5a3403-7f0b-406c-8c4f-d693be010ca6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 2,
+          "name": "Island",
+          "oracleId": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 2,
+          "name": "Mountain",
+          "oracleId": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Path of Ancestry",
+          "oracleId": "b473e293-59e3-4e04-acf2-622604aeb25f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 2,
+          "name": "Plains",
+          "oracleId": "bc71ebf6-2056-41f7-be35-b2e5c34afa99",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rain-Slicked Copse",
+          "oracleId": "633a41f0-3889-49a0-b2fc-9baf59f4ddc2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rootbound Crag",
+          "oracleId": "9516c4c1-d72d-434f-97e1-6a862434a169",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Smoldering Marsh",
+          "oracleId": "390f1b56-264e-4336-83be-dc1fe79bfdcf",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sodden Verdure",
+          "oracleId": "0070db93-142b-4d04-afd3-836792dc134b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Spire Garden",
+          "oracleId": "45fe016e-1a09-410c-bbe3-4663ba06c5b7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sunken Hollow",
+          "oracleId": "cd2c90ac-2b04-461c-92f3-939871b6b6a3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 2,
+          "name": "Swamp",
+          "oracleId": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thriving Grove",
+          "oracleId": "a8052556-8962-4130-86a8-6fb7b6a324f7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thriving Isle",
+          "oracleId": "69fc70b8-b143-4662-ac95-e2743037239d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thriving Moor",
+          "oracleId": "bff416bb-d193-4c45-b2c1-7c297dbfad08",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Turtle Lair",
+          "oracleId": "eb002bbc-08df-4bf0-bea3-46494ad261b6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Undergrowth Stadium",
+          "oracleId": "7c69f718-acc8-4851-8e5d-0cbaaa86192c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vernal Fen",
+          "oracleId": "40544d12-0391-4a61-af95-9b8ec01ed8fc",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vibrant Cityscape",
+          "oracleId": "6a7f3e1f-6798-4644-b64c-7765f81f0938",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Voracious Hydra",
+          "oracleId": "ff8f5a4b-112a-425e-b489-7ee26d1d9fb3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "April O'Neil, Live on the Scene",
+          "oracleId": "4900c157-8d9f-4f92-aaca-5246b6e2832e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Baxter, Fly in the Ointment",
+          "oracleId": "94551fbd-a72c-4a1f-be01-7ba1c7c03eed",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Bebop, Skull & Crossbones",
+          "oracleId": "59a405d7-2f28-41b8-a5bb-011f45a5fdf2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Big Mother Mouser",
+          "oracleId": "94751968-e006-45d0-970b-0ed45d28e6cc",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Biogenic Ooze",
+          "oracleId": "d2d84ba5-0d20-4ce3-8f1f-93cd9ef94f5f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Casey Jones, Back Alley Brute",
+          "oracleId": "ab9ff8e9-0ffa-4ccf-a4bf-8505079616f6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Dimension X Pizzasaur",
+          "oracleId": "29a9aff7-184c-459d-8002-e0287d978764",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Donatello, the Brains",
+          "oracleId": "1ba2f763-5895-4663-b38f-95591ebb2ef4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Electric Seaweed",
+          "oracleId": "a4374baa-a846-4b34-afbf-6bb7feb4648c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vigor",
+          "oracleId": "70787d8b-0a40-43ea-837a-9617dc13e7e5",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Corpsejack Menace",
+          "oracleId": "ca0cc02b-b106-4eca-9388-d4b48dd3be49",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Irma, Part-Time Mutant",
+          "oracleId": "deda54da-4fcc-4da3-9337-7768a2db3283",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Krang, the All-Powerful",
+          "oracleId": "466d5226-f4c7-4d69-9f56-4f893010127f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Leatherhead, Iron Gator",
+          "oracleId": "1e9679e8-bef1-495c-8251-0d87d971e32a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Lita, Little Orphan Amphibian",
+          "oracleId": "212fdb7c-1c7e-4eed-b1ed-bcc14a425da8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Acidic Slime",
+          "oracleId": "21f45043-5419-4019-8b6c-e5294bd5f549",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Michelangelo, the Heart",
+          "oracleId": "f11e914c-16bc-4836-bc14-bc1b5de9cd87",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Mona Lisa, Science Geek",
+          "oracleId": "e6490e98-37a9-4a8b-a04c-cceeb22b0c35",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Raphael, the Muscle",
+          "oracleId": "22008c3b-6e15-41cc-a15c-7871495191aa",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rat King, Pale Piper",
+          "oracleId": "da359f85-7a11-4575-848d-642d1ae0ddbb",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ray Fillet, Wave Warrior",
+          "oracleId": "206913aa-4d73-4465-8311-8054a22c0743",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Roadkill Rodney",
+          "oracleId": "cd8761ef-b57b-456b-aa12-374ac825087e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rocksteady, Mutant Marauder",
+          "oracleId": "506a972d-d226-44dc-95b7-a6e7a63d76cd",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Shredder, Shadow Master",
+          "oracleId": "ee82947d-1cf0-4c53-84d4-81f81c6201ee",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Steelbane Hydra",
+          "oracleId": "e38e3723-05f5-4a51-8364-1cda19f9cc49",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Splinter, the Mentor",
+          "oracleId": "fdcb016e-36e7-46b3-9dff-20b9b9cc421d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tempestra, Dame of Games",
+          "oracleId": "12401ad1-b5c9-43dc-9389-04aaf5db8b26",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tokka & Rahzar, Unsupervised",
+          "oracleId": "8d857d79-bdb2-4ca3-abd6-7db8f6b3bcfa",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Endless Foot Assault",
+          "oracleId": "77ccafd9-6d76-4658-81ab-bde0454fcc15",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "High Score",
+          "oracleId": "d81fc181-ecb0-43a5-88e8-c61aca3428d8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Level Up",
+          "oracleId": "88cd43ce-b168-45a4-8d29-6cac5ab42857",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ninja Pizza",
+          "oracleId": "58c615f3-8c3b-47bf-8032-809fc4232ccb",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Together Forever",
+          "oracleId": "36b19ec0-d581-4213-bfae-1d7808a2f60d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arcade Cabinet",
+          "oracleId": "a8e55287-f0df-46f2-a41d-27bea90216cc",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arcane Signet",
+          "oracleId": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Chromatic Lantern",
+          "oracleId": "539f5396-d99a-417d-a84c-dff7930b5900",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Coin of Mastery",
+          "oracleId": "d78518ee-df79-48d1-b9d5-4f968b441899",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Everything Pizza",
+          "oracleId": "aa481983-8f1a-4519-9371-5e7edcd3274f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Exploding Barrel",
+          "oracleId": "82800275-1edf-4aa0-af9e-59dea82d7c6a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Foot Chopper",
+          "oracleId": "1eed017a-342a-47a8-9395-890ef0bd1eb2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Mole Module",
+          "oracleId": "ba64d3a9-08b4-4b12-b011-e41b00815277",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sol Ring",
+          "oracleId": "6ad8011d-3471-4369-9d68-b264cc027487",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Assassin's Trophy",
+          "oracleId": "ac10d218-f9a6-4058-9cda-a15ca1b0b7b5",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Continue?",
+          "oracleId": "175c76c8-f36c-4948-aaa8-0208eac5f0d3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Double Jump // Flying Kick",
+          "oracleId": "cb3072c7-393c-43d9-a2c9-f918bd0fd7be",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Shellshock",
+          "oracleId": "f406630b-d9f1-4fc5-b3f3-5327384b2901",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Special Move",
+          "oracleId": "7564afbb-b29e-4234-a3b2-3354c6f5c90a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Swift Demise",
+          "oracleId": "7eaf3fd0-e141-42c2-874d-b471f4a94ad2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Blasphemous Act",
+          "oracleId": "7a2484a9-04fd-41a0-8224-610c1c07ed10",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Cultivate",
+          "oracleId": "8b755881-a72d-4e21-a369-d2924eb4585a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fast Forward",
+          "oracleId": "c92f78c4-c8ec-4bdb-85f4-3a206b709f0f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Game Over",
+          "oracleId": "e326b5a1-f8ce-471b-8663-ec1ba649b24f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Harmonize",
+          "oracleId": "7eff84f1-f772-497a-b350-bbc93d0230f7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Here Comes a New Hero!",
+          "oracleId": "c4fb12cb-05e1-4df2-b62e-3391621a601b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Lessons from Life",
+          "oracleId": "51df0203-578d-47e1-a9f7-a13445f597d7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Super Combo",
+          "oracleId": "68555673-2833-459a-b415-e2805f837778",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Vanquish the Horde",
+          "oracleId": "a332e80a-dc51-4dc6-bc85-e114a1c6fdb8",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Wave Goodbye",
+          "oracleId": "06ef46c6-00ba-40e6-b866-d0095ab83749",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Heroes in a Half Shell",
+          "oracleId": "9f2f12cc-0adb-482d-bbce-05e4ce8850c4",
+          "commanderFormatStatus": "legal"
+        }
+      ]
+    },
+    {
+      "slug": "tramplesaurus-rex",
+      "file": "retail-tramplesaurus-rex.txt",
+      "sha256": "6b66ac7606157613b347d7e395df61e1e5614df72b55c3cbc30bf89923fbbe16",
+      "totalCards": 100,
+      "officialDecklistSource": "https://magic.wizards.com/en/news/announcements/foundations-commander-decklists",
+      "supplementalSource": "https://json.edhrec.com/pages/precon/tramplesaurus-rex.json",
+      "verification": "Count, exact current canonical resolution, format status and known corrections checked during handoff assembly. Full official multiset reconciliation required before new benchmark freeze.",
+      "cards": [
+        {
+          "zone": "Commander",
+          "quantity": 1,
+          "name": "Ghalta, Primal Hunger",
+          "oracleId": "b0b6be0c-41cf-4757-9f0e-87227b6ba6b3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Bonders' Enclave",
+          "oracleId": "f33ce38a-34ec-4b65-a0fc-160484a02007",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 32,
+          "name": "Forest",
+          "oracleId": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Mosswort Bridge",
+          "oracleId": "7cb9e29f-835f-4155-a2a5-4b778866c773",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rogue's Passage",
+          "oracleId": "f29dc596-2121-4421-8463-15f6c2e8b9b3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scavenger Grounds",
+          "oracleId": "5ece7d03-9ee7-4953-a06e-9d8e41874903",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tranquil Thicket",
+          "oracleId": "9f8fe514-77ed-41b4-a6f3-c6f095bb97be",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "War Room",
+          "oracleId": "71c52bf5-2a5d-488e-8b15-7ef290e4b77d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Witch's Clinic",
+          "oracleId": "05899372-9784-4bdb-9c28-504c71fed906",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Commander's Sphere",
+          "oracleId": "0b67c4e2-f88b-4e01-85a1-9d5f5b8db13b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rhonas's Monument",
+          "oracleId": "b9a7c722-6b24-4383-ac6e-2a30f7834269",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Sol Ring",
+          "oracleId": "6ad8011d-3471-4369-9d68-b264cc027487",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Swiftfoot Boots",
+          "oracleId": "c8b143ad-43ec-4e0d-a440-e348daa31391",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tangleweave Armor",
+          "oracleId": "b9cec31a-9891-414f-b528-954612168832",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arachnogenesis",
+          "oracleId": "b655bee5-52d3-467e-b16c-cfc2edf2b1a1",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Beast Within",
+          "oracleId": "7735eeba-693b-47e2-bd51-414379cf1016",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Bite Down",
+          "oracleId": "623903de-3c04-4745-9af3-d7ec9fb2574d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Collective Resistance",
+          "oracleId": "bffdfe7b-f17a-41b6-a460-80280fe497d4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ram Through",
+          "oracleId": "4b1befff-48fa-47a3-832e-bdaf43495c02",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Tamiyo's Safekeeping",
+          "oracleId": "bb2b324c-970a-4920-884e-c92ba49669f0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ezuri's Predation",
+          "oracleId": "d0dd425b-fdba-41b4-b9e6-f5161610bd7e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Harmonize",
+          "oracleId": "7eff84f1-f772-497a-b350-bbc93d0230f7",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Monstrous Onslaught",
+          "oracleId": "52be3da7-1e55-44c4-88bc-fb578a635ec0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Overwhelming Stampede",
+          "oracleId": "e1e96802-fd0c-41f1-aa21-3287d75a0e88",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rishkar's Expertise",
+          "oracleId": "97407cd0-2bd2-4074-94d3-4ec3d243fa78",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Shamanic Revelation",
+          "oracleId": "d1d171de-1c6d-4fb9-817a-9c689c709f3d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Arasta of the Endless Web",
+          "oracleId": "695eea46-1535-48c5-bbb6-0b8379e77bfc",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Beast Whisperer",
+          "oracleId": "5da7eea8-bb9e-47ce-a554-8a1ee058bd7a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Birds of Paradise",
+          "oracleId": "d3a0b660-358c-41bd-9cd2-41fbf3491b1a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Carnage Tyrant",
+          "oracleId": "8c411f4e-a091-447c-9450-d895b10b4985",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Challenger Troll",
+          "oracleId": "78cb1f05-edad-4430-9095-f3eabd80bf41",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Clifftop Lookout",
+          "oracleId": "446db5a4-21b0-44c1-b12b-d365313dd67a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Curious Altisaur",
+          "oracleId": "80686908-abb5-4728-a5f6-71baca27f467",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Dungrove Elder",
+          "oracleId": "32083c9f-04c6-4b6f-9e24-cc8f3cae3e3e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Elder Gargaroth",
+          "oracleId": "397b9dcf-690a-4a58-8637-bb9baab7cc2f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Elvish Mystic",
+          "oracleId": "3f3b2c10-21f8-4e13-be83-4ef3fa36e123",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Fyndhorn Elves",
+          "oracleId": "df317532-7d36-40fd-938f-e972749c8792",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Garruk's Packleader",
+          "oracleId": "13279222-422d-4447-9451-2463b0c714c6",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Gigantosaurus",
+          "oracleId": "e666bae7-dd51-4921-8b89-7e8d423caba0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Goreclaw, Terror of Qal Sisma",
+          "oracleId": "befb211f-37ca-4083-98d4-9ff1f28be3f2",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Hulking Raptor",
+          "oracleId": "9f2e7533-cfc1-4dd8-a9b8-09cdc712ef2f",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ilysian Caryatid",
+          "oracleId": "5f2be3c2-060a-43e1-b63b-9cd3c78ffcb0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Llanowar Elves",
+          "oracleId": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Llanowar Tribe",
+          "oracleId": "cfd0f0e6-1bbf-4450-97d2-c54907abb7e4",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Loot, Exuberant Explorer",
+          "oracleId": "f6476884-f73f-465f-8e7f-ea312a5b306d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Managorger Hydra",
+          "oracleId": "b3f2265b-dd65-4b74-8b74-35ee0b147617",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Paradise Druid",
+          "oracleId": "e119869d-1f66-402b-8251-d351965cf0d3",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Pugnacious Hammerskull",
+          "oracleId": "da989677-3647-46b8-aa56-b2cfb60f7a2a",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Regal Imperiosaur",
+          "oracleId": "83a76601-ef59-4888-af70-5088dd1f504c",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rhonas the Indomitable",
+          "oracleId": "5d2acd3e-4782-42e3-bcd5-80f8b439cc28",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Ripjaw Raptor",
+          "oracleId": "80bb9ce4-1f3c-42ca-b75f-9a6b2f42073b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Rishkar, Peema Renegade",
+          "oracleId": "761021ce-4559-464e-aa03-85c2fe78e267",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scavenging Ooze",
+          "oracleId": "1ff25f67-36a7-4cfa-a2b1-2135b5b6fb67",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Scrapshooter",
+          "oracleId": "235e3231-c5e5-4696-a867-705b2c4158fe",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Steel Leaf Champion",
+          "oracleId": "666af637-9282-4121-962a-048e528f9221",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Surrak and Goreclaw",
+          "oracleId": "95be5f72-1f81-4ec6-9bd9-f0b07bfc874b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Surrak, the Hunt Caller",
+          "oracleId": "fa56a5fa-ef96-404c-8fb6-d1f5fcebb52e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Terrian, World Tyrant",
+          "oracleId": "856245a6-c697-4f03-90be-77d8eb2d274e",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thrashing Brontodon",
+          "oracleId": "60bc63dc-ac9f-4a2f-aef5-c90d0aa31553",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Verdant Sun's Avatar",
+          "oracleId": "6ee71432-a44d-495e-86ea-d495d891c331",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Whiptongue Hydra",
+          "oracleId": "53d5d961-d6a3-49b1-b335-2c2b49972008",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Whisperer of the Wilds",
+          "oracleId": "c1e456b6-5d2b-4c42-9464-54a8f9f8f3ba",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Yeva, Nature's Herald",
+          "oracleId": "2d513c3e-bd27-479e-af32-7f66d96d0de0",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Colossal Majesty",
+          "oracleId": "cac95494-0db0-4bec-8665-998431a6f76b",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Elemental Bond",
+          "oracleId": "d9a7e5a6-3e41-4fc6-987a-18fe1b9d67dd",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Garruk's Uprising",
+          "oracleId": "3127ae9b-a7a7-43ec-89d7-688f8445b33d",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Kenrith's Transformation",
+          "oracleId": "a492a323-df8a-40fd-bff0-50091baa7700",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Thickest in the Thicket",
+          "oracleId": "4d60dae0-7be4-4859-99ac-781a27bcfd93",
+          "commanderFormatStatus": "legal"
+        },
+        {
+          "zone": "Deck",
+          "quantity": 1,
+          "name": "Unnatural Growth",
+          "oracleId": "7324abaa-48da-439d-9339-b0ea5eea612e",
+          "commanderFormatStatus": "legal"
+        }
+      ]
+    }
+  ]
+}
