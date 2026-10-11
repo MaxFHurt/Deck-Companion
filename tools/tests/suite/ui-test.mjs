@@ -457,6 +457,12 @@ const b87 = await page.evaluate(async () => { const out = {}; const d = S.profil
   m.querySelector('[data-act="ver-restore"]').click(); document.querySelector('#confirm [data-act="conf-yes"]').click();
   out.restored = JSON.stringify(d.cards.map(e => [e.n, e.q])) === before; out.keptCurrent = (d.versions || []).length === n0 + 2; d.dismissed = (d.dismissed || []).filter(x => x !== nm); touch(); return out; });
 T('UI-B87-01', 'Deck history: a card change keeps the earlier version; History shows what changed; Restore (after confirming) brings the cards back and keeps the replaced cards as a version', b87.recorded && b87.listed && b87.restored && b87.keptCurrent, JSON.stringify(b87));
+// 39. Build 88: the Upgrades tab counts cards that have an upgrade (each once), not upgrade options, and says "cards".
+const b88 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); const R = await recsReady(d); render();
+  const cuts = new Set(R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])).map(L => keyOf(L.cut)).concat(R.fixes.map(p => keyOf(p.cut)), R.drops.map(p => keyOf(p.n))));
+  const opts = R.paths.reduce((a, L) => a + Object.keys(L.opts).length, 0), t = (document.querySelector('[data-act="tab"][data-v="up"] em') || {}).textContent || '';
+  return {tab:t, cards:cuts.size, options:opts, ok:t === cuts.size + ' card' + (cuts.size === 1 ? '' : 's')}; });
+T('UI-B88-01', 'The Upgrades tab shows how many cards have an upgrade (each card once, e.g. “7 cards”), not the number of upgrade options', b88.ok, JSON.stringify(b88));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
