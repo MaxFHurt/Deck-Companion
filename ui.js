@@ -1073,11 +1073,16 @@ function planInstall(d, x, key){
   addCard(d, n, x.q); const en = d.cards.find(y => y.n === n); if (en && !x.basic){ en.step = key === 'b' ? 1 : key === 'm' ? 2 : 3; if (x.seed) en.l = true; }
   d.plan = d.plan.filter(y => y !== x); if (!d.plan.length) delete d.plan; return true;
 }
+// The commander's top EDHREC themes as build aims, with their theme pages loaded (none when the data can't be read).
+async function edhAimsFor(c){ try { await loadEdh(c.n); if (EDH.key !== c.n || EDH.state !== 'ok' || !(EDH.tags || []).length) return []; const aims = EDH.tags.slice(0, 3).map(t => 'edh:' + t.slug); await loadThemes(c.n, aims); return aims.filter(a => EDH.tmap[a.slice(4)]); } catch (e) { return []; } }
 // Start a generated deck as a build plan.
 function startPlan(cmdName, seeds, extraAims, partner, opts){
   const c = find(cmdName); if (!c) return null;
   const nd = newDeck(Object.assign({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander', src:'generated'}, opts && opts.sets && opts.sets.length ? {sets:opts.sets.slice(), setsMust:!!opts.setsMust} : {})); setCommander(nd, c.n);
   { const p = partner && find(partner); if (p && canPair(c, p)){ nd.partner = p.n; nd.name = c.n.split(',')[0] + ' & ' + p.n.split(',')[0] + ' (generated)'; nd.colors = ctxOf(nd).ident.slice(); ctxOf(nd).cmdThemes.forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); }); } }
+  // Apex generation builds around what players build this commander around (EDHREC's top themes, with their theme pages
+  // loaded): measured against the strongest real decks (bracket 4–5) it matches them more closely than the detected mechanics.
+  if (opts && opts.aims && opts.aims.length){ nd.aims = opts.aims.slice(0, 3); nd.aimAuto = true; }
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
   if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
   nd.plan = buildPlan(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
@@ -1827,8 +1832,8 @@ function handleAct(act, v, n, pArg){
     case 'gen-pick': S.gen.cmd = n; S.gen.partner = ''; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
     case 'gen-tier': S.gen.tier = v; openGenerate(); return;
     case 'gen-go': { const c = find(S.gen.cmd); if (!c) return; $('#modal').hidden = true; const p = find(S.gen.partner), sets = (S.gen.sets || []).slice(), must = !!S.gen.setsMust;
-      if (sets.length){ setStatus('Reading the chosen sets from Scryfall…'); loadSetCards(sets).then(ok => { setStatus(''); if (!ok) toast('Some set lists could not be read from Scryfall; those sets match only by each card’s shown printing.'); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, {sets, setsMust:must}); touch(); render(); }); return; }
-      startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null); break; }
+      if (sets.length){ setStatus('Reading the chosen sets from Scryfall…'); loadSetCards(sets).then(ok => { setStatus(''); if (!ok) toast('Some set lists could not be read from Scryfall; those sets match only by each card’s shown printing.'); edhAimsFor(c).then(aims => { startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({sets, setsMust:must}, aims.length ? {aims} : {})); touch(); render(); }); }); return; }
+      (async () => { setStatus('Reading how players build ' + c.n.split(',')[0] + '…'); const aims = await edhAimsFor(c); setStatus(''); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, aims.length ? {aims} : null); touch(); render(); })(); return; }
     case 'gen-own': S.gen.own = !S.gen.own; if (v === 'seed') openSeed(); else openGenerate(); return;
     case 'plan-more': S.planShow = (S.planShow || 16) + 24; changed = false; break;
     case 'plan-basics': { let k = 0; (d.plan || []).slice().forEach(x => { if (x.basic && planInstall(d, x, 'a')) k += x.q; }); toast('Added ' + k + ' basic land' + (k === 1 ? '' : 's') + '.' + (d.plan ? '' : ' The deck is complete.')); break; }
