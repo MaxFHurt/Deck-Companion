@@ -302,7 +302,7 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .hfix{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .fixsw{display:flex;flex-direction:column;gap:6px}.fixsw .sw{width:100%}
 #undo-fab{position:fixed;left:16px;bottom:16px;z-index:40;display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:22px;border:1px solid var(--glow);background:#2a1660;color:#fff;font:600 13px var(--label);letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 18px rgba(0,0,0,.5)}
-#undo-fab[hidden]{display:none}#main{padding-bottom:72px}
+#undo-fab[hidden]{display:none}.tab em{white-space:nowrap}@media (max-width:560px){.tab em{font-size:11px;padding-left:5px;padding-right:5px}}#main{padding-bottom:72px}
 .alt3{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}.alt3 .a3{display:flex;flex-direction:column;gap:2px}.alt3 .sw{border-left-color:var(--chrome2)}.alt3 .sw span{font-weight:500}#undo-fab svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .mscroll{flex:1 1 0;min-height:120px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;border-top:1px solid var(--line);padding-top:8px;-webkit-overflow-scrolling:touch}
 .detail{display:grid;grid-template-columns:270px 1fr;gap:16px}
@@ -391,7 +391,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 87;
+window.BUILD = 88;
 (function(){
   var last = 0;
   function check(){
@@ -403,9 +403,9 @@ window.BUILD = 87;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=87"></script>
-<script src="lists.js?v=87"></script>
-<script src="engine.js?v=87"></script>
-<script src="ui.js?v=87"></script>
+<script src="data.js?v=88"></script>
+<script src="lists.js?v=88"></script>
+<script src="engine.js?v=88"></script>
+<script src="ui.js?v=88"></script>
 </body>
 </html>
