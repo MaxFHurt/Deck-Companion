@@ -463,6 +463,15 @@ const b88 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   const opts = R.paths.reduce((a, L) => a + Object.keys(L.opts).length, 0), t = (document.querySelector('[data-act="tab"][data-v="up"] em') || {}).textContent || '';
   return {tab:t, cards:cuts.size, options:opts, ok:t === cuts.size + ' card' + (cuts.size === 1 ? '' : 's')}; });
 T('UI-B88-01', 'The Upgrades tab shows how many cards have an upgrade (each card once, e.g. “7 cards”), not the number of upgrade options', b88.ok, JSON.stringify(b88));
+// 40. Build 89: a card's "Put this card in" window: best swap first (card coming out on the left, this card on the right),
+// then the fit panel, then the card's details, and the other cards it could replace last.
+const b89 = await page.evaluate(async () => { const d = S.profile.decks.find(x => x.format === 'commander' && find(x.commander) && analyze(x).size >= analyze(x).T.size); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+  const c = LIB.find(x => !x.gc && x.cmd && x.ci.length && x.ci.every(z => ctxOf(d).ident.includes(z)) && !entryOf(d, x.n) && !tags(x).land && x.r && x.r < 500); openCard(c.n); await new Promise(r => setTimeout(r, 50));
+  const m = document.querySelector('#modal'), hero = m.querySelector('.swaphero'), sides = hero ? [...hero.querySelectorAll('.sw')] : [], all = [...m.querySelectorAll('.swaphero, .tip, .detail, .grp')], pos = el => all.indexOf(el);
+  const more = [...m.querySelectorAll('.grp')].find(g => /Or take out instead/.test(g.textContent));
+  const out = {hero:!!hero, left:sides[0] && sides[0].classList.contains('out'), right:sides[1] && sides[1].classList.contains('in') && sides[1].dataset.n === c.n, tipAfter:hero && pos(m.querySelector('.tip')) > pos(hero), detailAfterTip:pos(m.querySelector('.detail')) > pos(m.querySelector('.tip')), moreLast:!!more && pos(more) > pos(m.querySelector('.detail')) && [...m.querySelectorAll('.grp')].pop() === more};
+  out.deck = d.name; out.card = c.n; out.txt = m.textContent.slice(0, 200); $('#modal').hidden = true; return out; });
+T('UI-B89-01', 'Put this card in a deck: the best swap comes first with the card coming out on the left and the new card on the right, then the fit panel, then the card details, and the other cards it could replace last', b89.hero && b89.left && b89.right && b89.tipAfter && b89.detailAfterTip && b89.moreLast, JSON.stringify(b89));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

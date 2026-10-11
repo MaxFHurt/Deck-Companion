@@ -1686,13 +1686,19 @@ function tipHtml(d, c){
 function wantHtml(d, c){
   if (offColor(d, c)) return recolorHtml(d, c);
   const A = analyze(d), open = A.T.size - A.size, warn = !legalIn(c, d.format) ? 'Not legal in ' + d.format : (A.ctx.ident.length || A.ctx.cmd) && !c.ci.every(x => A.ctx.ident.includes(x)) ? 'Outside this deck’s colors' : '';
-  let h = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>' + tipHtml(d, c);
-  if (open > 0) return h + '<div class="row"><button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add it · ' + open + ' open slot' + (open === 1 ? '' : 's') + '</button></div></div>';
+  // Order (owner's layout): the best swap first, the card coming out on the left and this card on the right; then how well
+  // it fits; the other cards it could replace come last, after the card's details (wantMore, added at the bottom).
+  S.wantMore = ''; const lab = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>';
+  if (open > 0) return lab + '<div class="row"><button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add it · ' + open + ' open slot' + (open === 1 ? '' : 's') + '</button></div>' + tipHtml(d, c) + '</div>';
   const cuts = bestCuts(d, c.n, 3);
-  if (!cuts.length) return h + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div></div>';
-  h += '<p class="note" style="margin:0">The deck is full, so something has to come out. These are the cards it can best do without:</p>' +
-    cuts.map((x, i) => { const cc = find(x.n); return '<div class="path"><button class="sw out" data-act="card" data-n="' + esc(x.n) + '">' + (cc ? '<img alt="" src="' + artFor(cc) + '">' : '<span></span>') + '<span><small>Take out</small>' + esc(x.n) + '</span><em>' + money(cc) + '</em></button><div class="row">' + (i === 0 ? '<span class="chip good">Best swap</span>' : '') + '<span class="chip">' + esc(x.why[0]) + '</span><button class="btn ' + (i === 0 ? 'pri ' : '') + 'sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>'; }).join('');
-  return h + '<div class="row"><button class="btn sm" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add without removing anything</button></div></div>';
+  if (!cuts.length) return lab + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div>' + tipHtml(d, c) + '</div>';
+  const side = (n, cls, small) => { const k = find(n); return '<button class="sw ' + cls + '" data-act="card" data-n="' + esc(n) + '">' + (k ? '<img alt="" src="' + artFor(k) + '">' : '<span></span>') + '<span><small>' + small + '</small>' + esc(n) + '</span><em>' + money(k) + '</em></button>'; };
+  const b = cuts[0];
+  let h = lab + '<div class="swaphero">' + side(b.n, 'out', 'Take out') + '<span class="arrow" aria-hidden="true">→</span>' + side(c.n, 'in', 'Put in') + '</div>' +
+    '<div class="row"><span class="chip good">Best swap</span><span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c) + '</div>';
+  S.wantMore = '<div class="grp"><span class="lab">Or take out instead</span>' + cuts.slice(1).map(x => '<div class="path">' + side(x.n, 'out', 'Take out') + '<div class="row"><span class="chip">' + esc(x.why[0]) + '</span><button class="btn sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>').join('') +
+    '<div class="row"><button class="btn sm" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add without removing anything</button></div></div>';
+  return h;
 }
 function openEntry(n){
   S.modalCard = n; S.prints = null; S.pick = null;
@@ -1778,6 +1784,7 @@ function myWantHtml(){ const W = myWant(); if (!W.length) return '';
     W.map((x, i) => '<div class="row" style="flex-wrap:nowrap;gap:6px"><div style="flex:1;min-width:0"><button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + '</span><span></span><span class="pr">' + money(find(x.n)) + '</span></button></div><button class="ico" data-act="mywant-rm" data-v="' + i + '" aria-label="Remove ' + esc(x.n) + ' from my buy list" title="Remove from my buy list">×</button></div>').join('') +
     '</div><div class="row"><button class="btn pri sm" data-act="mywant-copy">Copy as text</button></div></section>'; }
 function openCard(name, pid){
+  S.wantMore = '';
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
   const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
   S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
@@ -1795,6 +1802,8 @@ function openCard(name, pid){
   $('#modal').hidden = false;
   if (c.id){ const p = $('#modal .panel'), mine = inDeck || isCmd, box = '<div class="grp"><span class="lab">' + (mine ? 'Printing in this deck · tap another to switch' : 'Printings · tap one, then add it') + '</span><div id="prints"><p class="note" style="margin:0">Loading printings…</p></div></div>';
     const anchor = mine ? ($('#modal #ctl') || $('#modal .ph')) : null; if (anchor) anchor.insertAdjacentHTML('afterend', box); else p.insertAdjacentHTML('beforeend', box); loadPrints(c); }
+  // the other cards it could replace come last, after the card details and its printings
+  if (!inDeck && S.wantMore && d && !isCmd && S.view === 'decks' && S.open) $('#modal .panel').insertAdjacentHTML('beforeend', S.wantMore);
 }
 function openImport(preset){
   const d = cur();
