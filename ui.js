@@ -642,9 +642,12 @@ function viewDecks(){
       : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn" data-act="hist-open">History</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em title="' + nUp + (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? ' has' : 's have') + ' an upgrade') + '">' + nUp + (hasPlan ? '' : ' card' + (nUp === 1 ? '' : 's')) + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
-  const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
-    return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') + (d.partner ? ' + ' + esc(d.partner) : '') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.plan && d.plan.length ? '<span class="chip warn">Build in progress</span>' : '') + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
+  const owners = [...new Set(players().concat(P.decks.map(playerOf).filter(Boolean)))], fp = S.deckPlayer;
+  const shown = fp == null || fp === '*' ? P.decks : P.decks.filter(d => playerOf(d) === fp);
+  const tiles = shown.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
+    return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + (d.player ? ' <span class="chip gold">' + esc(d.player) + '</span>' : '') + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') + (d.partner ? ' + ' + esc(d.partner) : '') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.plan && d.plan.length ? '<span class="chip warn">Build in progress</span>' : '') + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
   return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
+    (owners.length ? '<div class="row"><label class="lab" for="deck-filter-player" style="margin:0">Show decks for</label><select id="deck-filter-player" style="width:auto"><option value="*"' + (fp == null || fp === '*' ? ' selected' : '') + '>Everyone</option><option value=""' + (fp === '' ? ' selected' : '') + '>' + esc(P.name || 'Me') + ' (me)</option>' + owners.map(n => '<option value="' + esc(n) + '"' + (fp === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></div>' : '') +
     (S.draft ? '<div class="gate"><b>Unsaved deck: ' + esc(S.draft.name) + '</b>' + (S.draft.plan && S.draft.plan.length ? '<span class="chip warn">Build in progress</span> ' : '') + 'You started this deck but haven’t saved it to your profile.<div class="row" style="margin-top:10px"><button class="btn" data-act="draft-open">Keep editing</button><button class="btn pri" data-act="draft-save">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button></div></div>' : '') +
     (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>' + myWantHtml();
 }
@@ -690,7 +693,7 @@ function openMechList(){
 function aimPanel(d, ctx){
   if (d.auto && !d.custom && isAimed(d)){
     return '<section class="panel aimp"><div class="ph"><h2>Build</h2><small>' + (d.auto === 'precon' ? 'Precon theme' : 'Set from the commander') + '</small></div>' +
-      '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' +
+      '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' + playerSel('deck-player', playerOf(d)) +
       (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button><button class="btn sm" data-act="cmd-find">Find a commander</button></div></div></div>' + partnerBox(d, false) : '') +
       '<div class="grp"><span class="lab">This deck is built around</span><div class="row">' + d.aims.map((a, i) => '<button class="chip gold" data-act="mech-info" data-v="' + esc(a) + '" title="What this mechanic means">' + (i + 1) + ' · ' + esc(aimLabel(a, ctx.tribe)) + '</button>').join('') + '</div></div>' +
       '<p class="note" style="margin:0">' + (d.auto === 'precon' ? 'This precon already has a theme, so its upgrade paths are ready below.' : 'The build was set from what this commander does, so its upgrade paths are ready below.') + ' Change the mechanics, their order or the color focus only if you want to take the deck somewhere else.</p>' +
@@ -698,7 +701,7 @@ function aimPanel(d, ctx){
   }
   const lock = d.aimLocked, dis = lock ? ' disabled' : '', aimed = isAimed(d);
   let h = '<section class="panel aimp"><div class="ph"><h2>Build</h2><button class="ico' + (lock ? ' on' : '') + '" data-act="lock-aim" title="' + (lock ? 'Unlock the build settings' : 'Lock the build settings') + '" aria-pressed="' + lock + '">' + SVG.lock + '</button></div>';
-  h += '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>';
+  h += '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' + playerSel('deck-player', playerOf(d));
   h += '<div class="grp"><span class="lab">Format</span><div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></div>';
   if (d.format === 'commander'){
     h += '<div class="grp"><span class="lab">Commander</span>';
@@ -1181,6 +1184,7 @@ function startPlan(cmdName, seeds, extraAims, partner, opts){
   // loaded): measured against the strongest real decks (bracket 4–5) it matches them more closely than the detected mechanics.
   if (opts && opts.aims && opts.aims.length){ nd.aims = opts.aims.slice(0, 3); nd.aimAuto = !opts.mechChosen; if (opts.mechChosen) nd.aimLocked = true; }
   if (opts && opts.themeFirst) nd.themeFirst = true;
+  if (opts && opts.player) nd.player = opts.player;
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
   if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
   nd.plan = buildPlan(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
@@ -1557,7 +1561,7 @@ function openGenerate(){
   let h = '<div class="panel" role="dialog" aria-label="Generate from a commander"><div class="ph"><h2>Generate from a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Pick any legendary creature and how to build it. Deck Companion builds the full 100 cards straight into a new deck, then offers upgrades from there.</p>' +
     '<div class="grp"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search commanders" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
   if (c) h += '<div class="detail">' + cardHtml(c, false) + '<div class="grp"><span class="lab">Strategy it will follow</span><div class="row">' + (st.themes.length ? st.themes.map(k => '<span class="chip gold">' + (k === 'tribal' ? st.tribe + ' tribal' : THEMES[k].label) + '</span>').join('') : '<span class="note">No built-in strategy detected. The deck opens in the Builder so you can pick the mechanics, then fill it.</span>') + '</div>' +
-    genPartnerBox(c) + genModeBox(c, st) +
+    genPartnerBox(c) + genModeBox(c, st) + playerSel('gen-player', S.gen.player || '') +
     '<div class="grp"><span class="lab">Card sets · optional</span>' + setFilterHtml(S.gen.sets || [], S.gen.setsMust, 'gset') + '<p class="note" style="margin:0">' + ((S.gen.sets || []).length ? (S.gen.setsMust ? 'Only cards printed in these sets (and basic lands) go into the build.' : 'Cards printed in these sets are preferred.') : 'Build from one set or a few: add a set, then choose Preferred or Only these sets.') + '</p></div>' +
     ownToggle('gen') +
     '<div class="row">' + edhNote(c) + '</div>' +
@@ -1634,10 +1638,21 @@ function seedBuild(n, partner){
   const I = seedInfo(); if (!startPlan(n, I.cards, I.aims, partner)) return;
   S.seed = {cards:[], paste:false}; touch(); render();
 }
+// Players: up to 5 tablemates besides you. Each deck can belong to one of them, so a whole playgroup's decks live in one
+// profile. A deck with no player is yours.
+const MAX_PLAYERS = 5;
+function players(){ return (S.profile.players || (S.profile.players = [])); }
+function playerOf(d){ return d && d.player ? d.player : ''; }
+function playerSel(id, val){ const P = players(), names = P.concat(val && !P.includes(val) ? [val] : []);
+  return '<div class="grp"><label class="lab" for="' + id + '">Player</label><select id="' + id + '" style="width:auto;min-width:200px"><option value=""' + (!val ? ' selected' : '') + '>' + esc(S.profile.name || 'Me') + ' (me)</option>' + names.map(n => '<option value="' + esc(n) + '"' + (n === val ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' + (P.length ? '' : '<p class="note" style="margin:0">Add your tablemates in Profile to save their decks here too.</p>') + '</div>'; }
+function playersHtml(){ const P = players();
+  return '<div class="grp" style="max-width:520px"><span class="lab">Players at your table · ' + P.length + ' of ' + MAX_PLAYERS + '</span><p class="note" style="margin:0">Add up to ' + MAX_PLAYERS + ' tablemates. Their names show up when you create or generate a deck, so everyone’s decks can be saved to this profile.</p>' +
+    (P.length ? '<div class="row">' + P.map((n, i) => '<span class="chip">' + esc(n) + ' <button class="ico" data-act="player-rm" data-v="' + i + '" data-n="' + esc(n) + '" aria-label="Remove ' + esc(n) + '" style="min-width:0;padding:0 4px">×</button></span>').join('') + '</div>' : '') +
+    (P.length < MAX_PLAYERS ? '<div class="row"><input type="text" id="player-add" placeholder="Tablemate’s name" maxlength="30" style="flex:1 1 200px;min-width:0;width:auto"><button class="btn sm" data-act="player-add">Add player</button></div>' : '<p class="note" style="margin:0">That’s the most players a profile can hold. Remove one to add another.</p>') + '</div>'; }
 function viewProfile(){
   const P = S.profile;
   return '<section class="panel"><div class="ph"><h2>Profile</h2><small>' + 'Saved in this browser' + '</small></div>' +
-    '<div class="grp" style="max-width:420px"><label class="lab" for="p-name">Player name</label><input type="text" id="p-name" value="' + esc(P.name) + '" maxlength="40"></div>' +
+    '<div class="grp" style="max-width:420px"><label class="lab" for="p-name">Player name</label><input type="text" id="p-name" value="' + esc(P.name) + '" maxlength="40"></div>' + playersHtml() +
     '<div class="grp"><span class="lab">Saved decks · ' + P.decks.length + '</span>' + (P.decks.map(d => '<div class="row" style="border-bottom:1px solid var(--line);padding-bottom:6px"><b style="flex:1;min-width:140px">' + esc(d.name) + '</b><span class="chip">' + d.format + '</span>' + priceChip(analyze(d)) + '<button class="btn sm" data-act="open-deck" data-v="' + d.id + '">Open</button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>').join('') || '<p class="note">No decks saved.</p>') + '</div>' +
     '</section>' + backupPanel() +
     '<section class="panel"><div class="ph"><h2>Card database</h2><small>' + (DBINFO.source === 'full' ? DBINFO.count.toLocaleString() + ' cards · Scryfall data from ' + esc(DBINFO.when) : DBINFO.count + '-card starter library') + '</small></div>' +
@@ -1814,7 +1829,7 @@ function openImport(preset){
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Import a deck list"><div class="ph"><h2>Import a text list</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
     '<p class="note" style="margin:0">One card per line, like <code>1 Sol Ring</code> or <code>4x Llanowar Elves</code>. Lists exported from Arena, Moxfield, Archidekt and MTGO work, including a “Commander” heading. Sideboards are skipped.</p>' +
     '<div class="row"><input type="file" id="imp-file" accept=".txt,.dek,.dec,text/plain" style="max-width:300px"><select id="imp-fmt" style="width:auto" aria-label="Format"><option value="commander">Commander</option><option value="standard"' + (preset && preset.format === 'standard' ? ' selected' : '') + '>Standard</option></select></div>' +
-    '<input type="text" id="imp-name" placeholder="Deck name" value="' + esc(preset && preset.name || '') + '" maxlength="60"><textarea id="imp-text" placeholder="Commander&#10;1 Lathril, Blade of the Elves&#10;&#10;Deck&#10;1 Sol Ring&#10;1 Elvish Archdruid&#10;12 Forest"></textarea>' +
+    playerSel('imp-player', S.impPlayer || '') + '<input type="text" id="imp-name" placeholder="Deck name" value="' + esc(preset && preset.name || '') + '" maxlength="60"><textarea id="imp-text" placeholder="Commander&#10;1 Lathril, Blade of the Elves&#10;&#10;Deck&#10;1 Sol Ring&#10;1 Elvish Archdruid&#10;12 Forest"></textarea>' +
     '<div class="row"><button class="btn pri" data-act="import-go" data-v="new">Import as a new deck</button></div></div>';
   $('#modal').hidden = false; openImport.preset = preset || null;
 }
@@ -1868,6 +1883,7 @@ const CONFIRM = {
   'restore-replace':() => ['Replace all your decks with the backup?', 'Every deck now in this browser is replaced by the decks in the backup file.', 'Replace all'],
   'stats-reset':() => ['Start counting from now?', 'Score, swap and spending changes will be counted from today instead of the earlier date.', 'Start from now'],
   'ver-restore':v => ['Restore this version?', 'The deck’s cards go back to how they were then. The cards it has now are kept in History, so you can come back.', 'Restore'],
+  'player-rm':(v, n) => ['Remove ' + n + '?', n + ' comes off your list of players. Their decks are kept and still show their name.', 'Remove'],
   'consider-rm':(v, n) => ['Take ' + n + ' off the Considering list?', 'It stays out of the deck and comes off this deck’s Considering list.', 'Take it off'],
   'seed-del':(v, n) => ['Remove ' + n + '?', n + ' comes off the list of cards to build around.', 'Remove'],
   'aim-rm':() => ['Remove this mechanic?', 'The build stops aiming for it, so the upgrade list changes. You can add it back from the Build panel.', 'Remove'],
@@ -2076,7 +2092,7 @@ function handleAct(act, v, n, pArg){
         setStatus('Reading how players build ' + c.n.split(',')[0] + '…'); let aims = [];
         if (g.mech.length){ await loadEdh(c.n); const ed = g.mech.filter(isEdhAim); if (ed.length) await loadThemes(c.n, ed); aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]); }
         else aims = await edhAimsFor(c);
-        setStatus(''); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length}, sets.length ? {sets, setsMust:must} : {}, aims.length ? {aims} : {})); touch(); render(); })(); return; }
+        setStatus(''); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length, player:g.player || ''}, sets.length ? {sets, setsMust:must} : {}, aims.length ? {aims} : {})); touch(); render(); })(); return; }
     case 'h-fix': { const H0 = Object.keys(FIX_OF); if (v === '*'){ const st = $('.hfix'); const ks = st ? [...st.querySelectorAll('[data-act="h-fix"]')].map(b => b.dataset.v).filter(x => x !== '*') : H0; openFix(ks); } else openFix([v]); return; }
     case 'h-ignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v).concat(v); toast('The ' + v + ' alert is ignored for this deck. You can stop ignoring it under Health.'); if (!$('#modal').hidden && S.fixKeys){ const ks = S.fixKeys.filter(x => x !== v); if (ks.length) openFix(ks); else $('#modal').hidden = true; } break;
     case 'h-unignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v); toast('The ' + v + ' alert is back on.'); break;
@@ -2097,6 +2113,8 @@ function handleAct(act, v, n, pArg){
     case 'cmp-open': openCompare(); return;
     case 'hist-open': openHistory(); return;
     case 'ver-restore': { const vv = d && (d.versions || [])[+v]; if (!vv) return; d.cards = JSON.parse(JSON.stringify(vv.cards)); recsFor.k = null; $('#modal').hidden = true; toast('Restored the version from ' + new Date(vv.at).toLocaleString() + '.'); break; }
+    case 'player-add': { const i = $('#player-add'), nm = (i && i.value || '').trim().slice(0, 30); if (!nm){ toast('Type a name first.'); return; } const P = players(); if (P.length >= MAX_PLAYERS){ toast('Up to ' + MAX_PLAYERS + ' players.'); return; } if (P.some(x => x.toLowerCase() === nm.toLowerCase()) || nm.toLowerCase() === (S.profile.name || '').toLowerCase()){ toast(nm + ' is already on your profile.'); return; } P.push(nm); toast('Added ' + nm + '. Pick them as the player when you create or generate a deck.'); break; }
+    case 'player-rm': { const P = players(), i = +v; if (P[i] == null) return; const nm = P.splice(i, 1)[0]; toast('Removed ' + nm + '. Their decks stay, marked with their name.'); break; }
     case 'listsort': S.listSort = LIST_SORT[v] ? v : 'name'; changed = false; break;
     case 'listrole': S.listRole = LIST_ROLE[v] != null ? v : ''; changed = false; break;
     case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
@@ -2113,7 +2131,7 @@ function handleAct(act, v, n, pArg){
       const r = parseDeckText(txt), fmt = $('#imp-fmt').value, total = r.cards.reduce((s, e) => s + e.q, 0); if (!total && !r.commander){ toast('No cards found in that text.'); return; }
       const pre = openImport.preset && openImport.preset.precon; let t = d;
       if (v === 'merge' && d) r.cards.forEach(e => addCard(d, e.n, e.q));
-      else t = newDeck({name:$('#imp-name').value.trim() || r.name || 'Imported deck', format:fmt, cards:r.cards, aims:pre ? pre.aims.slice() : [], tribe:pre && pre.tribe || '', src:'import'});
+      else t = newDeck({name:$('#imp-name').value.trim() || r.name || 'Imported deck', format:fmt, cards:r.cards, aims:pre ? pre.aims.slice() : [], tribe:pre && pre.tribe || '', src:'import', player:($('#imp-player') || {}).value || ''});
       const cmdName = r.commander || (pre && pre.cmd); const hadCmd = v === 'merge' && t.commander; if (fmt === 'commander' && cmdName && !hadCmd) setCommander(t, cmdName);
       if (r.partner){ if (fmt === 'commander' && !hadCmd && r.commander) setPartner(t, r.partner); else addCard(t, r.partner, 1); }
       if (fmt === 'standard' && !t.colors.length){ const s = new Set(); t.cards.forEach(e => { const c = find(e.n); if (c) c.ci.forEach(x => s.add(x)); }); t.colors = 'WUBRG'.split('').filter(x => s.has(x)).slice(0, 3); }
@@ -2142,6 +2160,10 @@ document.addEventListener('input', ev => {
 document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' + ((ev.target.getAttribute && (ev.target.getAttribute('aria-label') || ev.target.id)) || 'setting');
   const t = ev.target, d = cur();
   if (t.id === 'deck-name' && d){ d.name = t.value.trim() || 'Untitled deck'; d.example = false; touch(); }
+  else if (t.id === 'deck-player' && d){ d.player = t.value || ''; if (!d.player) delete d.player; touch(); render(); }
+  else if (t.id === 'gen-player'){ S.gen.player = t.value || ''; }
+  else if (t.id === 'imp-player'){ S.impPlayer = t.value || ''; }
+  else if (t.id === 'deck-filter-player'){ S.deckPlayer = t.value; render(); }
   else if (t.id === 'p-name'){ S.profile.name = t.value.trim() || 'Planeswalker'; touch(); }
   else if (t.id === 'aim-add' && t.value && d){ d.aimAuto = false; aimsChanged(d); d.aims.push(t.value); touch(); render(); ensureEdh(); }
   else if (t.id === 'tribe' && d){ d.tribe = t.value; touch(); render(); }
