@@ -257,7 +257,20 @@ function undoLast(){ const u = UNDO.stack.pop(); if (!u) return; const o = JSON.
   if (S.deckId && !S.profile.decks.some(x => x.id === S.deckId) && !(S.draft && S.draft.id === S.deckId)){ S.deckId = (S.profile.decks[0] || {}).id || null; if (!S.deckId) S.open = false; }
   UNDO.base = undoSnap(); UNDO.seq++; UNDO.at = UNDO.seq; recsFor.k = null; clearTimeout(saveT); saveT = setTimeout(persist, 300); if (S.draft) lsSet('dc.draft', S.draft); else localStorage.removeItem('dc.draft');
   $('#modal').hidden = true; render(); toast('Undid: ' + (u.label || 'last change') + '.'); }
-function touch(){ undoMark(); S.profile.updatedAt = Date.now(); S.profile.example = false; clearTimeout(saveT); saveT = setTimeout(persist, 700); }
+// Deck history: every saved change to a deck's cards keeps the version before it (the last 25, with when and what was done),
+// so any earlier version can be looked at and restored. Kept with the deck, so it is in backups too.
+const VLAST = new Map(), cardsSig = d => JSON.stringify(d.cards.map(e => [e.n, e.q]));
+function versionMark(){ S.profile.decks.forEach(d => { const sig = cardsSig(d), old = VLAST.get(d.id); if (old == null){ VLAST.set(d.id, sig); return; } if (old === sig) return;
+  const prev = JSON.parse(old); (d.versions = d.versions || []).push({at:Date.now(), cards:prev.map(([n, q]) => ({n, q})), label:UNDO.label || ''}); if (d.versions.length > 25) d.versions.shift(); VLAST.set(d.id, sig); }); }
+function openHistory(){ const d = cur(); if (!d) return; const V = (d.versions || []).slice().reverse(), now = new Map(d.cards.map(e => [keyOf(e.n), e.q]));
+  const diff = v => { const m = new Map(v.cards.map(e => [keyOf(e.n), e])), add = d.cards.filter(e => !m.has(keyOf(e.n))).map(e => e.n), rem = v.cards.filter(e => !now.has(keyOf(e.n))).map(e => e.n); return {add, rem}; };
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Deck history"><div class="ph"><h2>History · ' + esc(d.name) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<p class="note" style="margin:0">Earlier versions of this deck’s cards, newest first. Each shows how it differs from the deck now. Restoring puts that version’s cards back; the current cards become a version too, so nothing is lost.</p>' +
+    (V.length ? V.map((v, i) => { const x = diff(v), k = V.length - 1 - i; return '<div class="grp"><span class="lab">' + new Date(v.at).toLocaleString() + (v.label ? ' · before “' + esc(v.label) + '”' : '') + '</span><p class="note" style="margin:0">' +
+      (x.rem.length ? 'Had, now gone: ' + x.rem.slice(0, 6).map(esc).join(', ') + (x.rem.length > 6 ? ' and ' + (x.rem.length - 6) + ' more' : '') + '. ' : '') + (x.add.length ? 'Added since: ' + x.add.slice(0, 6).map(esc).join(', ') + (x.add.length > 6 ? ' and ' + (x.add.length - 6) + ' more' : '') + '.' : '') + (!x.rem.length && !x.add.length ? 'Same cards as now (only counts differ).' : '') + '</p>' +
+      '<div class="row"><button class="btn sm" data-act="ver-restore" data-v="' + k + '">Restore this version</button></div></div>'; }).join('') : '<p class="note">No earlier versions yet. Every change you make to the cards from now on is kept here.</p>') + '</div>';
+  $('#modal').hidden = false; }
+function touch(){ undoMark(); versionMark(); S.profile.updatedAt = Date.now(); S.profile.example = false; clearTimeout(saveT); saveT = setTimeout(persist, 700); }
 async function persist(){
   const json = JSON.stringify(S.profile);
   try { localStorage.setItem('dc.profile', json); } catch (e) {}
@@ -626,7 +639,7 @@ function viewDecks(){
     const tb = (k, label, cls) => '<button class="tab' + (tab === k ? ' on' : '') + (cls || '') + '" data-act="tab" data-v="' + k + '" role="tab" aria-selected="' + (tab === k) + '">' + label + '</button>';
     return '<div class="row bar"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
       ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
-      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
+      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn" data-act="hist-open">History</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em>' + nUp + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const tiles = P.decks.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
@@ -1633,7 +1646,7 @@ function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h
 function fitWork(){ const w = document.querySelector('.work'); if (!w) return; const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
 function render(){
   const keep = {}; document.querySelectorAll('[data-keep]').forEach(el => keep[el.id] = el.scrollTop);
-  if (UNDO.base == null) UNDO.base = undoSnap(); navHtml(); const m = $('#main');
+  if (UNDO.base == null) UNDO.base = undoSnap(); S.profile.decks.forEach(d => { if (!VLAST.has(d.id)) VLAST.set(d.id, cardsSig(d)); }); navHtml(); const m = $('#main');
   document.querySelector('.top').classList.toggle('home', S.view === 'home'); document.querySelector('.app').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = S.view === 'home' ? '10px' : '16px';
@@ -1839,6 +1852,7 @@ const CONFIRM = {
   'partner-clear':() => ['Remove the second commander?', 'The deck goes back to one commander and its colours.', 'Remove'],
   'restore-replace':() => ['Replace all your decks with the backup?', 'Every deck now in this browser is replaced by the decks in the backup file.', 'Replace all'],
   'stats-reset':() => ['Start counting from now?', 'Score, swap and spending changes will be counted from today instead of the earlier date.', 'Start from now'],
+  'ver-restore':v => ['Restore this version?', 'The deck’s cards go back to how they were then. The cards it has now are kept in History, so you can come back.', 'Restore'],
   'consider-rm':(v, n) => ['Take ' + n + ' off the Considering list?', 'It stays out of the deck and comes off this deck’s Considering list.', 'Take it off'],
   'seed-del':(v, n) => ['Remove ' + n + '?', n + ' comes off the list of cards to build around.', 'Remove'],
   'aim-rm':() => ['Remove this mechanic?', 'The build stops aiming for it, so the upgrade list changes. You can add it back from the Build panel.', 'Remove'],
@@ -2066,6 +2080,8 @@ function handleAct(act, v, n, pArg){
     case 'consider-rm': { if (!d) return; d.consider = considerOf(d).filter(x => keyOf(x.n) !== keyOf(n)); toast(n + ' is off the Considering list.'); const c = find(n), b = $('#considerbox'); if (b && c) b.outerHTML = considerBox(c); break; }
     case 'consider-in': { if (!d) return; const c = find(n); if (!c) return; if (wantFit(d, c)){ toast(c.n + ' can’t go in this deck: ' + wantFit(d, c) + '.'); return; } d.consider = considerOf(d).filter(x => keyOf(x.n) !== c._k); addCard(d, c.n, 1); toast('Added ' + c.n + ' to ' + d.name + ' from Considering.'); break; }
     case 'cmp-open': openCompare(); return;
+    case 'hist-open': openHistory(); return;
+    case 'ver-restore': { const vv = d && (d.versions || [])[+v]; if (!vv) return; d.cards = JSON.parse(JSON.stringify(vv.cards)); recsFor.k = null; $('#modal').hidden = true; toast('Restored the version from ' + new Date(vv.at).toLocaleString() + '.'); break; }
     case 'listsort': S.listSort = LIST_SORT[v] ? v : 'name'; changed = false; break;
     case 'listrole': S.listRole = LIST_ROLE[v] != null ? v : ''; changed = false; break;
     case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
