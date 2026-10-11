@@ -948,11 +948,43 @@ function scoreCheck(d, R, o){
         .filter(a => vc == null || (a.v > vcu && a.v >= vc - 0.25 * Math.max(0, vc - vcu))).sort((a, b) => b.v - a.v);
       for (const a of cand.slice(0, 2)){
         const w = dOf({cut:p.cut, add:a.n, q:p.q}); if (w != null && w >= SCORE_MIN && w >= 0.75 * v){ L.opts[t] = swapTo(p, a.n, w, a.theme); themed++; break; } } } }
+  // The deck score decides every slot (the owner's rule). Among the cards that do the same job as the slot's pick, measured
+  // against the same card going out: the one that raises the deck score most is the Apex card, whatever it costs; the best
+  // of the rest under $12 is Mid and the best of the rest under $3 is Budget. A card that raises the score but loses to its
+  // own price tier's pick is an alternative there (at least half that pick's gain, best three). Nothing else is suggested.
+  // An on-theme card counts as equal when it is within RANK_THEME of the best (the "on theme, within reason" rule).
+  if (o.rank !== false && UP.rank){ const used = new Set(), rows = R.paths.concat(extra);
+    rows.forEach(L => ['apex', 'mid', 'budget', 'free'].forEach(t => { if (L.opts[t]) used.add(norm(L.opts[t].add)); }));
+    const inDeck = new Set(d.cards.map(e => norm(e.n)).concat([norm(d.commander)], d.partner ? [norm(d.partner)] : []));
+    // the deck's playable cards, each with a quick strength guess (play rate with this commander, then popularity) used only
+    // to choose which cards are measured; the deck score then decides
+    const U = LIB.filter(x => !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx0.ident.includes(k)) && mustOk(x, d) && !inDeck.has(x._n) && !dis0.has(x._n))
+      .map(x => { const e = ctx0.edh && edhOf(ctx0.edh.map, x); return {c:x, g:(e ? 10 * e.inc + 4 * Math.max(0, e.syn) : 0) + (x.r ? Math.max(0, 1 - Math.log(x.r + 1) / Math.log(40000)) : 0)}; }).sort((a, b) => b.g - a.g);
+    for (const L of rows){ const O = L.opts, ref = O.apex || O.mid || O.budget; if (!ref) continue; const rc = find(ref.add); if (!rc) continue;
+      const mine = new Set(['apex', 'mid', 'budget'].map(t => O[t] && norm(O[t].add)).filter(Boolean)), same = sameJobAs(rc, d, ctx0), land = !!tags(rc).land;
+      const pool = [], nb = {budget:0, mid:0}; for (const y of U){ const x = y.c; if (!!tags(x).land !== land || (used.has(x._n) && !mine.has(x._n)) || x.p == null || (R.cap && !(x.p < R.cap) && !(own && own.has(x._n))) || !same(x)) continue;
+        const b = underCap(x.p, 'budget'), m = underCap(x.p, 'mid'); if (pool.length >= UP.rankP && !(b && nb.budget < UP.rankB * 2) && !(m && nb.mid < UP.rankB * 2)) { if (nb.budget >= UP.rankB * 2 && nb.mid >= UP.rankB * 2) break; continue; }
+        pool.push(x); if (b) nb.budget++; if (m) nb.mid++; }
+      const vv = x => { if (!VM.has(x._k)) VM.set(x._k, R.valOf ? R.valOf(x) : 0); return VM.get(x._k); };
+      const byV = pool.slice().sort((a, b) => vv(b) - vv(a)), pick = new Map();
+      byV.slice(0, UP.rankN).forEach(x => pick.set(x._n, x)); ['budget', 'mid'].forEach(t => byV.filter(x => underCap(x.p, t)).slice(0, UP.rankB).forEach(x => pick.set(x._n, x)));
+      mine.forEach(k => { const c = pool.find(x => x._n === k) || LIB.find(x => x._n === k); if (c) pick.set(k, c); });
+      const C = [...pick.values()].map(c => ({c, w:dOf({cut:L.cut, add:c.n, q:ref.q}), th:themeOf(c, T)})).filter(x => x.w != null && x.w >= Math.max(scoreFloor(), UP.rankMin)).sort((a, b) => b.w - a.w || vv(b.c) - vv(a.c));
+      const take = (list, t) => { if (!list.length) return null; const top = list[0], th = list.find(x => x.th && x.w >= top.w - Math.abs(top.w) * RANK_THEME); return th || top; };
+      // a held pick (the player has seen it and it holds its place until swapped, ruled out or regenerated) keeps its tier
+      const out = {}, left = C.slice(); ['apex', 'mid', 'budget'].forEach(t => { const p = O[t]; if (!p || !p.held) return; const i = left.findIndex(y => y.c._n === norm(p.add)); out[t] = Object.assign({}, p, {dScore:i >= 0 ? left[i].w : p.dScore}); if (i >= 0) left.splice(i, 1); });
+      for (const t of ['apex', 'mid', 'budget']){ if (out[t]) continue; const x = take(t === 'apex' ? left : left.filter(y => underCap(y.c.p, t)), t); if (!x) continue; left.splice(left.indexOf(x), 1);
+        const old = ['apex', 'mid', 'budget'].map(k => O[k]).find(p => p && norm(p.add) === x.c._n); out[t] = old ? Object.assign({}, old, {dScore:x.w, t}) : Object.assign(swapTo(ref, x.c.n, x.w, x.th), {t}); }
+      const alts = {apex:[], mid:[], budget:[]}; left.forEach(x => { const t = x.c.p != null && underCap(x.c.p, 'budget') ? 'budget' : x.c.p != null && underCap(x.c.p, 'mid') ? 'mid' : 'apex', tp = out[t] || out.mid || out.apex;
+        if (tp && alts[t].length < 3 && x.w <= tp.dScore && x.w >= Math.max(scoreFloor(), 0.5 * tp.dScore)) alts[t].push({n:x.c.n, p:x.c.p, dScore:x.w, theme:x.th}); });
+      ['apex', 'mid', 'budget'].forEach(t => { if (out[t]) O[t] = out[t]; else if (O[t]){ delete O[t]; (L.none = L.none || {})[t] = 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score enough after the cards above it'; } });
+      Object.values(out).forEach(p => used.add(norm(p.add))); Object.values(alts).flat().forEach(a => used.add(norm(a.n))); L.alts = alts; L.ranked = true; } }
   // re-paired picks follow the engine's own list (measured: better agreement with players than keeping their old place)
   extra.forEach(x => delete x.after); R.paths = R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])).concat(extra);
    // the engine's order (strongest upgrade first, checked against real players) is kept
   R.scored = {base:base.exact, dropped, refilled, themed, repaired}; R.dOf = (cut, add, q) => swapScore(d, base, o.apex, cut, add, q); return R;
 }
+const RANK_THEME = 0.1;
 function tierPick(L, t){
   const a = L.opts.apex; if (!a) return t === 'budget' ? (L.opts.budget || null) : (L.opts.mid || L.opts.budget || null);   // the Apex pick was dropped by the score check
   if (t === 'apex') return a;
@@ -961,7 +993,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {rank:1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1218,7 +1250,7 @@ function upgradePaths(d, opt){
     rows.set(cutN, row); }
   out.paths = [...rows.values()].sort((a, b) => (b.opts.free ? 1 : 0) - (a.opts.free ? 1 : 0) || (a.gcPick ? 1 : 0) - (b.gcPick ? 1 : 0) || b.gain - a.gain);
   for (const t of ['free'].concat(TIER_KEYS_UP)) out.paths.forEach(L => { const p = t === 'free' ? L.opts.free : tierPick(L, t); if (!p) return; out.count[t] += p.q; const a = find(p.add), c = find(p.cut); out.cost[t] += ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; });
-  out.bracket = ctx.bracket; out.gcIn = ctx.gcIn; out.mldIn = ctx.mldIn; out.gcCap = ctx.gcCap;
+  out.bracket = ctx.bracket; out.gcIn = ctx.gcIn; out.mldIn = ctx.mldIn; out.gcCap = ctx.gcCap; out.cap = opt.cap || 0;
   return out;
 }
 // Fix a health alert: direct swaps that remedy one shortfall (a job below its target, too few or too many lands, a heavy

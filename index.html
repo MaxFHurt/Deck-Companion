@@ -150,6 +150,8 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .qty{display:flex;align-items:center;gap:6px} .qty b{min-width:18px;text-align:center;font:700 14px var(--label)} .qty .ico{width:28px;height:28px}
 .chip .x{border:0;background:none;color:inherit;font:inherit;padding:0 0 0 4px;font-size:15px;line-height:1}
 .up .paths.plan>.path{grid-row:span 3}
+/* upgrade rows carry their alternatives now, so each row gets the full width: no tall row beside a short one */
+.up .paths:not(.plan){grid-template-columns:minmax(0,1fr)}
 .chk{display:inline-flex;align-items:center;gap:8px;border:0;background:none;color:var(--ink);font:inherit;font-weight:600;padding:4px 0;text-align:left} .chk i{width:20px;height:20px;border:2px solid var(--chrome);border-radius:4px;display:grid;place-items:center;flex:none} .chk.on i{background:var(--violet);border-color:var(--glow)} .chk.on i::after{content:"✓";color:#fff;font-style:normal;font-size:14px;line-height:1} .chk:disabled{opacity:.5}
 .opt.none{opacity:.6} .opt.none p{margin:0;font-size:13px;color:var(--mute)}
 .cmdbox{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;background:var(--well);border:1px solid var(--line);border-radius:8px;padding:8px}
@@ -300,7 +302,8 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .hfix{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .fixsw{display:flex;flex-direction:column;gap:6px}.fixsw .sw{width:100%}
 #undo-fab{position:fixed;left:16px;bottom:16px;z-index:40;display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:22px;border:1px solid var(--glow);background:#2a1660;color:#fff;font:600 13px var(--label);letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 18px rgba(0,0,0,.5)}
-#undo-fab[hidden]{display:none}#main{padding-bottom:72px}#undo-fab svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#undo-fab[hidden]{display:none}#main{padding-bottom:72px}
+.alt3{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}.alt3 .a3{display:flex;flex-direction:column;gap:2px}.alt3 .sw{border-left-color:var(--chrome2)}.alt3 .sw span{font-weight:500}#undo-fab svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .mscroll{flex:1 1 0;min-height:120px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;border-top:1px solid var(--line);padding-top:8px;-webkit-overflow-scrolling:touch}
 .detail{display:grid;grid-template-columns:270px 1fr;gap:16px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:14px;align-content:start}
@@ -388,7 +391,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 81;
+window.BUILD = 82;
 (function(){
   var last = 0;
   function check(){
@@ -400,9 +403,9 @@ window.BUILD = 81;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=81"></script>
-<script src="lists.js?v=81"></script>
-<script src="engine.js?v=81"></script>
-<script src="ui.js?v=81"></script>
+<script src="data.js?v=82"></script>
+<script src="lists.js?v=82"></script>
+<script src="engine.js?v=82"></script>
+<script src="ui.js?v=82"></script>
 </body>
 </html>
