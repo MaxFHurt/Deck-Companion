@@ -501,9 +501,10 @@ T('UI-B92-01', 'Players: up to 5 tablemates on the profile; a deck can be set to
 const b93 = await page.evaluate(async () => { const out = {}; await loadPreconLive('avengers-assemble', 'Avengers Assemble'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.syncRecs = true;
   await loadEdh(d.commander); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); await recsReady(d); render();
   openFix(['Mana']); const m = document.querySelector('#modal'); out.menu = /Fix: Mana/.test(m.textContent); const g = (S.fixG || [])[0] || {L:[]}; out.swaps = g.L.length;
-  out.allLands = g.L.every(p => tags(find(p.add)).land && tags(find(p.cut)).land); out.noneLower = g.L.every(p => p.dScore == null || p.dScore >= -0.05); out.scored = g.L.some(p => p.dScore != null && p.dScore !== 0);
+  out.allLands = g.L.every(p => tags(find(p.add)).land); out.kinds = g.L.map(p => (tags(find(p.cut)).land ? 'land' : 'spell') + '>' + p.add + ' ' + p.dScore); out.noneLower = g.L.every(p => p.dScore != null && p.dScore >= SCORE_MIN); out.scored = g.L.every(p => p.dScore != null);
+  out.why = /stuck without a colour it needs in \d+% of games and short of lands by turn 5 in \d+%/.test(m.textContent);
   out.noUpkindBtn = !document.querySelector('.hfix [data-act="upkind"]'); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); return out; });
-T('UI-B93-01', 'Mana alert: Fix this opens land swaps (land for land, measured with fresh practice games, none lowering the score)', b93.menu && b93.swaps > 0 && b93.allLands && b93.noneLower && b93.scored && b93.noUpkindBtn, JSON.stringify(b93));
+T('UI-B93-01', 'Mana alert: Fix this says which problem it is (colour or missing lands) and offers swaps that each add a land (better land, or a land for a spare spell), measured with fresh practice games, every one raising the score', b93.menu && b93.swaps > 0 && b93.allLands && b93.noneLower && b93.scored && b93.why && b93.noUpkindBtn, JSON.stringify(b93));
 // 45. Build 94: putting a card in a full deck weighs it against each card it could replace: every Take out row shows the
 // deck score change, best first, and the numbers match the score check.
 const b94 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list';
@@ -549,6 +550,13 @@ const b98 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   out.onList = wantOf(d).some(x => x.n === n); out.deckSame = JSON.stringify(d.cards) === before; out.chip = [...document.querySelectorAll('.paths .chip')].some(c => c.textContent === 'On the Buy List');
   const k = wantOf(d).findIndex(x => x.n === n); if (k >= 0) wantOf(d).splice(k, 1); render(); return out; });
 T('UI-B98-01', 'Upgrade rows: Add to Buy List next to Alternate Options (precons too), Remove suggestion replaces the old label; adding puts the card on the buy list and leaves the deck unchanged', b98.row && b98.labels && b98.nextTo && b98.oldGone && b98.onList && b98.deckSame && b98.chip, JSON.stringify(b98));
+// 50. Build 99: a generated Don & Leo deck (the owner's case): Fix this on Mana never comes up empty-handed. It offers swaps
+// that raise the deck score, or says plainly why there are none and offers a basic-land rebalance when one exists.
+const b99 = await page.evaluate(async () => { const g = startPlan('Don & Leo, Problem Solvers', [], null, null, {fill:'apex'}); if (!g) return {gen:false}; S.profile.decks.unshift(g); S.draft = null; S.deckId = g.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
+  for (let i = 0; i < 80 && !apexFor(g); i++) await new Promise(r => setTimeout(r, 100)); render(); const e = evalFor(g); const t0 = performance.now(); openFix(['Mana']); const ms = Math.round(performance.now() - t0);
+  const m = document.querySelector('#modal'), L = ((S.fixG || [])[0] || {L:[]}).L, out = {gen:true, size:analyze(g).size, stuck:e && e.sim.colourStuck, short:e && e.sim.screwT5, ms, swaps:L.map(p => p.cut + '>' + p.add + ' ' + p.dScore), why:/practice games/.test(m.textContent)};
+  out.useful = L.length ? L.every(p => p.dScore >= SCORE_MIN) : /No land swap raised the deck score/.test(m.textContent); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== g.id); return out; });
+T('UI-B99-01', 'Generated Don & Leo deck: Mana Fix this offers swaps that raise the score (or explains why there are none), and says whether colours or missing lands are the problem', b99.gen && b99.why && b99.useful, JSON.stringify(b99));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
