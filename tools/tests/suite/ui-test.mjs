@@ -702,6 +702,16 @@ const b112 = await page.evaluate(async () => { const out = {}, P = S.profile, ke
   document.querySelector('#modal [data-act="dycb-gen"]').click(); out.gen = !!document.querySelector('#gen-q') && S.gen.cmd === S.dycb.rows[0].c.n && S.gen.own === true; $('#modal').hidden = true;
   P.library = JSON.parse(keep); S.libV++; S.dycb = null; S.gen.own = false; return out; });
 T('UI-B112-01', 'Decks you can build: a library from a precon ranks its commander at or near the top (top 3 with it, top 5 without it); the top picks show how much you own and what the rest costs; Generate from my cards opens Generate with own cards on', b112.withCmd >= 0 && b112.withCmd < 3 && b112.withoutCmd >= 0 && b112.withoutCmd < 5 && Object.values(b112.others).every(k => k >= 0 && k < 5) && b112.costShown && b112.ownMost && b112.gen, JSON.stringify(b112));
+// 63. Build 113: Lands helper. Lands against the target, sources needed for each colour (Karsten tables) against what the deck
+// has, popular lands for the commander it doesn't run (lands, in its colours, run by 20%+), and buttons to the land swaps.
+const b113 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(w); render();
+  const b = document.querySelector('[data-act="lands-open"]'); out.btn = !!b; b.click(); const m = $('#modal'), t = m.textContent, A = analyze(w), H = landHelp(w), ctx = ctxOf(w);
+  out.landsLine = new RegExp(A.lands + ' lands, about ' + A.T.lands + ' needed').test(t);
+  out.colours = ctx.ident.map(k => ({k, need:Math.round(H.need[k] || 0), have:H.src[k].lands + H.src[k].other})); out.coloursShown = out.colours.every(x => new RegExp('needs about ' + x.need + ' sources · has ' + x.have).test(t) || (!x.need && /no spells need it/.test(t)));
+  out.needSane = out.colours.every(x => x.need === 0 || (x.need >= 10 && x.need <= 40));
+  const pop = [...m.querySelectorAll('.sw.in')].map(e => find(e.dataset.n)); out.pop = pop.length; out.popOk = pop.every(c => tags(c).land && !hasCard(w, c.n) && c.ci.every(k => ctx.ident.includes(k)) && edhOf(ctx.edh.map, c).inc >= 0.2);
+  m.querySelector('[data-act="h-fix"][data-v="Mana"]').click(); out.opensFix = /Fix: Mana/.test($('#modal').textContent); $('#modal').hidden = true; return out; });
+T('UI-B113-01', 'Lands helper: lands against target, colour sources needed (Karsten) against what the deck has for each colour, popular lands it lacks (in colour, 20%+ play rate), and Show land swaps opens the Mana swaps', b113.btn && b113.landsLine && b113.coloursShown && b113.needSane && b113.popOk && b113.opensFix, JSON.stringify(b113));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

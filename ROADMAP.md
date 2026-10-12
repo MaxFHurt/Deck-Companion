@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 112. Each item ships as its own build: build, run the full test suite
+Live: Build 113. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -23,19 +23,10 @@ Items marked "discuss first" need the owner's decision before they are built; th
    - *Risks:* the test environment blocks the image server, so this needs the owner's phone and iPad or a test run with images allowed.
    - *Tested by:* screenshots on real devices of every main screen.
 
-### Medium
-
-3. **Lands helper**
-   - *You'll see:* a land panel: how many lands, how many of each colour source the deck needs (from its spells), and which lands to add or cut, including utility lands strong decks play.
-   - *Builds on:* the mana base builder and the practice games.
-   - *Already done (Builds 99-103):* the Mana alert offers land swaps, too many lands is flagged, and spare lands can go for other cards in the Show menus, the card window and the Upgrades list. What's left is the panel itself: colour sources needed versus what the deck has.
-   - *Size:* Medium (smaller now). *Upgrades engine:* touches it (land suggestions), discuss first.
-   - *Risks:* it suggests land swaps, which overlaps the upgrade list; it should reuse the same score check.
-   - *Tested by:* colour-source counts checked against known decks; practice games must show fewer colour problems after its suggestions.
 
 ### Large
 
-4. **Smarter deck score**
+3. **Smarter deck score**
    - *You'll see:* better suggestions in every list, and fewer odd "Unpopular pick" chips.
    - *Builds on:* the deck score (synergy, balance, card quality, ways to win, practice games).
    - *Size:* Large. *Upgrades engine:* yes, discuss first.
@@ -159,3 +150,5 @@ shows the change with a small line; held-pick chip shows now vs when picked).
 outlet, Draws when a creature dies), each checked against known cards.
 112: Decks you can build (commanders your library fits best; the top three built from your
 cards with how much you own and what the rest costs; Generate from my cards).
+113: Lands helper (lands against target, colour sources needed against what the deck has,
+popular lands it lacks, buttons to the land swaps); no engine change.
