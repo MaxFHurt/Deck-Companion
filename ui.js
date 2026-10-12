@@ -1339,7 +1339,13 @@ function healthFixHtml(H, ign, fixable){
 function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind === 'mana' && ctxOf(d).ident.length < 2) kind = 'landsUp'; const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
   const score = e && e.exact != null ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
   // land swaps change the mana, so they are measured with fresh practice games (same seed for the deck before and after)
-  const landScore = kind === 'mana' ? (() => { let b0 = null; return (cut, add) => { try { if (b0 == null) b0 = evaluateDeck(d, {apex:ar, games:200}).exact; const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (e) { return null; } }; })() : null;
+  const landScore = FIX_OF[key] === 'mana' ? (() => { let b0 = null; return (cut, add) => { try { if (b0 == null) b0 = evaluateDeck(d, {apex:ar, games:200}).exact; const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (e) { return null; } }; })() : null;
+  // The Mana alert covers two problems: games stuck without a colour, and games short of lands by turn 5. So it offers both
+  // kinds of swap (better lands for worse ones, and a land for the spell the deck can best spare), each measured with fresh
+  // practice games, and keeps only the ones that raise the deck score, best first.
+  if (FIX_OF[key] === 'mana' && landScore){ try { const col = kind === 'mana' ? fixSwaps(d, 'mana', {n:5, val:R && R.valOf, score, landScore}) : [];
+      const up = fixSwaps(d, 'landsUp', {n:5, val:R && R.valOf, score}).map(p => Object.assign(p, {dScore:landScore(p.cut, p.add)}));
+      const seen = new Set(); return col.concat(up).filter(p => !hasCard(d, p.add) && p.dScore != null && p.dScore >= SCORE_MIN).sort((a, b) => b.dScore - a.dScore).filter(p => !seen.has(p.add) && !seen.has(p.cut) && seen.add(p.add) && seen.add(p.cut)).slice(0, 5); } catch (err) { return []; } }
   try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score, landScore}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
 function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
   const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
@@ -1351,10 +1357,14 @@ function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const
     '<p class="note" style="margin:0">Direct swaps that fix each alert, best for the deck score first. Each swap takes out a card the deck can best spare (never one you hold, and never one doing a job the deck is short of). Every swap can be undone.</p>';
   if (!G.length) h += '<p class="note">Nothing to fix: every alert here is ignored.</p>';
   G.forEach(g => { const n = need(g.k), good = g.L.filter(p => p.dScore == null || p.dScore >= 0);
-    h += '<div class="grp"><span class="lab">' + esc(g.k) + (tgt[g.k] ? ' · ' + tgt[g.k][0] + ' of ' + tgt[g.k][1] : '') + '</span><p class="note" style="margin:0">' + esc(FIX_WHY[FIX_OF[g.k]] || '') + (tgt[g.k] ? ' ' + n + ' more would reach the target.' : '') + '</p>' +
-      (g.L.length ? '<div class="paths">' + g.L.map((p, i) => sw(g, p, i)).join('') + '</div>' : '<p class="note" style="margin:0">No swap found that fixes this without weakening something the deck needs.</p>') +
+    h += '<div class="grp"><span class="lab">' + esc(g.k) + (tgt[g.k] ? ' · ' + tgt[g.k][0] + ' of ' + tgt[g.k][1] : '') + '</span><p class="note" style="margin:0">' + esc(FIX_OF[g.k] === 'mana' ? manaWhy(d) : FIX_WHY[FIX_OF[g.k]] || '') + (tgt[g.k] ? ' ' + n + ' more would reach the target.' : '') + '</p>' +
+      (g.L.length ? '<div class="paths">' + g.L.map((p, i) => sw(g, p, i)).join('') + '</div>' : FIX_OF[g.k] === 'mana' ? manaNone(d) : '<p class="note" style="margin:0">No swap found that fixes this without weakening something the deck needs.</p>') +
       '<div class="row">' + (good.length ? '<button class="btn sm" data-act="fix-top" data-v="' + esc(g.k) + '">Make the top ' + Math.min(n, good.length) + ' swap' + (Math.min(n, good.length) === 1 ? '' : 's') + '</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(g.k) + '">Ignore this alert</button></div></div>'; });
   h += '</div></div>'; $('#modal').innerHTML = h; $('#modal').hidden = false; }
+// What the Mana alert is about, from the practice games, so the swaps make sense.
+function manaWhy(d){ const e = evalFor(d), m = e && e.sim; if (!m) return FIX_WHY.mana; const st = Math.round(m.colourStuck * 100), sh = Math.round(m.screwT5 * 100);
+  return 'In practice games the deck is stuck without a colour it needs in ' + st + '% of games and short of lands by turn 5 in ' + sh + '%. ' + (m.screwT5 >= m.colourStuck ? 'Missing lands is the bigger problem, so swaps that add a land for the spell the deck can best spare come first when they help most.' : 'Colours are the bigger problem, so lands that make more of your colours and enter untapped come first when they help most.') + ' Every swap below raises the deck score.'; }
+function manaNone(d){ const mp = manaPlan(d); return '<p class="note" style="margin:0">No land swap raised the deck score in fresh practice games, so none is suggested. ' + (mp.changes.length ? 'Rebalancing your basic lands to match the colours your spells need may still help:' : 'Your lands already match what your spells need; the alert reflects normal variance for this deck, so ignoring it is reasonable.') + '</p>' + (mp.changes.length ? '<div class="row"><button class="btn pri sm" data-act="mana-apply">Rebalance basics: ' + esc(planText(mp)) + '</button></div>' : ''); }
 function fixApply(d, list){ let k = 0; list.forEach(p => { if (entryOf(d, p.cut) && !entryOf(d, p.add)){ doSwap(d, {cut:p.cut, add:p.add, q:1}, 0); k++; } }); return k; }
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
