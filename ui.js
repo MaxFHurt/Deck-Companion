@@ -1004,6 +1004,25 @@ function saveShared(){ const o = S.shareIn; if (!o) return null; const d = newDe
   if (o.commander) setCommander(d, o.commander); SHARE_KEYS.forEach(k => { if (k !== 'name' && k !== 'format' && k !== 'commander' && o[k] != null) d[k] = JSON.parse(JSON.stringify(o[k])); });
   d.cards = []; o.cards.forEach(x => { const n = Array.isArray(x) ? x[0] : x, q = Array.isArray(x) ? x[1] : 1, c = find(n); addCard(d, c ? c.n : n, q); });
   d.custom = true; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; S.shareIn = null; touch(); return d; }
+// Card lists by job: for the open deck, the best cards that do each job, ranked by the value its upgrades are chosen by,
+// with price, how often this commander's players run them, and the deck score change against the card they'd best replace.
+const JOB_TABS = [['ramp', 'Ramp'], ['draw', 'Card draw'], ['removal', 'Removal'], ['wipe', 'Board wipes'], ['protect', 'Protection']];
+function jobList(d, job, k){ const R = recsFor(d), ctx = ctxOf(d), id = ctx.ident, dis = new Set((d.dismissed || []).map(norm));
+  if (!R || !R.valOf) return [];
+  return LIB.filter(c => !tags(c).land && tags(c).roles.has(job) && c.ci.every(x => id.includes(x)) && legalIn(c, d.format) && !hasCard(d, c.n) && !dis.has(c._n) && !isBasic(c.n))
+    .map(c => ({c, v:R.valOf(c)})).sort((a, b) => b.v - a.v || (a.c.r || 1e6) - (b.c.r || 1e6)).slice(0, k || 12); }
+function openJobs(job){ const d = cur(); if (!d) return; S.jobTab = job = job || S.jobTab || 'ramp'; const A = analyze(d), have = A.roles[job], want = A.T[job];
+  const e = d.format === 'commander' && A.size >= 90 ? evalFor(d) : null, ar = e && e.exact != null ? apexFor(d) : null, cmdN = (find(d.commander) || {n:''}).n.split(',')[0];
+  const L = jobList(d, job, 12);
+  const rows = L.map(({c}) => { let ds = null; if (e && e.exact != null){ const cu = bestCuts(d, c.n, 1)[0]; if (cu && !cu.land) ds = swapScore(d, e, ar, cu.n, c.n, 1); }
+    const x = ctxOf(d).edh && edhOf(ctxOf(d).edh.map, c), own = ownSet().has(c._n);
+    return '<div class="opt"><button class="sw in" data-act="card" data-n="' + esc(c.n) + '"><img alt="" src="' + artFor(c, {pid:c.id}) + '"><span>' + esc(c.n) + '</span><em>' + money(c) + '</em></button><div class="row">' + (ds != null ? scoreChip(ds) : '') +
+      (x ? '<span class="chip">In ' + Math.max(1, Math.round(x.inc * 100)) + '% of ' + esc(cmdN) + ' decks</span>' : '') + (c.gc ? '<span class="chip gc">Game Changer</span>' : '') + (own ? '<span class="chip good">You own this</span>' : upBuyBtn(d, c.n)) + '</div></div>'; }).join('');
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Best by job"><div class="ph"><h2>Best by job</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<div class="row seg">' + JOB_TABS.map(([k, l]) => '<button class="btn sm' + (k === job ? ' pri' : '') + '" data-act="jobs-tab" data-v="' + k + '">' + l + '</button>').join('') + '</div>' +
+    '<p class="note" style="margin:0">' + (want ? 'The deck has ' + have + ' of about ' + want + '. ' : '') + 'The strongest cards for this job in your colours that aren’t in the deck, ranked the way its upgrades are chosen. The score shows the change if each replaced the card the deck can best spare. Tap a card to put it in.</p>' +
+    (rows ? '<div class="paths">' + rows + '</div>' : '<p class="note" style="margin:0">' + (DBINFO.complete ? 'No cards found for this job.' : 'Card data is still downloading.') + '</p>') + '</div>';
+  $('#modal').hidden = false; }
 function openExport(){
   const d = cur(); if (!d) return; S.modalCard = null; const hasPlan = d.plan && d.plan.length; if (!hasPlan || !S.exp) S.exp = 'deck';
   const rows = exportRows(d, S.exp), n = rows.reduce((s, x) => s + x.q, 0) + (d.format === 'commander' && d.commander ? 1 : 0) + (d.partner ? 1 : 0);
@@ -1414,7 +1433,7 @@ function fixApply(d, list){ let k = 0; list.forEach(p => { if (entryOf(d, p.cut)
 function upPanel(d, A){
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
   let h = '<div class="row"><div class="dd" style="flex:1 1 190px;min-width:0"><input type="search" id="add-q" placeholder="Add a card by name or rules text" autocomplete="off"><div class="ddl" id="add-res" hidden></div></div>' +
-    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size && !(d.plan && d.plan.length) ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="analyze"' + (d.cards.length ? '' : ' disabled') + ' title="Read what your cards are doing, score the deck as it stands, and see what it needs">Analyze this build</button>' + (d.plan && d.plan.length ? '<button class="btn" data-act="plan-regen"' + (d.cards.length ? '' : ' disabled') + ' title="Keep every card in the deck and design the open slots again around them">Regenerate around my cards</button>' : isAimed(d) && d.cards.length ? '<button class="btn" data-act="regen" title="Weigh every upgrade again for the cards in your deck now">Regenerate upgrades</button>' : '') + '</div><div class="scroll up" id="upscroll" data-keep>';
+    '<button class="btn" data-act="fill"' + (isAimed(d) && A.size < A.T.size && !(d.plan && d.plan.length) ? '' : ' disabled') + ' title="Fill the open slots using your build">Fill ' + Math.max(0, A.T.size - A.size) + ' open</button><button class="btn" data-act="analyze"' + (d.cards.length ? '' : ' disabled') + ' title="Read what your cards are doing, score the deck as it stands, and see what it needs">Analyze this build</button>' + (d.format === 'commander' && find(d.commander) ? '<button class="btn" data-act="jobs-open" title="The best ramp, card draw, removal, board wipes and protection for this deck">Best by job</button>' : '') + '' + (d.plan && d.plan.length ? '<button class="btn" data-act="plan-regen"' + (d.cards.length ? '' : ' disabled') + ' title="Keep every card in the deck and design the open slots again around them">Regenerate around my cards</button>' : isAimed(d) && d.cards.length ? '<button class="btn" data-act="regen" title="Weigh every upgrade again for the cards in your deck now">Regenerate upgrades</button>' : '') + '</div><div class="scroll up" id="upscroll" data-keep>';
   if (d.plan && d.plan.length && syncPlan(d)) persistSoon();
   if (d.plan && d.plan.length) return h + planHtml(d) + '</div>';
   h += statsHtml(d, A, isAimed(d) ? recsFor(d) : null);
@@ -2178,7 +2197,7 @@ function handleAct(act, v, n, pArg){
     case 'analyze': openAnalysis(); return;
     case 'alts': openAlts(v); return;
     case 'alt-use': if (!d || !useAlt(d, v, n)) return; $('#modal').hidden = true; break;
-    case 'up-buy': { if (!d || !n) return; const c = find(n), name = c ? c.n : n; if (addWant(d, name)) toast(name + ' added to the ' + d.name + ' buy list.'); break; }
+    case 'up-buy': { if (!d || !n) return; const c = find(n), name = c ? c.n : n; if (addWant(d, name)) toast(name + ' added to the ' + d.name + ' buy list.'); if (!$('#modal').hidden && document.querySelector('#modal [aria-label="Best by job"]')){ touch(); openJobs(S.jobTab); return; } break; }
     case 'lack': { if (!fromScratch(d)) return; const c = find(n), name = c ? c.n : n;
       if (!lacks(d, name)) (d.lack = d.lack || []).push(name); if (addWant(d, name)) wantOf(d)[wantOf(d).length - 1].from = 'lack'; toast(name + ' added to the ' + d.name + ' buy list.');
       break; }
@@ -2219,6 +2238,8 @@ function handleAct(act, v, n, pArg){
     // Highest score: the player's own choice over the slot's picks (checked as its own kind, not a tier, so a held pick doesn't block it)
     case 'swap-top': { const R = recsFor(d), L = R.paths[+v], ref = L && (L.opts.apex || L.opts.mid || L.opts.budget); if (!ref || !n || !L.top || L.top.n !== n || hasCard(d, n)) return; const p = {cut:L.cut, add:n, q:ref.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t:'top'}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.length); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'jobs-open': openJobs(); return;
+    case 'jobs-tab': openJobs(v); return;
     case 'share-open': openShare(); return;
     case 'share-copy': copyText(S.shareUrl || '', 'Share link copied.'); return;
     case 'share-send': navigator.share({title:(cur() || {}).name || 'Deck', url:S.shareUrl}).catch(() => {}); return;

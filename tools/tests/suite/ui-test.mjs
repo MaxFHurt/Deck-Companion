@@ -655,6 +655,15 @@ const b108 = await page.evaluate(async () => { const out = {}, w = S.profile.dec
   location.hash = '#share=zNotAValidCode'; await new Promise(r => setTimeout(r, 200)); out.badMsg = /damaged/.test($('#toast').textContent); out.badNoDeck = S.profile.decks.length === n0 + 1;
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.deckId = w.id; render(); return out; });
 T('UI-B108-01', 'Share link: the deck is packed into a short link; opening it shows the deck with Save to my decks; the saved copy has the same cards, commander and build settings; a damaged link says so and adds nothing', b108.short && b108.packed && b108.shown && b108.hashCleared && b108.saved && b108.sameCards && b108.sameCmd && b108.sameAims && b108.badMsg && b108.badNoDeck, JSON.stringify(b108));
+// 59. Build 109: Best by job: for each job the strongest cards for the deck, in its colours and not already in it, in the
+// engine's own order, each with a score change; tabs switch jobs; Add to Buy List works inside the window.
+const b109 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(w); render();
+  const btn = document.querySelector('[data-act="jobs-open"]'); out.btn = !!btn; btn.click(); const R = recsFor(w), id = ctxOf(w).ident; out.jobs = {};
+  for (const [k] of JOB_TABS){ const t = document.querySelector('[data-act="jobs-tab"][data-v="' + k + '"]'); t.click(); const names = [...document.querySelectorAll('#modal .sw.in')].map(b => b.dataset.n), C = names.map(find);
+    out.jobs[k] = {n:names.length, role:C.every(c => tags(c).roles.has(k)), colours:C.every(c => c.ci.every(x => id.includes(x))), notIn:C.every(c => !hasCard(w, c.n)), ordered:C.every((c, i) => !i || R.valOf(c) <= R.valOf(C[i - 1]) + 1e-9), scored:document.querySelectorAll('#modal .chip').length > 0}; }
+  const b = document.querySelector('#modal [data-act="up-buy"]'); if (b){ const n = b.dataset.n; b.click(); out.bought = wantOf(w).some(x => x.n === n) && !$('#modal').hidden && /On the Buy List/.test($('#modal').textContent); const k = wantOf(w).findIndex(x => x.n === n); if (k >= 0) wantOf(w).splice(k, 1); }
+  $('#modal').hidden = true; return out; });
+T('UI-B109-01', 'Best by job: ramp, draw, removal, wipes and protection lists hold only cards for that job, in the deck colours and not in the deck, in the engine’s own order with score chips; Add to Buy List works inside it', b109.btn && Object.values(b109.jobs).every(j => j.n > 0 && j.role && j.colours && j.notIn && j.ordered && j.scored) && b109.bought, JSON.stringify(b109));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
