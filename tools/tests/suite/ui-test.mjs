@@ -578,6 +578,16 @@ const b101 = await page.evaluate(async () => { const w = S.profile.decks.find(x 
   const e = evalFor(d); out.manaLine = manaText(e.sim); out.lineOk = e.sim.screwT5 >= 0.08 || !/ran out of lands/.test(out.manaLine);
   S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); S.deckId = w.id; render(); return out; });
 T('UI-B101-01', 'Too many lands: Lands shows “N more than needed” with Fix this, which swaps spare lands for needed cards (score-checked); the Mana fix never adds lands to it, and a rare land-short game is not shown as a shortage', b101.lands > b101.T + 2 && b101.landsFlag && b101.landForSpell && b101.manaNoAdds && b101.lineOk, JSON.stringify(b101));
+// 53. Build 102: adding a card to the buy list from the Upgrades list keeps the page where it was (no jump to the top, the
+// list isn't reworked); health buttons read Show / Show all.
+const b102 = await page.evaluate(async () => { const keep = S.syncRecs; S.syncRecs = false; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(d); render();
+  const sc = document.querySelector('#upscroll'), out = {}; const btns = [...sc.querySelectorAll('[data-act="up-buy"]')]; const b = btns[Math.floor(btns.length / 2)]; if (!b) return {btn:false};
+  sc.scrollTop = Math.max(0, b.offsetTop - 200); const y0 = sc.scrollTop, R0 = recsFor(d), n = b.dataset.n; b.click(); await new Promise(r => setTimeout(r, 400));
+  const sc2 = document.querySelector('#upscroll'); out.y0 = y0; out.y1 = sc2.scrollTop; out.kept = y0 > 100 && Math.abs(sc2.scrollTop - y0) < 5; out.sameList = recsFor(d) === R0; out.added = wantOf(d).some(x => x.n === n);
+  const k = wantOf(d).findIndex(x => x.n === n); if (k >= 0) wantOf(d).splice(k, 1);
+  const hb = [...document.querySelectorAll('[data-act="h-fix"]')].map(x => x.textContent.trim()); out.labels = hb; out.showLabels = hb.length > 0 && hb.every(t => /^Show( all)?( \(\d+\))?$/.test(t)) && !/Fix this|Fix all/.test(document.body.textContent);
+  S.syncRecs = keep; render(); return out; });
+T('UI-B102-01', 'Adding to the buy list from Upgrades keeps the scroll position and does not rework the list; health buttons read Show / Show all', b102.kept && b102.sameList && b102.added && b102.showLabels, JSON.stringify(b102));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
