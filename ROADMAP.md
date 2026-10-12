@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 115. Each item ships as its own build: build, run the full test suite
+Live: Build 116. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -48,9 +48,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 1. ~~Our own land formula~~: done in Build 114.
 2. ~~Game Changer rows: trim~~: done in Build 115.
-3. **Phone layout (phones only; iPad and desktop unchanged)**: remove the tagline; add a "Continue" card (last
-   deck and recent decks) above the home tiles, which stay; the header always reads the full name, Deck
-   Companion; tighter side margins in landscape.
+3. ~~Phone layout~~: done in Build 116.
 4. **Smarter deck score, stage 1**: tournament staples (fast mana, free interaction, best lands) for Apex.
 
 ## Parked (not needed for now, per the owner)
@@ -159,3 +157,6 @@ landfall cards, 30–42), fitted to 52 commanders' real averages (misses by ~1.5
 used by the app, the tests and the deck generator; benchmark unchanged.
 115: Game Changer extra rows trimmed to the room left under Bracket 3's three (deck and picks
 counted); Apex only; benchmark unchanged.
+116: phone layout (phones only): no tagline, Continue card with recent decks above the tiles,
+full name in the landscape header, tighter landscape margins; iPad and desktop unchanged; footer shows
+the real build number.

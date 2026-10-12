@@ -644,11 +644,20 @@ function navHtml(){
   let u = $('#undo-fab'); if (!u){ u = document.createElement('button'); u.id = 'undo-fab'; u.dataset.act = 'undo'; document.body.appendChild(u); }
   const last = UNDO.stack[UNDO.stack.length - 1]; u.hidden = !last; u.innerHTML = SVG.undo + '<span>Undo</span>'; u.setAttribute('aria-label', last ? 'Undo: ' + (last.label || 'last change') : 'Undo'); u.title = last ? 'Undo: ' + (last.label || 'last change') : '';
 }
+// Phones only (shown by the phone layout rules in index.html; hidden on iPad and desktop): a Continue card for the deck
+// you last opened and a short list of other recent decks, above the home tiles.
+function recentIds(){ const L = lsGet('dc.recent'); return Array.isArray(L) ? L : []; }
+function recentAdd(id){ if (!id) return; lsSet('dc.recent', [id].concat(recentIds().filter(x => x !== id)).slice(0, 8)); }
+function continueHtml(){ const D = S.profile.decks.filter(d => !d.example), ids = recentIds(), byId = new Map(D.map(d => [d.id, d]));
+  const order = ids.map(i => byId.get(i)).filter(Boolean).concat(D.filter(d => !ids.includes(d.id))); if (!order.length) return '';
+  const d0 = order[0], c0 = find(d0.commander), A0 = analyze(d0), rest = order.slice(1, 4);
+  return '<section class="continue phone-only"><button class="tile" data-act="open-deck" data-v="' + d0.id + '"><img alt="" src="' + artFor(c0 || {n:d0.name, t:'Enchantment', o:'', ci:d0.colors || []}) + '"><div class="tb"><small class="lab" style="margin:0">Continue</small><h3>' + esc(d0.name) + '</h3><p>' + esc(d0.commander || (d0.format === 'standard' ? 'Standard' : 'No commander yet')) + ' · ' + A0.size + ' / ' + A0.T.size + '</p></div></button>' +
+    (rest.length ? '<div class="recent">' + rest.map(d => '<button class="btn" data-act="open-deck" data-v="' + d.id + '">' + esc(d.name) + '</button>').join('') + '</div>' : '') + '</section>'; }
 function viewHome(){
   const n = S.profile.decks.filter(d => !d.example).length;
   const tile = (v, icon, title, text, extra) => '<button class="tile big" data-act="nav" data-v="' + v + '"><div class="tb"><span class="hicon">' + SVG[icon] + '</span><h3>' + title + '</h3><p>' + text + '</p>' + (extra ? '<span class="chip gold">' + extra + '</span>' : '') + '</div></button>';
   return '<section class="hero"><h1>Bring a deck. See every way to make it better.</h1><p class="narrow">A Magic: The Gathering deck builder for Commander and Standard that shows each card’s upgrade path at three budgets.</p><p class="wide">Deck Companion is a deck builder for Magic: The Gathering, made for Commander and Standard. Start a deck or bring your own, tell it what the deck is about, and it lays out each card’s upgrade path at three budgets, without turning your deck into something else.</p></section>' +
-    '<div class="tiles home3">' +
+    continueHtml() + '<div class="tiles home3">' +
     tile('deck', 'deck', 'Builder', 'Start a new deck. Generate one from a commander, load a real precon, import a list you already have, or begin empty.') +
     tile('decks', 'decks', 'Decks', 'Open a saved deck to edit it, tune its build, and follow its Budget, Mid and Apex upgrade paths.', n ? n + ' saved deck' + (n === 1 ? '' : 's') : '') +
     tile('search', 'search', 'Card search', 'Look up any card with its full details, price and every printing.') +
@@ -2171,7 +2180,7 @@ function handleAct(act, v, n, pArg){
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; d.cmdCn = x.cn || ''; }
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
-    case 'open-deck': $('#modal').hidden = true; S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; changed = false; break;
+    case 'open-deck': $('#modal').hidden = true; recentAdd(v); S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; changed = false; break;
     case 'tab': S.tab = v; changed = false; break;
     case 'deck-back': S.open = false; S.confirmDel = null; changed = false; break;
     case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; S.tab = null; } changed = false; break;
@@ -2452,4 +2461,4 @@ addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 2
 loadLocal();
 if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else S.deckId = S.profile.decks[0].id;
 S.view = 'home'; S.open = false; restoreSpot();
-render(); loadSavedLibrary(); initBackup(); checkShareLink(); addEventListener('hashchange', checkShareLink);
+{ const bn = $('#build-no'); if (bn) bn.textContent = window.BUILD; } render(); loadSavedLibrary(); initBackup(); checkShareLink(); addEventListener('hashchange', checkShareLink);
