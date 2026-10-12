@@ -673,6 +673,21 @@ const b110 = await page.evaluate(async () => { const out = {}, w = S.profile.dec
   const o = LIB.find(x => x.p > 1 && !isBasic(x.n) && !hasCard(w, x.n) && !phOf(x)); openCard(o.n); $('#modal').hidden = true; out.seenTracked = !!phOf(o) && phTracked().has(o._n);
   out.bytes = (localStorage.getItem(PH_KEY) || '').length; out.small = out.bytes < 200000; c.p = p0; return out; });
 T('UI-B110-01', 'Price history: two card-data snapshots keep both prices by date for tracked cards; the card window shows the change (+25%) with a small line; a card opened is tracked from then; storage stays small', b110.kept && b110.shown && b110.seenTracked && b110.small, JSON.stringify(b110));
+// 61. Build 111: Card search "What it does". Each plain-word filter must find its known cards and leave out known non-matches,
+// and the menu narrows the results.
+const b111 = await page.evaluate(async () => { const F = k => WHAT_BY[k].f, has = (k, n) => !!find(n) && F(k)(find(n)), out = {bad:[]};
+  const FX = {treasure:[['Smothering Tithe', 'Pitiless Plunderer'], ['Sol Ring', 'Mind Stone']], tokens:[['Avenger of Zendikar'], ['Anointed Procession', 'Smothering Tithe']],
+    diesdraw:[['Midnight Reaper', 'Skullclamp'], ['Rhystic Study', 'Blood Artist']], sacout:[["Ashnod's Altar", 'Viscera Seer', 'Carrion Feeder'], ['Blood Artist', 'Mind Stone', "Tormod's Crypt"]],
+    aristocrat:[['Blood Artist'], ['Midnight Reaper', 'Viscera Seer']], counters:[['Hardened Scales', 'Carrion Feeder'], ['Sol Ring']], doubler:[['Doubling Season', 'Anointed Procession', 'Hardened Scales'], ['Avenger of Zendikar']],
+    recursion:[['Eternal Witness', 'Regrowth'], ['Swords to Plowshares']], gyhate:[['Bojuka Bog', 'Rest in Peace', "Tormod's Crypt"], ['Regrowth']], blink:[['Ephemerate', 'Restoration Angel'], ['Swords to Plowshares']],
+    lifegain:[['Soul Warden', 'Blood Artist'], ['Swords to Plowshares']], castdraw:[['Mesa Enchantress'], ['Rhystic Study']], costless:[['Goblin Electromancer'], ['Sol Ring']], combat:[['Aggravated Assault'], ['Sol Ring']],
+    copy:[['Reverberate', 'Fork'], ['Doubling Season']], untapper:[['Aggravated Assault'], ['Sol Ring']]};
+  for (const k in FX){ FX[k][0].forEach(n => { if (!has(k, n)) out.bad.push(k + ' missed ' + n); }); FX[k][1].forEach(n => { if (has(k, n)) out.bad.push(k + ' wrongly ' + n); }); }
+  out.counts = Object.fromEntries(WHAT.map(([k, , f]) => [k, LIB.filter(c => legalIn(c, 'commander') && f(c)).length])); out.sane = Object.values(out.counts).every(n => n >= 5 && n < 8000);
+  S.view = 'search'; S.open = false; S.search = {q:'', color:'', type:'', fmt:'commander', max:'', theme:'', sort:'', what:''}; render(); const sel = document.querySelector('#s-what'); out.menu = !!sel && sel.options.length === WHAT.length + 1;
+  sel.value = 'treasure'; sel.dispatchEvent(new Event('change', {bubbles:true})); const names = [...document.querySelectorAll('#s-res [data-n]')].map(e => e.dataset.n).filter((n, i, a) => a.indexOf(n) === i);
+  out.narrowed = names.length > 0 && names.every(n => F('treasure')(find(n))); S.search.what = ''; S.view = 'decks'; S.open = true; render(); return out; });
+T('UI-B111-01', 'Card search “What it does”: every filter finds its known cards and leaves out known non-matches; the menu narrows the results; each filter matches a sensible number of cards', !b111.bad.length && b111.sane && b111.menu && b111.narrowed, JSON.stringify(b111));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

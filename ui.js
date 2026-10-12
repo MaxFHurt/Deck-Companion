@@ -1548,9 +1548,33 @@ function searchResults(){
       .sort((a, b) => (b.sc === PRINT.key) - (a.sc === PRINT.key) || a.c.n.localeCompare(b.c.n) || b.yr.localeCompare(a.yr));
     return '<p class="note" style="margin:0">' + (S.printRes.err ? 'Scryfall could not be reached. ' : '') + rows.length + ' printing' + (rows.length === 1 ? '' : 's') + (rows.length > 120 ? ' · showing the first 120' : '') + (PRINT.key && rows.some(x => x.sc === PRINT.key) ? ' · your commander’s set first' : '') + '</p><div class="cards">' + rows.slice(0, 120).map(x => cardHtml(x.c, true, x, upBadge(x.c))).join('') + '</div>';
   }
-  const r = f.sort ? sortSearch(searchCards(f.q, filt, 1e6), f.sort) : searchCards(f.q, filt, 60);
+  let r = f.sort || f.what ? searchCards(f.q, filt, 1e6) : searchCards(f.q, filt, 60);
+  if (f.what && WHAT_BY[f.what]){ const F = WHAT_BY[f.what].f, cards = r.cards.filter(c => F(c)); r = {total:cards.length, cards}; }
+  if (f.sort) r = sortSearch(r, f.sort); else if (f.what) r = {total:r.total, cards:r.cards.slice(0, 60)};
   return '<p class="note" style="margin:0">' + r.total.toLocaleString() + ' card' + (r.total === 1 ? '' : 's') + (r.total > 60 ? ' · showing the first 60' : '') + (r.how ? ' · ' + esc(r.how) : '') + ' · ' + (DBINFO.source === 'starter' ? 'starter library' : 'full database') + (PRINT.key && PRINT.map.size ? ' · showing your commander’s set printing where one exists' : '') + (UPX.busy ? ' · checking your decks for upgrades…' : r.cards.some(c => upFor(c).length) ? ' · cards marked “Upgrade” are suggested for one of your decks' : '') + '</p><div class="cards">' + r.cards.map(c => cardHtml(c, true, null, upBadge(c))).join('') + '</div>';
 }
+// Card search "What it does": plain-word filters on what a card's rules text does. Each is a pattern on the text (so a few
+// unusual wordings can be missed); every filter is checked against a list of known cards that must and must not match.
+const WHAT = [
+  ['treasure', 'Makes Treasure', c => /\bcreates? (a|an|one|two|three|x|that many|\w+) (tapped )?Treasure tokens?|\bTreasure tokens? for each/i.test(c.o)],
+  ['tokens', 'Makes creature tokens', c => /\bcreate[s]? [^.]*\bcreature tokens?/i.test(c.o)],
+  ['diesdraw', 'Draws when a creature dies', c => /whenever [^.]*(creature|creatures)[^.]* dies[^.]*draw|whenever equipped creature dies, draw/i.test(c.o)],
+  ['sacout', 'Sacrifice outlet', c => /(^|\n|, )Sacrifice (a|another) (creature|artifact|permanent|nonland permanent)[^:.\n]*:/i.test(c.o)],
+  ['aristocrat', 'Drains when a creature dies', c => /whenever [^.]*creature[^.]* dies[^.]*(loses? \d+ life|deals? \d+ damage to (each|target) (opponent|player))/i.test(c.o)],
+  ['counters', '+1/+1 counters', c => /\+1\/\+1 counters?/i.test(c.o)],
+  ['doubler', 'Doubles tokens or counters', c => /(creates? twice that many|twice that many (of those )?(tokens|counters)|that many plus one)/i.test(c.o)],
+  ['recursion', 'Returns cards from your graveyard', c => /return [^.]*from your graveyard/i.test(c.o)],
+  ['gyhate', 'Exiles graveyards', c => /exile (target player's|each opponent's|all|target|each) graveyards?|exile all graveyards|exile all cards from (all|target player's) graveyards?/i.test(c.o)],
+  ['blink', 'Flickers (exile, then return)', c => /exile [^.]*(, then return|\. return (it|that card|those cards|them) to the battlefield)/i.test(c.o)],
+  ['lifegain', 'Gains you life', c => /\byou gain (\d+|x|that much|life equal|an amount)|\byou gain life\b/i.test(c.o)],
+  ['castdraw', 'Draws when you cast a kind of spell', c => /whenever you cast an? [^.]*spell, (you may )?draw/i.test(c.o)],
+  ['costless', 'Makes spells cost less', c => /cost[s]? \{\d+\} less to cast|cost[s]? \{[WUBRGC]\} less to cast|cost[s]? (\d+|x) less/i.test(c.o)],
+  ['combat', 'Extra combat', c => /additional combat phase/i.test(c.o)],
+  ['copy', 'Copies spells', c => /copy target (instant|sorcery|instant or sorcery|activated|triggered)? ?(spell|ability)/i.test(c.o)],
+  ['haste', 'Gives your creatures haste', c => /creatures you control (have|gain) [^.]*haste/i.test(c.o)],
+  ['mill', 'Mills', c => /\bmills? (\d+|x|that many|a|two|three|four|five|ten) cards?|\bmill (\d+|x)\b/i.test(c.o)],
+  ['untapper', 'Untaps permanents', c => /untap (all|target|each|up to)/i.test(c.o)]];
+const WHAT_BY = Object.fromEntries(WHAT.map(([k, l, f]) => [k, {l, f}]));
 // Card search sort, by the app's own measures: how often it is played, price, the job it does, or how well it fits the deck
 // you have open (the value that deck's upgrades are chosen by). Applied to every match, then the first 60 are shown.
 const SEARCH_JOBS = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'], JOB_LAB = {ramp:'ramp', draw:'card draw', removal:'removal', wipe:'board wipes', protect:'protection', counter:'counterspells', tutor:'tutors'};
@@ -1576,6 +1600,7 @@ function viewSearch(){
     '<select id="s-type" aria-label="Card type">' + opt('', 'Any type', f.type) + ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Legendary'].map(x => opt(x, x, f.type)).join('') + '</select>' +
     '<select id="s-max" aria-label="Price">' + opt('', 'Any price', f.max) + opt('3', 'Budget ≤ $3', f.max) + opt('12', 'Mid ≤ $12', f.max) + '</select>' +
     '<select id="s-theme" aria-label="Mechanic">' + opt('', 'Any mechanic', f.theme) + Object.keys(THEMES).filter(k => k !== 'tribal').map(k => opt(k, THEMES[k].label, f.theme)).join('') + '</select>' +
+    '<select id="s-what" aria-label="What it does">' + opt('', 'Does anything', f.what || '') + WHAT.map(([k, l]) => opt(k, l, f.what || '')).join('') + '</select>' +
     '<select id="s-sort" aria-label="Sort">' + opt('', 'Sort: best match', f.sort || '') + opt('pop', 'Sort: most played', f.sort || '') + opt('cheap', 'Sort: cheapest', f.sort || '') + opt('dear', 'Sort: most expensive', f.sort || '') + opt('role', 'Sort: by job', f.sort || '') + (sortDeck() ? opt('deck', 'Sort: best for ' + esc(sortDeck().name), f.sort || '') : '') + '</select>' +
     '</div><div id="s-res" class="grp">' + searchResults() + '</div></section>';
 }
@@ -2347,7 +2372,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
     else if (d){ SETFAIL.delete(st.code); d.sets = (d.sets || []).filter(x => x !== st.code).concat(st.code); aimsChanged(d); touch(); render(); ensureSetCards(d); if (S.uaOpen && !$('#modal').hidden) openUpgradeAsk(); } }
   else if (t.id === 'key-add' && t.value && d){ d.keys = (d.keys || []).concat(t.value); touch(); render(); }
   else if (t.id === 'swaps'){ S.swaps = +t.value; render(); }
-  else if (/^s-(fmt|color|type|max|theme|prints|sort)$/.test(t.id)){ S.search[t.id.slice(2)] = t.value; $('#s-res').innerHTML = searchResults(); }
+  else if (/^s-(fmt|color|type|max|theme|prints|sort|what)$/.test(t.id)){ S.search[t.id.slice(2)] = t.value; $('#s-res').innerHTML = searchResults(); }
   else if (t.id === 'imp-file' && t.files[0]){ t.files[0].text().then(x => { $('#imp-text').value = x; if (!$('#imp-name').value) $('#imp-name').value = t.files[0].name.replace(/\.[^.]+$/, ''); }).catch(() => toast('That file could not be read as text.')); }
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
