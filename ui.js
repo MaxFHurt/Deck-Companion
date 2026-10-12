@@ -597,7 +597,10 @@ function openLibPaste(){
 function capFor(d, t){ const cap = TIERS[t].cap, key = JSON.stringify([t, d, [...SETCARDS.keys()].join(), COMBOS.list.length, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); capFor.c = capFor.c || {};
   if (!capFor.c[t] || capFor.c[t].k !== key){ upgradePaths.own = ownSet(); capFor.c[t] = {k:key, v:upgradePaths(d, {cap})}; try { const b = d.format === 'commander' && DBINFO.complete && analyze(d).size >= 90 ? evalFor(d) : null; if (b) scoreCheck(d, capFor.c[t].v, {apex:apexFor(d), base:b, refill:false, theme:false}); } catch (e) {} } return capFor.c[t].v; }
 function capList(d, t){ return capFor(d, t).paths.map(L => L.opts.apex).filter(p => p && entryOf(d, p.cut) && !entryOf(d, p.add)); }
-function recsKey(d){ return JSON.stringify([d, S.swaps, !!apexFor(d), [...SETCARDS.keys()].join(), COMBOS.list.length, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); }
+// What the upgrade list depends on. The buy list, Considering, ignored alerts, the player and the name don't change any
+// suggestion, so editing them doesn't rework the list (which used to jump the page back to the top).
+const RECS_SKIP = new Set(['want', 'lack', 'consider', 'ignoreH', 'player', 'name']);
+function recsKey(d){ return JSON.stringify([JSON.stringify(d, (k, v) => RECS_SKIP.has(k) ? undefined : v), S.swaps, !!apexFor(d), [...SETCARDS.keys()].join(), COMBOS.list.length, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); }
 function recsFor(d){ const key = recsKey(d); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d);
     // Every swap is checked against the deck score before it is shown. The check runs just after the screen is drawn, so the
     // app stays responsive; until it finishes the list says so and nothing is held or offered.
@@ -1309,7 +1312,7 @@ function statsHtml(d, A, R){
     '</details>';
 }
 // Health alerts: each one that isn't good can be fixed (a menu of direct swaps that remedy it, each with its effect on the
-// deck score) or ignored for this deck. Fix all opens the same menu for every alert at once.
+// deck score) or ignored for this deck. Show all opens the same menu for every alert at once.
 const FIX_OF = {Lands:'landsUp', Ramp:'ramp', Draw:'draw', Removal:'removal', Wipes:'wipe', Curve:'curve', 'Win routes':'wins', Mana:'mana'};
 const FIX_WHY = {landsUp:'More lands mean fewer missed land drops.', mana:'Lands that make more of your colours and enter untapped mean fewer games stuck without the right colour.', ramp:'Ramp gets the deck’s big plays out turns earlier.', draw:'Card draw keeps your hand full so the deck doesn’t run out of gas.', removal:'Removal answers the threats that would beat you.', wipe:'Board wipes reset the game when you fall behind.', curve:'Cheaper cards let you do more each turn.', wins:'A deck needs a clear way to finish the game.'};
 // Path to Apex: the few steps that would move this deck furthest toward its Apex build, from the deck's own numbers:
@@ -1325,18 +1328,18 @@ function apexTips(d, A, R, e, HA, lvl){
     const kinds = R.paths.map(L => slotKinds(d, Object.values(L.opts)));
     [['Game Changers', c => c.gc, 'gc'], ['tutors', isTutor, 'tutor'], ['fast mana', isFast, '']].forEach(([lab, f, k]) => { const a = cnt(ap, f), m = cnt(mine, f), rows = k ? kinds.filter(x => x.has(k)).length : 0;
       if (a - m >= 2) T.push({w:1.2 * (a - m), h:'<b>' + lab[0].toUpperCase() + lab.slice(1) + ':</b> the Apex build for this commander runs ' + a + ', this deck runs ' + m + '.' + (k === 'gc' ? ' Game Changers are often what moves a deck up a tier.' : '') + (k && !rows && d.tier && d.tier !== 'apex' ? ' Most cost more than this deck’s ' + TIERS[d.tier].label + ' price level.' : ''), b:rows ? '<button class="btn sm" data-act="upkind" data-v="' + k + '">Show ' + rows + ' ' + lab + '</button>' : ''}); }); }
-  const hb = HA.filter(x => x.s !== 'good' && FIX_OF[x.k]); if (hb.length) T.push({w:1.5 * hb.length, h:'<b>Health:</b> ' + hb.map(x => x.k).join(', ') + (hb.length === 1 ? ' needs' : ' need') + ' attention.', b:'<button class="btn sm" data-act="h-fix" data-v="' + (hb.length === 1 ? esc(hb[0].k) : '*') + '">' + (hb.length === 1 ? 'Fix this' : 'Fix all') + '</button>'});
+  const hb = HA.filter(x => x.s !== 'good' && FIX_OF[x.k]); if (hb.length) T.push({w:1.5 * hb.length, h:'<b>Health:</b> ' + hb.map(x => x.k).join(', ') + (hb.length === 1 ? ' needs' : ' need') + ' attention.', b:'<button class="btn sm" data-act="h-fix" data-v="' + (hb.length === 1 ? esc(hb[0].k) : '*') + '">' + (hb.length === 1 ? 'Show' : 'Show all') + '</button>'});
   const near = (e.combos.near || []).filter(x => x.x.win && find(x.miss) && !entryOf(d, x.miss)).slice(0, 1);
   if (near.length && !e.combos.win.length) T.push({w:2, h:'<b>Win route:</b> one card from a combo (' + esc(near[0].x.what.toLowerCase()) + '): add ' + esc(near[0].miss) + '.', b:'<button class="btn sm" data-act="card" data-n="' + esc(near[0].miss) + '">View card</button>'});
-  if (e.sim && e.sim.colourStuck > 0.15) T.push({w:2 * e.sim.colourStuck * 5, h:'<b>Mana:</b> in ' + Math.round(e.sim.colourStuck * 100) + '% of practice games a colour was missing. Better lands fix this.', b:'<button class="btn sm" data-act="h-fix" data-v="Mana">Fix mana</button>'});
+  if (e.sim && e.sim.colourStuck > 0.15) T.push({w:2 * e.sim.colourStuck * 5, h:'<b>Mana:</b> in ' + Math.round(e.sim.colourStuck * 100) + '% of practice games a colour was missing. Better lands fix this.', b:'<button class="btn sm" data-act="h-fix" data-v="Mana">Show</button>'});
   if (!T.length) return '';
   return '<div class="tip ok apextips"><b><small>Path to Apex</small>' + (lvl ? 'At ' + lvl + ' level · ' : '') + 'what would help this deck most</b><ul>' + T.sort((a, b) => b.w - a.w).slice(0, 4).map(t => '<li class="pro"><i>→</i><span>' + t.h + (t.b ? '<span class="row" style="margin-top:4px">' + t.b + '</span>' : '') + '</span></li>').join('') + '</ul></div>'; }
 function healthFixHtml(H, ign, fixable){
   const bad = H.filter(x => x.s !== 'good');
   if (!bad.length) return '';
   return '<div class="hfix"><span class="lab" style="margin:0">Needs attention</span>' + bad.map(x => '<div class="row" style="gap:6px"><span class="hi ' + (ign.has(x.k) ? 'ign' : x.s) + '" style="flex:1;min-width:0"><i></i><b>' + x.k + '</b> ' + esc(x.t) + '</span>' +
-    (ign.has(x.k) ? '<button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button>' : (FIX_OF[x.k] ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">Fix this</button>' : x.k === 'Legal' && /open slot/.test(x.t) ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(x.k) + '">Ignore</button>') + '</div>').join('') +
-    (fixable.length > 1 ? '<div class="row"><button class="btn pri sm" data-act="h-fix" data-v="*">Fix all (' + fixable.length + ')</button></div>' : '') + '</div>'; }
+    (ign.has(x.k) ? '<button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button>' : (FIX_OF[x.k] ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">Show</button>' : x.k === 'Legal' && /open slot/.test(x.t) ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(x.k) + '">Ignore</button>') + '</div>').join('') +
+    (fixable.length > 1 ? '<div class="row"><button class="btn pri sm" data-act="h-fix" data-v="*">Show all (' + fixable.length + ')</button></div>' : '') + '</div>'; }
 // The swaps that fix one alert, best for the deck score first. Worked out when the menu opens.
 function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind === 'mana' && ctxOf(d).ident.length < 2) kind = 'landsUp'; { const A0 = analyze(d); if (key === 'Lands' && A0.lands > A0.T.lands) kind = 'landsDown'; } const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
   const score = e && e.exact != null ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
@@ -1686,13 +1689,15 @@ function viewProfile(){
 function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h > w && w < 900); }
 function fitWork(){ const w = document.querySelector('.work'); if (!w) return; const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
 function render(){
-  const keep = {}; document.querySelectorAll('[data-keep]').forEach(el => keep[el.id] = el.scrollTop);
+  // Scroll positions survive a redraw. If the list is briefly shorter (still being worked out), the wanted position is
+  // carried for a few redraws until the full list is back.
+  const keep = {}, wn = {}; document.querySelectorAll('[data-keep]').forEach(el => { const w = +el.dataset.want || 0, n = +el.dataset.wn || 0; keep[el.id] = w && n < 4 ? Math.max(w, el.scrollTop) : el.scrollTop; wn[el.id] = w && n < 4 ? n + 1 : 0; });
   if (UNDO.base == null) UNDO.base = undoSnap(); S.profile.decks.forEach(d => { if (!VLAST.has(d.id)) VLAST.set(d.id, cardsSig(d)); }); navHtml(); const m = $('#main');
   document.querySelector('.top').classList.toggle('home', S.view === 'home'); document.querySelector('.app').classList.toggle('home', S.view === 'home');
   m.innerHTML = S.view === 'home' ? viewHome() : S.view === 'decks' ? viewDecks() : S.view === 'search' ? viewSearch() :  S.view === 'profile' ? viewProfile() : viewDeck();
   m.style.display = 'flex'; m.style.flexDirection = 'column'; m.style.gap = S.view === 'home' ? '10px' : '16px';
   document.querySelector('.app').classList.toggle('narrow', isNarrow()); document.querySelector('.app').classList.toggle('editing', S.view === 'decks' && S.open && !!cur()); fitWork();
-  for (const id in keep){ const el = document.getElementById(id); if (el && keep[id]) el.scrollTop = keep[id]; }
+  for (const id in keep){ const el = document.getElementById(id); if (el && keep[id]){ el.scrollTop = keep[id]; if (el.scrollTop < keep[id] - 2){ el.dataset.want = keep[id]; el.dataset.wn = wn[id]; } } }
   watchSoon();
   ensureTheme(); ensureEdh(); ensureSetCards(S.view === 'decks' && S.open ? cur() : null);
 }
