@@ -502,7 +502,7 @@ const b93 = await page.evaluate(async () => { const out = {}; await loadPreconLi
   await loadEdh(d.commander); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); await recsReady(d); render();
   openFix(['Mana']); const m = document.querySelector('#modal'); out.menu = /Fix: Mana/.test(m.textContent); const g = (S.fixG || [])[0] || {L:[]}; out.swaps = g.L.length;
   out.allLands = g.L.every(p => tags(find(p.add)).land); out.kinds = g.L.map(p => (tags(find(p.cut)).land ? 'land' : 'spell') + '>' + p.add + ' ' + p.dScore); out.noneLower = g.L.every(p => p.dScore != null && p.dScore >= SCORE_MIN); out.scored = g.L.every(p => p.dScore != null);
-  out.why = /stuck without a colour it needs in \d+% of games and short of lands by turn 5 in \d+%/.test(m.textContent);
+  out.why = /stuck without a colour it needs in \d+% of games and runs out of lands by turn 5 in \d+%/.test(m.textContent);
   out.noUpkindBtn = !document.querySelector('.hfix [data-act="upkind"]'); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); return out; });
 T('UI-B93-01', 'Mana alert: Fix this says which problem it is (colour or missing lands) and offers swaps that each add a land (better land, or a land for a spare spell), measured with fresh practice games, every one raising the score', b93.menu && b93.swaps > 0 && b93.allLands && b93.noneLower && b93.scored && b93.why && b93.noUpkindBtn, JSON.stringify(b93));
 // 45. Build 94: putting a card in a full deck weighs it against each card it could replace: every Take out row shows the
@@ -567,6 +567,17 @@ const b100 = await page.evaluate(async () => { const d = S.profile.decks.find(x 
   const u = JSON.parse(JSON.stringify(d)); u.id = 'tmp-under'; const ls = u.cards.filter(e => isBasic(e.n)); let k = A.lands - A.T.lands + 1; for (const e of ls){ while (k > 0 && e.q > 1){ e.q--; k--; } } addCard(u, 'Sol Ring', 1);
   out.underLands = analyze(u).lands; out.underNone = !spareLands(u).length && !bestCuts(u, c.n, 999).some(x => x.land); return out; });
 T('UI-B100-01', 'More lands than the target: spare lands (at most the surplus) can come out for spells in the card window and in job fixes, scored with fresh practice games; at or under target, lands are never offered', b100.spare.length > 0 && b100.capped && b100.landCuts.length > 0 && b100.note && b100.fixScored && b100.underNone, JSON.stringify(b100));
+// 52. Build 101: too many lands is flagged (Lands warns, its Fix swaps spare lands for needed cards), and the Mana alert never
+// adds lands to such a deck or calls a rare land-short game a shortage.
+const b101 = await page.evaluate(async () => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)), d = JSON.parse(JSON.stringify(w)); d.id = 'over-lands'; d.name = 'Over lands';
+  const spells = d.cards.filter(e => !e.l && find(e.n) && !tags(find(e.n)).land).slice(-7); spells.forEach(e => cutCard(d, e.n, e.q)); addCard(d, 'Forest', 7); S.profile.decks.unshift(d); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
+  for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); const A = analyze(d), out = {lands:A.lands, T:A.T.lands};
+  const hl = [...document.querySelectorAll('.hfix .row')].find(r => /Lands/.test(r.textContent)); out.landsFlag = !!hl && /more than needed/.test(hl.textContent) && !!hl.querySelector('[data-act="h-fix"]');
+  const L = fixList(d, 'Lands'); out.lfix = L.map(p => p.cut + '>' + p.add + ' ' + p.dScore); out.landForSpell = L.every(p => tags(find(p.cut)).land && !tags(find(p.add)).land && p.dScore >= SCORE_MIN);
+  const M = fixList(d, 'Mana'); out.mfix = M.map(p => p.cut + '>' + p.add); out.manaNoAdds = M.every(p => tags(find(p.cut)).land);
+  const e = evalFor(d); out.manaLine = manaText(e.sim); out.lineOk = e.sim.screwT5 >= 0.08 || !/ran out of lands/.test(out.manaLine);
+  S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); S.deckId = w.id; render(); return out; });
+T('UI-B101-01', 'Too many lands: Lands shows “N more than needed” with Fix this, which swaps spare lands for needed cards (score-checked); the Mana fix never adds lands to it, and a rare land-short game is not shown as a shortage', b101.lands > b101.T + 2 && b101.landsFlag && b101.landForSpell && b101.manaNoAdds && b101.lineOk, JSON.stringify(b101));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
