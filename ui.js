@@ -607,7 +607,7 @@ function libPanel(d){
     '<div class="grp"><span class="lab">Add single cards</span><div class="dd"><input type="search" id="lib-q" placeholder="Search for a card you own" autocomplete="off"><div class="ddl" id="lib-res" hidden></div></div></div>' +
     '<div class="grp"><span class="lab">Add a deck</span><div class="row"><select id="lib-deck" style="flex:1 1 180px;min-width:0"><optgroup label="Your decks">' + deckOpts + '</optgroup>' + (preOpts ? '<optgroup label="Precons">' + preOpts + '</optgroup>' : '') + '</select><button class="btn" data-act="lib-add-deck">Add deck</button><button class="btn" data-act="lib-paste">Paste a list</button></div></div>' +
     '<div class="grp"><span class="lab">Add a set</span><div class="row"><div class="dd" style="flex:1 1 180px;min-width:0"><input type="search" id="lib-set" placeholder="' + (S.setList ? 'Set name or code, e.g. Bloomburrow' : S.setErr ? 'Set list unavailable · type a set code, e.g. blb' : 'Loading the list of sets…') + '" autocomplete="off"><div class="ddl" id="set-res" hidden></div></div><button class="btn" data-act="lib-add-set"' + (S.libBusy ? ' disabled' : '') + '>' + (S.libBusy ? 'Adding ' + esc(S.libBusy) + '…' : 'Add set') + '</button></div><p class="note" style="margin:0">Adds one copy of every card in the set.</p></div>' +
-    libStatsHtml() + '<div class="grp"><div class="row"><span class="lab" style="flex:1">Cards you own · ' + n.toLocaleString() + (tot !== n ? ' (' + tot.toLocaleString() + ' copies)' : '') + '</span>' + (n ? '<button class="btn sm danger" data-act="lib-clear">' + (S.confirmLib ? 'Confirm: empty the library' : 'Empty library') + '</button>' : '') + '</div>' +
+    libStatsHtml() + '<div class="grp"><div class="row"><span class="lab" style="flex:1">Cards you own · ' + n.toLocaleString() + (tot !== n ? ' (' + tot.toLocaleString() + ' copies)' : '') + '</span>' + (n ? '<button class="btn sm" data-act="dycb-open">Decks you can build</button>' : '') + (n ? '<button class="btn sm danger" data-act="lib-clear">' + (S.confirmLib ? 'Confirm: empty the library' : 'Empty library') + '</button>' : '') + '</div>' +
     (n ? '<input type="search" id="lib-f" placeholder="Search your library" value="' + esc(S.libF || '') + '" autocomplete="off">' : '') + '<div id="librows">' + libRows(S.libF) + '</div></div></div>';
 }
 function openLibPaste(){
@@ -1043,6 +1043,34 @@ function openJobs(job){ const d = cur(); if (!d) return; S.jobTab = job = job ||
     '<p class="note" style="margin:0">' + (want ? 'The deck has ' + have + ' of about ' + want + '. ' : '') + 'The strongest cards for this job in your colours that aren’t in the deck, ranked the way its upgrades are chosen. The score shows the change if each replaced the card the deck can best spare. Tap a card to put it in.</p>' +
     (rows ? '<div class="paths">' + rows + '</div>' : '<p class="note" style="margin:0">' + (DBINFO.complete ? 'No cards found for this job.' : 'Card data is still downloading.') + '</p>') + '</div>';
   $('#modal').hidden = false; }
+// Decks you can build: the commanders the cards you own fit best. A quick ranking first (owned cards in the commander's
+// colours, counting double those that fit its plan, plus those from its own set; a commander you own counts extra), then, for the top three, a full
+// build that prefers your cards (one at a time in the background) to show how much you own and what the rest would cost.
+function dycbRank(k){ const own = Object.keys(lib()).map(find).filter(c => c && !isBasic(c.n)), spells = own.filter(c => !tags(c).land), ownSetN = ownSet();
+  if (!own.length) return []; const leads = LIB.filter(c => canLead(c) && legalIn(c, 'commander'));
+  // the 300 most played commanders, any you own, and the legendary creatures from the sets most of your cards come from
+  const sets = {}; own.forEach(c => { if (c.sc) sets[c.sc] = (sets[c.sc] || 0) + 1; }), mainSets = new Set(Object.entries(sets).filter(([, k]) => k >= 5).map(([sc]) => sc));
+  const pool = leads.slice().sort((a, b) => (a.r || 1e6) - (b.r || 1e6)).slice(0, 300); leads.forEach(c => { if ((ownSetN.has(c._n) || mainSets.has(c.sc)) && !pool.includes(c)) pool.push(c); });
+  return pool.map(c => { const st = detectStrategy(c), id = c.ci, inC = spells.filter(x => x._n !== c._n && x.ci.every(z => id.includes(z)));
+      const onT = inC.filter(x => st.themes.some(t => matchAim(x, t, st.tribe) >= 0.7)).length, sameSet = c.sc ? inC.filter(x => x.sc === c.sc).length : 0;
+      // owning many cards from a commander's own set (its precon or its set's theme) counts, as the app prefers on-theme cards
+      const s = onT * 2 + inC.length * 0.25 + sameSet * 1.5 + (ownSetN.has(c._n) ? 12 : 0) - id.length * 0.5;
+      return {c, s, inC:inC.length, onT, own:ownSetN.has(c._n)}; })
+    .filter(x => x.inC >= 5).sort((a, b) => b.s - a.s).slice(0, k || 10); }
+function dycbCost(c){ const own = ownSet(), d = {id:'dycb', name:'dycb', format:'commander', commander:'', tier:'apex', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}; setCommander(d, c.n);
+  const P = buildPlan(d, [], own, own); let have = own.has(c._n) ? 1 : 0, total = 1, cost = 0, missing = 0;
+  P.forEach(sl => { const x = find(sl.a); total += sl.q; if (x && (own.has(x._n) || isBasic(x.n))) have += sl.q; else { missing += sl.q; cost += ((x && x.p) || 0) * sl.q; } });
+  if (!own.has(c._n)) cost += c.p || 0; return {have, total, cost, missing}; }
+function openDycb(){ const sig = Object.keys(lib()).length + ':' + S.libV + ':' + DBINFO.count; if (!S.dycb || S.dycb.sig !== sig) S.dycb = {sig, rows:dycbRank(10).map(r => Object.assign(r, {cost:null})), i:0};
+  const D = S.dycb, cmdOf = r => r.c.n;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Decks you can build"><div class="ph"><h2>Decks you can build</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    (!libCount() ? '<p class="note" style="margin:0">Your library is empty. Add the cards you own on any deck’s Library tab, then come back.</p>' : !D.rows.length ? '<p class="note" style="margin:0">' + (DBINFO.complete ? 'No commander fits enough of your cards yet.' : 'Card data is still downloading.') + '</p>' :
+    '<p class="note" style="margin:0">Commanders your cards fit best, from the 300 most played, any you own, and those from the sets most of your cards come from. The top three are built from your cards to show how much you already own and what the rest would cost.</p><div class="allrows">' +
+    D.rows.map((r, i) => '<div class="opt"><button class="sw in" data-act="card" data-n="' + esc(r.c.n) + '"><img alt="" src="' + artFor(r.c, {pid:r.c.id}) + '"><span>' + esc(r.c.n) + '</span><em>' + money(r.c) + '</em></button><div class="row">' + (r.own ? '<span class="chip good">You own this commander</span>' : '') +
+      '<span class="chip">' + r.inC + ' of your cards fit its colours · ' + r.onT + ' on its plan</span>' + (r.cost ? '<span class="chip gold">You own ' + r.cost.have + ' of ' + r.cost.total + ' · the rest ≈ $' + r.cost.cost.toFixed(0) + '</span>' : i < 3 ? '<span class="chip">Working out the cost…</span>' : '') +
+      '<button class="btn pri sm" data-act="dycb-gen" data-n="' + esc(cmdOf(r)) + '" style="margin-left:auto">Generate from my cards</button></div></div>').join('') + '</div>') + '</div>';
+  $('#modal').hidden = false;
+  const next = D.rows.findIndex((r, i) => i < 3 && !r.cost); if (next >= 0 && !D.busy){ D.busy = true; setTimeout(() => { try { D.rows[next].cost = dycbCost(D.rows[next].c); } catch (e) { D.rows[next].cost = {have:0, total:100, cost:0}; } D.busy = false; if (!$('#modal').hidden && document.querySelector('#modal [aria-label="Decks you can build"]')) openDycb(); }, 30); } }
 function openExport(){
   const d = cur(); if (!d) return; S.modalCard = null; const hasPlan = d.plan && d.plan.length; if (!hasPlan || !S.exp) S.exp = 'deck';
   const rows = exportRows(d, S.exp), n = rows.reduce((s, x) => s + x.q, 0) + (d.format === 'commander' && d.commander ? 1 : 0) + (d.partner ? 1 : 0);
@@ -1530,6 +1558,7 @@ function viewDeck(){
   const opt = (act, v, title, text) => '<button class="tile" data-act="' + act + '"' + (v ? ' data-v="' + v + '"' : '') + '><div class="tb"><h3>' + title + '</h3><p>' + text + '</p></div></button>';
   return '<section class="panel"><div class="ph"><h2>Build a new deck</h2><small>Saved to Decks when created</small></div><div class="tiles">' +
     opt('gen-open', '', 'Generate from a commander', 'Pick a legendary creature and how to build it: best overall, theme first or around mechanics, at any price level. The full deck goes straight into your decklist, with upgrades from there.') +
+    opt('dycb-open', '', 'Decks you can build', 'The commanders your library fits best: how much of each deck you already own and what the rest would cost. Tap one to generate it from your cards.') +
     opt('seed-open', '', 'Generate from cards', 'Don’t know your commander yet? Add any cards you want to play. The app suggests commanders that fit them and fills in the rest of the deck.') +
     opt('precon-open', '', 'Load a precon', 'Start from a real preconstructed Commander deck with its official card list.') +
     opt('import-open', '', 'Import a text list', 'Paste or load a decklist you already have, from Arena, Moxfield, Archidekt or a plain text file.') +
@@ -2283,6 +2312,8 @@ function handleAct(act, v, n, pArg){
     // Highest score: the player's own choice over the slot's picks (checked as its own kind, not a tier, so a held pick doesn't block it)
     case 'swap-top': { const R = recsFor(d), L = R.paths[+v], ref = L && (L.opts.apex || L.opts.mid || L.opts.budget); if (!ref || !n || !L.top || L.top.n !== n || hasCard(d, n)) return; const p = {cut:L.cut, add:n, q:ref.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t:'top'}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.length); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'dycb-open': openDycb(); return;
+    case 'dycb-gen': { S.gen = Object.assign({tier:'apex', best:true, theme:false, mech:[], warn:''}, S.gen || {}, {cmd:n, partner:'', own:true}); openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return; }
     case 'jobs-open': openJobs(); return;
     case 'jobs-tab': openJobs(v); return;
     case 'share-open': openShare(); return;

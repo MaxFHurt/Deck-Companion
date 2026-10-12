@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 111. Each item ships as its own build: build, run the full test suite
+Live: Build 112. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -25,13 +25,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 ### Medium
 
-3. **Decks you can build**
-   - *You'll see:* a page listing the commanders your owned cards fit best, with how many of each deck you already own and what the rest would cost; tap one to Generate it from your cards.
-   - *Builds on:* the Library (owned cards) and Generate with "cards I already own".
-   - *Size:* Medium. *Upgrades engine:* no.
-   - *Risks:* checking every commander is slow, so it ranks a shortlist (popular commanders in your colours) in the background.
-   - *Tested by:* a test library built from a precon should rank that precon's commander at or near the top.
-4. **Lands helper**
+3. **Lands helper**
    - *You'll see:* a land panel: how many lands, how many of each colour source the deck needs (from its spells), and which lands to add or cut, including utility lands strong decks play.
    - *Builds on:* the mana base builder and the practice games.
    - *Already done (Builds 99-103):* the Mana alert offers land swaps, too many lands is flagged, and spare lands can go for other cards in the Show menus, the card window and the Upgrades list. What's left is the panel itself: colour sources needed versus what the deck has.
@@ -41,7 +35,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 ### Large
 
-5. **Smarter deck score**
+4. **Smarter deck score**
    - *You'll see:* better suggestions in every list, and fewer odd "Unpopular pick" chips.
    - *Builds on:* the deck score (synergy, balance, card quality, ways to win, practice games).
    - *Size:* Large. *Upgrades engine:* yes, discuss first.
@@ -163,3 +157,5 @@ play rate and score chips).
 shows the change with a small line; held-pick chip shows now vs when picked).
 111: Card search "What it does" (18 plain-word filters such as Makes Treasure, Sacrifice
 outlet, Draws when a creature dies), each checked against known cards.
+112: Decks you can build (commanders your library fits best; the top three built from your
+cards with how much you own and what the rest costs; Generate from my cards).
