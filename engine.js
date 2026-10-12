@@ -1196,9 +1196,13 @@ function upgradePaths(d, opt){
   // --- 4c. Game Changers at Apex: a few more Game Changer upgrades are offered after the ranked picks, each paired with the
   // card it best replaces (job floors kept). They need not beat the ranked picks on play rates; the score check still has to
   // show each one raises the deck score, or it is not offered.
+  // Trimmed (owner's decision, Build 115): only the deck's remaining room under Bracket 3's three Game Changers, counting
+  // those already in the deck and among the picks above; a deck at or past three gets none (a Game Changer can still win a
+  // normal row on its own merits).
   if (gcV0 && UP.gcN){ const usedA = new Set([...apexPick.values()].map(x => x.a.c._k)); let n = 0;
+    const room = Math.min(UP.gcN, Math.max(0, 3 - (ctxOf(d).gcIn || 0) - [...apexPick.values()].filter(x => x.a.c.gc).length));
     const G = C.filter(x => x.c.gc && !taken.has(x.c._k) && !usedA.has(x.c._k) && ev(x)).sort((a, b) => b.v - a.v);
-    for (const a of G){ if (n >= UP.gcN) break; let best = null;
+    for (const a of G){ if (n >= room) break; let best = null;
       cuts.forEach((cu, i) => { if (apexPick.has(i) || held.has(cu.n) || cu.c.gc) return; const lost = cu.jobs.filter(j => !a.jobs.includes(j)); if (lost.some(j => JOBS.includes(j) && (after[j] || 0) - 1 < flo(j))) return;
         const v = delta(cu, a); if (v + UP.gcB >= mMin && (!best || v > best.v)) best = {i, v}; });
       if (!best) continue; apexPick.set(best.i, {a, v:best.v, held:false, gcPick:true}); usedA.add(a.c._k); cuts[best.i].jobs.forEach(j => after[j] = (after[j] || 0) - 1); a.jobs.forEach(j => after[j] = (after[j] || 0) + 1); n++; } }
