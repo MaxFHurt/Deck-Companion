@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 113. Each item ships as its own build: build, run the full test suite
+Live: Build 114. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -52,8 +52,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 ## Decided by the owner (12 October 2026), to build in this order
 
-1. **Our own land formula**: one land target the app and the tests both use (average mana value, cheap ramp and
-   draw, commander cost, landfall), checked against real decks; no longer depends on EDHREC's average.
+1. ~~Our own land formula~~: done in Build 114.
 2. **Game Changer rows: trim**: the extra rows only fill the deck's remaining room under its bracket's
    Game Changer limit, and only on Apex builds.
 3. **Phone layout (phones only; iPad and desktop unchanged)**: remove the tagline; add a "Continue" card (last
@@ -162,3 +161,6 @@ outlet, Draws when a creature dies), each checked against known cards.
 cards with how much you own and what the rest costs; Generate from my cards).
 113: Lands helper (lands against target, colour sources needed against what the deck has,
 popular lands it lacks, buttons to the land swaps); no engine change.
+114: our own land formula (lands = 31.5 + 1.6 × average mana value − 0.32 × cheap ramp + 0.72 ×
+landfall cards, 30–42), fitted to 52 commanders' real averages (misses by ~1.5 lands vs 2.2 for a flat 37);
+used by the app, the tests and the deck generator; benchmark unchanged.

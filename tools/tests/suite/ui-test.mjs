@@ -712,6 +712,14 @@ const b113 = await page.evaluate(async () => { const out = {}, w = S.profile.dec
   const pop = [...m.querySelectorAll('.sw.in')].map(e => find(e.dataset.n)); out.pop = pop.length; out.popOk = pop.every(c => tags(c).land && !hasCard(w, c.n) && c.ci.every(k => ctx.ident.includes(k)) && edhOf(ctx.edh.map, c).inc >= 0.2);
   m.querySelector('[data-act="h-fix"][data-v="Mana"]').click(); out.opensFix = /Fix: Mana/.test($('#modal').textContent); $('#modal').hidden = true; return out; });
 T('UI-B113-01', 'Lands helper: lands against target, colour sources needed (Karsten) against what the deck has for each colour, popular lands it lacks (in colour, 20%+ play rate), and Show land swaps opens the Mana swaps', b113.btn && b113.landsLine && b113.coloursShown && b113.needSane && b113.popOk && b113.opensFix, JSON.stringify(b113));
+// 64. Build 114: our own land formula. A full Commander deck's land target comes from its spells (31.5 + 1.6 × average mana
+// value − 0.32 × cheap ramp + 0.72 × landfall cards, 30–42); a deck still being built keeps the starting target; a
+// generated deck gets the formula's land count.
+const b114 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)), A = analyze(w);
+  out.target = A.T.lands; out.expect = Math.max(30, Math.min(42, Math.round(31.5 + 1.6 * A.avg - 0.32 * A.cheapRamp + 0.72 * A.landfall))); out.formula = out.target === out.expect;
+  const part = JSON.parse(JSON.stringify(w)); part.id = 'part'; part.cards = part.cards.slice(0, 20); out.partial = analyze(part).T.lands; out.partialStarts = out.partial === targetsOf(part, ctxOf(part)).lands;
+  const g = startPlan('Don & Leo, Problem Solvers', [], null, null, {fill:'apex'}); const G = analyze(g); out.gen = {size:G.size, lands:G.lands, target:G.T.lands}; out.genOk = G.size === 100 && Math.abs(G.lands - G.T.lands) <= 1; S.draft = null; return out; });
+T('UI-B114-01', 'Land formula: a full deck’s land target comes from its spells (average mana value, cheap ramp, landfall); a deck still being built keeps the starting target; a generated deck gets the formula’s land count (within one)', b114.formula && b114.partialStarts && b114.genOk, JSON.stringify(b114));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

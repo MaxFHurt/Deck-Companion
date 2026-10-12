@@ -627,7 +627,6 @@ function roleNeeds(E){
   const D = UP.rdef ? preDeflate(E) : null, t = {ramp:0, draw:0, removal:0, wipe:0}; E.map.forEach((x, k) => { const c = IDX.get(k); if (!c || tags(c).land) return; const inc = D ? D.inc(c, x.inc) : x.inc; tags(c).roles.forEach(r => { if (r in t) t[r] += inc; }); });
   const F = {ramp:1.15, draw:1.25, removal:1.25, wipe:1.2}, lim = {ramp:[5, 22], draw:[6, 22], removal:[4, 12], wipe:[1, 5]}, v = {};
   for (const r in t) v[r] = Math.max(lim[r][0], Math.min(lim[r][1], Math.round(t[r] * F[r])));
-  if (E.lands) v.lands = Math.max(33, Math.min(40, Math.round(E.lands)));
   E._needs = {m:E.map, v, r:UP.rdef, p:E.pre}; return v;
 }
 // How many finishers (cards that close a game: mass pumps, extra combats, drains, big evasive threats, "win the game") and how
@@ -649,11 +648,15 @@ function copyLimit(d, c){ if (c && (isBasic(c.n) || /a deck can have any number 
   if (m) return W[m[1].toLowerCase()] || +m[1] || 1; return d.format === 'commander' ? 1 : 4; }
 const TYPE_ORDER = ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land'];
 function mainType(c){ const t = c ? frontType(c) : ''; if (/\bLand\b/.test(t) && !/Creature/.test(t)) return 'Land'; return TYPE_ORDER.find(k => new RegExp('\\b' + k + '\\b').test(t)) || 'Artifact'; }
+// Lands = 31.5 + 1.6 × average mana value of the spells − 0.32 × cheap ramp (mana value 2 or less) + 0.72 × landfall cards,
+// between 30 and 42. Commander decks with at least 40 spells; otherwise null (the starting target is used).
+function landTarget(A, d){ if (!d || d.format !== 'commander' || A.nonland < 40) return null;
+  return Math.max(30, Math.min(42, Math.round(31.5 + 1.6 * A.avg - 0.32 * A.cheapRamp + 0.72 * A.landfall))); }
 function legalIn(c, fmt){ return fmt === 'commander' ? c.cmd : c.std; }
 function analyze(d){
   const ctx = ctxOf(d), T = targetsOf(d, ctx);
   const A = {ctx, T, size:(ctx.cmd || (d.format === 'commander' && d.commander) ? 1 : 0) + (ctx.par ? 1 : 0), lands:0, nonland:0, cmcSum:0, curve:[0,0,0,0,0,0,0], roles:{ramp:0, draw:0, removal:0, wipe:0},
-    unknown:[], over:[], offColor:[], illegal:[], dupes:[], gc:[], mld:[], turns:[], types:{}, aim:(d.aims || []).map(() => 0), price:0, priced:true};
+    unknown:[], over:[], offColor:[], illegal:[], dupes:[], gc:[], mld:[], turns:[], types:{}, aim:(d.aims || []).map(() => 0), price:0, priced:true, cheapRamp:0, landfall:0};
   if (ctx.cmd && ctx.cmd.p != null) A.price += ctx.cmd.p;
   if (ctx.par && ctx.par.p != null) A.price += ctx.par.p;
   [ctx.cmd, ctx.par].forEach(c => { if (c && c.gc) A.gc.push(c.n); });
@@ -664,6 +667,7 @@ function analyze(d){
     if (tg.land) A.lands += e.q;
     else { A.nonland += e.q; A.cmcSum += c.cmc * e.q; A.curve[Math.min(6, Math.floor(c.cmc))] += e.q;
       for (const r in A.roles) if (tg.roles.has(r)) A.roles[r] += e.q;
+      if (tg.roles.has('ramp') && (c.cmc || 0) <= 2) A.cheapRamp += e.q; if (THEMES.lands.re.test(c.o || '')) A.landfall += e.q;
       (d.aims || []).forEach((a, i) => { if (matchAim(c, a, ctx.tribe)) A.aim[i] += e.q; }); }
     if (c.gc) A.gc.push(c.n); if (BTAGS.mld.has(c._n)) A.mld.push(c.n); if (BTAGS.turns.has(c._n)) A.turns.push(c.n);
     if (!isBasic(c.n)){
@@ -674,8 +678,10 @@ function analyze(d){
     }
   }
   A.avg = A.nonland ? A.cmcSum / A.nonland : 0;
-  // An aggro aim means fewer lands only when the spells are cheap; a deck of big creatures still needs its mana.
-  if (d.format === 'commander' && (d.aims || [])[0] === 'aggro' && A.avg > 3.2) T.lands = 37;
+  // The land target comes from the deck's own spells (owner's decision, Build 114): our formula, fitted to how many lands
+  // players run with 52 commanders (EDHREC averages; misses by about 1.5 lands on commanders it was not fitted to, against
+  // 2.2 for a flat 37). Until the deck has most of its spells, the starting target stands.
+  { const t = landTarget(A, d); if (t != null) T.lands = t; else if (d.format === 'commander' && (d.aims || [])[0] === 'aggro' && A.avg > 3.2) T.lands = 37; }
   return A;
 }
 
@@ -1014,7 +1020,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1558,7 +1564,15 @@ function buildPlan(d, seeds, ownOnly, ownAll){
         if (cur != null && nx != null && nx < cur - (d.themeFirst ? UP.tfEval : 0.3)){ cutCard(tmp, best.n, 1); addCard(tmp, e.n, 1); } else if (nx != null) cur = nx; } } }
   // Mana base v2: the spells are chosen, so the lands are rebuilt for them. The player's own lands (seeds, owned) stay.
   if (UP.mb && d.format === 'commander'){ const keepL = [], drop = []; tmp.cards.forEach(e => { const c = find(e.n); if (!c || !tags(c).land) return; (seedSet.has(c._n) || (ownOnly && ownOnly.has(c._n)) ? keepL : drop).push(e); });
-    const nL = drop.reduce((a, e) => a + e.q, 0); drop.forEach(e => cutCard(tmp, e.n, e.q)); manaBase(tmp, nL, keepL).forEach(x => addCard(tmp, x.n, x.q)); }
+    let nL = drop.reduce((a, e) => a + e.q, 0); const keepN = keepL.reduce((a, e) => a + e.q, 0), t0 = landTarget(analyze(tmp), tmp);
+    drop.forEach(e => cutCard(tmp, e.n, e.q));
+    // the land count follows the land formula for the spells chosen: extra spells (the next best) or fewer (the weakest go)
+    if (t0 != null && UP.lf){ const want = Math.max(0, t0 - keepN), diff = want - nL, ctxL = ctxOf(tmp);
+      if (diff > 0){ tmp.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !tags(x.c).land && !x.e.l && !seedSet.has(x.c._n) && !(ownOnly && ownOnly.has(x.c._n))).map(x => ({n:x.e.n, s:baseScore(x.c, tmp, ctxL).s})).sort((a, b) => a.s - b.s).slice(0, diff).forEach(x => cutCard(tmp, x.n, 1)); nL = want; }
+      else if (diff < 0){ const used = new Set(tmp.cards.map(e => norm(e.n)).concat([norm(tmp.commander || '')], tmp.partner ? [norm(tmp.partner)] : [])), dis = new Set((tmp.dismissed || []).map(norm));
+        const add = LIB.filter(c => !tags(c).land && !isBasic(c.n) && legalIn(c, tmp.format) && c.ci.every(k => ctxL.ident.includes(k)) && mustOk(c, tmp) && !used.has(c._n) && !dis.has(c._n) && (!tmp.tier || tmp.tier === 'apex' || (c.p != null && underCap(c.p, tmp.tier))) && (!ownOnly || ownOnly.has(c._n)))
+          .map(c => ({c, s:baseScore(c, tmp, ctxL).s})).sort((a, b) => b.s - a.s).slice(0, -diff); add.forEach(x => addCard(tmp, x.c.n, 1)); nL -= add.length; } }
+    manaBase(tmp, nL, keepL).forEach(x => addCard(tmp, x.n, x.q)); }
   const ctx = ctxOf(tmp), TH = themeCtx(tmp), used = new Set(tmp.cards.map(x => norm(x.n))); used.add(norm(d.commander)); if (d.partner) used.add(norm(d.partner));
   const pool = LIB.filter(c => c.p != null && c.p < 12 && legalIn(c, d.format) && c.ci.every(x => ctx.ident.includes(x)) && !used.has(c._n) && !isBasic(c.n) && mustOk(c, d))
     .map(c => ({c, s:baseScore(c, tmp, ctx).s, land:tags(c).land, ty:mainType(c), th:!!themeOf(c, TH)}));
