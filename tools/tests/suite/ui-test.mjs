@@ -557,6 +557,16 @@ const b99 = await page.evaluate(async () => { const g = startPlan('Don & Leo, Pr
   const m = document.querySelector('#modal'), L = ((S.fixG || [])[0] || {L:[]}).L, out = {gen:true, size:analyze(g).size, stuck:e && e.sim.colourStuck, short:e && e.sim.screwT5, ms, swaps:L.map(p => p.cut + '>' + p.add + ' ' + p.dScore), why:/practice games/.test(m.textContent)};
   out.useful = L.length ? L.every(p => p.dScore >= SCORE_MIN) : /No land swap raised the deck score/.test(m.textContent); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== g.id); return out; });
 T('UI-B99-01', 'Generated Don & Leo deck: Mana Fix this offers swaps that raise the score (or explains why there are none), and says whether colours or missing lands are the problem', b99.gen && b99.why && b99.useful, JSON.stringify(b99));
+// 51. Build 100: when a deck runs more lands than its target, spare lands may come out for other cards (card window and job
+// fixes), measured with fresh practice games; never more than the surplus, and never when the deck is at or under target.
+const b100 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); const A = analyze(d), out = {lands:A.lands, T:A.T.lands, spare:spareLands(d)};
+  out.capped = out.spare.length <= Math.max(0, A.lands - A.T.lands);
+  const c = LIB.find(x => !x.gc && x.ci.length && x.ci.every(z => ctxOf(d).ident.includes(z)) && !entryOf(d, x.n) && !tags(x).land && x.r && x.r > 200 && x.r < 3000); out.card = c.n;
+  out.landCuts = bestCuts(d, c.n, 999).filter(x => x.land).map(x => x.n); openCard(c.n); await new Promise(r => setTimeout(r, 50)); out.note = /spells and spare lands/.test(document.querySelector('#modal').textContent); $('#modal').hidden = true;
+  const F = fixList(d, 'Ramp'); out.fix = F.map(p => p.cut + '>' + p.add + ' ' + p.dScore); out.fixLandCuts = F.filter(p => tags(find(p.cut)).land).length; out.fixScored = F.every(p => p.dScore != null);
+  const u = JSON.parse(JSON.stringify(d)); u.id = 'tmp-under'; const ls = u.cards.filter(e => isBasic(e.n)); let k = A.lands - A.T.lands + 1; for (const e of ls){ while (k > 0 && e.q > 1){ e.q--; k--; } } addCard(u, 'Sol Ring', 1);
+  out.underLands = analyze(u).lands; out.underNone = !spareLands(u).length && !bestCuts(u, c.n, 999).some(x => x.land); return out; });
+T('UI-B100-01', 'More lands than the target: spare lands (at most the surplus) can come out for spells in the card window and in job fixes, scored with fresh practice games; at or under target, lands are never offered', b100.spare.length > 0 && b100.capped && b100.landCuts.length > 0 && b100.note && b100.fixScored && b100.underNone, JSON.stringify(b100));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

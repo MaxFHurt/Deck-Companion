@@ -1278,8 +1278,11 @@ function fixSwaps(d, kind, o){
   // With o.score (the deck-score change of a swap), each fixing card is tried against the five cards the deck can best spare
   // and keeps the cut that leaves the deck strongest; the swaps are then listed best first.
   const pairUp = (adds, cuts, why) => { if (!o.score) return adds.slice(0, Math.min(n, cuts.length)).map((a, i) => ({cut:cuts[i].n, add:a.c.n, q:1, kind, why}));
-    const used = new Set(), out = []; for (const a of adds.slice(0, n + 4)){ let b = null; for (const cu of cuts.filter(x => !used.has(x.n)).slice(0, 5)){ const v = o.score(cu.n, a.c.n); if (v != null && (!b || v > b.v)) b = {cu, v}; }
-      if (b){ used.add(b.cu.n); out.push({cut:b.cu.n, add:a.c.n, q:1, kind, why, dScore:b.v}); } }
+    const spare = o.spareLands && o.landScore && !adds.some(a => tags(a.c).land) ? spareLands(d) : [], uL = [];
+    const used = new Set(), out = []; for (const [ai, a] of adds.slice(0, n + 4).entries()){ let b = null; for (const cu of cuts.filter(x => !used.has(x.n)).slice(0, 5)){ const v = o.score(cu.n, a.c.n); if (v != null && (!b || v > b.v)) b = {cu, v}; }
+      // a spare land (the deck runs more than its target) can go instead; land changes need fresh practice games to measure
+      const ln = ai < 3 && spare.find((x, i) => !uL.includes(i)); if (ln){ const v = o.landScore(ln, a.c.n); if (v != null && (!b || v > b.v)) b = {cu:{n:ln}, v, land:spare.findIndex((x, i) => x === ln && !uL.includes(i))}; }
+      if (b){ if (b.land != null) uL.push(b.land); else used.add(b.cu.n); out.push({cut:b.cu.n, add:a.c.n, q:1, kind, why:b.land != null ? why + ' · takes out a spare land' : why, dScore:b.v}); } }
     return out.sort((x, y) => y.dScore - x.dScore).slice(0, n); };
   if (['ramp', 'draw', 'removal', 'wipe'].includes(kind)) return pairUp(best(c => !tags(c).land && tags(c).roles.has(kind), n), cutsFor(kind), 'Adds ' + FIX_KINDS[kind].toLowerCase());
   if (kind === 'landsUp'){ const lands = best(c => tags(c).land && [...landColors(c)].some(z => ctx.ident.includes(z)) && landSpeed(c) !== 'tapped', n);
@@ -1314,6 +1317,16 @@ function fixSwaps(d, kind, o){
 // "I want this card in my deck": rank what the deck can best do without. A land replaces a land, a spell a spell.
 // Cards that would leave ramp/draw/removal/wipes short, or identity cards making way for an off-theme card, are
 // held back; a card with a similar mana cost is preferred so the curve stays put. Locked cards are never offered.
+// Spare lands: when a deck runs more lands than its target, the extras may go for other cards (owner's rule). Lands that
+// enter tapped first, then basics from the most common type; lands that do something besides make mana are kept. At most
+// the surplus is offered (a basic can be named more than once, one copy each).
+function spareLands(d){
+  const A = analyze(d), extra = A.lands - A.T.lands; if (extra <= 0) return [];
+  const L = d.cards.map(e => ({e, c:find(e.n)})).filter(x => x.c && !x.e.l && tags(x.c).land && (isBasic(x.c.n) || landSpeed(x.c) === 'tapped'));
+  const out = []; L.filter(x => !isBasic(x.c.n)).forEach(x => out.push(x.e.n));
+  L.filter(x => isBasic(x.c.n)).sort((a, b) => b.e.q - a.e.q).forEach(x => { for (let i = 0; i < Math.max(0, x.e.q - 1); i++) out.push(x.e.n); });
+  return out.slice(0, extra);
+}
 function bestCuts(d, addName, k){
   const add = find(addName); if (!add) return [];
   const A = analyze(d), ctx = A.ctx, T = A.T, top = (d.aims || [])[0], addLand = tags(add).land, roles = Object.assign({}, A.roles);
@@ -1328,6 +1341,7 @@ function bestCuts(d, addName, k){
     if (!legalIn(c, d.format)){ s = -90; why = 'Not legal in ' + d.format; } else if (!c.ci.every(x => ctx.ident.includes(x))){ s = -80; why = 'Outside your colors'; }
     out.push({n:e.n, s, why:[why]});
   }
+  if (!addLand) [...new Set(spareLands(d))].forEach(n => out.push({n, s:50, land:true, why:['Spare land: ' + A.lands + ' lands, about ' + T.lands + ' needed']}));
   return out.sort((a, b) => a.s - b.s).slice(0, k || 3);
 }
 // Player tip for a card being added by hand: how well does it fit this deck, and why?
