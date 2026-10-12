@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 116. Each item ships as its own build: build, run the full test suite
+Live: Build 117. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -160,3 +160,6 @@ counted); Apex only; benchmark unchanged.
 116: phone layout (phones only): no tagline, Continue card with recent decks above the tiles,
 full name in the landscape header, tighter landscape margins; iPad and desktop unchanged; footer shows
 the real build number.
+117: phones: Continue card moved under the home tiles (above Profile), extra deck buttons removed; sideways
+phones get shorter home tiles and a one-column deck screen where the page scrolls (no fixed boxes), one row of
+deck buttons and smaller tabs; iPad unchanged.
