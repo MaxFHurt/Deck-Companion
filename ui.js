@@ -601,7 +601,7 @@ function capFor(d, t){ const cap = TIERS[t].cap, key = JSON.stringify([t, d, [..
 function capList(d, t){ return capFor(d, t).paths.map(L => L.opts.apex).filter(p => p && entryOf(d, p.cut) && !entryOf(d, p.add)); }
 // What the upgrade list depends on. The buy list, Considering, ignored alerts, the player and the name don't change any
 // suggestion, so editing them doesn't rework the list (which used to jump the page back to the top).
-const RECS_SKIP = new Set(['want', 'lack', 'consider', 'ignoreH', 'player', 'name']);
+const RECS_SKIP = new Set(['want', 'lack', 'consider', 'ignoreH', 'player', 'name', 'folder', 'dtags']);
 function recsKey(d){ return JSON.stringify([JSON.stringify(d, (k, v) => RECS_SKIP.has(k) ? undefined : v), S.swaps, !!apexFor(d), [...SETCARDS.keys()].join(), COMBOS.list.length, DBINFO.count, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, S.libV || 0, libCount(), BTAGS.v]); }
 function recsFor(d){ const key = recsKey(d); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d);
     // Every swap is checked against the deck score before it is shown. The check runs just after the screen is drawn, so the
@@ -647,11 +647,19 @@ function viewDecks(){
       : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn" data-act="hist-open">History</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em title="' + nUp + (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? ' has' : 's have') + ' an upgrade') + '">' + nUp + (hasPlan ? '' : ' card' + (nUp === 1 ? '' : 's')) + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
-  const owners = [...new Set(players().concat(P.decks.map(playerOf).filter(Boolean)))], fp = S.deckPlayer;
-  const shown = fp == null || fp === '*' ? P.decks : P.decks.filter(d => playerOf(d) === fp);
+  const owners = [...new Set(players().concat(P.decks.map(playerOf).filter(Boolean)))];
+  // a filter for a player who is no longer on the list (or has no decks) would hide every deck with no way back: reset it
+  if (S.deckPlayer && S.deckPlayer !== '*' && !owners.includes(S.deckPlayer)) S.deckPlayer = '*';
+  if (S.deckFolder && S.deckFolder !== '*' && !folders().includes(S.deckFolder)) S.deckFolder = '*'; if (S.deckTag && !allTags().includes(S.deckTag)) S.deckTag = '';
+  const fp = S.deckPlayer;
+  const ff = S.deckFolder == null ? '*' : S.deckFolder, ft = S.deckTag || '', FL = folders(), TG = allTags();
+  const shown = P.decks.filter(d => (fp == null || fp === '*' || playerOf(d) === fp) && (ff === '*' || (d.folder || '').trim() === ff) && (!ft || (d.dtags || []).includes(ft)));
+  const orgBar = FL.length || TG.length ? '<div class="row"><label class="lab" for="deck-filter-folder" style="margin:0">Folder</label><select id="deck-filter-folder" style="width:auto"><option value="*"' + (ff === '*' ? ' selected' : '') + '>All folders</option>' + FL.map(f => '<option value="' + esc(f) + '"' + (ff === f ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '<option value=""' + (ff === '' ? ' selected' : '') + '>No folder</option></select>' +
+    (TG.length ? '<label class="lab" for="deck-filter-tag" style="margin:0">Tag</label><select id="deck-filter-tag" style="width:auto"><option value="">Any tag</option>' + TG.map(t => '<option value="' + esc(t) + '"' + (ft === t ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select>' : '') +
+    (ff && ff !== '*' && FL.includes(ff) ? '<input type="text" id="folder-new" value="' + esc(ff) + '" maxlength="40" aria-label="New folder name" style="width:auto;flex:0 1 160px"><button class="btn sm" data-act="folder-rename" data-n="' + esc(ff) + '">Rename folder</button><button class="btn sm danger" data-act="folder-del" data-n="' + esc(ff) + '">Delete folder</button>' : '') + '</div>' : '';
   const tiles = shown.map(d => { const A = analyze(d), c = find(d.commander) || find((d.cards.find(e => find(e.n) && !tags(find(e.n)).land) || {}).n);
-    return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + (d.player ? ' <span class="chip gold">' + esc(d.player) + '</span>' : '') + '</h3><p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') + (d.partner ? ' + ' + esc(d.partner) : '') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.plan && d.plan.length ? '<span class="chip warn">Build in progress</span>' : '') + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
-  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' +
+    return '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' + d.id + '"><img alt="" src="' + artFor(c || {n:d.name, t:'Enchantment', o:'', ci:d.colors || []}) + '"><div class="tb"><h3>' + esc(d.name) + (d.player ? ' <span class="chip gold">' + esc(d.player) + '</span>' : '') + '</h3>' + ((d.folder || '').trim() || (d.dtags || []).length ? '<div class="row" style="gap:4px">' + ((d.folder || '').trim() ? '<span class="chip">Folder: ' + esc(d.folder.trim()) + '</span>' : '') + (d.dtags || []).map(t => tagChip(t)).join('') + '</div>' : '') + '<p>' + (d.format === 'commander' ? esc(d.commander || 'No commander yet') + (d.partner ? ' + ' + esc(d.partner) : '') : 'Standard · ' + (d.colors || []).map(x => '<i class="pip p' + x + '">' + x + '</i>').join('')) + '</p><div class="row">' + priceChip(A) + '<span class="chip">' + d.format + '</span><span class="chip ' + (A.size === A.T.size ? 'good' : 'warn') + '">' + A.size + ' / ' + A.T.size + '</span>' + (d.plan && d.plan.length ? '<span class="chip warn">Build in progress</span>' : '') + (d.example ? '<span class="chip">Example</span>' : '') + '</div></div></button><button class="btn sm danger" data-act="del-deck" data-v="' + d.id + '">' + (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') + '</button></div>'; }).join('');
+  return '<section class="panel"><div class="ph"><h2>' + esc(P.name) + '’s decks</h2><small>' + P.decks.length + ' saved</small></div>' + orgBar +
     (owners.length ? '<div class="row"><label class="lab" for="deck-filter-player" style="margin:0">Show decks for</label><select id="deck-filter-player" style="width:auto"><option value="*"' + (fp == null || fp === '*' ? ' selected' : '') + '>Everyone</option><option value=""' + (fp === '' ? ' selected' : '') + '>' + esc(P.name || 'Me') + ' (me)</option>' + owners.map(n => '<option value="' + esc(n) + '"' + (fp === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></div>' : '') +
     (S.draft ? '<div class="gate"><b>Unsaved deck: ' + esc(S.draft.name) + '</b>' + (S.draft.plan && S.draft.plan.length ? '<span class="chip warn">Build in progress</span> ' : '') + 'You started this deck but haven’t saved it to your profile.<div class="row" style="margin-top:10px"><button class="btn" data-act="draft-open">Keep editing</button><button class="btn pri" data-act="draft-save">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button></div></div>' : '') +
     (P.decks.some(d => !d.example) && Date.now() - lastBackup() > 7 * 864e5 ? '<p class="note" style="margin:0">' + (lastBackup() ? 'Your last backup file is over a week old.' : 'These decks are only stored in this browser.') + ' <button class="btn sm" data-act="backup-save">Save backup file</button></p>' : '') + (tiles ? '<p class="note" style="margin:0">Tap a deck to edit it and see its upgrade paths.</p><div class="tiles">' + tiles + '</div>' : '<p class="note">No decks yet. Create one on the Builder page.</p><div class="row"><button class="btn pri" data-act="nav" data-v="deck">Go to the Builder</button></div>') + '</section>' + myWantHtml();
@@ -698,7 +706,7 @@ function openMechList(){
 function aimPanel(d, ctx){
   if (d.auto && !d.custom && isAimed(d)){
     return '<section class="panel aimp"><div class="ph"><h2>Build</h2><small>' + (d.auto === 'precon' ? 'Precon theme' : 'Set from the commander') + '</small></div>' +
-      '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' + playerSel('deck-player', playerOf(d)) +
+      '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' + playerSel('deck-player', playerOf(d)) + orgBox(d) +
       (ctx.cmd ? '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button><button class="btn sm" data-act="cmd-find">Find a commander</button></div></div></div>' + partnerBox(d, false) : '') +
       '<div class="grp"><span class="lab">This deck is built around</span><div class="row">' + d.aims.map((a, i) => '<button class="chip gold" data-act="mech-info" data-v="' + esc(a) + '" title="What this mechanic means">' + (i + 1) + ' · ' + esc(aimLabel(a, ctx.tribe)) + '</button>').join('') + '</div></div>' +
       '<p class="note" style="margin:0">' + (d.auto === 'precon' ? 'This precon already has a theme, so its upgrade paths are ready below.' : 'The build was set from what this commander does, so its upgrade paths are ready below.') + ' Change the mechanics, their order or the color focus only if you want to take the deck somewhere else.</p>' +
@@ -706,7 +714,7 @@ function aimPanel(d, ctx){
   }
   const lock = d.aimLocked, dis = lock ? ' disabled' : '', aimed = isAimed(d);
   let h = '<section class="panel aimp"><div class="ph"><h2>Build</h2><button class="ico' + (lock ? ' on' : '') + '" data-act="lock-aim" title="' + (lock ? 'Unlock the build settings' : 'Lock the build settings') + '" aria-pressed="' + lock + '">' + SVG.lock + '</button></div>';
-  h += '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' + playerSel('deck-player', playerOf(d));
+  h += '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' + playerSel('deck-player', playerOf(d)) + orgBox(d);
   h += '<div class="grp"><span class="lab">Format</span><div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></div>';
   if (d.format === 'commander'){
     h += '<div class="grp"><span class="lab">Commander</span>';
@@ -1678,6 +1686,17 @@ function seedBuild(n, partner){
 const MAX_PLAYERS = 5;
 function players(){ return (S.profile.players || (S.profile.players = [])); }
 function playerOf(d){ return d && d.player ? d.player : ''; }
+// Folders and tags for decks (My decks filters by them). A deck has at most one folder and up to 8 tags; old decks and
+// backups without them simply show under "No folder".
+const TAG_COLS = ['#e3b558', '#3ddc84', '#f2a93b', '#b993ff', '#ff5b78', '#6ec6ff'];
+const tagCol = t => TAG_COLS[parseInt(strHash(norm(t)), 36) % TAG_COLS.length];
+function folders(){ return [...new Set(S.profile.decks.map(d => (d.folder || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)); }
+function allTags(){ return [...new Set(S.profile.decks.flatMap(d => d.dtags || []))].sort((a, b) => a.localeCompare(b)); }
+function tagChip(t, rm){ return '<span class="chip tg" style="--c:' + tagCol(t) + '">' + esc(t) + (rm ? '<button class="x" data-act="dtag-rm" data-n="' + esc(t) + '" aria-label="Remove tag ' + esc(t) + '">×</button>' : '') + '</span>'; }
+function orgBox(d){ if (!d || d === S.draft) return '';
+  return '<div class="grp"><label class="lab" for="deck-folder">Folder</label><input type="text" id="deck-folder" list="folder-list" value="' + esc(d.folder || '') + '" maxlength="40" placeholder="No folder" autocomplete="off"><datalist id="folder-list">' + folders().map(f => '<option value="' + esc(f) + '">').join('') + '</datalist></div>' +
+    '<div class="grp"><span class="lab">Tags</span><div class="row">' + (d.dtags || []).map(t => tagChip(t, true)).join('') + ((d.dtags || []).length < 8 ? '<input type="text" id="deck-tag" list="tag-list" placeholder="Add a tag" maxlength="24" autocomplete="off" style="width:auto;flex:1 1 120px"><datalist id="tag-list">' + allTags().filter(t => !(d.dtags || []).includes(t)).map(t => '<option value="' + esc(t) + '">').join('') + '</datalist><button class="btn sm" data-act="dtag-add">Add tag</button>' : '<span class="note">Up to 8 tags.</span>') + '</div></div>'; }
+function addTag(d, v){ v = String(v || '').trim().slice(0, 24); if (!d || !v) return false; const T = d.dtags || []; if (T.some(t => norm(t) === norm(v)) || T.length >= 8) return false; d.dtags = T.concat([v]); return true; }
 function playerSel(id, val){ const P = players(), names = P.concat(val && !P.includes(val) ? [val] : []);
   return '<div class="grp"><label class="lab" for="' + id + '">Player</label><select id="' + id + '" style="width:auto;min-width:200px"><option value=""' + (!val ? ' selected' : '') + '>' + esc(S.profile.name || 'Me') + ' (me)</option>' + names.map(n => '<option value="' + esc(n) + '"' + (n === val ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' + (P.length ? '' : '<p class="note" style="margin:0">Add your tablemates in Profile to save their decks here too.</p>') + '</div>'; }
 function playersHtml(){ const P = players();
@@ -1950,6 +1969,8 @@ const CONFIRM = {
   swap:v => { const d = cur(), [i, t, al] = String(v).split('|'), R = d && recsFor(d), L = R && R.paths[+i], col = al && L ? rowCols(d, R, L, +i)[t] : null, p = col ? col.p : L && L.opts[t]; return swapAsk(p && p.cut, p && p.add); },
   'swap-a3':(v, n) => { const d = cur(), [i, t] = String(v).split('|'), R = d && recsFor(d), L = R && R.paths[+i], col = L && rowCols(d, R, L, +i)[t]; return swapAsk(col && col.p && col.p.cut, n); },
   want:(v, n) => swapAsk(v, n),
+  'dtag-rm':(v, n) => ['Remove the tag ' + n + '?', 'Only the tag comes off; the deck itself does not change.', 'Remove tag'],
+  'folder-del':(v, n) => { const k = S.profile.decks.filter(x => (x.folder || '').trim() === n).length; return ['Delete the folder ' + n + '?', 'Its ' + k + ' deck' + (k === 1 ? ' is' : 's are') + ' kept and move to No folder.', 'Delete folder']; },
   'swap-top':(v, n) => { const d = cur(), L = d && recsFor(d).paths[+v]; return swapAsk(L && L.cut, n); },
   'fix-swap':v => { const [k, i] = String(v).split('|'), g = (S.fixG || []).find(x => x.k === k), p = g && g.L[+i]; return swapAsk(p && p.cut, p && p.add); },
   'swap-cap':v => { const d = cur(), k = d ? capList(d, v).length : 0; return ['Make ' + (k || 'these') + ' swap' + (k === 1 ? '' : 's') + '?', 'Every card in this price-capped list is swapped in at once. Undo can put them back.', 'Make the swaps']; },
@@ -2167,6 +2188,10 @@ function handleAct(act, v, n, pArg){
     // Highest score: the player's own choice over the slot's picks (checked as its own kind, not a tier, so a held pick doesn't block it)
     case 'swap-top': { const R = recsFor(d), L = R.paths[+v], ref = L && (L.opts.apex || L.opts.mid || L.opts.budget); if (!ref || !n || !L.top || L.top.n !== n || hasCard(d, n)) return; const p = {cut:L.cut, add:n, q:ref.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t:'top'}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.length); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'dtag-add': { const inp = $('#deck-tag'); if (!d || !inp) return; if (addTag(d, inp.value)){ touch(); render(); } else if (inp.value.trim()) toast('That tag is already on this deck, or it has 8.'); return; }
+    case 'dtag-rm': { if (!d || !n) return; d.dtags = (d.dtags || []).filter(t => t !== n); if (!d.dtags.length) delete d.dtags; break; }
+    case 'folder-rename': { const v = (($('#folder-new') || {}).value || '').trim().slice(0, 40); if (!n || !v || v === n) return; S.profile.decks.forEach(x => { if ((x.folder || '').trim() === n) x.folder = v; }); S.deckFolder = v; touch(); render(); toast('Folder renamed to ' + v + '.'); return; }
+    case 'folder-del': { if (!n) return; S.profile.decks.forEach(x => { if ((x.folder || '').trim() === n) delete x.folder; }); S.deckFolder = '*'; touch(); render(); toast('Folder deleted. Its decks are kept, with no folder.'); return; }
     case 'swap-a3': { const [i, t] = v.split('|'), R = recsFor(d), L = R.paths[+i], col = L && rowCols(d, R, L, +i)[t]; if (!col || !col.p || !n) return; const p = {cut:col.p.cut, add:n, q:col.p.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'unpop': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], a = L && ((L.alts || {})[t] || []).find(x => x.n === n); if (!a) return; const cmdN = (find(d.commander) || {n:''}).n.split(',')[0];
@@ -2232,6 +2257,9 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
   else if (t.id === 'gen-player'){ S.gen.player = t.value || ''; }
   else if (t.id === 'imp-player'){ S.impPlayer = t.value || ''; }
   else if (t.id === 'deck-filter-player'){ S.deckPlayer = t.value; render(); }
+  else if (t.id === 'deck-filter-folder'){ S.deckFolder = t.value; render(); }
+  else if (t.id === 'deck-filter-tag'){ S.deckTag = t.value; render(); }
+  else if (t.id === 'deck-folder' && d){ const v = t.value.trim().slice(0, 40); if (v) d.folder = v; else delete d.folder; touch(); render(); }
   else if (t.id === 'p-name'){ S.profile.name = t.value.trim() || 'Planeswalker'; touch(); }
   else if (t.id === 'aim-add' && t.value && d){ d.aimAuto = false; aimsChanged(d); d.aims.push(t.value); touch(); render(); ensureEdh(); }
   else if (t.id === 'tribe' && d){ d.tribe = t.value; touch(); render(); }
@@ -2249,7 +2277,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
 });
 document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'libstats') S.libStatsOpen = ev.target.open; if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; }, true);
-document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && $('#confirm') && !$('#confirm').hidden){ confirmDone(false); return; } if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
+document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target && ev.target.id === 'deck-tag'){ ev.preventDefault(); handleAct('dtag-add'); return; } if (ev.key === 'Escape' && $('#confirm') && !$('#confirm').hidden){ confirmDone(false); return; } if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
 addEventListener('orientationchange', () => setTimeout(() => { wasNarrow = isNarrow(); render(); }, 250));
 // iPad windows (Stage Manager, Split View) can come back at full size without a resize event, or report the
