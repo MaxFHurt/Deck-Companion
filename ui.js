@@ -331,7 +331,27 @@ async function bracketTags(){
     if (t.mld.length || t.turns.length){ lsSet('dc.btags', t); useTags(t); render(); }
   } catch (e) {}
 }
-function useFull(rows, when, complete){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when, complete:!!complete}; ART.clear(); }
+function useFull(rows, when, complete){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when, complete:!!complete}; ART.clear(); if (complete) recordPrices(when); }
+// Price history: each time complete card data arrives, the prices of the cards you care about (your decks, library, buy
+// lists and cards you have opened) are kept by the data's date, so history starts when this shipped and grows over time.
+// Kept small for phones: a new point only when a price changes, up to 60 per card and 3,000 cards, oldest dropped first.
+const PH_KEY = 'dc.ph';
+function phLoad(){ const v = lsGet(PH_KEY); return v && v.m ? v : {m:{}}; }
+function phTracked(){ const P = S.profile, out = new Set(); const add = n => { if (n) out.add(norm(n)); };
+  P.decks.concat(S.draft ? [S.draft] : []).forEach(d => { d.cards.forEach(e => add(e.n)); add(d.commander); add(d.partner); (d.want || []).forEach(x => add(x.n)); Object.keys(d.recP || {}).forEach(add); });
+  Object.keys(lib()).forEach(add); myWant().forEach(x => add(x.n)); (phLoad().seen || []).forEach(add); return out; }
+function recordPrices(when){ const day = String(when || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return; const H = phLoad(), T = phTracked();
+  T.forEach(k => { const c = IDX.get(k); if (!c || c.p == null || isBasic(c.n)) return; const L = H.m[k] || (H.m[k] = []), last = L[L.length - 1];
+    if (last && last[0] === day) last[1] = c.p; else if (!last || (last[0] < day && last[1] !== c.p)) L.push([day, c.p]); if (L.length > 60) L.splice(0, L.length - 60); });   // a point only when the price changes
+  const keys = Object.keys(H.m); if (keys.length > 3000){ keys.sort((a, b) => (H.m[a][H.m[a].length - 1][0] < H.m[b][H.m[b].length - 1][0] ? -1 : 1)).slice(0, keys.length - 3000).forEach(k => delete H.m[k]); }
+  H.at = day; lsSet(PH_KEY, H); }
+function phOf(c){ const L = c && phLoad().m[c._n]; return L && L.length ? L : null; }
+function phSeen(c){ if (!c) return; const H = phLoad(); H.seen = (H.seen || []).filter(k => k !== c._n).concat([c._n]).slice(-200); if (!H.m[c._n] && c.p != null && DBINFO.complete && DBINFO.when) H.m[c._n] = [[String(DBINFO.when).slice(0, 10), c.p]]; lsSet(PH_KEY, H); }
+function phHtml(c){ const L = phOf(c); if (!L) return ''; const f = L[0], l = L[L.length - 1], ch = f[1] ? (l[1] - f[1]) / f[1] : 0, fmt = x => '$' + x.toFixed(2);
+  if (L.length < 2) return '<dt>Price history</dt><dd><span class="note">Tracking since ' + esc(f[0]) + ' (' + fmt(f[1]) + '). The history grows each time new card data downloads.</span></dd>';
+  const lo = Math.min(...L.map(x => x[1])), hi = Math.max(...L.map(x => x[1])), W = 120, Hh = 28, pts = L.map((x, i) => (i * W / (L.length - 1)).toFixed(1) + ',' + (hi === lo ? Hh / 2 : Hh - (x[1] - lo) / (hi - lo) * Hh).toFixed(1)).join(' ');
+  return '<dt>Price history</dt><dd><svg class="spark" viewBox="0 0 ' + W + ' ' + Hh + '" width="' + W + '" height="' + Hh + '" role="img" aria-label="Price from ' + fmt(f[1]) + ' to ' + fmt(l[1]) + '"><polyline fill="none" stroke="currentColor" stroke-width="2" points="' + pts + '"/></svg> ' +
+    fmt(f[1]) + ' on ' + esc(f[0]) + ' → ' + fmt(l[1]) + ' on ' + esc(l[0]) + ' <span class="chip ' + (ch > 0.02 ? 'warn' : ch < -0.02 ? 'good' : '') + '">' + (ch > 0.02 ? '▲ ' : ch < -0.02 ? '▼ ' : '') + (ch >= 0 ? '+' : '−') + Math.abs(ch * 100).toFixed(0) + '%</span> · low ' + fmt(lo) + ', high ' + fmt(hi) + '</dd>'; }
 function setStatus(t){ const el = $('#status'); if (el){ const was = el.hidden; el.textContent = t; el.hidden = !t; if (was !== el.hidden) fitWork(); } }
 async function ingest(stream, size, when){
   const rows = []; let buf = '', read = 0, lines = 0;
@@ -919,7 +939,7 @@ async function doRegen(){
 // shown, never acted on silently: a big jump, or an installed card that stops being legal, raises one pop-up with choices.
 const PRICE_JUMP = 1.5;
 function driftOf(d, n, t){ const r = d && d.recP && d.recP[norm(n)], c = find(n); return r && r.t === t && c && c.p != null && TIERS[t] && c.p > TIERS[t].cap ? r : null; }
-function driftChip(d, n, t){ const r = driftOf(d, n, t); return r ? '<span class="chip warn" title="The price it had when it was first recommended for this deck">Was $' + r.p.toFixed(2) + ' when picked</span>' : ''; }
+function driftChip(d, n, t){ const r = driftOf(d, n, t), c = r && find(n); return r ? '<span class="chip warn" title="The price it had when it was first recommended for this deck, and now">Was $' + r.p.toFixed(2) + ' when picked · now $' + c.p.toFixed(2) + (c.p > r.p ? ' ▲' : c.p < r.p ? ' ▼' : '') + '</span>' : ''; }
 function watchAlerts(d){
   if (!d || !isAimed(d) || (d.plan && d.plan.length) || !DBINFO.complete || DBINFO.source === 'starter') return [];
   { const c0 = d.format === 'commander' ? find(d.commander) : null; if (c0 && (EDH.key !== c0.n || EDH.state === 'loading' || !EDH.state)) return [];   // wait for the play data before holding any pick
@@ -1922,12 +1942,12 @@ function myWantHtml(){ const W = myWant(); if (!W.length) return '';
     '</div><div class="row"><button class="btn pri sm" data-act="mywant-copy">Copy as text</button></div></section>'; }
 function openCard(name, pid){
   S.wantMore = '';
-  const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
+  const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } phSeen(c); const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
   const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
   S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => symImg(x)).join('') : 'Colorless') + '</dd>' +
-    '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' +
+    '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' + phHtml(c) +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
     (c.gc || BTAGS.mld.has(c._n) || BTAGS.turns.has(c._n) ? '<dt>Brackets</dt><dd>' + [c.gc ? '<span class="chip gc">Game Changer</span> Bracket 3 allows up to three; 4 and 5 any' : '', BTAGS.mld.has(c._n) ? 'Mass land denial (Bracket 4 and up)' : '', BTAGS.turns.has(c._n) ? 'Extra turn (a few at most below Bracket 4)' : ''].filter(Boolean).join('; ') + '</dd>' : '') +
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +

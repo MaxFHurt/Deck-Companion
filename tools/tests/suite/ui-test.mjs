@@ -664,6 +664,15 @@ const b109 = await page.evaluate(async () => { const out = {}, w = S.profile.dec
   const b = document.querySelector('#modal [data-act="up-buy"]'); if (b){ const n = b.dataset.n; b.click(); out.bought = wantOf(w).some(x => x.n === n) && !$('#modal').hidden && /On the Buy List/.test($('#modal').textContent); const k = wantOf(w).findIndex(x => x.n === n); if (k >= 0) wantOf(w).splice(k, 1); }
   $('#modal').hidden = true; return out; });
 T('UI-B109-01', 'Best by job: ramp, draw, removal, wipes and protection lists hold only cards for that job, in the deck colours and not in the deck, in the engine’s own order with score chips; Add to Buy List works inside it', b109.btn && Object.values(b109.jobs).every(j => j.n > 0 && j.role && j.colours && j.notIn && j.ordered && j.scored) && b109.bought, JSON.stringify(b109));
+// 60. Build 110: Price history. Two card-data snapshots with different prices: tracked cards (in a deck) keep both prices by
+// date, the card window shows the change with a small line, a card opened once is tracked from then, and storage stays small.
+const b110 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); localStorage.removeItem(PH_KEY);
+  const e = w.cards.find(x => find(x.n) && find(x.n).p > 1 && !isBasic(x.n)), c = find(e.n), p0 = c.p; c.p = 10; recordPrices('2026-09-01'); c.p = 12.5; recordPrices('2026-10-01'); recordPrices('2026-10-01');
+  const L = phOf(c); out.points = L && L.map(x => x.join(':')); out.kept = !!L && L.length === 2 && L[0][1] === 10 && L[1][1] === 12.5;
+  S.deckId = w.id; S.view = 'decks'; S.open = true; render(); openCard(c.n); const m = $('#modal').textContent; out.shown = /Price history/.test(m) && /\$10\.00 on 2026-09-01 → \$12\.50 on 2026-10-01/.test(m) && /\+25%/.test(m) && !!document.querySelector('#modal svg.spark'); $('#modal').hidden = true;
+  const o = LIB.find(x => x.p > 1 && !isBasic(x.n) && !hasCard(w, x.n) && !phOf(x)); openCard(o.n); $('#modal').hidden = true; out.seenTracked = !!phOf(o) && phTracked().has(o._n);
+  out.bytes = (localStorage.getItem(PH_KEY) || '').length; out.small = out.bytes < 200000; c.p = p0; return out; });
+T('UI-B110-01', 'Price history: two card-data snapshots keep both prices by date for tracked cards; the card window shows the change (+25%) with a small line; a card opened is tracked from then; storage stays small', b110.kept && b110.shown && b110.seenTracked && b110.small, JSON.stringify(b110));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
