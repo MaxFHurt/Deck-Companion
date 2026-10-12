@@ -688,6 +688,20 @@ const b111 = await page.evaluate(async () => { const F = k => WHAT_BY[k].f, has 
   sel.value = 'treasure'; sel.dispatchEvent(new Event('change', {bubbles:true})); const names = [...document.querySelectorAll('#s-res [data-n]')].map(e => e.dataset.n).filter((n, i, a) => a.indexOf(n) === i);
   out.narrowed = names.length > 0 && names.every(n => F('treasure')(find(n))); S.search.what = ''; S.view = 'decks'; S.open = true; render(); return out; });
 T('UI-B111-01', 'Card search “What it does”: every filter finds its known cards and leaves out known non-matches; the menu narrows the results; each filter matches a sensible number of cards', !b111.bad.length && b111.sane && b111.menu && b111.narrowed, JSON.stringify(b111));
+// 62. Build 112: Decks you can build. A library made from a precon (with and without its commander) ranks that precon's
+// commander at or near the top; the top three get a build from your cards with how much you own and what the rest costs;
+// Generate from my cards opens Generate for that commander with "cards I already own" on.
+const b112 = await page.evaluate(async () => { const out = {}, P = S.profile, keep = JSON.stringify(P.library || {}), w = P.decks.find(x => /Wakanda/i.test(x.name)), cmd = find(w.commander);
+  P.library = {}; libAddList(w.cards, w.commander); S.libV = (S.libV || 0) + 1; S.dycb = null;
+  let t0 = performance.now(); const R1 = dycbRank(10); out.rankMs = Math.round(performance.now() - t0); out.withCmd = R1.findIndex(r => r.c._n === cmd._n); out.top = R1.slice(0, 3).map(r => r.c.n);
+  delete P.library[cmd.n]; S.libV++; const R2 = dycbRank(10); out.withoutCmd = R2.findIndex(r => r.c._n === cmd._n); P.library[cmd.n] = 1; S.libV++;
+  out.others = {}; for (const re of [/Doom Prevails/, /Avengers/]){ const o = P.decks.find(x => re.test(x.name)); if (!o) continue; P.library = {}; libAddList(o.cards); S.libV++; out.others[o.name] = dycbRank(10).findIndex(r => r.c._n === find(o.commander)._n); }
+  P.library = {}; libAddList(w.cards, w.commander); S.libV++;
+  S.view = 'decks'; S.open = false; render(); openDycb(); for (let i = 0; i < 400 && S.dycb.rows.slice(0, 3).some(r => !r.cost); i++) await new Promise(r => setTimeout(r, 100));
+  const r0 = S.dycb.rows[0]; out.cost = r0.cost; out.costShown = /You own \d+ of \d+ · the rest ≈ \$\d+/.test($('#modal').textContent); out.ownMost = r0.cost && r0.c._n === cmd._n ? r0.cost.have >= 60 : true;
+  document.querySelector('#modal [data-act="dycb-gen"]').click(); out.gen = !!document.querySelector('#gen-q') && S.gen.cmd === S.dycb.rows[0].c.n && S.gen.own === true; $('#modal').hidden = true;
+  P.library = JSON.parse(keep); S.libV++; S.dycb = null; S.gen.own = false; return out; });
+T('UI-B112-01', 'Decks you can build: a library from a precon ranks its commander at or near the top (top 3 with it, top 5 without it); the top picks show how much you own and what the rest costs; Generate from my cards opens Generate with own cards on', b112.withCmd >= 0 && b112.withCmd < 3 && b112.withoutCmd >= 0 && b112.withoutCmd < 5 && Object.values(b112.others).every(k => k >= 0 && k < 5) && b112.costShown && b112.ownMost && b112.gen, JSON.stringify(b112));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
