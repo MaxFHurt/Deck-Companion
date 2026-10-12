@@ -611,6 +611,19 @@ const b105 = await page.evaluate(async () => { const P = S.profile, keep = JSON.
   if (el){ el.open = true; el.dispatchEvent(new Event('toggle')); render(); out.staysOpen = !!document.querySelector('#libstats[open]'); out.text = document.querySelector('#libstats').textContent.slice(0, 120); }
   P.library = JSON.parse(keep); S.libV++; S.libStatsOpen = false; S.tab = 'list'; render(); return out; });
 T('UI-B105-01', 'Library: Collection value shows the exact total, by colour and by type (each adding up to the total), the 10 most valuable cards, and how many owned cards are in decks; stays open once opened', b105.shown && b105.exact && b105.colSum && b105.typeSum && b105.topSorted && b105.used && b105.staysOpen, JSON.stringify(b105));
+// 56. Build 106: Card search Sort: most played, cheapest, most expensive, by job, and best for the open deck (its upgrade
+// value, outside-colour cards last), applied to every match before the first 60 are shown.
+const b106 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.open = false; S.view = 'search'; S.search = {q:'', color:'G', type:'Creature', fmt:'commander', max:'', theme:'', sort:''}; render();
+  const sel = document.querySelector('#s-sort'), out = {opts:sel ? [...sel.options].map(o => o.value) : []}, shown = () => [...document.querySelectorAll('#s-res .card[data-n], #s-res [data-n]')].map(e => e.dataset.n).filter((n, i, a) => a.indexOf(n) === i).map(find).filter(Boolean);
+  const set = v => { sel.value = v; sel.dispatchEvent(new Event('change', {bubbles:true})); return shown(); };
+  let L = set('pop'); out.pop = L.length > 10 && L.every((c, i) => !i || (c.r || 1e6) >= (L[i - 1].r || 1e6));
+  L = set('cheap'); out.cheap = L.every((c, i) => !i || c.p == null || L[i - 1].p == null ? true : c.p >= L[i - 1].p);
+  L = set('dear'); out.dear = L.every((c, i) => !i || c.p == null || L[i - 1].p == null ? true : c.p <= L[i - 1].p) && L[0].p >= 20;
+  L = set('role'); const ji = c => { const i = SEARCH_JOBS.findIndex(x => tags(c).roles.has(x)); return i < 0 ? 99 : i; }; out.role = L.every((c, i) => !i || ji(c) >= ji(L[i - 1])) && ji(L[0]) === 0;
+  const t0 = performance.now(); L = set('deck'); out.ms = Math.round(performance.now() - t0); const R = recsFor(d), id = ctxOf(d).ident, inC = c => c.ci.every(x => id.includes(x));
+  out.deck = L.length > 10 && L.slice(0, 10).every(inC) && L.slice(0, 10).every((c, i) => !i || R.valOf(c) <= R.valOf(L[i - 1]) + 1e-9); out.note = /best for Wakanda/.test(document.querySelector('#s-res').textContent);
+  out.first = L.slice(0, 3).map(c => c.n); sel.value = ''; sel.dispatchEvent(new Event('change', {bubbles:true})); S.search.sort = ''; S.view = 'decks'; S.open = true; render(); return out; });
+T('UI-B106-01', 'Card search Sort: most played, cheapest, most expensive, by job, and best for the open deck (by its upgrade value, in-colour first) all order every match correctly', b106.opts.includes('deck') && b106.pop && b106.cheap && b106.dear && b106.role && b106.deck && b106.note, JSON.stringify(b106));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

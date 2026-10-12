@@ -1470,9 +1470,23 @@ function searchResults(){
       .sort((a, b) => (b.sc === PRINT.key) - (a.sc === PRINT.key) || a.c.n.localeCompare(b.c.n) || b.yr.localeCompare(a.yr));
     return '<p class="note" style="margin:0">' + (S.printRes.err ? 'Scryfall could not be reached. ' : '') + rows.length + ' printing' + (rows.length === 1 ? '' : 's') + (rows.length > 120 ? ' · showing the first 120' : '') + (PRINT.key && rows.some(x => x.sc === PRINT.key) ? ' · your commander’s set first' : '') + '</p><div class="cards">' + rows.slice(0, 120).map(x => cardHtml(x.c, true, x, upBadge(x.c))).join('') + '</div>';
   }
-  const r = searchCards(f.q, filt, 60);
-  return '<p class="note" style="margin:0">' + r.total.toLocaleString() + ' card' + (r.total === 1 ? '' : 's') + (r.total > 60 ? ' · showing the first 60' : '') + ' · ' + (DBINFO.source === 'starter' ? 'starter library' : 'full database') + (PRINT.key && PRINT.map.size ? ' · showing your commander’s set printing where one exists' : '') + (UPX.busy ? ' · checking your decks for upgrades…' : r.cards.some(c => upFor(c).length) ? ' · cards marked “Upgrade” are suggested for one of your decks' : '') + '</p><div class="cards">' + r.cards.map(c => cardHtml(c, true, null, upBadge(c))).join('') + '</div>';
+  const r = f.sort ? sortSearch(searchCards(f.q, filt, 1e6), f.sort) : searchCards(f.q, filt, 60);
+  return '<p class="note" style="margin:0">' + r.total.toLocaleString() + ' card' + (r.total === 1 ? '' : 's') + (r.total > 60 ? ' · showing the first 60' : '') + (r.how ? ' · ' + esc(r.how) : '') + ' · ' + (DBINFO.source === 'starter' ? 'starter library' : 'full database') + (PRINT.key && PRINT.map.size ? ' · showing your commander’s set printing where one exists' : '') + (UPX.busy ? ' · checking your decks for upgrades…' : r.cards.some(c => upFor(c).length) ? ' · cards marked “Upgrade” are suggested for one of your decks' : '') + '</p><div class="cards">' + r.cards.map(c => cardHtml(c, true, null, upBadge(c))).join('') + '</div>';
 }
+// Card search sort, by the app's own measures: how often it is played, price, the job it does, or how well it fits the deck
+// you have open (the value that deck's upgrades are chosen by). Applied to every match, then the first 60 are shown.
+const SEARCH_JOBS = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'], JOB_LAB = {ramp:'ramp', draw:'card draw', removal:'removal', wipe:'board wipes', protect:'protection', counter:'counterspells', tutor:'tutors'};
+function sortDeck(){ const d = cur(); return d && d.format === 'commander' && find(d.commander) && analyze(d).size >= 60 ? d : null; }
+function sortSearch(r, by){ const L = r.cards.slice(), pop = c => c.r || 1e6; let how = '';
+  if (by === 'pop'){ L.sort((a, b) => pop(a) - pop(b) || a.n.localeCompare(b.n)); how = 'most played first'; }
+  else if (by === 'cheap' || by === 'dear'){ const k = by === 'cheap' ? 1 : -1; L.sort((a, b) => (a.p == null) - (b.p == null) || k * ((a.p || 0) - (b.p || 0)) || pop(a) - pop(b)); how = by === 'cheap' ? 'cheapest first' : 'most expensive first'; }
+  else if (by === 'role'){ const j = c => { const R = tags(c).roles, i = SEARCH_JOBS.findIndex(x => R.has(x)); return i < 0 ? 99 : i; }; L.sort((a, b) => j(a) - j(b) || pop(a) - pop(b)); how = 'by job: ramp, card draw, removal, board wipes, protection, counterspells, tutors, then the rest'; }
+  else if (by === 'deck'){ const d = sortDeck(), R = d && recsFor(d); if (R && R.valOf){ const id = ctxOf(d).ident, ok = c => c.ci.every(x => id.includes(x)) && legalIn(c, d.format), V = new Map();
+      // the deck's value is worked out for the 1,500 most played matches; rarer cards follow by popularity
+      L.sort((a, b) => pop(a) - pop(b)); L.slice(0, 1500).forEach(c => { if (ok(c)) V.set(c, R.valOf(c)); });
+      L.sort((a, b) => (V.has(b) - V.has(a)) || (V.get(b) || 0) - (V.get(a) || 0) || pop(a) - pop(b)); how = 'best for ' + d.name + ' first (cards outside its colours last)'; }
+    else how = 'open a full Commander deck to sort by how well cards fit it'; }
+  return {total:r.total, cards:L.slice(0, 60), how}; }
 function viewSearch(){
   clearTimeout(viewSearch.t); viewSearch.t = setTimeout(buildUpgradeIndex, 1500);   // after the player pauses; decks already indexed cost nothing
   const f = S.search, opt = (v, l, curv) => '<option value="' + v + '"' + (v === curv ? ' selected' : '') + '>' + l + '</option>';
@@ -1484,6 +1498,7 @@ function viewSearch(){
     '<select id="s-type" aria-label="Card type">' + opt('', 'Any type', f.type) + ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Legendary'].map(x => opt(x, x, f.type)).join('') + '</select>' +
     '<select id="s-max" aria-label="Price">' + opt('', 'Any price', f.max) + opt('3', 'Budget ≤ $3', f.max) + opt('12', 'Mid ≤ $12', f.max) + '</select>' +
     '<select id="s-theme" aria-label="Mechanic">' + opt('', 'Any mechanic', f.theme) + Object.keys(THEMES).filter(k => k !== 'tribal').map(k => opt(k, THEMES[k].label, f.theme)).join('') + '</select>' +
+    '<select id="s-sort" aria-label="Sort">' + opt('', 'Sort: best match', f.sort || '') + opt('pop', 'Sort: most played', f.sort || '') + opt('cheap', 'Sort: cheapest', f.sort || '') + opt('dear', 'Sort: most expensive', f.sort || '') + opt('role', 'Sort: by job', f.sort || '') + (sortDeck() ? opt('deck', 'Sort: best for ' + esc(sortDeck().name), f.sort || '') : '') + '</select>' +
     '</div><div id="s-res" class="grp">' + searchResults() + '</div></section>';
 }
 function loadPrecon(p){
@@ -2228,7 +2243,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
     else if (d){ SETFAIL.delete(st.code); d.sets = (d.sets || []).filter(x => x !== st.code).concat(st.code); aimsChanged(d); touch(); render(); ensureSetCards(d); if (S.uaOpen && !$('#modal').hidden) openUpgradeAsk(); } }
   else if (t.id === 'key-add' && t.value && d){ d.keys = (d.keys || []).concat(t.value); touch(); render(); }
   else if (t.id === 'swaps'){ S.swaps = +t.value; render(); }
-  else if (/^s-(fmt|color|type|max|theme|prints)$/.test(t.id)){ S.search[t.id.slice(2)] = t.value; $('#s-res').innerHTML = searchResults(); }
+  else if (/^s-(fmt|color|type|max|theme|prints|sort)$/.test(t.id)){ S.search[t.id.slice(2)] = t.value; $('#s-res').innerHTML = searchResults(); }
   else if (t.id === 'imp-file' && t.files[0]){ t.files[0].text().then(x => { $('#imp-text').value = x; if (!$('#imp-name').value) $('#imp-name').value = t.files[0].name.replace(/\.[^.]+$/, ''); }).catch(() => toast('That file could not be read as text.')); }
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
