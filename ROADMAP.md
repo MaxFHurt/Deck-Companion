@@ -1,71 +1,101 @@
 # Deck Companion roadmap
 
-Live: Build 96. Each item ships as its own build: build, run the full test suite
+Live: Build 103. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
-## Next features (smallest first)
+## Queue (smallest first)
 
-1. **Share link**
-   - *You'll see:* a Share link button on a deck. Opening the link on any device shows the deck (commander, cards, build settings) with a Save to my decks button.
-   - *Builds on:* Export (it already shares the list as text) and the backup format.
+Proposed order (12 October 2026): small items first, quickest first within each size.
+Items marked "discuss first" need the owner's decision before they are built; the real-device check needs the owner's phone and iPad.
+
+### Small
+
+1. **Remove leftover code**
+   - *You'll see:* nothing visible.
+   - *Builds on:* code from replaced features (old alternative columns, old tier helpers).
    - *Size:* Small. *Upgrades engine:* no.
-   - *Risks:* very long decks can make a long link; the deck is packed into the link itself, so nothing is stored online and no account is needed.
-   - *Tested by:* a test that shares a deck, opens the link in a fresh browser and checks every card and setting arrives; phone and iPad check.
-2. **Price history**
-   - *You'll see:* a small price line on each card (its price on the days the app has seen it), and the held-pick price chip shows the trend.
-   - *Builds on:* the card-data download (prices come with it) and the "Was $X when picked" chip.
-   - *Size:* Medium. *Upgrades engine:* no.
-   - *Risks:* the app only knows prices from days it downloaded card data, so history starts when the feature ships and grows over time; storage must stay small on phones.
-   - *Tested by:* a test that loads two card-data snapshots with different prices and checks the history and chip; storage size check.
-3. **Decks you can build**
-   - *You'll see:* a page listing the commanders your owned cards fit best, with how many of each deck you already own and what the rest would cost; tap one to Generate it from your cards.
-   - *Builds on:* the Library (owned cards) and Generate with "cards I already own".
-   - *Size:* Medium. *Upgrades engine:* no.
-   - *Risks:* checking every commander is slow, so it ranks a shortlist (popular commanders in your colours) in the background.
-   - *Tested by:* a test library built from a precon should rank that precon's commander at or near the top.
-
-## More features (from the competitor review)
-
+   - *Risks:* removing something still used; the full suite catches it.
+   - *Tested by:* full suite before and after; app size before and after.
+2. **Collection value and stats**
+   - *You'll see:* on the Library: total value, value by colour and type, most valuable cards, and how many of your cards appear in your decks.
+   - *Builds on:* the Library and the card prices.
+   - *Size:* Small. *Upgrades engine:* no.
+   - *Risks:* prices are estimates from the card data; shown as such.
+   - *Tested by:* a test library with known prices must add up exactly.
+3. **Card search sort by the app's measures**
+   - *You'll see:* Sort in Card search by score impact on the open deck, role and popularity.
+   - *Builds on:* the decklist sort and the upgrade values.
+   - *Size:* Small. *Upgrades engine:* reads it only, no change.
+   - *Risks:* score impact needs the open deck and takes a moment for long result lists; it is worked out in the background.
+   - *Tested by:* sorted order checked against the values for a test deck.
 4. **Deck folders and tags**
    - *You'll see:* folders and coloured tags on the My decks page, with a filter by folder or tag.
    - *Builds on:* the My decks page and Duplicate.
    - *Size:* Small. *Upgrades engine:* no.
    - *Risks:* none beyond keeping old backups loading (decks without folders go to "No folder").
    - *Tested by:* tests that create, rename and delete folders and tags, filter by them, and load an older backup.
-5. **Visible practice games**
-   - *You'll see:* a "Practice" panel: draw opening hands, mulligan, and watch a few turns of the app's practice games (lands played, mana, spells cast), with how often the deck is short of lands or colours.
-   - *Builds on:* the practice-game simulator the deck score already runs in the background.
-   - *Size:* Large. *Upgrades engine:* no.
-   - *Risks:* showing the games is easy; making the play choices look sensible to a player is harder, so it starts as hands and simple turns.
-   - *Tested by:* seeded games give the same hands every run; tests check hand size, mulligans and land counts.
-6. **Search cards by what they do**
-   - *You'll see:* plain-word filters in Card search: "draws when a creature dies", "makes treasure", "sacrifice outlet" and more, combined with colours and price.
-   - *Builds on:* the role and theme tags the engine already gives every card.
-   - *Size:* Medium. *Upgrades engine:* no.
-   - *Risks:* tags are pattern matches on card text, so some cards will be missed or wrongly included; each filter needs a checked list of examples.
-   - *Tested by:* a fixed list of known cards per filter must all be found, and known non-matches must not be.
-7. **Card lists by job**
+5. **Share link**
+   - *You'll see:* a Share link button on a deck. Opening the link on any device shows the deck (commander, cards, build settings) with a Save to my decks button.
+   - *Builds on:* Export (it already shares the list as text) and the backup format.
+   - *Size:* Small. *Upgrades engine:* no.
+   - *Risks:* very long decks can make a long link; the deck is packed into the link itself, so nothing is stored online and no account is needed.
+   - *Tested by:* a test that shares a deck, opens the link in a fresh browser and checks every card and setting arrives; phone and iPad check.
+6. **Card lists by job**
    - *You'll see:* on a deck: the best ramp, card draw, removal, board wipes and protection for this commander, ranked, with price, popularity and score chips.
    - *Builds on:* the upgrade engine's values and EDHREC data.
    - *Size:* Small. *Upgrades engine:* reads it only, no change.
    - *Risks:* none; it reads the same values the upgrade list uses.
    - *Tested by:* the top cards for a test deck must match the engine's own ranking for that job.
-8. **Collection value and stats**
-   - *You'll see:* on the Library: total value, value by colour and type, most valuable cards, and how many of your cards appear in your decks.
-   - *Builds on:* the Library and the card prices.
+7. **Game Changer extra rows**
+   - *You'll see:* either the same up-to-3 extra Game Changer rows, fewer, or none.
+   - *Builds on:* Build 81's Game Changer rows (each still passes the score check).
+   - *Size:* Small. *Upgrades engine:* yes, discuss first.
+   - *Risks:* the rows lower top-10 agreement with players slightly on small decks but help players moving up a bracket.
+   - *Tested by:* upgrade benchmark before and after; Game Changer count report.
+8. **Real-device check**
+   - *You'll see:* nothing new: confirmation that card pictures, symbols and layout look right on a real phone and iPad.
+   - *Builds on:* all screens.
    - *Size:* Small. *Upgrades engine:* no.
-   - *Risks:* prices are estimates from the card data; shown as such.
-   - *Tested by:* a test library with known prices must add up exactly.
-9. **Lands helper**
+   - *Risks:* the test environment blocks the image server, so this needs the owner's phone and iPad or a test run with images allowed.
+   - *Tested by:* screenshots on real devices of every main screen.
+
+### Medium
+
+9. **Price history**
+   - *You'll see:* a small price line on each card (its price on the days the app has seen it), and the held-pick price chip shows the trend.
+   - *Builds on:* the card-data download (prices come with it) and the "Was $X when picked" chip.
+   - *Size:* Medium. *Upgrades engine:* no.
+   - *Risks:* the app only knows prices from days it downloaded card data, so history starts when the feature ships and grows over time; storage must stay small on phones.
+   - *Tested by:* a test that loads two card-data snapshots with different prices and checks the history and chip; storage size check.
+10. **Search cards by what they do**
+   - *You'll see:* plain-word filters in Card search: "draws when a creature dies", "makes treasure", "sacrifice outlet" and more, combined with colours and price.
+   - *Builds on:* the role and theme tags the engine already gives every card.
+   - *Size:* Medium. *Upgrades engine:* no.
+   - *Risks:* tags are pattern matches on card text, so some cards will be missed or wrongly included; each filter needs a checked list of examples.
+   - *Tested by:* a fixed list of known cards per filter must all be found, and known non-matches must not be.
+11. **Decks you can build**
+   - *You'll see:* a page listing the commanders your owned cards fit best, with how many of each deck you already own and what the rest would cost; tap one to Generate it from your cards.
+   - *Builds on:* the Library (owned cards) and Generate with "cards I already own".
+   - *Size:* Medium. *Upgrades engine:* no.
+   - *Risks:* checking every commander is slow, so it ranks a shortlist (popular commanders in your colours) in the background.
+   - *Tested by:* a test library built from a precon should rank that precon's commander at or near the top.
+12. **Lands helper**
    - *You'll see:* a land panel: how many lands, how many of each colour source the deck needs (from its spells), and which lands to add or cut, including utility lands strong decks play.
    - *Builds on:* the mana base builder and the practice games.
-   - *Size:* Medium. *Upgrades engine:* touches it (land suggestions), discuss first.
+   - *Already done (Builds 99-103):* the Mana alert offers land swaps, too many lands is flagged, and spare lands can go for other cards in the Show menus, the card window and the Upgrades list. What's left is the panel itself: colour sources needed versus what the deck has.
+   - *Size:* Medium (smaller now). *Upgrades engine:* touches it (land suggestions), discuss first.
    - *Risks:* it suggests land swaps, which overlaps the upgrade list; it should reuse the same score check.
    - *Tested by:* colour-source counts checked against known decks; practice games must show fewer colour problems after its suggestions.
 
-## Accuracy work
+### Large
 
-10. **Smarter deck score**
+13. **Visible practice games**
+   - *You'll see:* a "Practice" panel: draw opening hands, mulligan, and watch a few turns of the app's practice games (lands played, mana, spells cast), with how often the deck is short of lands or colours.
+   - *Builds on:* the practice-game simulator the deck score already runs in the background.
+   - *Size:* Large. *Upgrades engine:* no.
+   - *Risks:* showing the games is easy; making the play choices look sensible to a player is harder, so it starts as hands and simple turns.
+   - *Tested by:* seeded games give the same hands every run; tests check hand size, mulligans and land counts.
+14. **Smarter deck score**
    - *You'll see:* better suggestions in every list, and fewer odd "Unpopular pick" chips.
    - *Builds on:* the deck score (synergy, balance, card quality, ways to win, practice games).
    - *Size:* Large. *Upgrades engine:* yes, discuss first.
@@ -88,43 +118,14 @@ Live: Build 96. Each item ships as its own build: build, run the full test suite
        tournament staples cost far more than $12.
      - Note: tournament decks are the strongest level of play (Bracket 5). Matching them fully is a goal for an
        optional "Tournament" build, not for every Apex deck.
-11. **Game Changer extra rows**
-   - *You'll see:* either the same up-to-3 extra Game Changer rows, fewer, or none.
-   - *Builds on:* Build 81's Game Changer rows (each still passes the score check).
-   - *Size:* Small. *Upgrades engine:* yes, discuss first.
-   - *Risks:* the rows lower top-10 agreement with players slightly on small decks but help players moving up a bracket.
-   - *Tested by:* upgrade benchmark before and after; Game Changer count report.
-12. **Card search sort by the app's measures**
-   - *You'll see:* Sort in Card search by score impact on the open deck, role and popularity.
-   - *Builds on:* the decklist sort and the upgrade values.
-   - *Size:* Small. *Upgrades engine:* reads it only, no change.
-   - *Risks:* score impact needs the open deck and takes a moment for long result lists; it is worked out in the background.
-   - *Tested by:* sorted order checked against the values for a test deck.
-
-## Checks and cleanup
-
-13. **Real-device check**
-   - *You'll see:* nothing new: confirmation that card pictures, symbols and layout look right on a real phone and iPad.
-   - *Builds on:* all screens.
-   - *Size:* Small. *Upgrades engine:* no.
-   - *Risks:* the test environment blocks the image server, so this needs the owner's phone and iPad or a test run with images allowed.
-   - *Tested by:* screenshots on real devices of every main screen.
-14. **Remove leftover code**
-   - *You'll see:* nothing visible.
-   - *Builds on:* code from replaced features (old alternative columns, old tier helpers).
-   - *Size:* Small. *Upgrades engine:* no.
-   - *Risks:* removing something still used; the full suite catches it.
-   - *Tested by:* full suite before and after; app size before and after.
 
 ## Open decisions
 
+- **Game Changer extra rows**: keep, trim or remove (item 7).
 - **Unpopular pick chip**: about half of all alternatives carry it, because the
   deck score often likes cards players skip. Option: show it only when the gap
-  over the suggested card is large.
-- **Game Changer extra rows**: keep, trim or remove (see item 11).
-- **Confirm single-card swaps?** Since Build 95, every button that changes many
-  cards at once asks first. Single-card swaps are still one tap, with Undo.
-  Option: make them ask too.
+  over the suggested card is large. (The Highest score pick, Build 103, now shows
+  the best-scoring card on every row anyway.)
 - **Closer plan weighting in the upgrades engine?** Build 96 changed only the fit
   tip: plans weighted 2 / 1.75 / 1.5, plus 1.25 for each extra plan a card hits.
   The engine still weights plans 5 / 3.6 / 2.6. This is an upgrades-engine change,
@@ -133,10 +134,20 @@ Live: Build 96. Each item ships as its own build: build, run the full test suite
   by the app's deck score cut agreement with real players to about zero, so popular
   picks lead. Revisit only with proof the score beats player data.
 
+### Settled
+
+- Every swap and every add asks first (Builds 95 and 97).
+- Spare lands may come out for other cards, one per land over the target, never at
+  or under it (Builds 100 and 103).
+- Each upgrade row shows its Highest score card beside the popular picks (Build 103).
+
 ## Known limits
 
 - Checking upgrades takes about 1 s longer per deck (2-3 s on a phone) because
-  alternatives are measured; the list shows "checking" meanwhile.
+  alternatives are measured; the list shows "checking" meanwhile. Decks over their
+  land target take a few seconds more (spare-land swaps need fresh practice games).
+- Opening a card's window to put it in a full deck takes about half a second (it is
+  weighed against every card it could replace).
 - Deck history records changes saved through the app's buttons.
 
 ## Standing rules from the owner
@@ -170,3 +181,8 @@ chip, decklist sort and role filter, Considering list, compare decks, deck histo
 +/- score on every option, no suggestions already in the deck, Add to buy list
 and Add to library, players at your table, Mana alert Fix this (land swaps),
 confirmations on many-card buttons, fit tip weighs plans more closely.
+97-103: every swap and add asks first, a typed card is weighed against the whole
+deck, Add to Buy List on every upgrade row (Remove suggestion, Alternate Options),
+Mana fix handles missing lands, spare lands can go for other cards (Show menus,
+card window, Upgrades list; never past the surplus), too many lands is flagged,
+the buy list keeps your place, Show / Show all buttons, Highest score pick per row.
