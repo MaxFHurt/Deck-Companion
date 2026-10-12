@@ -245,7 +245,7 @@ function cardHtml(c, mini, pr, extra){
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3200); }
 
 // ---------- storage ----------
-let cloud = null, saving = false, dirty = false, saveT = 0;
+let saveT = 0;
 function loadLocal(){ try { const p = JSON.parse(localStorage.getItem('dc.profile') || 'null'); if (p && Array.isArray(p.decks)) S.profile = p; } catch (e) {} const dr = lsGet('dc.draft'); if (dr && Array.isArray(dr.cards)) S.draft = dr; }
 // Undo (main screen): every change to your decks, buy lists or library is recorded when it is saved, one step per action, so
 // the Undo button puts back the state before the last action, whatever it was. Kept for this visit only (the last 30 steps).
@@ -276,22 +276,6 @@ async function persist(){
   try { localStorage.setItem('dc.profile', json); } catch (e) {}
   lsSet('dc.draft', S.draft || null);
   if (S.autoBackup) writeLinked();
-  if (!cloud) return; if (saving){ dirty = true; return; }
-  saving = true; try { await cloud.set({json, updatedAt:S.profile.updatedAt}); S.sync = 'cloud'; } catch (e) { S.sync = 'local'; if (e && e.code === 'quota_exceeded') toast('Profile storage is full. Delete a deck to keep saving to your account.'); }
-  saving = false; if (dirty){ dirty = false; persist(); } else if (S.view === 'profile') render();
-}
-async function initCloud(){
-  try {
-    if (!window.claude || !window.claude.use) return;
-    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]); if (!db || !user) return;
-    const id = await user.id(); if (!id) return;
-    const ref = db.doc('data/users/' + id + '/profile'), snap = await ref.get(); cloud = ref; S.sync = 'cloud';
-    if (snap.exists){ const data = snap.data(); let p = null; try { p = JSON.parse(data.json); } catch (e) {}
-      if (p && Array.isArray(p.decks) && (S.profile.example || (p.updatedAt || 0) >= (S.profile.updatedAt || 0))){ S.profile = p; UNDO.base = null; UNDO.stack = []; if (!cur()){ S.deckId = p.decks[0] ? p.decks[0].id : null; if (!S.deckId) S.view = 'decks'; } }
-      else if (!S.profile.example) persist(); }
-    else if (!S.profile.example) persist();
-    render();
-  } catch (e) {}
 }
 function idb(mode, fn){ return new Promise((res, rej) => { let rq; try { rq = indexedDB.open('deck-companion', 1); } catch (e) { return rej(e); }
   rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => rej(rq.error);
@@ -737,7 +721,7 @@ function aimPanel(d, ctx){
   else h += '<div class="row">' + pool.map(c => '<button class="pip p' + c + ((d.colors || []).includes(c) ? ' on' : '') + '" data-act="color" data-v="' + c + '" aria-pressed="' + (d.colors || []).includes(c) + '"' + dis + '>' + c + '</button>').join('') + '</div><p class="note" style="margin:0">' + (d.format === 'commander' ? 'Focus colors get most of the basic lands and first pick of upgrades. The rest become a light splash.' : 'Pick one to three colors. Every card must fit inside them.') + '</p>';
   h += '</div>';
   if (d.format === 'commander' && ctx.cmd && aimed) h += '<div class="grp"><span class="lab">Generate</span><div class="row"><button class="btn pri" data-act="build-gen">Generate a build with these settings</button></div><p class="note" style="margin:0">Designs a full 100-card build for ' + esc(ctx.cmd.n.split(',')[0]) + (ctx.par ? ' and ' + esc(ctx.par.n.split(',')[0]) : '') + ' from the mechanics above, in their order, and your filters and colors, at the ' + TIERS[S.gen.tier || 'apex'].label + ' price level, straight into a new deck. This one stays as it is. Cards you hold here are kept.</p>' + themeFirstToggle(d, lock ? dis : '') + '</div>';
-  h += '<div class="row"><span class="chip ' + (aimed ? 'good' : 'warn') + '">' + (aimed ? 'Deck is aimed' : 'Not aimed yet') + '</span><span class="note">' + (S.sync === 'cloud' ? 'Saved to your profile' : 'Saved in this browser') + '</span></div></section>';
+  h += '<div class="row"><span class="chip ' + (aimed ? 'good' : 'warn') + '">' + (aimed ? 'Deck is aimed' : 'Not aimed yet') + '</span><span class="note">' + 'Saved in this browser' + '</span></div></section>';
   return h;
 }
 // Theme first on an existing deck: its upgrades and builds put the commander's own set and creature types first.
@@ -861,15 +845,6 @@ function buyPanel(d){
   if (!isAimed(d) && !(d.want || []).length) return '<div class="scroll"><div class="gate"><b>Set up the build first</b>The buy list comes from the deck’s upgrade paths, which need the build to be set. You can also add any card from Card search.</div></div>';
   return '<div class="row"><span class="lab" style="flex:1">What to buy, by the card it replaces</span><button class="btn pri sm" data-act="buy-copy">Copy as text</button><button class="btn sm" data-act="buy-save">Save text file</button></div>' +
     '<div class="scroll" id="buyscroll" data-keep>' + buyHtml(d) + '</div>';
-}
-function openBuy(){
-  const d = cur(); if (!d) return; S.modalCard = null;
-  let h = '<div class="panel" role="dialog" aria-label="Buy list"><div class="ph"><h2>Buy list</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>';
-  if (!isAimed(d) && !(d.want || []).length) h += '<p class="note" style="margin:0">Set up the build first. The buy list comes from the deck’s upgrade paths. You can also add any card from Card search.</p>';
-  else {
-    h += '<div class="row"><button class="btn pri" data-act="buy-copy">Copy as text</button><button class="btn" data-act="buy-save">Save text file</button></div>' + buyHtml(d);
-  }
-  $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
 }
 // Export: the decklist (or, for a build in progress, the full build at a tier) as text or a spreadsheet file.
 function exportRows(d, what){
@@ -1080,10 +1055,6 @@ function planHtml(d){
 // The best-under-$X package is a second full search, so it is worked out when you ask for it (it is then kept for this deck).
 // The pick shown for a tier: its own pick; else the Apex card when it already costs under the tier's price; else, for a higher
 // tier, the best cheaper pick (no stronger card was found, so it is the best at every tier above it).
-function effTier(L, t){ const O = L.opts, ap = O.apex && find(O.apex.add);
-  if (t === 'apex') return O.apex ? 'apex' : O.mid ? 'mid' : O.budget ? 'budget' : null;
-  if (O[t]) return t; if (O.apex && (O.apex.own || (ap && underCap(ap.p, t)))) return 'apex';
-  if (t === 'mid') return O.budget ? 'budget' : null; const mc = O.mid && find(O.mid.add); return O.mid && mc && underCap(mc.p, 'budget') ? 'mid' : null; }
 // The upgrade table's three slots for one row. The best card is always in the Apex slot. A cheaper slot whose pick would just
 // repeat a card already shown above it gets the next worthwhile card instead: one doing the same job, under that slot's
 // price, raising the deck score by at least half as much as the best card (the alternatives rule). Only when there is none
@@ -2088,7 +2059,6 @@ function handleAct(act, v, n, pArg){
     case 'restore-replace': case 'restore-merge': { const R = S.pendingRestore; if (!R) return; const keep = act === 'restore-merge' ? S.profile.decks.filter(x => !x.example) : [], ids = new Set(keep.map(x => x.id));
       R.p.decks.forEach(x => { if (ids.has(x.id)) x.id = uid(); }); S.profile = Object.assign({name:'Planeswalker'}, R.p, {decks:keep.concat(R.p.decks)}); S.deckId = (S.profile.decks[0] || {}).id || null; S.pendingRestore = null; toast('Restored ' + R.p.decks.length + ' decks from your backup.'); break; }
     case 'db-update': if (autoUpdate.busy) toast('An update is already running.'); else autoUpdate(null, 'You pressed Update now'); return;
-    case 'copy-list': copyText(deckToText(d), 'Deck list copied.'); return;
     case 'export-open': openExport(); return;
     case 'export-what': S.exp = v; openExport(); return;
     case 'export-print': S.expPrint = v === '1'; openExport(); return;
@@ -2096,7 +2066,6 @@ function handleAct(act, v, n, pArg){
     case 'export-txt': saveText(exportName(d) + '.txt', exportText(d, S.exp)); toast('Deck list saved.'); return;
     case 'export-csv': saveText(exportName(d) + '.csv', exportCsv(d, S.exp)); toast('Spreadsheet saved.'); return;
     case 'export-share': navigator.share({title:d.name, text:exportText(d, S.exp)}).catch(() => {}); return;
-    case 'export-profile': copyText(JSON.stringify(S.profile), 'Profile backup copied.'); return;
     case 'import-open': openImport(); return;
     case 'mana-accept': case 'mana-skip': { const pd = S.pend; S.pend = null; if (!pd) return; $('#modal').hidden = true; S.manaOK = true; try { handleAct(pd.act, pd.v, pd.n); } finally { S.manaOK = false; }
       if (act === 'mana-accept'){ const dk = cur(), plan = manaPlan(dk); if (plan.changes.length){ applyMana(dk, plan); touch(); render(); toast('Lands adjusted: ' + planText(plan) + '.'); } } return; }
@@ -2106,7 +2075,6 @@ function handleAct(act, v, n, pArg){
     case 'fc-color': { const s = new Set(S.fc.colors); if (s.has(v)) s.delete(v); else s.add(v); S.fc.colors = 'WUBRG'.split('').filter(x => s.has(x)); openFindCmd(); return; }
     case 'fc-pick': { const old = switchCommander(d, n); S.fc = null; $('#modal').hidden = true; toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' can now be suggested as an upgrade.' : '')); break; }
     case 'cmd-switch': { const old = switchCommander(d, n); touch(); render(); toast(n + ' is now the commander.' + (old && old !== n ? ' ' + old + ' can now be suggested as an upgrade.' : '')); openCard(v); return; }
-    case 'buy-open': openBuy(); return;
     case 'buy-copy': copyText(buyText(d), 'Buy list copied.'); return;
     case 'buy-save': saveText(d.name.replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '-buy-list.txt', buyText(d)); toast('Buy list saved to your downloads.'); return;
     case 'precon-open': openPrecons(); return;
