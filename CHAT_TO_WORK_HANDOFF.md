@@ -14,9 +14,10 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 ## Current state
 
-- Live: **Build 117**. All tests pass (74 UI tests); benchmark agreement@5 0.233 / 0.286 / 0.292.
+- Live: **Build 118**. All tests pass (75 UI tests); benchmark agreement@5 0.233 / 0.286 / 0.292.
 - Builds 114-117: our own land formula, Game Changer rows trimmed, phone layout, iPhone fixes.
-- Next (owner's order): smarter deck score, stage 1 (tournament staples for Apex).
+- Build 118: smarter deck score, stage 1. Apex values tournament staples; our decks match top tournament lists 57% (was 49%).
+- Next: not chosen yet.
 - A new work session starts from `WORK_SESSION_HANDOFF.md`.
 
 ## To Work

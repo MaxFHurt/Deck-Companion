@@ -50,6 +50,11 @@ for (const [slug] of list){
       else if ((m = /^Backup for your (.+) combo \((.+)\): it can take the place of (.+) \(Commander Spellbook, ([\d,]+) decks\)$/.exec(s))){ const full = m[1].split(' + '), have = new Set(d.cards.map(e => e.n).concat([d.commander, d.partner].filter(Boolean))), rest = full.filter(n => n !== m[3]);
         check('combo backup', full.every(n => have.has(n)) && !!comboSets.find(x => x.names.size === full.length && full.every(n => x.names.has(n)) && x.win) && !!findCombo(rest.concat([ca.n]), m[2], +m[4].replace(/,/g, '')), s, p); }
       else if (s === 'Game Changer: among the strongest cards in Commander') check('game changer (Scryfall flag)', !!c.gc, s, p);
+      // tournament staples, checked on the card's own text: fast mana makes mana for 2 or less; free interaction has a way to cast
+      // it without its mana cost (or costs 1); the best lands are lands that come in untapped or fetch
+      else if (s === 'Tournament staple: fast mana') check('tournament fast mana', (c.cmc || 0) <= 2 && /\badd\b/i.test(c.o || ''), s, p);
+      else if (s === 'Tournament staple: free or one-mana interaction') check('tournament free interaction', /rather than pay|without paying|\bEvoke\b/i.test(c.o || '') || (c.cmc || 0) <= 1, s, p);
+      else if (s === 'Tournament staple: one of the best lands') check('tournament land', !!run('tags')(c).land && (run('landSpeed')(c) === 'untapped' || /search your library/i.test(c.o || '')), s, p);
       else if (s === 'From your chosen set') check('in chosen set', run('inSets')(c, d), s, p);
       else check('UNRECOGNISED', false, s, p);
     }); }));

@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 117. Each item ships as its own build: build, run the full test suite
+Live: Build 118. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -49,7 +49,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 1. ~~Our own land formula~~: done in Build 114.
 2. ~~Game Changer rows: trim~~: done in Build 115.
 3. ~~Phone layout~~: done in Build 116.
-4. **Smarter deck score, stage 1**: tournament staples (fast mana, free interaction, best lands) for Apex.
+4. ~~Smarter deck score, stage 1~~: done in Build 118 (tournament comparison: match 49% to 57%, core 45% to 55%; benchmark unchanged).
 
 ## Parked (not needed for now, per the owner)
 
@@ -163,3 +163,8 @@ the real build number.
 117: phones: Continue card moved under the home tiles (above Profile), extra deck buttons removed; sideways
 phones get shorter home tiles and a one-column deck screen where the page scrolls (no fixed boxes), one row of
 deck buttons and smaller tabs; iPad unchanged.
+118: smarter deck score, stage 1: in Apex decks, tournament staples (fast mana, free or one-mana interaction, the best lands)
+are worth more when this commander's players run them (full value at 10% of decks), say why, and the best lands count toward card
+quality and may replace basics (up to 6 past the usual room). Tournament comparison (`tourney.js`, 10 commanders, 20 top-16 lists each):
+our cards matching 49% to 57%, shared core 45% to 55%, missed core cards that raise the score 24 to 43 of 80, Mid 45% to 50%;
+upgrade benchmark agreement@5 unchanged (0.233 / 0.286 / 0.292); popular picks still lead the upgrade list.

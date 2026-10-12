@@ -747,6 +747,13 @@ const b117 = {}; { for (const [k, vw, vh] of [['phoneP', 390, 844], ['phoneL', 8
       out.narrow = document.querySelector('.app').classList.contains('narrow'); out.workFixed = !!w.style.height; out.pageScrolls = document.scrollingElement.scrollHeight > innerHeight + 200; out.barOneRow = bar.scrollHeight <= 60; return out; }); }
   await page.setViewportSize({width:1300, height:900}); await page.evaluate(() => { render(); }); }
 T('UI-B117-01', 'Phones: Continue under the home tiles and above Profile, no extra deck buttons; sideways phone deck screen is one column with the page scrolling and one row of deck buttons; iPad landscape unchanged (two panes, fixed working area)', b117.phoneP.order === 'tiles>continue>profile' && b117.phoneL.order === 'tiles>continue>profile' && !b117.phoneP.extra && b117.phoneL.narrow && !b117.phoneL.workFixed && b117.phoneL.pageScrolls && b117.phoneL.barOneRow && !b117.ipadL.narrow && b117.ipadL.workFixed, JSON.stringify(b117));
+// 68. Build 118: smarter deck score, stage 1. In an Apex deck a tournament staple (fast mana, free interaction, the best lands) is
+// worth more and says why; the best lands count toward card quality. Mid decks are unchanged.
+const b118 = await page.evaluate(() => { const mk = t => { const d = newDeck({name:'Staples ' + t, format:'commander'}); setCommander(d, 'Tivit, Seller of Secrets'); d.tier = t; return d; };
+  const A = mk('apex'), M = mk('mid'), cA = ctxOf(A), cM = ctxOf(M), mox = find('Mox Diamond'), fow = find('Force of Will'), sA = baseScore(mox, A, cA), sM = baseScore(mox, M, cM);
+  return {apexWhy:sA.why.includes('Tournament staple: fast mana'), midWhy:sM.why.some(w => /Tournament/.test(w)), gain:+(sA.s - sM.s).toFixed(2), fowWhy:baseScore(fow, A, cA).why.includes('Tournament staple: free or one-mana interaction'),
+    tombA:spellMean([{n:'Ancient Tomb', q:1}], A, cA) > 0, tombM:spellMean([{n:'Ancient Tomb', q:1}], M, cM) === 0}; });
+T('UI-B118-01', 'Smarter deck score, stage 1: in an Apex deck tournament staples (Mox Diamond, Force of Will) score higher and say why, and Ancient Tomb counts toward card quality; a Mid deck is unchanged', b118.apexWhy && !b118.midWhy && b118.gain >= 5.9 && b118.fowWhy && b118.tombA && b118.tombM, JSON.stringify(b118));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
