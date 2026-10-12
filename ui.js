@@ -1704,6 +1704,8 @@ function tipHtml(d, c){
   const f = evalFit(d, c); if (ownSet().has(c._n)) f.pros.unshift('You already own this card, so it costs nothing to add.'); const li = (xs, k, m) => xs.map(x => '<li class="' + k + '"><i>' + m + '</i>' + esc(x) + '</li>').join('');
   return '<div class="tip ' + f.level + '"><b><small>Tip</small>' + esc(f.title) + '</b><ul>' + li(f.pros, 'pro', '+') + li(f.cons, 'con', '–') + '</ul></div>';
 }
+// The deck score change for one swap in the card window; tiny changes read as unchanged.
+function wantChip(v){ return v == null ? '' : Math.abs(v) < SCORE_MIN ? '<span class="chip" title="Change to the deck score if you make this swap">Score unchanged</span>' : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="Change to the deck score if you make this swap">' + (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1) + ' score</span>'; }
 function wantHtml(d, c){
   if (offColor(d, c)) return recolorHtml(d, c);
   const A = analyze(d), open = A.T.size - A.size, warn = !legalIn(c, d.format) ? 'Not legal in ' + d.format : (A.ctx.ident.length || A.ctx.cmd) && !c.ci.every(x => A.ctx.ident.includes(x)) ? 'Outside this deck’s colors' : '';
@@ -1711,13 +1713,17 @@ function wantHtml(d, c){
   // it fits; the other cards it could replace come last, after the card's details (wantMore, added at the bottom).
   S.wantMore = ''; const lab = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>';
   if (open > 0) return lab + '<div class="row"><button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add it · ' + open + ' open slot' + (open === 1 ? '' : 's') + '</button></div>' + tipHtml(d, c) + '</div>';
-  const cuts = bestCuts(d, c.n, 3);
+  // Weigh this card against every card it could plausibly replace: the deck score with each swap made, best first. Both cards
+  // can be weak for the deck and the swap still be a gain, so the player sees the +/- on each one.
+  const e = d.format === 'commander' && A.size >= 90 ? evalFor(d) : null, ar = e && e.exact != null ? apexFor(d) : null;
+  let cuts = bestCuts(d, c.n, e && e.exact != null ? 8 : 3);
+  if (e && e.exact != null){ cuts.forEach(x => { x.dScore = swapScore(d, e, ar, x.n, c.n, 1); }); cuts = cuts.map((x, i) => [x, i]).sort((a, b) => (b[0].dScore ?? -1e9) - (a[0].dScore ?? -1e9) || a[1] - b[1]).map(x => x[0]).slice(0, 3); }
   if (!cuts.length) return lab + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div>' + tipHtml(d, c) + '</div>';
   const side = (n, cls, small) => { const k = find(n); return '<button class="sw ' + cls + '" data-act="card" data-n="' + esc(n) + '">' + (k ? '<img alt="" src="' + artFor(k) + '">' : '<span></span>') + '<span><small>' + small + '</small>' + esc(n) + '</span><em>' + money(k) + '</em></button>'; };
-  const b = cuts[0];
-  let h = lab + '<div class="swaphero">' + side(b.n, 'out', 'Take out') + '<span class="arrow" aria-hidden="true">→</span>' + side(c.n, 'in', 'Put in') + '</div>' +
-    '<div class="row"><span class="chip good">Best swap</span><span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c) + '</div>';
-  S.wantMore = '<div class="grp"><span class="lab">Or take out instead</span>' + cuts.slice(1).map(x => '<div class="path">' + side(x.n, 'out', 'Take out') + '<div class="row"><span class="chip">' + esc(x.why[0]) + '</span><button class="btn sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>').join('') +
+  const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
+  let h = lab + note + '<div class="swaphero">' + side(b.n, 'out', 'Take out') + '<span class="arrow" aria-hidden="true">→</span>' + side(c.n, 'in', 'Put in') + '</div>' +
+    '<div class="row"><span class="chip good">Best swap</span>' + wantChip(b.dScore) + '<span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c) + '</div>';
+  S.wantMore = '<div class="grp"><span class="lab">Or take out instead</span>' + cuts.slice(1).map(x => '<div class="path">' + side(x.n, 'out', 'Take out') + '<div class="row">' + wantChip(x.dScore) + '<span class="chip">' + esc(x.why[0]) + '</span><button class="btn sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>').join('') +
     '<div class="row"><button class="btn sm" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add without removing anything</button></div></div>';
   return h;
 }
