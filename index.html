@@ -362,6 +362,22 @@ a{color:var(--glow)}
   .modal{padding:6px} #toast{bottom:8px}
 }
 @media (orientation:landscape) and (max-height:400px){ .tile.big p{display:none} }
+/* Phones only (portrait up to 500px wide, or landscape up to 560px tall); iPad and desktop never match these. */
+.phone-only{display:none}
+@media (max-width:500px), (orientation:landscape) and (max-height:560px){
+  .hero{display:none}
+  .phone-only{display:block}
+  .continue{display:flex;flex-direction:column;gap:6px}
+  .continue .tile{width:100%;display:flex;flex-direction:row;align-items:center;text-align:left} .continue .tile img{width:92px;height:64px;flex:0 0 92px;object-fit:cover;border-radius:6px;margin:6px} .continue .tb{padding:6px 10px 6px 4px} .continue .tb h3{font-size:16px;margin:2px 0} .continue .tb p{font-size:12.5px;margin:0}
+  .continue .recent{display:flex;gap:6px;flex-wrap:wrap} .continue .recent .btn{flex:1 1 30%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;padding:6px 8px}
+}
+@media (orientation:landscape) and (max-height:560px){
+  /* the full name in the slim landscape header, on one line */
+  .brand span,.top.home .brand span{display:inline;font:900 15px/1 var(--display);letter-spacing:.08em;margin:0 0 0 .3em;color:transparent;background:linear-gradient(180deg,#fff,#cfc6ee 45%,#8f86b8);-webkit-background-clip:text;background-clip:text}
+  .brand b,.top.home .brand b{display:inline} .brand > div{display:flex;align-items:baseline;white-space:nowrap}
+  /* stay clear of the notch without the full safe-area band */
+  .app{padding-inline:max(8px,calc(env(safe-area-inset-left,0px) - 22px)) max(8px,calc(env(safe-area-inset-right,0px) - 22px))}
+}
 @media (prefers-reduced-motion:reduce){ .brand .spin,.brand .pulse{animation:none} button.card:hover{transform:none} }
 </style>
 </head>
@@ -385,7 +401,7 @@ a{color:var(--glow)}
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC; combos from <a href="https://commanderspellbook.com" target="_blank" rel="noopener">Commander Spellbook</a>. Build 80.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC; combos from <a href="https://commanderspellbook.com" target="_blank" rel="noopener">Commander Spellbook</a>. Build <span id="build-no">116</span>.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
@@ -393,7 +409,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 115;
+window.BUILD = 116;
 (function(){
   var last = 0;
   function check(){
@@ -405,9 +421,9 @@ window.BUILD = 115;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=115"></script>
-<script src="lists.js?v=115"></script>
-<script src="engine.js?v=115"></script>
-<script src="ui.js?v=115"></script>
+<script src="data.js?v=116"></script>
+<script src="lists.js?v=116"></script>
+<script src="engine.js?v=116"></script>
+<script src="ui.js?v=116"></script>
 </body>
 </html>

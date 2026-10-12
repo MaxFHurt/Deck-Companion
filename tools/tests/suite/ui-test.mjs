@@ -729,6 +729,14 @@ const b115 = await page.evaluate(async () => { const out = {}, w = S.profile.dec
   out.none = count(mk('g0', [])); out.three = count(mk('g3', GC)); out.mid = count(mk('gm', [], 'mid')); out.gcs = GC;
   out.okNone = out.none.extra <= Math.max(0, 3 - out.none.gcIn - out.none.gcPicks); out.okThree = out.three.gcIn >= 3 && out.three.extra === 0; out.okMid = out.mid.extra === 0; return out; });
 T('UI-B115-01', 'Game Changer rows trimmed: extra rows only fill the room under Bracket 3’s three (deck and picks counted); none once the deck holds three; none below Apex', b115.okNone && b115.okThree && b115.okMid, JSON.stringify(b115));
+// 66. Build 116: phone layout. On phones (portrait and landscape) the home tagline is hidden and a Continue card for the last
+// deck shows above the tiles; the header reads the full name; iPad (portrait and landscape) and desktop are unchanged.
+const b116 = {}; { const w = await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); recentAdd(d.id); return d.name; });
+  for (const [k, vw, vh] of [['phoneP', 390, 844], ['phoneL', 844, 390], ['ipadP', 820, 1180], ['ipadL', 1180, 820], ['desk', 1300, 900]]){ await page.setViewportSize({width:vw, height:vh}); await page.waitForTimeout(150);
+    b116[k] = await page.evaluate(n => { S.view = 'home'; S.open = false; $('#modal').hidden = true; render(); const c = document.querySelector('.continue');
+      return {hero:getComputedStyle(document.querySelector('.hero')).display !== 'none', cont:!!c && getComputedStyle(c).display !== 'none', name:!!c && c.textContent.includes(n), brand:document.querySelector('.brand').innerText.replace(/\s+/g, ' ').trim()}; }, w); }
+  await page.setViewportSize({width:1300, height:900}); await page.evaluate(() => { S.view = 'decks'; S.open = true; render(); }); }
+T('UI-B116-01', 'Phone layout: on phones (portrait and landscape) no tagline, a Continue card for the last deck, and the header reads Deck Companion; iPad portrait, iPad landscape and desktop unchanged', ['phoneP', 'phoneL'].every(k => !b116[k].hero && b116[k].cont && b116[k].name) && ['ipadP', 'ipadL', 'desk'].every(k => b116[k].hero && !b116[k].cont) && Object.values(b116).every(x => /DECK COMPANION/i.test(x.brand)), JSON.stringify(b116));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
