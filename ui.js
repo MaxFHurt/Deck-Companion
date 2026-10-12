@@ -1133,6 +1133,14 @@ function altSrc(d, v){ const [k, a, b] = String(v || '').split('|');
   if (k === 'plan'){ const x = (d.plan || []).find(y => y.id === +a), n = x && (b === 'b' ? x.b : b === 'm' ? x.m : x.a); return n ? {kind:'plan', x, key:b, n, q:x.q} : null; }
   if (k === 'up'){ const L = recsFor(d).paths[+a], p = L && L.opts[b]; return p ? {kind:'up', t:b, n:p.add, q:p.q, cut:p.cut, dScore:p.dScore} : null; }
   return null; }
+// Highest score: the card that raises the deck score most for this slot, of the cards measured, shown under the tier picks
+// (popular picks still lead). Shown when it is not already one of the picks and beats the Apex pick by a real margin.
+function topHtml(d, R, L, i){ return '<div class="topslot">' + topInner(d, R, L, i) + '</div>'; }   // always one block, so every row keeps the same rows and lines up
+function topInner(d, R, L, i){ const tp = L.top; if (!tp || tp.dScore < SCORE_MIN || hasCard(d, tp.n)) return '';
+  const cols = rowCols(d, R, L, i), picks = TIER_KEYS.map(t => cols[t] && cols[t].p).filter(Boolean), same = picks.find(p => keyOf(p.add) === keyOf(tp.n)), ap = cols.apex && cols.apex.p;
+  if (same) return '<p class="note" style="margin:0"><span class="chip good">Highest score</span> ' + esc(tp.n) + ' (shown above) raises the deck score the most of the cards measured for this slot.</p>';
+  if (ap && ap.dScore != null && tp.dScore < ap.dScore + 0.1) return '';
+  return '<div class="opt top"><span class="chip good">Highest score</span><button class="sw in" data-act="card" data-n="' + esc(tp.n) + '">' + (find(tp.n) ? '<img alt="" src="' + artFor(find(tp.n), {pid:find(tp.n).id}) + '">' : '<span></span>') + '<span><small>Add</small>' + esc(tp.n) + printTag(find(tp.n)) + '</span><em>' + money(find(tp.n)) + '</em></button>' + '<div class="row">' + scoreChip(tp.dScore) + (tp.inc < UP.unpop ? '<span class="chip warn" title="Few players of this commander run it">Few players run it</span>' : '') + '</div><div class="row">' + upBuyBtn(d, tp.n) + '<button class="btn pri sm" data-act="swap-top" data-v="' + i + '" data-n="' + esc(tp.n) + '" style="margin-left:auto">Swap</button></div></div>'; }
 function altBtn(v){ return '<button class="btn sm" data-act="alts" data-v="' + v + '">See alternatives</button>'; }
 // Alternatives are never worse than the card now in the slot: each must raise the deck score, and by at least half of what the
 // suggested card does, so it is almost as good. Cards from the commander's set and on-theme cards come first.
@@ -1440,7 +1448,7 @@ function upPanel(d, A){
           const inh = col.kind === 'moved' ? '<span class="chip gold" title="No stronger card was found for this slot, so this is its Apex card.">Best card for this slot</span>' : '';
           return '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + inh + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + (col.kind === 'alt' ? scoreChip(p.dScore) : upChip(L, src) + driftChip(d, p.add, src)) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
             '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Remove suggestion: ' + esc(p.add) + '">Remove suggestion</button>' + (col.kind === 'alt' ? '' : altBtn('up|' + i + '|' + src).replace('>See alternatives<', '>Alternate Options<')) + (p.own ? '' : upBuyBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + (col.kind === 'alt' ? t + '|alt' : src) + '" style="margin-left:auto">Swap</button></div>' + alt3Html(d, R, RC.shown, p, i, t) + '</div>';
-}).join('') + '</div>'; }).join('') + '</div>';
+}).join('') + topHtml(d, R, L, i) + '</div>'; }).join('') + '</div>';
     if (PV.length > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, PV.length - show) + ' more</button>';
   }
   h += '</div>';
@@ -1938,6 +1946,7 @@ const CONFIRM = {
   swap:v => { const d = cur(), [i, t, al] = String(v).split('|'), R = d && recsFor(d), L = R && R.paths[+i], col = al && L ? rowCols(d, R, L, +i)[t] : null, p = col ? col.p : L && L.opts[t]; return swapAsk(p && p.cut, p && p.add); },
   'swap-a3':(v, n) => { const d = cur(), [i, t] = String(v).split('|'), R = d && recsFor(d), L = R && R.paths[+i], col = L && rowCols(d, R, L, +i)[t]; return swapAsk(col && col.p && col.p.cut, n); },
   want:(v, n) => swapAsk(v, n),
+  'swap-top':(v, n) => { const d = cur(), L = d && recsFor(d).paths[+v]; return swapAsk(L && L.cut, n); },
   'fix-swap':v => { const [k, i] = String(v).split('|'), g = (S.fixG || []).find(x => x.k === k), p = g && g.L[+i]; return swapAsk(p && p.cut, p && p.add); },
   'swap-cap':v => { const d = cur(), k = d ? capList(d, v).length : 0; return ['Make ' + (k || 'these') + ' swap' + (k === 1 ? '' : 's') + '?', 'Every card in this price-capped list is swapped in at once. Undo can put them back.', 'Make the swaps']; },
   'add-to-deck':(v, n) => ['Add ' + n + ' to the deck?', n + ' goes into ' + ((cur() || {}).name || 'this deck') + ' without taking anything out. Undo can take it back out.', 'Add it'],
@@ -2154,6 +2163,9 @@ function handleAct(act, v, n, pArg){
     case 'fix-swap': { const [k, i] = String(v).split('|'), g = (S.fixG || []).find(x => x.k === k), p = g && g.L[+i]; if (!d || !p) return; if (fixApply(d, [p])) toast('Swapped ' + p.cut + ' for ' + p.add + '.'); touch(); render(); openFix(S.fixKeys); return; }
     case 'fix-top': { const g = (S.fixG || []).find(x => x.k === v); if (!d || !g) return; const A = analyze(d), tg = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]}[v], n = tg ? Math.max(1, Math.abs(tg[1] - tg[0])) : 1;
       const k = fixApply(d, g.L.filter(p => p.dScore == null || p.dScore >= 0).slice(0, n)); toast('Made ' + k + ' swap' + (k === 1 ? '' : 's') + ' for ' + v + '.'); touch(); render(); openFix(S.fixKeys); return; }
+    // Highest score: the player's own choice over the slot's picks (checked as its own kind, not a tier, so a held pick doesn't block it)
+    case 'swap-top': { const R = recsFor(d), L = R.paths[+v], ref = L && (L.opts.apex || L.opts.mid || L.opts.budget); if (!ref || !n || !L.top || L.top.n !== n || hasCard(d, n)) return; const p = {cut:L.cut, add:n, q:ref.q};
+      const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t:'top'}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.length); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'swap-a3': { const [i, t] = v.split('|'), R = recsFor(d), L = R.paths[+i], col = L && rowCols(d, R, L, +i)[t]; if (!col || !col.p || !n) return; const p = {cut:col.p.cut, add:n, q:col.p.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.indexOf(t) + 1); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'unpop': { const [i, t] = v.split('|'), L = recsFor(d).paths[+i], a = L && ((L.alts || {})[t] || []).find(x => x.n === n); if (!a) return; const cmdN = (find(d.commander) || {n:''}).n.split(',')[0];
