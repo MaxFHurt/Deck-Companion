@@ -37,7 +37,7 @@ T('UI-ID-01', 'Precon loader (Wakanda): every card recognised, no installed card
 const btn = await page.evaluate(() => { const b = document.querySelector('[data-act="dismiss"]'); return b ? {text:b.textContent.trim(), aria:b.getAttribute('aria-label'), n:b.dataset.n} : null; });
 const helpText = await page.evaluate(() => document.body.innerText.includes('excludes that card from this deck’s recommendations. Your deck stays unchanged'));
 const oldLabel = await page.evaluate(() => document.body.innerText.includes('Not this card'));
-T('UI-EX-01', 'Button reads “Don’t suggest for this deck”, names the card for screen readers, and is explained on the page', !!btn && btn.text === 'Don’t suggest for this deck' && btn.aria === 'Don’t suggest ' + btn.n + ' for this deck' && helpText && !oldLabel, JSON.stringify(btn) + ' help text: ' + helpText + ', old label left: ' + oldLabel);
+T('UI-EX-01', 'Button reads “Remove suggestion”, names the card for screen readers, and is explained on the page', !!btn && btn.text === 'Remove suggestion' && btn.aria === 'Remove suggestion: ' + btn.n && helpText && !oldLabel, JSON.stringify(btn) + ' help text: ' + helpText + ', old label left: ' + oldLabel);
 
 // 3. Clicking it excludes the card for this deck only; the deck is unchanged; nothing is swapped.
 const before = await page.evaluate(() => { const d = cur(); return {cards:JSON.stringify(d.cards), cmd:d.commander, size:analyze(d).size, recP:JSON.stringify(d.recP || {})}; });
@@ -218,12 +218,12 @@ const lk = await page.evaluate(async () => { const out = {}; S.draft = null; S.g
   S.tab = 'buy'; render(); out.buyShows = /Added by you/.test(document.body.textContent); const i = wantOf(g).findIndex(x => x.n === n); handleAct('want-rm', String(i)); out.unmarkedByRemove = !lacks(g, n);
   // a deck started empty, filled by hand: buttons on its upgrade options
   const s = newDeck({name:'From nothing', format:'commander', src:'scratch'}); setCommander(s, 'Doctor Doom, King of Latveria'); S.profile.decks.find(x => /Doom Prevails/.test(x.name)).cards.forEach(e => addCard(s, e.n, e.q)); S.profile.decks.unshift(s); S.draft = null; S.deckId = s.id; S.tab = 'up'; await loadEdh(s.commander); render(); await new Promise(r => setTimeout(r, 300));
-  out.scratchButtons = document.querySelectorAll('.paths [data-act="lack"]').length;
+  out.scratchButtons = document.querySelectorAll('.paths [data-act="lack"], .paths [data-act="up-buy"]').length;
   // precon and imported lists: none
   const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; await loadEdh(w.commander); render(); await new Promise(r => setTimeout(r, 300)); out.preconButtons = document.querySelectorAll('[data-act="lack"]').length;
   const im = newDeck({name:'Imported', format:'commander', src:'import', cards:s.cards.map(e => ({n:e.n, q:e.q})), commander:s.commander, aims:s.aims.slice()}); S.profile.decks.unshift(im); S.draft = null; S.deckId = im.id; render(); await new Promise(r => setTimeout(r, 300)); out.importButtons = document.querySelectorAll('[data-act="lack"]').length;
   return out; });
-T('UI-LACK-01', '“Add to buy list” appears on recommendations only for decks built from scratch (generated or started empty), not precons or imported lists; it puts the card on the buy list and marks it (plan, decklist, buy list) without hiding it; removing it from the buy list clears the mark', lk.genButtons > 0 && lk.marked && lk.onBuyList && lk.stillShown && lk.chip && lk.decklistMark && lk.buyShows && lk.unmarkedByRemove && lk.scratchButtons > 0 && lk.preconButtons === 0 && lk.importButtons === 0, JSON.stringify(lk));
+T('UI-LACK-01', 'The “I don’t own it” buy-list marker on build-plan cards is only for decks built from scratch (generated or started empty), not precons or imported lists (those get Add to Buy List on upgrade rows instead); it puts the card on the buy list and marks it (plan, decklist, buy list) without hiding it; removing it from the buy list clears the mark', lk.genButtons > 0 && lk.marked && lk.onBuyList && lk.stillShown && lk.chip && lk.decklistMark && lk.buyShows && lk.unmarkedByRemove && lk.scratchButtons > 0 && lk.preconButtons === 0 && lk.importButtons === 0, JSON.stringify(lk));
 // 22. See alternatives: same job, same price band, never worse than the card in the slot and at least half as good as the pick,
 // with its score change shown; choosing one makes it the tier's suggestion (plan slot or held upgrade pick) without adding it.
 const al = await page.evaluate(async () => { const out = {}; const wait = async () => { for (let i = 0; i < 80 && /Finding cards/.test(document.querySelector('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100)); };
@@ -540,6 +540,15 @@ const b97 = await page.evaluate(async () => { const keep = S.autoYes; S.autoYes 
   out.pool = all.length; out.weighedNote = /Weighed against all \d+/.test(m.textContent); out.bestFirst = !!shown[0] && Math.abs(swapScore(d, e, ar, shown[0], c.n, 1) - all[0].ds) < 1e-9; out.card = c.n; out.shown = shown; out.top = all.slice(0, 3);
   $('#modal').hidden = true; S.autoYes = keep; return out; });
 T('UI-B97-01', 'Every swap and add asks first (Cancel changes nothing); a typed card is weighed against every card it could replace and the biggest gain comes first', b97.swapAsks && b97.wantAsks && b97.addAsks !== false && b97.cancelSafe && b97.covered && b97.pool > 20 && b97.weighedNote && b97.bestFirst, JSON.stringify(b97));
+// 49. Build 98: every upgrade row (any deck, precons included) has Add to Buy List next to Alternate Options; Remove suggestion
+// replaces Don't suggest for this deck. Adding puts the card on the deck's buy list without changing the deck.
+const b98 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(d); render();
+  const row = [...document.querySelectorAll('.paths .row')].find(r => r.querySelector('[data-act="up-buy"]')); if (!row) return {row:false}; const btns = [...row.querySelectorAll('button')].map(b => b.textContent.trim());
+  const out = {row:true, btns, labels:btns.includes('Remove suggestion') && btns.includes('Alternate Options') && btns.includes('Add to Buy List'), nextTo:btns.indexOf('Add to Buy List') === btns.indexOf('Alternate Options') + 1, oldGone:!/Don’t suggest for this deck|More alternatives/.test(document.body.textContent)};
+  const b = row.querySelector('[data-act="up-buy"]'), n = b.dataset.n, before = JSON.stringify(d.cards); b.click(); await new Promise(r => setTimeout(r, 50));
+  out.onList = wantOf(d).some(x => x.n === n); out.deckSame = JSON.stringify(d.cards) === before; out.chip = [...document.querySelectorAll('.paths .chip')].some(c => c.textContent === 'On the Buy List');
+  const k = wantOf(d).findIndex(x => x.n === n); if (k >= 0) wantOf(d).splice(k, 1); render(); return out; });
+T('UI-B98-01', 'Upgrade rows: Add to Buy List next to Alternate Options (precons too), Remove suggestion replaces the old label; adding puts the card on the buy list and leaves the deck unchanged', b98.row && b98.labels && b98.nextTo && b98.oldGone && b98.onList && b98.deckSame && b98.chip, JSON.stringify(b98));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

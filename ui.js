@@ -810,6 +810,8 @@ const fromScratch = d => !!d && (srcOf(d) === 'scratch' || srcOf(d) === 'generat
 const lacks = (d, n) => !!d && (d.lack || []).some(x => keyOf(x) === keyOf(n));
 function lackBtn(d, n){ if (!fromScratch(d) || !n) return ''; const on = lacks(d, n) || wantOf(d).some(x => keyOf(x.n) === keyOf(n));
   return on ? '<span class="chip good">On the buy list</span>' : '<button class="btn sm" data-act="lack" data-n="' + esc(n) + '" aria-label="Add ' + esc(n) + ' to the buy list">Add to buy list</button>'; }
+// Add to Buy List on an upgrade row: puts the suggested card on this deck's buy list (any deck); the deck itself is unchanged.
+function upBuyBtn(d, n){ if (!d || !n) return ''; return wantOf(d).some(x => keyOf(x.n) === keyOf(n)) || lacks(d, n) ? '<span class="chip good">On the Buy List</span>' : '<button class="btn sm" data-act="up-buy" data-n="' + esc(n) + '" aria-label="Add ' + esc(n) + ' to the buy list">Add to Buy List</button>'; }
 function wantFit(d, c){
   if (!c) return 'not in the card data';
   if (d.format === 'commander' && find(d.commander) && !c.ci.every(z => ctxOf(d).ident.includes(z))) return 'outside its colors';
@@ -1403,7 +1405,7 @@ function upPanel(d, A){
     if (R.count.free) h += '<div class="tip good"><b><small>Tip</small>' + R.count.free + ' free swap' + (R.count.free === 1 ? '' : 's') + ' from your library</b><ul><li class="pro"><i>+</i>You already own ' + (R.count.free === 1 ? 'a card' : 'cards') + ' that would improve this deck, so there is nothing to buy. They are listed first below.</li></ul><div class="row" style="margin-top:8px"><button class="btn sm" data-act="swap-all" data-v="free">Make all free swaps</button></div></div>';
     h += '<div class="tiers">' + TIER_KEYS.map(t => { const ts = tierSum(d, R, t); return '<div class="tierbox"><b>' + TIERS[t].label + '</b><span>' + (ts.n ? ts.n + ' swap' + (ts.n === 1 ? '' : 's') : 'No worthwhile upgrades') + '</span><span>' + (ts.n ? (ts.cost >= 0 ? '+' : '−') + '$' + Math.abs(ts.cost).toFixed(0) : '') + '</span><button class="btn sm" data-act="swap-all" data-v="' + t + '"' + (ts.n ? '' : ' disabled') + '>Apply all</button><em>' + (t === 'apex' ? 'the strongest card for each slot, any price' : 'the Apex card where it costs under $' + TIERS[t].cap + ', otherwise a cheaper card that does the same job') + '</em>' + packLine(R, t, ts.n) + (t === 'apex' ? '' : capBox(d, t)) + '</div>'; }).join('') + '</div>' +
       '<p class="note" style="margin:0">Apex is the strongest card found for each slot, whatever it costs, so a cheap card can be the Apex pick. Mid and Budget are cheaper cards that do the same job as the Apex card: under $12 and under $3, and cheaper than the Apex card. When nothing qualifies the tier stays empty and says why. When the Apex card already costs less than a tier’s limit, that tier uses it. Mid and Budget also offer the best deck with every new card under their limit (per card; cards you own count as free). That list is chosen on its own, so it can replace different cards than the Apex list. The Apex swaps are also checked together: the line under Apex shows what applying all of them does to the deck. Picks you have been shown are held in place until you swap them in, exclude them, or regenerate.</p>' +
-      '<p class="note" style="margin:0"><b>Don’t suggest for this deck</b> excludes that card from this deck’s recommendations. Your deck stays unchanged, and you can allow the card again under Excluded cards for this deck.</p>';
+      '<p class="note" style="margin:0"><b>Remove suggestion</b> excludes that card from this deck’s recommendations. Your deck stays unchanged, and you can allow the card again under Excluded cards for this deck.</p>';
     const show = S.pathShow || 12, PT = R.paths.map(L => slotTypes(Object.values(L.opts).map(o => o.add))), PK = R.paths.map(L => slotKinds(d, Object.values(L.opts))), PV = R.paths.map((L, i) => [L, i]).filter(([, i]) => (!upT() || PT[i].has(upT())) && (!upK() || PK[i].has(upK())));
     // Sort: by how much each upgrade raises the deck score (the default), the engine's own ranking, or cheapest first.
     { const so = S.upSort || 'impact', imp = L => Math.max(...Object.values(L.opts).map(p => p && p.dScore != null ? p.dScore : -1e9)), cost = L => { const p = tierPick(L, d.tier || 'apex') || L.opts.apex || Object.values(L.opts)[0], c = p && find(p.add); return p && p.own ? -1 : c && c.p != null ? c.p : 1e6; };
@@ -1418,7 +1420,7 @@ function upPanel(d, A){
         TIER_KEYS.map(t => { const RC = rowCols(d, R, L, i), col = RC[t], src = col && col.src, p = col && col.p; if (!p) return '<div class="opt none"><span class="chip">' + TIERS[t].label + '</span><p>' + esc((col && col.note) || (L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') + '</p></div>';
           const inh = col.kind === 'moved' ? '<span class="chip gold" title="No stronger card was found for this slot, so this is its Apex card.">Best card for this slot</span>' : '';
           return '<div class="opt"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + inh + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + (col.kind === 'alt' ? scoreChip(p.dScore) : upChip(L, src) + driftChip(d, p.add, src)) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
-            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Don’t suggest ' + esc(p.add) + ' for this deck">Don’t suggest for this deck</button>' + (col.kind === 'alt' ? '' : altBtn('up|' + i + '|' + src).replace('>See alternatives<', '>More alternatives<')) + (p.own ? '' : lackBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + (col.kind === 'alt' ? t + '|alt' : src) + '" style="margin-left:auto">Swap</button></div>' + alt3Html(d, R, RC.shown, p, i, t) + '</div>';
+            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Remove suggestion: ' + esc(p.add) + '">Remove suggestion</button>' + (col.kind === 'alt' ? '' : altBtn('up|' + i + '|' + src).replace('>See alternatives<', '>Alternate Options<')) + (p.own ? '' : upBuyBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + (col.kind === 'alt' ? t + '|alt' : src) + '" style="margin-left:auto">Swap</button></div>' + alt3Html(d, R, RC.shown, p, i, t) + '</div>';
 }).join('') + '</div>'; }).join('') + '</div>';
     if (PV.length > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, PV.length - show) + ' more</button>';
   }
@@ -1877,7 +1879,7 @@ function manaCheck(d, act, v, n){
 // whatever is open, and says what will happen. Nothing happens on Cancel.
 function swapAsk(cut, add){ return [cut && add ? 'Swap ' + cut + ' for ' + add + '?' : 'Make this swap?', cut && add ? cut + ' comes out of ' + ((cur() || {}).name || 'the deck') + ' and ' + add + ' goes in. Undo can switch them back.' : 'The deck changes. Undo can switch it back.', 'Swap']; }
 const CONFIRM = {
-  dismiss:(v, n) => ['Don’t suggest ' + n + '?', n + ' will no longer be recommended for this deck. You can bring it back from the list of cards you ruled out.', 'Don’t suggest it'],
+  dismiss:(v, n) => ['Remove the suggestion ' + n + '?', n + ' will no longer be recommended for this deck. You can bring it back from the list of cards you ruled out.', 'Remove suggestion'],
   'watch-drop':(v, n) => ['Exclude ' + n + '?', n + ' will no longer be recommended for this deck.', 'Exclude it'],
   rm:(v, n) => ['Remove ' + n + ' from the deck?', 'Every copy of ' + n + ' leaves this deck, and it will not be suggested again for it. Undo can bring it back.', 'Remove'],
   drop:() => ['Remove this card from the deck?', 'The card leaves this deck. Undo can bring it back.', 'Remove'],
@@ -2088,6 +2090,7 @@ function handleAct(act, v, n, pArg){
     case 'analyze': openAnalysis(); return;
     case 'alts': openAlts(v); return;
     case 'alt-use': if (!d || !useAlt(d, v, n)) return; $('#modal').hidden = true; break;
+    case 'up-buy': { if (!d || !n) return; const c = find(n), name = c ? c.n : n; if (addWant(d, name)) toast(name + ' added to the ' + d.name + ' buy list.'); break; }
     case 'lack': { if (!fromScratch(d)) return; const c = find(n), name = c ? c.n : n;
       if (!lacks(d, name)) (d.lack = d.lack || []).push(name); if (addWant(d, name)) wantOf(d)[wantOf(d).length - 1].from = 'lack'; toast(name + ' added to the ' + d.name + ' buy list.');
       break; }
