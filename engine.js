@@ -1345,11 +1345,16 @@ function evalFit(d, c){
     // commander's own strategy and the filters. A card that does a core job, or a staple, is never told it fits no plan.
     const aims = [], part = [], AL = (d.aims || []).map(a => aimLabel(a, ctx.tribe));
     (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m >= 0.7) aims.push({i, l:AL[i]}); else if (m >= 0.3) part.push(AL[i]); });
-    const fb = filtBonus(c, d), jobby = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'].some(r => tg.roles.has(r)), staple = CORE.has(c._n) || (c.r && c.r < 250);
+    const multi = aims.length >= 2, fb = filtBonus(c, d), jobby = ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'].some(r => tg.roles.has(r)), staple = CORE.has(c._n) || (c.r && c.r < 250);
     const ft = foreignTribe(c), wrongTribe = ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t));
     if (wrongTribe){ pts -= 3; cons.push('It rewards ' + ft + ' cards' + (ctx.tribe ? ', and this is a ' + ctx.tribe + ' deck' : ', which this deck is not built around') + ', so most of its text would do nothing.'); }
-    else if (aims.length){ pts += 2; const main = aims.find(x => x.i === 0), sub = aims.filter(x => x.i > 0).map(x => x.l);
-      pros.push(main ? 'Supports the deck’s main plan (' + main.l + ')' + (sub.length ? ' and also ' + sub.join(', ') : '') + '.' : 'Supports a secondary plan of the deck: ' + sub.join(', ') + '.'); }
+    else if (aims.length){
+      // Plans are weighted by rank but closely: the main plan 2, the second 1.75, the third 1.5, and each further plan a
+      // card hits adds 1.25. A card that hits two secondary plans (3) outweighs one that only hits the main plan (2).
+      const main = aims.find(x => x.i === 0), sub = aims.filter(x => x.i > 0).map(x => x.l), w = i => Math.max(1, 2 - 0.25 * i);
+      pts += w(aims[0].i) + 1.25 * (aims.length - 1);
+      pros.push(main ? 'Supports the deck’s main plan (' + main.l + ')' + (sub.length ? ' and also ' + sub.join(', ') : '') + '.' : 'Supports ' + (sub.length > 1 ? 'two of the deck’s secondary plans: ' + sub.join(' and ') : 'a secondary plan of the deck: ' + sub[0]) + '.');
+      if (aims.length >= 2 && AL.length >= 2) pros.push('It hits ' + aims.length + ' of the deck’s ' + AL.length + ' plans.'); }
     else if (ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)){ pts += 2; pros.push('Works with ' + cmdName + '’s own strategy.'); }
     else if (fb.why.length){ pts += 1; pros.push('Matches your filters: ' + fb.why.join(', ') + '.'); }
     else if (part.length){ pros.push('Loosely ties into ' + part.join(', ') + ', though it isn’t a core piece.'); }
@@ -1357,7 +1362,7 @@ function evalFit(d, c){
     else if (AL.length || ctx.cmdThemes.length){ pts -= 1; cons.push('It doesn’t feed any of the deck’s plans' + (AL.length ? ' (' + AL.join(', ') + ')' : '') + (ctx.cmdThemes.length && cmdName ? ' or ' + cmdName + '’s own strategy' : '') + '.'); }
     if (ctx.edh){ const x = edhOf(ctx.edh.map, c);
       if (x){ const pc = Math.round(x.inc * 100); if (x.inc >= 0.25){ pts += 2; pros.push('Played in ' + pc + '% of ' + cmdName + ' decks.'); } else { pts += 1; pros.push('Shows up in ' + Math.max(1, pc) + '% of ' + cmdName + ' decks' + (x.syn > 0.1 ? ', far more than in other decks' : '') + '.'); } }
-      else if (ctx.edh.map.size > 80){ pts -= 1; cons.push(cmdName + ' players rarely run it.'); } }
+      else if (ctx.edh.map.size > 80){ pts -= multi ? 0.5 : 1; cons.push(cmdName + ' players rarely run it.'); } }
     const RN = {ramp:'mana ramp', draw:'card draw', removal:'removal', wipe:'board wipes'}; let filled = false;
     for (const r in RN) if (tg.roles.has(r)){
       if (A.roles[r] < T[r]){ if (!filled) pts += 2; filled = true; pros.push('The deck is short on ' + RN[r] + ' (' + A.roles[r] + ' of about ' + T[r] + ') and this adds one.'); }
@@ -1374,7 +1379,8 @@ function evalFit(d, c){
     const sc = []; d.cards.forEach(en => { const x = find(en.n); if (x && !tags(x).land) sc.push(baseScore(x, d, ctx).s); });
     if (sc.length >= 10){ const below = sc.filter(v => v < b.s).length, pc = below / sc.length;
       if (pc >= 0.6){ pts += 1; pros.push('By my scoring it beats ' + below + ' of the ' + sc.length + ' spells already in the deck.'); }
-      else if (pc <= 0.15){ pts -= 1; cons.push('By my scoring it ranks below nearly every spell already in the deck.'); } }
+      // that ranking already counts how rarely players run it, so a card hitting two or more plans isn't marked down twice
+      else if (pc <= 0.15){ if (!multi) pts -= 1; cons.push('By my scoring it ranks below nearly every spell already in the deck.'); } }
   }
   const level = pts >= 4 ? 'great' : pts >= 2 ? 'good' : pts >= -1 ? 'ok' : 'poor';
   if (!pros.length && !cons.length) cons.push('Nothing in its text connects to the deck’s plan, but nothing clashes with it.');
