@@ -14,13 +14,10 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 ## Current state
 
-- Live: **Build 113**. All tests pass (70 UI tests); upgrade benchmark unchanged since Build 103.
-- Builds 104-113 cleared the queue's buildable items: leftover code, collection value, card search sort,
-  folders and tags, share link, best by job, price history, "what it does" search, decks you can build,
-  lands helper.
-- Left in the queue, each waiting on the owner: Game Changer rows (keep, trim or remove), the real-device
-  check (owner's phone and iPad), and the smarter deck score (engine change). Also open: EDHREC land count
-  in the app, closer plan weighting in the engine.
+- Live: **Build 117**. All tests pass (74 UI tests); benchmark agreement@5 0.233 / 0.286 / 0.292.
+- Builds 114-117: our own land formula, Game Changer rows trimmed, phone layout, iPhone fixes.
+- Next (owner's order): smarter deck score, stage 1 (tournament staples for Apex).
+- A new work session starts from `WORK_SESSION_HANDOFF.md`.
 
 ## To Work
 
