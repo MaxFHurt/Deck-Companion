@@ -591,10 +591,6 @@ function parseDeckText(txt){
   }
   return out;
 }
-function deckToText(d){
-  const L = []; if (d.format === 'commander' && d.commander){ L.push('Commander', '1 ' + d.commander); if (d.partner) L.push('1 ' + d.partner); L.push('', 'Deck'); }
-  d.cards.forEach(e => L.push(e.q + ' ' + e.n)); return L.join('\n');
-}
 
 // ----- analysis -----
 function ctxOf(d){
