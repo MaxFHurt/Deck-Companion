@@ -643,6 +643,18 @@ const b107 = await page.evaluate(async () => { const out = {}, P = S.profile, ke
   const f4 = document.querySelector('#deck-filter-folder'); f4.value = 'Fun'; f4.dispatchEvent(new Event('change', {bubbles:true})); document.querySelector('[data-act="folder-del"]').click(); out.delAsks = !cf().hidden; yes(); out.deleted = !w.folder && w.dtags.includes('Tokens') && P.decks.includes(w);
   delete w.dtags; S.deckFolder = '*'; S.deckTag = ''; S.autoYes = keep; S.open = true; S.tab = 'list'; render(); return out; });
 T('UI-B107-01', 'Deck folders and tags: set on the Build panel (Enter adds a tag), shown on My decks, filter by folder and tag, rename a folder, delete a folder (asks first, decks kept), remove a tag (asks first), old decks show under No folder, upgrades not reworked', b107.folderBox && b107.folderSet && b107.tags === 'Tokens,Friday' && b107.sameRecs && b107.tagAsks && b107.tagKept && b107.tagGone && b107.tileChips && b107.filterFolder && b107.renamed && b107.noFolder && b107.filterTag && b107.delAsks && b107.deleted, JSON.stringify(b107));
+// 58. Build 108: Share link. The deck is packed into the link; opening it shows the deck with Save to my decks, and the saved
+// copy has every card, the commander and the build settings. A damaged link says so and changes nothing.
+const b108 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+  document.querySelector('[data-act="share-open"]').click(); for (let i = 0; i < 40 && !document.querySelector('#share-url'); i++) await new Promise(r => setTimeout(r, 50));
+  const url = document.querySelector('#share-url').value; out.len = url.length; out.short = url.length < 4000; out.packed = /#share=z/.test(url); $('#modal').hidden = true;
+  const n0 = S.profile.decks.length; location.hash = url.slice(url.indexOf('#')); for (let i = 0; i < 40 && !/Shared deck/.test(document.querySelector('#modal').textContent || ''); i++) await new Promise(r => setTimeout(r, 50));
+  out.shown = !$('#modal').hidden && /Shared deck: Wakanda/.test($('#modal').textContent); out.hashCleared = !location.hash;
+  document.querySelector('[data-act="share-save"]').click(); const d = S.profile.decks[0]; out.saved = S.profile.decks.length === n0 + 1 && d !== w;
+  const sig = x => x.cards.map(e => e.n + '×' + e.q).sort().join('|'); out.sameCards = sig(d) === sig(w); out.sameCmd = d.commander === w.commander; out.sameAims = JSON.stringify(d.aims) === JSON.stringify(w.aims) && d.tier === w.tier;
+  location.hash = '#share=zNotAValidCode'; await new Promise(r => setTimeout(r, 200)); out.badMsg = /damaged/.test($('#toast').textContent); out.badNoDeck = S.profile.decks.length === n0 + 1;
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.deckId = w.id; render(); return out; });
+T('UI-B108-01', 'Share link: the deck is packed into a short link; opening it shows the deck with Save to my decks; the saved copy has the same cards, commander and build settings; a damaged link says so and adds nothing', b108.short && b108.packed && b108.shown && b108.hashCleared && b108.saved && b108.sameCards && b108.sameCmd && b108.sameAims && b108.badMsg && b108.badNoDeck, JSON.stringify(b108));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

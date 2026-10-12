@@ -644,7 +644,7 @@ function viewDecks(){
     const tb = (k, label, cls) => '<button class="tab' + (tab === k ? ' on' : '') + (cls || '') + '" data-act="tab" data-v="' + k + '" role="tab" aria-selected="' + (tab === k) + '">' + label + '</button>';
     return '<div class="row bar"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
       ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
-      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn" data-act="hist-open">History</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
+      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="share-open">Share link</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn" data-act="hist-open">History</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('up', 'Upgrades' + (nUp ? ' <em title="' + nUp + (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? ' has' : 's have') + ' an upgrade') + '">' + nUp + (hasPlan ? '' : ' card' + (nUp === 1 ? '' : 's')) + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const owners = [...new Set(players().concat(P.decks.map(playerOf).filter(Boolean)))];
@@ -973,6 +973,37 @@ function exportCsv(d, what){
   exportRows(d, what).forEach(x => L.push(line('Deck', x.n, x.q))); return L.join('\n') + '\n';
 }
 function exportName(d){ return (d.name.replace(/[^\w -]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'deck') + (S.exp && S.exp !== 'deck' ? '-' + S.exp : ''); }
+// Share link: the deck is packed into the link itself (compressed), so nothing is stored online and no account is needed.
+// Opening the link on any device shows the deck with Save to my decks.
+const SHARE_KEYS = ['name', 'format', 'commander', 'partner', 'tier', 'aims', 'tribe', 'colors', 'types', 'keys', 'sets', 'setsMust', 'themeFirst', 'typesMust', 'keysMust'];
+const b64u = {enc:b => { let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+  dec:t => { const s = atob(t.replace(/-/g, '+').replace(/_/g, '/')); const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }};
+async function zipBytes(b, how){ const st = new Blob([b]).stream().pipeThrough(how === 'z' ? new CompressionStream('deflate-raw') : new DecompressionStream('deflate-raw')); return new Uint8Array(await new Response(st).arrayBuffer()); }
+async function shareCode(d){ const o = {v:1}; SHARE_KEYS.forEach(k => { const x = d[k]; if (x != null && x !== '' && !(Array.isArray(x) && !x.length) && x !== false) o[k] = x; });
+  o.cards = d.cards.map(e => e.q > 1 ? [e.n, e.q] : e.n); const raw = new TextEncoder().encode(JSON.stringify(o));
+  if (window.CompressionStream){ try { return 'z' + b64u.enc(await zipBytes(raw, 'z')); } catch (e) {} } return 'j' + b64u.enc(raw); }
+async function shareRead(code){ const t = String(code || ''), b = b64u.dec(t.slice(1)), raw = t[0] === 'z' ? await zipBytes(b, 'u') : b; const o = JSON.parse(new TextDecoder().decode(raw)); if (!o || o.v !== 1 || !Array.isArray(o.cards)) throw new Error('bad'); return o; }
+function shareUrl(code){ return location.origin + location.pathname + '#share=' + code; }
+async function openShare(){ const d = cur(); if (!d) return; const url = shareUrl(await shareCode(d));
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Share link"><div class="ph"><h2>Share link</h2><small>' + esc(d.name) + '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<p class="note" style="margin:0">Anyone who opens this link sees the deck (commander, cards and build settings) and can save a copy to their own decks. The deck is packed into the link itself: nothing is uploaded, and later changes to your deck are not included.</p>' +
+    '<input type="text" id="share-url" readonly value="' + esc(url) + '" aria-label="Share link"><p class="note" style="margin:0">' + url.length.toLocaleString() + ' characters</p>' +
+    '<div class="row"><button class="btn pri" data-act="share-copy">Copy link</button>' + (navigator.share ? '<button class="btn" data-act="share-send">Share…</button>' : '') + '</div></div>';
+  $('#modal').hidden = false; S.shareUrl = url; }
+// An opened share link: show the deck and offer to save it.
+async function checkShareLink(){ const m = /^#share=([A-Za-z0-9_-]+)$/.exec(location.hash || ''); if (!m) return; let o;
+  try { o = await shareRead(m[1]); } catch (e) { toast('That share link is damaged or incomplete.'); history.replaceState(null, '', location.pathname + location.search); return; }
+  S.shareIn = o; history.replaceState(null, '', location.pathname + location.search); showShareIn(); }
+function showShareIn(){ const o = S.shareIn; if (!o) return; const cards = o.cards.map(x => Array.isArray(x) ? {n:x[0], q:x[1]} : {n:x, q:1}), tot = cards.reduce((a, x) => a + x.q, 0) + (o.commander ? 1 : 0) + (o.partner ? 1 : 0), unknown = DBINFO.complete ? cards.filter(x => !find(x.n)).length : 0;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Shared deck"><div class="ph"><h2>Shared deck: ' + esc(o.name || 'Deck') + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<p class="note" style="margin:0">' + (o.commander ? 'Commander: <b>' + esc(o.commander) + (o.partner ? ' + ' + esc(o.partner) : '') + '</b> · ' : '') + tot + ' cards · ' + esc(o.format === 'standard' ? 'Standard' : 'Commander') + (unknown ? ' · ' + unknown + ' card' + (unknown === 1 ? '' : 's') + ' not in the card data yet (kept by name)' : '') + '</p>' +
+    '<div class="allrows" style="max-height:40vh;overflow:auto">' + cards.map(x => '<div class="dl libr"><span class="nm">' + (x.q > 1 ? x.q + '× ' : '') + esc(x.n) + '</span></div>').join('') + '</div>' +
+    '<div class="row"><button class="btn pri" data-act="share-save">Save to my decks</button><button class="btn" data-act="close">Not now</button></div></div>';
+  $('#modal').hidden = false; }
+function saveShared(){ const o = S.shareIn; if (!o) return null; const d = newDeck({name:o.name || 'Shared deck', format:o.format || 'commander', src:'import'});
+  if (o.commander) setCommander(d, o.commander); SHARE_KEYS.forEach(k => { if (k !== 'name' && k !== 'format' && k !== 'commander' && o[k] != null) d[k] = JSON.parse(JSON.stringify(o[k])); });
+  d.cards = []; o.cards.forEach(x => { const n = Array.isArray(x) ? x[0] : x, q = Array.isArray(x) ? x[1] : 1, c = find(n); addCard(d, c ? c.n : n, q); });
+  d.custom = true; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; S.shareIn = null; touch(); return d; }
 function openExport(){
   const d = cur(); if (!d) return; S.modalCard = null; const hasPlan = d.plan && d.plan.length; if (!hasPlan || !S.exp) S.exp = 'deck';
   const rows = exportRows(d, S.exp), n = rows.reduce((s, x) => s + x.q, 0) + (d.format === 'commander' && d.commander ? 1 : 0) + (d.partner ? 1 : 0);
@@ -2188,6 +2219,10 @@ function handleAct(act, v, n, pArg){
     // Highest score: the player's own choice over the slot's picks (checked as its own kind, not a tier, so a held pick doesn't block it)
     case 'swap-top': { const R = recsFor(d), L = R.paths[+v], ref = L && (L.opts.apex || L.opts.mid || L.opts.budget); if (!ref || !n || !L.top || L.top.n !== n || hasCard(d, n)) return; const p = {cut:L.cut, add:n, q:ref.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t:'top'}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.length); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
+    case 'share-open': openShare(); return;
+    case 'share-copy': copyText(S.shareUrl || '', 'Share link copied.'); return;
+    case 'share-send': navigator.share({title:(cur() || {}).name || 'Deck', url:S.shareUrl}).catch(() => {}); return;
+    case 'share-save': { const nd = saveShared(); $('#modal').hidden = true; if (nd){ render(); toast('Saved ' + nd.name + ' to your decks.'); } return; }
     case 'dtag-add': { const inp = $('#deck-tag'); if (!d || !inp) return; if (addTag(d, inp.value)){ touch(); render(); } else if (inp.value.trim()) toast('That tag is already on this deck, or it has 8.'); return; }
     case 'dtag-rm': { if (!d || !n) return; d.dtags = (d.dtags || []).filter(t => t !== n); if (!d.dtags.length) delete d.dtags; break; }
     case 'folder-rename': { const v = (($('#folder-new') || {}).value || '').trim().slice(0, 40); if (!n || !v || v === n) return; S.profile.decks.forEach(x => { if ((x.folder || '').trim() === n) x.folder = v; }); S.deckFolder = v; touch(); render(); toast('Folder renamed to ' + v + '.'); return; }
@@ -2302,4 +2337,4 @@ addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 2
 loadLocal();
 if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else S.deckId = S.profile.decks[0].id;
 S.view = 'home'; S.open = false; restoreSpot();
-render(); loadSavedLibrary(); initBackup();
+render(); loadSavedLibrary(); initBackup(); checkShareLink(); addEventListener('hashchange', checkShareLink);
