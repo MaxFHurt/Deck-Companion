@@ -504,6 +504,18 @@ const b93 = await page.evaluate(async () => { const out = {}; await loadPreconLi
   out.allLands = g.L.every(p => tags(find(p.add)).land && tags(find(p.cut)).land); out.noneLower = g.L.every(p => p.dScore == null || p.dScore >= -0.05); out.scored = g.L.some(p => p.dScore != null && p.dScore !== 0);
   out.noUpkindBtn = !document.querySelector('.hfix [data-act="upkind"]'); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); return out; });
 T('UI-B93-01', 'Mana alert: Fix this opens land swaps (land for land, measured with fresh practice games, none lowering the score)', b93.menu && b93.swaps > 0 && b93.allLands && b93.noneLower && b93.scored && b93.noUpkindBtn, JSON.stringify(b93));
+// 45. Build 94: putting a card in a full deck weighs it against each card it could replace: every Take out row shows the
+// deck score change, best first, and the numbers match the score check.
+const b94 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list';
+  await loadEdh(d.commander); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render();
+  const c = LIB.find(x => !x.gc && x.ci.length && x.ci.every(z => ctxOf(d).ident.includes(z)) && !entryOf(d, x.n) && !tags(x).land && x.r && x.r > 3000 && x.r < 9000);
+  const t0 = performance.now(); openCard(c.n); const ms = Math.round(performance.now() - t0); await new Promise(r => setTimeout(r, 50));
+  const m = document.querySelector('#modal'), rows = [m.querySelector('.swaphero') && m.querySelector('.swaphero').closest('.grp')].concat([...m.querySelectorAll('.grp')].filter(g => /Or take out instead/.test(g.textContent)).flatMap(g => [...g.querySelectorAll('.path')]));
+  const outs = [...m.querySelectorAll('.sw.out')].map(b => b.dataset.n), chips = [...m.querySelectorAll('[data-act="want"]')].map(b => { const r = b.closest('.row'); const ch = [...r.querySelectorAll('.chip')].find(x => /score/i.test(x.textContent)); return ch ? ch.textContent : null; });
+  const e = evalFor(d), ar = apexFor(d), ds = outs.map(n => swapScore(d, e, ar, n, c.n, 1)), val = t => /unchanged/i.test(t) ? 0 : parseFloat(t.replace('−', '-'));
+  const out = {card:c.n, outs, chips, ds, ms, allShown:chips.length === outs.length && chips.every(Boolean), sorted:ds.every((v, i) => !i || v <= ds[i - 1] + 1e-9), match:chips.every((t, i) => t && Math.abs(val(t) - (Math.abs(ds[i]) < 0.05 ? 0 : ds[i])) < 0.051)};
+  $('#modal').hidden = true; return out; });
+T('UI-B94-01', 'Putting a card in a full deck: every Take out option shows the deck score change (+/-), best first, matching the score check', b94.allShown && b94.sorted && b94.match && b94.outs.length >= 2, JSON.stringify(b94));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
