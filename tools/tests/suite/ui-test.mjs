@@ -720,6 +720,15 @@ const b114 = await page.evaluate(async () => { const out = {}, w = S.profile.dec
   const part = JSON.parse(JSON.stringify(w)); part.id = 'part'; part.cards = part.cards.slice(0, 20); out.partial = analyze(part).T.lands; out.partialStarts = out.partial === targetsOf(part, ctxOf(part)).lands;
   const g = startPlan('Don & Leo, Problem Solvers', [], null, null, {fill:'apex'}); const G = analyze(g); out.gen = {size:G.size, lands:G.lands, target:G.T.lands}; out.genOk = G.size === 100 && Math.abs(G.lands - G.T.lands) <= 1; S.draft = null; return out; });
 T('UI-B114-01', 'Land formula: a full deck’s land target comes from its spells (average mana value, cheap ramp, landfall); a deck still being built keeps the starting target; a generated deck gets the formula’s land count (within one)', b114.formula && b114.partialStarts && b114.genOk, JSON.stringify(b114));
+// 65. Build 115: Game Changer rows trimmed: the extra Game Changer rows only fill the room left under Bracket 3's three
+// (Game Changers in the deck and among the picks count); a deck already holding three gets none; Apex only.
+const b115 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name));
+  const mk = (id, gcs, tier) => { const d = JSON.parse(JSON.stringify(w)); d.id = id; d.tier = tier || 'apex'; const sp = d.cards.filter(e => !e.l && find(e.n) && !tags(find(e.n)).land && !find(e.n).gc).slice(-gcs.length); sp.forEach(e => cutCard(d, e.n, e.q)); gcs.forEach(n => addCard(d, n, 1)); return d; };
+  const count = d => { const R = upgradePaths(d); return {extra:R.paths.filter(L => L.gcPick).length, gcPicks:R.paths.filter(L => !L.gcPick && L.opts.apex && L.opts.apex.gc).length, gcIn:ctxOf(d).gcIn}; };
+  const GC = LIB.filter(c => c.gc && legalIn(c, 'commander') && c.ci.every(k => ctxOf(w).ident.includes(k)) && !hasCard(w, c.n)).slice(0, 3).map(c => c.n);
+  out.none = count(mk('g0', [])); out.three = count(mk('g3', GC)); out.mid = count(mk('gm', [], 'mid')); out.gcs = GC;
+  out.okNone = out.none.extra <= Math.max(0, 3 - out.none.gcIn - out.none.gcPicks); out.okThree = out.three.gcIn >= 3 && out.three.extra === 0; out.okMid = out.mid.extra === 0; return out; });
+T('UI-B115-01', 'Game Changer rows trimmed: extra rows only fill the room under Bracket 3’s three (deck and picks counted); none once the deck holds three; none below Apex', b115.okNone && b115.okThree && b115.okMid, JSON.stringify(b115));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

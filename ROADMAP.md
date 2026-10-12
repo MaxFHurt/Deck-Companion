@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 114. Each item ships as its own build: build, run the full test suite
+Live: Build 115. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -10,12 +10,6 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 ### Small
 
-1. **Game Changer extra rows**
-   - *You'll see:* either the same up-to-3 extra Game Changer rows, fewer, or none.
-   - *Builds on:* Build 81's Game Changer rows (each still passes the score check).
-   - *Size:* Small. *Upgrades engine:* yes, discuss first.
-   - *Risks:* the rows lower top-10 agreement with players slightly on small decks but help players moving up a bracket.
-   - *Tested by:* upgrade benchmark before and after; Game Changer count report.
 2. **Real-device check**
    - *You'll see:* nothing new: confirmation that card pictures, symbols and layout look right on a real phone and iPad.
    - *Builds on:* all screens.
@@ -53,8 +47,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 ## Decided by the owner (12 October 2026), to build in this order
 
 1. ~~Our own land formula~~: done in Build 114.
-2. **Game Changer rows: trim**: the extra rows only fill the deck's remaining room under its bracket's
-   Game Changer limit, and only on Apex builds.
+2. ~~Game Changer rows: trim~~: done in Build 115.
 3. **Phone layout (phones only; iPad and desktop unchanged)**: remove the tagline; add a "Continue" card (last
    deck and recent decks) above the home tiles, which stay; the header always reads the full name, Deck
    Companion; tighter side margins in landscape.
@@ -164,3 +157,5 @@ popular lands it lacks, buttons to the land swaps); no engine change.
 114: our own land formula (lands = 31.5 + 1.6 × average mana value − 0.32 × cheap ramp + 0.72 ×
 landfall cards, 30–42), fitted to 52 commanders' real averages (misses by ~1.5 lands vs 2.2 for a flat 37);
 used by the app, the tests and the deck generator; benchmark unchanged.
+115: Game Changer extra rows trimmed to the room left under Bracket 3's three (deck and picks
+counted); Apex only; benchmark unchanged.
