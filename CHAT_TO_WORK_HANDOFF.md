@@ -14,11 +14,12 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 ## Current state
 
-- Live: **Build 96**. All tests pass (54 UI tests, 39 acceptance checks).
-  Test suite saved in `tools/tests/suite/`.
-- `ROADMAP.md` now has full details for all 14 items: what the owner will see,
-  size, risks, whether it touches the engine, and how it is tested.
-  Next up: 1) share link, 2) price history, 3) decks you can build.
+- Live: **Build 103**. All tests pass (61 UI tests, 39 acceptance checks); the
+  upgrade benchmark is unchanged.
+- `ROADMAP.md` now orders the queue smallest first (8 small, 4 medium, 2 large).
+  Next up: remove leftover code, collection value, card search sort.
+- Open owner decisions: Game Changer rows (keep, trim, remove) and closer plan weighting
+  in the upgrades engine.
 
 ## To Work
 
