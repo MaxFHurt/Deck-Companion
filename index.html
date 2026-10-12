@@ -391,7 +391,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 100;
+window.BUILD = 101;
 (function(){
   var last = 0;
   function check(){
@@ -403,9 +403,9 @@ window.BUILD = 100;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=100"></script>
-<script src="lists.js?v=100"></script>
-<script src="engine.js?v=100"></script>
-<script src="ui.js?v=100"></script>
+<script src="data.js?v=101"></script>
+<script src="lists.js?v=101"></script>
+<script src="engine.js?v=101"></script>
+<script src="ui.js?v=101"></script>
 </body>
 </html>
