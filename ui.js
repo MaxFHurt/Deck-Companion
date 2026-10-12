@@ -1339,14 +1339,14 @@ function healthFixHtml(H, ign, fixable){
 function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind === 'mana' && ctxOf(d).ident.length < 2) kind = 'landsUp'; const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
   const score = e && e.exact != null ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
   // land swaps change the mana, so they are measured with fresh practice games (same seed for the deck before and after)
-  const landScore = FIX_OF[key] === 'mana' ? (() => { let b0 = null; return (cut, add) => { try { if (b0 == null) b0 = evaluateDeck(d, {apex:ar, games:200}).exact; const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (e) { return null; } }; })() : null;
+  const landScore = FIX_OF[key] === 'mana' || ['ramp', 'draw', 'removal', 'wipe'].includes(kind) ? (() => { let b0 = null; return (cut, add) => { try { if (b0 == null) b0 = evaluateDeck(d, {apex:ar, games:200}).exact; const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (e) { return null; } }; })() : null;
   // The Mana alert covers two problems: games stuck without a colour, and games short of lands by turn 5. So it offers both
   // kinds of swap (better lands for worse ones, and a land for the spell the deck can best spare), each measured with fresh
   // practice games, and keeps only the ones that raise the deck score, best first.
   if (FIX_OF[key] === 'mana' && landScore){ try { const col = kind === 'mana' ? fixSwaps(d, 'mana', {n:5, val:R && R.valOf, score, landScore}) : [];
       const up = fixSwaps(d, 'landsUp', {n:5, val:R && R.valOf, score}).map(p => Object.assign(p, {dScore:landScore(p.cut, p.add)}));
       const seen = new Set(); return col.concat(up).filter(p => !hasCard(d, p.add) && p.dScore != null && p.dScore >= SCORE_MIN).sort((a, b) => b.dScore - a.dScore).filter(p => !seen.has(p.add) && !seen.has(p.cut) && seen.add(p.add) && seen.add(p.cut)).slice(0, 5); } catch (err) { return []; } }
-  try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score, landScore}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
+  try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score, landScore, spareLands:true}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
 function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
   const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
   const tgt = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]};
@@ -1716,6 +1716,11 @@ function tipHtml(d, c){
   const f = evalFit(d, c); if (ownSet().has(c._n)) f.pros.unshift('You already own this card, so it costs nothing to add.'); const li = (xs, k, m) => xs.map(x => '<li class="' + k + '"><i>' + m + '</i>' + esc(x) + '</li>').join('');
   return '<div class="tip ' + f.level + '"><b><small>Tip</small>' + esc(f.title) + '</b><ul>' + li(f.pros, 'pro', '+') + li(f.cons, 'con', '–') + '</ul></div>';
 }
+// A swap's deck score change measured with fresh practice games (needed when a land comes out or goes in); the deck's own
+// score on those games is kept per deck version so it is worked out once.
+const FRESH = new Map();
+function freshDelta(d, ar){ const k = d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|') + '#' + !!ar; let b0 = FRESH.get(k);
+  return (cut, add) => { try { if (b0 == null){ b0 = evaluateDeck(d, {apex:ar, games:200}).exact; FRESH.clear(); FRESH.set(k, b0); } const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (err) { return null; } }; }
 // The deck score change for one swap in the card window; tiny changes read as unchanged.
 function wantChip(v){ return v == null ? '' : Math.abs(v) < SCORE_MIN ? '<span class="chip" title="Change to the deck score if you make this swap">Score unchanged</span>' : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="Change to the deck score if you make this swap">' + (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1) + ' score</span>'; }
 function wantHtml(d, c){
@@ -1728,12 +1733,12 @@ function wantHtml(d, c){
   // Weigh this card against every card it could plausibly replace: the deck score with each swap made, best first. Both cards
   // can be weak for the deck and the swap still be a gain, so the player sees the +/- on each one.
   const e = d.format === 'commander' && A.size >= 90 ? evalFor(d) : null, ar = e && e.exact != null ? apexFor(d) : null;
-  let cuts = bestCuts(d, c.n, e && e.exact != null ? 999 : 3); const pool = cuts.length;
-  if (e && e.exact != null){ cuts.forEach(x => { x.dScore = swapScore(d, e, ar, x.n, c.n, 1); }); const key = x => (x.s <= -80 ? 1e6 : 0) + (x.dScore ?? -1e9);   // a card that is illegal or outside the colours always goes first
+  let cuts = bestCuts(d, c.n, e && e.exact != null ? 999 : 3); const pool = cuts.length, cuts0 = cuts.slice();
+  if (e && e.exact != null){ const ls = cuts.some(x => x.land) ? freshDelta(d, ar) : null; cuts.forEach(x => { x.dScore = x.land ? ls(x.n, c.n) : swapScore(d, e, ar, x.n, c.n, 1); }); const key = x => (x.s <= -80 ? 1e6 : 0) + (x.dScore ?? -1e9);   // a card that is illegal or outside the colours always goes first
     cuts = cuts.map((x, i) => [x, i]).sort((a, b) => key(b[0]) - key(a[0]) || a[1] - b[1]).map(x => x[0]).slice(0, 3); }
   if (!cuts.length) return lab + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div>' + tipHtml(d, c) + '</div>';
   const side = (n, cls, small) => { const k = find(n); return '<button class="sw ' + cls + '" data-act="card" data-n="' + esc(n) + '">' + (k ? '<img alt="" src="' + artFor(k) + '">' : '<span></span>') + '<span><small>' + small + '</small>' + esc(n) + '</span><em>' + money(k) + '</em></button>'; };
-  const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + 'Weighed against all ' + pool + ' ' + (tags(c).land ? 'lands' : 'spells') + ' it could replace. ' + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
+  const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + 'Weighed against all ' + pool + ' ' + (tags(c).land ? 'lands' : cuts0.some(x => x.land) ? 'spells and spare lands' : 'spells') + ' it could replace. ' + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
   let h = lab + note + '<div class="swaphero">' + side(b.n, 'out', 'Take out') + '<span class="arrow" aria-hidden="true">→</span>' + side(c.n, 'in', 'Put in') + '</div>' +
     '<div class="row"><span class="chip good">Best swap</span>' + wantChip(b.dScore) + '<span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c) + '</div>';
   S.wantMore = '<div class="grp"><span class="lab">Or take out instead</span>' + cuts.slice(1).map(x => '<div class="path">' + side(x.n, 'out', 'Take out') + '<div class="row">' + wantChip(x.dScore) + '<span class="chip">' + esc(x.why[0]) + '</span><button class="btn sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>').join('') +
