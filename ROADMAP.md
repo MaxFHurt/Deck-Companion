@@ -89,13 +89,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 ### Large
 
-13. **Visible practice games**
-   - *You'll see:* a "Practice" panel: draw opening hands, mulligan, and watch a few turns of the app's practice games (lands played, mana, spells cast), with how often the deck is short of lands or colours.
-   - *Builds on:* the practice-game simulator the deck score already runs in the background.
-   - *Size:* Large. *Upgrades engine:* no.
-   - *Risks:* showing the games is easy; making the play choices look sensible to a player is harder, so it starts as hands and simple turns.
-   - *Tested by:* seeded games give the same hands every run; tests check hand size, mulligans and land counts.
-14. **Smarter deck score**
+13. **Smarter deck score**
    - *You'll see:* better suggestions in every list, and fewer odd "Unpopular pick" chips.
    - *Builds on:* the deck score (synergy, balance, card quality, ways to win, practice games).
    - *Size:* Large. *Upgrades engine:* yes, discuss first.
@@ -118,6 +112,15 @@ Items marked "discuss first" need the owner's decision before they are built; th
        tournament staples cost far more than $12.
      - Note: tournament decks are the strongest level of play (Bracket 5). Matching them fully is a goal for an
        optional "Tournament" build, not for every Apex deck.
+
+## Parked (not needed for now, per the owner)
+
+- **Visible practice games**
+   - *You'll see:* a "Practice" panel: draw opening hands, mulligan, and watch a few turns of the app's practice games (lands played, mana, spells cast), with how often the deck is short of lands or colours.
+   - *Builds on:* the practice-game simulator the deck score already runs in the background.
+   - *Size:* Large. *Upgrades engine:* no.
+   - *Risks:* showing the games is easy; making the play choices look sensible to a player is harder, so it starts as hands and simple turns.
+   - *Tested by:* seeded games give the same hands every run; tests check hand size, mulligans and land counts.
 
 ## Open decisions
 

@@ -16,7 +16,7 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 - Live: **Build 103**. All tests pass (61 UI tests, 39 acceptance checks); the
   upgrade benchmark is unchanged.
-- `ROADMAP.md` now orders the queue smallest first (8 small, 4 medium, 2 large).
+- `ROADMAP.md` now orders the queue smallest first (8 small, 4 medium, 1 large; Visible practice games parked).
   Next up: remove leftover code, collection value, card search sort.
 - Open owner decisions: Game Changer rows (keep, trim, remove) and closer plan weighting
   in the upgrades engine.
