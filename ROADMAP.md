@@ -150,8 +150,14 @@ Live: Build 96. Each item ships as its own build: build, run the full test suite
 - Popular picks lead; the deck score must confirm every suggestion (no swap may
   lower it).
 - On-theme cards (commander's set, theme creature types) win when about equal.
-- Every button that removes or rules out something asks first.
+- Every button that removes or rules out something asks first, and so does every
+  swap, every add and every button that changes many cards at once.
+- When a deck runs more lands than its target, the extra lands may come out for
+  other cards (never more than the surplus).
 - Plain English in the app and in reports. No runtime AI.
+- Replies to the owner: plain English, and every long reply ends with a short
+  summary (done / works / needs the owner). Any question asked in a reply is
+  repeated, reworded, at the end of that summary.
 - The MTG Commander Deck Manager spreadsheet never supplies benchmark inputs.
 
 ## Done (recent builds)
