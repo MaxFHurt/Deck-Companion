@@ -561,6 +561,24 @@ function libRows(q){
   return names.slice(0, 150).map(n => { const c = find(n); return '<div class="dl libr"><button class="nm" data-act="card" data-n="' + esc(n) + '">' + esc(n) + (inDeck.has(norm(n)) ? ' <span class="chip">In this deck</span>' : '') + (c ? '' : ' <span class="chip warn">Not in card data</span>') + '</button><span class="pr">' + money(c) + '</span><span class="qty"><button class="ico" data-act="lib-dec" data-n="' + esc(n) + '" aria-label="Own one fewer">−</button><b>' + L[n] + '</b><button class="ico" data-act="lib-inc" data-n="' + esc(n) + '" aria-label="Own one more">+</button></span></div>'; }).join('') +
     (names.length > 150 ? '<p class="note" style="margin:6px 0 0">Showing 150 of ' + names.length.toLocaleString() + '. Search to narrow the list.</p>' : '');
 }
+// Collection value and stats: what the cards you own are worth (card-data prices, so estimates), by colour and type, the
+// most valuable ones, and how many of them are in your decks.
+function libStats(){
+  const L = lib(), inDecks = new Set(S.profile.decks.flatMap(x => x.cards.map(e => norm(e.n)).concat(x.commander ? [norm(x.commander)] : [], x.partner ? [norm(x.partner)] : [])));
+  const out = {total:0, copies:0, cards:0, unpriced:0, col:{}, type:{}, top:[], used:0, usedVal:0};
+  const COL = {W:'White', U:'Blue', B:'Black', R:'Red', G:'Green'}, add = (o, k, v, q) => { const x = o[k] || (o[k] = {v:0, n:0}); x.v += v; x.n += q; };
+  for (const [n, q] of Object.entries(L)){ const c = find(n); out.cards++; out.copies += q; if (!c || c.p == null){ out.unpriced++; continue; }
+    const v = c.p * q; out.total += v; add(out.col, c.ci.length > 1 ? 'Multicolour' : c.ci.length ? COL[c.ci[0]] : 'Colourless', v, q); add(out.type, mainType(c), v, q);
+    out.top.push({n:c.n, p:c.p, q}); if (inDecks.has(c._n)){ out.used++; out.usedVal += v; } }
+  out.top.sort((a, b) => b.p - a.p); out.top = out.top.slice(0, 10); return out; }
+function libStatsHtml(){
+  if (!libCount()) return ''; const st = libStats(), $$ = v => '$' + v.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  const bars = o => Object.entries(o).sort((a, b) => b[1].v - a[1].v).map(([k, x]) => '<dt>' + esc(k) + '</dt><dd>' + $$(x.v) + ' · ' + x.n.toLocaleString() + ' card' + (x.n === 1 ? '' : 's') + '</dd>').join('');
+  return '<details class="grp libstats" id="libstats"' + (S.libStatsOpen ? ' open' : '') + '><summary class="lab">Collection value · ' + $$(st.total) + '</summary>' +
+    '<p class="note" style="margin:0">' + st.copies.toLocaleString() + ' copies of ' + st.cards.toLocaleString() + ' cards. Prices are estimates from the card data' + (DBINFO.when ? ' (' + esc(String(DBINFO.when)) + ')' : '') + (st.unpriced ? '; ' + st.unpriced + ' card' + (st.unpriced === 1 ? ' has' : 's have') + ' no price and are not counted' : '') + '. ' +
+    st.used.toLocaleString() + ' of your cards are in your decks (' + $$(st.usedVal) + ').</p>' +
+    '<div class="row" style="align-items:flex-start;gap:18px"><div style="flex:1 1 200px"><span class="lab">By colour</span><dl class="kv">' + bars(st.col) + '</dl></div><div style="flex:1 1 200px"><span class="lab">By type</span><dl class="kv">' + bars(st.type) + '</dl></div></div>' +
+    (st.top.length ? '<span class="lab">Most valuable</span><div class="allrows">' + st.top.map(x => '<div class="dl libr"><button class="nm" data-act="card" data-n="' + esc(x.n) + '">' + esc(x.n) + '</button><span>' + (x.q > 1 ? x.q + '× ' : '') + '</span><span>$' + x.p.toFixed(2) + '</span></div>').join('') + '</div>' : '') + '</details>'; }
 function libPanel(d){
   const P = S.profile, n = libCount(), tot = Object.values(lib()).reduce((s, x) => s + x, 0); ensureSets();
   const deckOpts = P.decks.concat(S.draft && !P.decks.includes(S.draft) ? [S.draft] : []).map(x => '<option value="d:' + esc(x.id) + '"' + (x.id === d.id ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
@@ -569,7 +587,7 @@ function libPanel(d){
     '<div class="grp"><span class="lab">Add single cards</span><div class="dd"><input type="search" id="lib-q" placeholder="Search for a card you own" autocomplete="off"><div class="ddl" id="lib-res" hidden></div></div></div>' +
     '<div class="grp"><span class="lab">Add a deck</span><div class="row"><select id="lib-deck" style="flex:1 1 180px;min-width:0"><optgroup label="Your decks">' + deckOpts + '</optgroup>' + (preOpts ? '<optgroup label="Precons">' + preOpts + '</optgroup>' : '') + '</select><button class="btn" data-act="lib-add-deck">Add deck</button><button class="btn" data-act="lib-paste">Paste a list</button></div></div>' +
     '<div class="grp"><span class="lab">Add a set</span><div class="row"><div class="dd" style="flex:1 1 180px;min-width:0"><input type="search" id="lib-set" placeholder="' + (S.setList ? 'Set name or code, e.g. Bloomburrow' : S.setErr ? 'Set list unavailable · type a set code, e.g. blb' : 'Loading the list of sets…') + '" autocomplete="off"><div class="ddl" id="set-res" hidden></div></div><button class="btn" data-act="lib-add-set"' + (S.libBusy ? ' disabled' : '') + '>' + (S.libBusy ? 'Adding ' + esc(S.libBusy) + '…' : 'Add set') + '</button></div><p class="note" style="margin:0">Adds one copy of every card in the set.</p></div>' +
-    '<div class="grp"><div class="row"><span class="lab" style="flex:1">Cards you own · ' + n.toLocaleString() + (tot !== n ? ' (' + tot.toLocaleString() + ' copies)' : '') + '</span>' + (n ? '<button class="btn sm danger" data-act="lib-clear">' + (S.confirmLib ? 'Confirm: empty the library' : 'Empty library') + '</button>' : '') + '</div>' +
+    libStatsHtml() + '<div class="grp"><div class="row"><span class="lab" style="flex:1">Cards you own · ' + n.toLocaleString() + (tot !== n ? ' (' + tot.toLocaleString() + ' copies)' : '') + '</span>' + (n ? '<button class="btn sm danger" data-act="lib-clear">' + (S.confirmLib ? 'Confirm: empty the library' : 'Empty library') + '</button>' : '') + '</div>' +
     (n ? '<input type="search" id="lib-f" placeholder="Search your library" value="' + esc(S.libF || '') + '" autocomplete="off">' : '') + '<div id="librows">' + libRows(S.libF) + '</div></div></div>';
 }
 function openLibPaste(){
@@ -2215,7 +2233,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
 });
-document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; }, true);
+document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'libstats') S.libStatsOpen = ev.target.open; if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; }, true);
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && $('#confirm') && !$('#confirm').hidden){ confirmDone(false); return; } if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
 addEventListener('orientationchange', () => setTimeout(() => { wasNarrow = isNarrow(); render(); }, 250));
