@@ -50,6 +50,17 @@ Items marked "discuss first" need the owner's decision before they are built; th
      - Note: tournament decks are the strongest level of play (Bracket 5). Matching them fully is a goal for an
        optional "Tournament" build, not for every Apex deck.
 
+## Decided by the owner (12 October 2026), to build in this order
+
+1. **Our own land formula**: one land target the app and the tests both use (average mana value, cheap ramp and
+   draw, commander cost, landfall), checked against real decks; no longer depends on EDHREC's average.
+2. **Game Changer rows: trim**: the extra rows only fill the deck's remaining room under its bracket's
+   Game Changer limit, and only on Apex builds.
+3. **Phone layout (phones only; iPad and desktop unchanged)**: remove the tagline; add a "Continue" card (last
+   deck and recent decks) above the home tiles, which stay; the header always reads the full name, Deck
+   Companion; tighter side margins in landscape.
+4. **Smarter deck score, stage 1**: tournament staples (fast mana, free interaction, best lands) for Apex.
+
 ## Parked (not needed for now, per the owner)
 
 - **Visible practice games**
@@ -61,8 +72,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 ## Open decisions
 
-- **Game Changer extra rows**: keep, trim or remove (item 1).
-- **EDHREC land count in the app** (found in Build 104's cleanup): the tests and
+- ~~EDHREC land count in the app~~: decided, our own land formula (see above). Found in Build 104's cleanup: the tests and
   benchmark set each commander's land target from EDHREC's average land count, but
   the app never reads it, so app targets can differ by a land (Wakanda: 37 in the
   app, 36 in tests). Hooking it up would change land targets, the Lands alert,
