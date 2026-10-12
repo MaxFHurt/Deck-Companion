@@ -338,7 +338,7 @@ function apexKey(d){ return JSON.stringify([d.commander, d.partner || '', d.aims
 let QPOW = 40;
 function qualVal(c, d, ctx){ let v = baseScore(c, d, ctx).s; const E = ctx.edh, x = E && edhOf(E.map, c); if (x){ const D = preDeflate(E); v += W_INC * (D.inc(c, x.inc) - x.inc); }
   if (QPOW) v += QPOW * (CORE.has(c._n) ? 1 : c.r ? Math.max(0, 1 - Math.log(c.r + 1) / Math.log(40000)) : 0.35); return v; }
-function spellMean(cards, d, ctx, vf){ let t = 0, n = 0; cards.forEach(e => { const c = typeof e === 'string' ? find(e) : find(e.n), q = typeof e === 'string' ? 1 : e.q; if (!c || tags(c).land) return; t += (vf ? vf(c) : qualVal(c, d, ctx)) * q; n += q; }); return n ? t / n : 0; }
+function spellMean(cards, d, ctx, vf){ let t = 0, n = 0; cards.forEach(e => { const c = typeof e === 'string' ? find(e) : find(e.n), q = typeof e === 'string' ? 1 : e.q; if (!c || (tags(c).land && !(UP.tl && tourneyOf(c, d) === 'land'))) return; t += (vf ? vf(c) : qualVal(c, d, ctx)) * q; n += q; }); return n ? t / n : 0; }
 function apexRef(d){
   if (d.format !== 'commander' || !find(d.commander)) return null;
   const nd = JSON.parse(JSON.stringify(d)); nd.cards = []; nd.tier = 'apex'; delete nd.plan; nd.recP = {};
@@ -742,6 +742,16 @@ function filtBonus(c, d){
   return {s, why};
 }
 const FAST_MANA = new Set(['Sol Ring', 'Mana Crypt', 'Mana Vault', 'Chrome Mox', 'Mox Diamond', 'Jeweled Lotus', 'Lotus Petal', 'Mox Opal', 'Mox Amber', 'Grim Monolith', 'Ancient Tomb', 'Arcane Signet', 'Fellwar Stone', 'Mind Stone', 'Simian Spirit Guide', 'Elvish Spirit Guide', 'Dark Ritual', 'Cabal Ritual', 'Culling the Weak', 'Jeska\'s Will', 'Gemstone Caverns'].map(n => norm(n)));
+// Tournament staples (smarter deck score, stage 1): what top-16 tournament lists run that our Apex builds missed (EDHTop16,
+// October 2026): fast mana, free or one-mana interaction, and the best lands. Apex only: each is worth UP.ts to a card's
+// value (generation, card quality), the lands also count toward card quality, and the mana base may pick them past its usual room.
+const TOURNEY = {fast:['Mana Vault', 'Chrome Mox', 'Mox Diamond', 'Mox Opal', 'Mox Amber', 'Jeweled Lotus', 'Lotus Petal', 'Lion\'s Eye Diamond', 'Grim Monolith', 'Dark Ritual', 'Cabal Ritual', 'Rite of Flame', 'Desperate Ritual', 'Pyretic Ritual', 'Seething Song', 'Culling the Weak', 'Jeska\'s Will', 'Simian Spirit Guide', 'Elvish Spirit Guide', 'Springleaf Drum', 'Carpet of Flowers', 'Birds of Paradise', 'Noble Hierarch', 'Ignoble Hierarch', 'Llanowar Elves', 'Elvish Mystic', 'Fyndhorn Elves', 'Arbor Elf', 'Delighted Halfling', 'Avacyn\'s Pilgrim', 'Elves of Deep Shadow', 'Deathrite Shaman'],
+  free:['Force of Will', 'Force of Negation', 'Pact of Negation', 'Mindbreak Trap', 'Fierce Guardianship', 'Deflecting Swat', 'Deadly Rollick', 'Flawless Maneuver', 'Obscuring Haze', 'Snuff Out', 'Misdirection', 'Commandeer', 'Subtlety', 'Solitude', 'Endurance', 'Grief', 'Fury', 'Daze', 'Gut Shot', 'Mental Misstep', 'Flusterstorm', 'Spell Pierce', 'Swan Song', 'An Offer You Can\'t Refuse', 'Stern Scolding', 'Veil of Summer', 'Silence', 'Orim\'s Chant', 'Dispel', 'Spell Snare'],
+  land:['Ancient Tomb', 'City of Traitors', 'Urza\'s Saga', 'Cavern of Souls', 'Gemstone Caverns', 'Gaea\'s Cradle', 'Mana Confluence', 'City of Brass', 'Otawara, Soaring City', 'Boseiju, Who Endures', 'Tundra', 'Underground Sea', 'Badlands', 'Taiga', 'Savannah', 'Scrubland', 'Volcanic Island', 'Bayou', 'Plateau', 'Tropical Island',
+    'Flooded Strand', 'Polluted Delta', 'Bloodstained Mire', 'Wooded Foothills', 'Windswept Heath', 'Marsh Flats', 'Scalding Tarn', 'Verdant Catacombs', 'Arid Mesa', 'Misty Rainforest']};
+const TOURNEY_OF = new Map(); for (const k in TOURNEY) TOURNEY[k].forEach(n => TOURNEY_OF.set(norm(n), k));
+const TOURNEY_WHY = {fast:'Tournament staple: fast mana', free:'Tournament staple: free or one-mana interaction', land:'Tournament staple: one of the best lands'};
+function tourneyOf(c, d){ return UP.ts && c && d && d.format === 'commander' && (d.tier === 'apex' || !d.tier) ? TOURNEY_OF.get(c._n) || '' : ''; }
 function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
   (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe)); } } });
@@ -766,6 +776,9 @@ function baseScore(c, d, ctx){
     if (c.gc && UP.pw){ s += UP.pw; why.push('Game Changer: among the strongest cards in Commander'); }
     if (r.has('tutor') && UP.pt) s += UP.pt;
     if (UP.pf && FAST_MANA.has(c._n)) s += UP.pf; }
+  // a staple this commander's players rarely run is worth less here (full value at UP.tsk of decks; all of it without play data)
+  { const tk = !(ft && ft !== ctx.tribe) && tourneyOf(c, d); if (tk){ const x = ctx.edh && ctx.edh.map && ctx.edh.map.size >= 100 ? edhOf(ctx.edh.map, c) : null, f = !UP.tsk || !(ctx.edh && ctx.edh.map && ctx.edh.map.size >= 100) ? 1 : x ? Math.min(1, x.inc / UP.tsk) : 0;
+    if (f > 0){ s += UP.ts * f; if (f >= 0.5) why.push(TOURNEY_WHY[tk]); } } }
   return {s, hit, why, a:a0};
 }
 function splitBasics(k, ctx){
@@ -1020,7 +1033,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1526,11 +1539,12 @@ function manaBase(d, n, keep){
   if (!id.length){ if (n > 0) out.push({n:'Wastes', q:n}); return out; }
   const gap = k => req[k] ? Math.max(0, 1 - src[k] / req[k]) : 0, room = Math.min(n, [0, 8, 14, 20, 23, 24][id.length]);
   const pool = LIB.filter(c => tags(c).land && !isBasic(c.n) && legalIn(c, d.format) && c.ci.every(x => id.includes(x)) && !used.has(c._k) && mustOk(c, d) && !(d.dismissed || []).some(x => keyOf(x) === c._k))
-    .map(c => { const cols = [...landColors(c)].filter(k => id.includes(k)), sp = landSpeed(c); return {c, cols, sp, v:baseScore(c, d, ctx).s, spd:sp === 'untapped' ? 1 : sp === 'cond' ? 0.85 : 0.6}; });
-  let nb = 0;
-  while (nb < room){
+    .map(c => { const cols = [...landColors(c)].filter(k => id.includes(k)), sp = landSpeed(c); return {c, cols, sp, v:baseScore(c, d, ctx).s, spd:sp === 'untapped' ? 1 : sp === 'cond' ? 0.85 : 0.6, t:!!tourneyOf(c, d)}; });
+  // Apex: the best lands (tournament staples) may come in past the usual room for nonbasics, up to UP.tr more
+  let nb = 0; const roomT = Math.min(n, room + (UP.ts ? UP.tr : 0));
+  while (nb < roomT){
     let best = null, bs = -1e9;
-    for (const p of pool){ if (p.used) continue; const fix = p.cols.reduce((a, k) => a + gap(k), 0) * p.spd, s = 6 * fix + 0.35 * p.v - (p.cols.length ? 0 : 2 + (id.length - 1) * 1.5); if (s > bs){ bs = s; best = p; } }
+    for (const p of pool){ if (p.used || (nb >= room && !p.t)) continue; const fix = p.cols.reduce((a, k) => a + gap(k), 0) * p.spd, s = 6 * fix + 0.35 * p.v - (p.cols.length ? 0 : 2 + (id.length - 1) * 1.5); if (s > bs){ bs = s; best = p; } }
     // a basic of the neediest colour is worth 6 × its gap; a nonbasic must beat that
     const kb = id.slice().sort((a, b) => gap(b) - gap(a))[0], basicV = 6 * gap(kb) + 0.35 * 3;
     if (!best || bs <= basicV) break;
