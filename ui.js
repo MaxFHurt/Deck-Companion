@@ -1716,11 +1716,12 @@ function wantHtml(d, c){
   // Weigh this card against every card it could plausibly replace: the deck score with each swap made, best first. Both cards
   // can be weak for the deck and the swap still be a gain, so the player sees the +/- on each one.
   const e = d.format === 'commander' && A.size >= 90 ? evalFor(d) : null, ar = e && e.exact != null ? apexFor(d) : null;
-  let cuts = bestCuts(d, c.n, e && e.exact != null ? 8 : 3);
-  if (e && e.exact != null){ cuts.forEach(x => { x.dScore = swapScore(d, e, ar, x.n, c.n, 1); }); cuts = cuts.map((x, i) => [x, i]).sort((a, b) => (b[0].dScore ?? -1e9) - (a[0].dScore ?? -1e9) || a[1] - b[1]).map(x => x[0]).slice(0, 3); }
+  let cuts = bestCuts(d, c.n, e && e.exact != null ? 999 : 3); const pool = cuts.length;
+  if (e && e.exact != null){ cuts.forEach(x => { x.dScore = swapScore(d, e, ar, x.n, c.n, 1); }); const key = x => (x.s <= -80 ? 1e6 : 0) + (x.dScore ?? -1e9);   // a card that is illegal or outside the colours always goes first
+    cuts = cuts.map((x, i) => [x, i]).sort((a, b) => key(b[0]) - key(a[0]) || a[1] - b[1]).map(x => x[0]).slice(0, 3); }
   if (!cuts.length) return lab + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div>' + tipHtml(d, c) + '</div>';
   const side = (n, cls, small) => { const k = find(n); return '<button class="sw ' + cls + '" data-act="card" data-n="' + esc(n) + '">' + (k ? '<img alt="" src="' + artFor(k) + '">' : '<span></span>') + '<span><small>' + small + '</small>' + esc(n) + '</span><em>' + money(k) + '</em></button>'; };
-  const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
+  const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + 'Weighed against all ' + pool + ' ' + (tags(c).land ? 'lands' : 'spells') + ' it could replace. ' + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
   let h = lab + note + '<div class="swaphero">' + side(b.n, 'out', 'Take out') + '<span class="arrow" aria-hidden="true">→</span>' + side(c.n, 'in', 'Put in') + '</div>' +
     '<div class="row"><span class="chip good">Best swap</span>' + wantChip(b.dScore) + '<span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c) + '</div>';
   S.wantMore = '<div class="grp"><span class="lab">Or take out instead</span>' + cuts.slice(1).map(x => '<div class="path">' + side(x.n, 'out', 'Take out') + '<div class="row">' + wantChip(x.dScore) + '<span class="chip">' + esc(x.why[0]) + '</span><button class="btn sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>').join('') +
@@ -1874,6 +1875,7 @@ function manaCheck(d, act, v, n){
 }
 // Confirmation: every button that removes, deletes or rules out something asks first, in its own small window above
 // whatever is open, and says what will happen. Nothing happens on Cancel.
+function swapAsk(cut, add){ return [cut && add ? 'Swap ' + cut + ' for ' + add + '?' : 'Make this swap?', cut && add ? cut + ' comes out of ' + ((cur() || {}).name || 'the deck') + ' and ' + add + ' goes in. Undo can switch them back.' : 'The deck changes. Undo can switch it back.', 'Swap']; }
 const CONFIRM = {
   dismiss:(v, n) => ['Don’t suggest ' + n + '?', n + ' will no longer be recommended for this deck. You can bring it back from the list of cards you ruled out.', 'Don’t suggest it'],
   'watch-drop':(v, n) => ['Exclude ' + n + '?', n + ' will no longer be recommended for this deck.', 'Exclude it'],
@@ -1904,8 +1906,17 @@ const CONFIRM = {
   'fix-top':v => ['Make the top swaps for ' + v + '?', 'The best swaps in this list are made at once. Undo can put them back.', 'Make the swaps'],
   'mana-apply':() => ['Adjust the lands?', 'The deck’s lands are changed to match the colours your spells need. Undo can put them back.', 'Adjust lands'],
   'cmd-switch':(v, n) => ['Make ' + n + ' the commander?', 'The deck’s commander changes, which changes its colours and every suggestion. Undo can switch it back.', 'Switch commander'],
+  // every swap and every card added to a deck asks first (owner's rule); each still has Undo
+  swap:v => { const d = cur(), [i, t, al] = String(v).split('|'), R = d && recsFor(d), L = R && R.paths[+i], col = al && L ? rowCols(d, R, L, +i)[t] : null, p = col ? col.p : L && L.opts[t]; return swapAsk(p && p.cut, p && p.add); },
+  'swap-a3':(v, n) => { const d = cur(), [i, t] = String(v).split('|'), R = d && recsFor(d), L = R && R.paths[+i], col = L && rowCols(d, R, L, +i)[t]; return swapAsk(col && col.p && col.p.cut, n); },
+  want:(v, n) => swapAsk(v, n),
+  'fix-swap':v => { const [k, i] = String(v).split('|'), g = (S.fixG || []).find(x => x.k === k), p = g && g.L[+i]; return swapAsk(p && p.cut, p && p.add); },
+  'swap-cap':v => { const d = cur(), k = d ? capList(d, v).length : 0; return ['Make ' + (k || 'these') + ' swap' + (k === 1 ? '' : 's') + '?', 'Every card in this price-capped list is swapped in at once. Undo can put them back.', 'Make the swaps']; },
+  'add-to-deck':(v, n) => ['Add ' + n + ' to the deck?', n + ' goes into ' + ((cur() || {}).name || 'this deck') + ' without taking anything out. Undo can take it back out.', 'Add it'],
+  'consider-in':(v, n) => ['Put ' + n + ' in the deck?', n + ' moves from Considering into ' + ((cur() || {}).name || 'this deck') + '. Undo can take it back out.', 'Put it in'],
   'an-apply':() => ['Change the build’s mechanics?', 'The deck’s mechanics are replaced with the ones the analysis found, so the upgrade list changes. You can change them back in the Build panel.', 'Change them'] };
-function askConfirm(act, v, n, p, label){ const [t, x, ok] = CONFIRM[act](v, n || ''); let c = $('#confirm'); if (!c){ c = document.createElement('div'); c.id = 'confirm'; c.className = 'modal'; c.style.zIndex = 60; document.body.appendChild(c); }
+function askConfirm(act, v, n, p, label){ if (S.autoYes && S.autoYes.has(act)){ askConfirm.pending = {act, v, n, p, label}; confirmDone(true); return; }   // test switch, like S.syncRecs
+  const [t, x, ok] = CONFIRM[act](v, n || ''); let c = $('#confirm'); if (!c){ c = document.createElement('div'); c.id = 'confirm'; c.className = 'modal'; c.style.zIndex = 60; document.body.appendChild(c); }
   askConfirm.pending = {act, v, n, p, label}; c.innerHTML = '<div class="panel" role="alertdialog" aria-modal="true" aria-label="' + esc(t) + '" style="width:min(440px,100%)"><div class="ph"><h2>' + esc(t) + '</h2></div><p class="note" style="margin:0">' + esc(x) + '</p><div class="row" style="justify-content:flex-end"><button class="btn" data-act="conf-no">Cancel</button><button class="btn danger" data-act="conf-yes">' + esc(ok) + '</button></div></div>';
   c.hidden = false; const y = c.querySelector('[data-act="conf-no"]'); if (y) y.focus(); }
 function confirmDone(yes){ const c = $('#confirm'), P = askConfirm.pending; if (c) c.hidden = true; askConfirm.pending = null; if (!yes || !P) return;
