@@ -644,24 +644,24 @@ function navHtml(){
   let u = $('#undo-fab'); if (!u){ u = document.createElement('button'); u.id = 'undo-fab'; u.dataset.act = 'undo'; document.body.appendChild(u); }
   const last = UNDO.stack[UNDO.stack.length - 1]; u.hidden = !last; u.innerHTML = SVG.undo + '<span>Undo</span>'; u.setAttribute('aria-label', last ? 'Undo: ' + (last.label || 'last change') : 'Undo'); u.title = last ? 'Undo: ' + (last.label || 'last change') : '';
 }
-// Phones only (shown by the phone layout rules in index.html; hidden on iPad and desktop): a Continue card for the deck
-// you last opened and a short list of other recent decks, above the home tiles.
+// Phones only (shown by the phone layout rules in index.html; hidden on iPad and desktop): one Continue card for the deck
+// you last opened, under the home tiles and above Profile.
 function recentIds(){ const L = lsGet('dc.recent'); return Array.isArray(L) ? L : []; }
 function recentAdd(id){ if (!id) return; lsSet('dc.recent', [id].concat(recentIds().filter(x => x !== id)).slice(0, 8)); }
 function continueHtml(){ const D = S.profile.decks.filter(d => !d.example), ids = recentIds(), byId = new Map(D.map(d => [d.id, d]));
   const order = ids.map(i => byId.get(i)).filter(Boolean).concat(D.filter(d => !ids.includes(d.id))); if (!order.length) return '';
-  const d0 = order[0], c0 = find(d0.commander), A0 = analyze(d0), rest = order.slice(1, 4);
+  const d0 = order[0], c0 = find(d0.commander), A0 = analyze(d0);
   return '<section class="continue phone-only"><button class="tile" data-act="open-deck" data-v="' + d0.id + '"><img alt="" src="' + artFor(c0 || {n:d0.name, t:'Enchantment', o:'', ci:d0.colors || []}) + '"><div class="tb"><small class="lab" style="margin:0">Continue</small><h3>' + esc(d0.name) + '</h3><p>' + esc(d0.commander || (d0.format === 'standard' ? 'Standard' : 'No commander yet')) + ' · ' + A0.size + ' / ' + A0.T.size + '</p></div></button>' +
-    (rest.length ? '<div class="recent">' + rest.map(d => '<button class="btn" data-act="open-deck" data-v="' + d.id + '">' + esc(d.name) + '</button>').join('') + '</div>' : '') + '</section>'; }
+'</section>'; }
 function viewHome(){
   const n = S.profile.decks.filter(d => !d.example).length;
   const tile = (v, icon, title, text, extra) => '<button class="tile big" data-act="nav" data-v="' + v + '"><div class="tb"><span class="hicon">' + SVG[icon] + '</span><h3>' + title + '</h3><p>' + text + '</p>' + (extra ? '<span class="chip gold">' + extra + '</span>' : '') + '</div></button>';
   return '<section class="hero"><h1>Bring a deck. See every way to make it better.</h1><p class="narrow">A Magic: The Gathering deck builder for Commander and Standard that shows each card’s upgrade path at three budgets.</p><p class="wide">Deck Companion is a deck builder for Magic: The Gathering, made for Commander and Standard. Start a deck or bring your own, tell it what the deck is about, and it lays out each card’s upgrade path at three budgets, without turning your deck into something else.</p></section>' +
-    continueHtml() + '<div class="tiles home3">' +
+    '<div class="tiles home3">' +
     tile('deck', 'deck', 'Builder', 'Start a new deck. Generate one from a commander, load a real precon, import a list you already have, or begin empty.') +
     tile('decks', 'decks', 'Decks', 'Open a saved deck to edit it, tune its build, and follow its Budget, Mid and Apex upgrade paths.', n ? n + ' saved deck' + (n === 1 ? '' : 's') : '') +
     tile('search', 'search', 'Card search', 'Look up any card with its full details, price and every printing.') +
-    '</div><div class="row" style="justify-content:center"><button class="btn" data-act="nav" data-v="profile" style="display:inline-flex;gap:8px;align-items:center"><span class="hicon sm">' + SVG.profile + '</span>Profile and backups</button></div>' +
+    '</div>' + continueHtml() + '<div class="row" style="justify-content:center"><button class="btn" data-act="nav" data-v="profile" style="display:inline-flex;gap:8px;align-items:center"><span class="hicon sm">' + SVG.profile + '</span>Profile and backups</button></div>' +
     '<ol class="steps"><li><b>Get a deck in.</b> Generate one, load a precon, or paste your own list.</li><li><b>Set the build.</b> Rank the mechanics that matter and pick your colors. For Commander, the deck follows what your commander does.</li><li><b>Follow the upgrade paths.</b> Every card shows its strongest upgrade (Apex) and cheaper cards that do the same job (Mid under $12, Budget under $3), and how far along it already is.</li></ol>';
 }
 function viewDecks(){
@@ -1867,8 +1867,10 @@ function viewProfile(){
 }
 // The deck editor fills what is left of the screen, and its panes scroll inside themselves.
 // One-pane (tabbed) layout for phones in portrait and narrow tablets in portrait; two panes whenever there is room side by side.
-function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h > w && w < 900); }
-function fitWork(){ const w = document.querySelector('.work'); if (!w) return; const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
+function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h > w && w < 900) || (w > h && h < 560); }   // phones held sideways too
+// sideways phones: the page scrolls (fitWork leaves the work area its natural height), not boxes inside it
+const phoneLand = () => innerWidth > innerHeight && innerHeight < 560;
+function fitWork(){ const w = document.querySelector('.work'); if (!w) return; if (phoneLand()){ w.style.height = ''; return; } const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
 function render(){
   // Scroll positions survive a redraw. If the list is briefly shorter (still being worked out), the wanted position is
   // carried for a few redraws until the full list is back.
