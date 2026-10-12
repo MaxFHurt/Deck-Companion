@@ -1897,7 +1897,14 @@ const CONFIRM = {
   'aim-rm':() => ['Remove this mechanic?', 'The build stops aiming for it, so the upgrade list changes. You can add it back from the Build panel.', 'Remove'],
   'type-rm':() => ['Remove this creature type?', 'The build stops preferring it. You can add it back from the Build panel.', 'Remove'],
   'key-rm':() => ['Remove this keyword?', 'The build stops preferring it. You can add it back from the Build panel.', 'Remove'],
-  'dset-rm':() => ['Remove this card set?', 'The build stops using this set. You can add it back from the Build panel.', 'Remove'] };
+  'dset-rm':() => ['Remove this card set?', 'The build stops using this set. You can add it back from the Build panel.', 'Remove'],
+  // buttons that change many cards at once, or make a new deck, ask first too
+  'build-gen':() => { const d = cur(); return ['Generate a new build?', 'A new 100-card deck' + (d ? ' named “' + d.name.replace(/ \(generated\)$/, '') + ' (generated)”' : '') + ' is designed from these settings and opened. ' + (d ? '“' + d.name + '” itself' : 'This deck') + ' is not changed.', 'Generate']; },
+  'swap-all':v => { const d = cur(), R = d && recsFor(d), k = R ? R.paths.filter(L => v === 'free' ? L.opts.free : tierPick(L, v)).length : 0; return ['Make every ' + ((TIERS[v] || {label:'free'}).label || v) + ' swap?', (k ? k + ' card' + (k === 1 ? '' : 's') : 'Every suggested card') + ' in the deck will be swapped at once. Undo can put them back.', 'Make the swaps']; },
+  'fix-top':v => ['Make the top swaps for ' + v + '?', 'The best swaps in this list are made at once. Undo can put them back.', 'Make the swaps'],
+  'mana-apply':() => ['Adjust the lands?', 'The deck’s lands are changed to match the colours your spells need. Undo can put them back.', 'Adjust lands'],
+  'cmd-switch':(v, n) => ['Make ' + n + ' the commander?', 'The deck’s commander changes, which changes its colours and every suggestion. Undo can switch it back.', 'Switch commander'],
+  'an-apply':() => ['Change the build’s mechanics?', 'The deck’s mechanics are replaced with the ones the analysis found, so the upgrade list changes. You can change them back in the Build panel.', 'Change them'] };
 function askConfirm(act, v, n, p, label){ const [t, x, ok] = CONFIRM[act](v, n || ''); let c = $('#confirm'); if (!c){ c = document.createElement('div'); c.id = 'confirm'; c.className = 'modal'; c.style.zIndex = 60; document.body.appendChild(c); }
   askConfirm.pending = {act, v, n, p, label}; c.innerHTML = '<div class="panel" role="alertdialog" aria-modal="true" aria-label="' + esc(t) + '" style="width:min(440px,100%)"><div class="ph"><h2>' + esc(t) + '</h2></div><p class="note" style="margin:0">' + esc(x) + '</p><div class="row" style="justify-content:flex-end"><button class="btn" data-act="conf-no">Cancel</button><button class="btn danger" data-act="conf-yes">' + esc(ok) + '</button></div></div>';
   c.hidden = false; const y = c.querySelector('[data-act="conf-no"]'); if (y) y.focus(); }
