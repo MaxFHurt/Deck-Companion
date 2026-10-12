@@ -599,6 +599,18 @@ const b103 = await page.evaluate(async () => { const w = S.profile.decks.find(x 
     S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); }
   S.deckId = w.id; render(); return out; });
 T('UI-B103-01', 'Upgrades list: spare lands come out only when over the land target, at most one per extra land (3 over = up to 3), score-checked with fresh games; none at target. Rows show a Highest score card with its own Swap', b103.over3.lands - b103.over3.T === 3 && b103.over3.landForSpell <= 3 && !b103.over3.dupCuts && b103.over3.spareRows >= 1 && b103.over3.scored && b103.at.spareRows === 0 && b103.tops > 0 && b103.topShown && b103.swapped === true, JSON.stringify(b103));
+// 55. Build 105: Collection value on the Library: total value (exact for known prices), by colour and by type, the most
+// valuable cards, and how many owned cards are in decks; it stays open across redraws once opened.
+const b105 = await page.evaluate(async () => { const P = S.profile, keep = JSON.stringify(P.library || {}); P.library = {}; S.libV = (S.libV || 0) + 1;
+  const pick = LIB.filter(c => c.p != null && c.p > 0 && !isBasic(c.n)).slice(0, 40); pick.forEach((c, i) => { P.library[c.n] = 1 + (i % 3); }); S.libV++;
+  const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); const inDeck = d.cards.find(e => find(e.n) && find(e.n).p > 0 && !isBasic(e.n)); P.library[inDeck.n] = 1; S.libV++;
+  const want = Object.entries(P.library).reduce((s, [n, q]) => s + find(n).p * q, 0);
+  S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'lib'; render(); const st = libStats(), el = document.querySelector('#libstats'), out = {shown:!!el};
+  out.total = +st.total.toFixed(2); out.want = +want.toFixed(2); out.exact = Math.abs(st.total - want) < 0.005; out.colSum = Math.abs(Object.values(st.col).reduce((s, x) => s + x.v, 0) - want) < 0.005; out.typeSum = Math.abs(Object.values(st.type).reduce((s, x) => s + x.v, 0) - want) < 0.005;
+  out.topSorted = st.top.every((x, i) => !i || x.p <= st.top[i - 1].p) && st.top.length === 10; out.used = st.used >= 1;
+  if (el){ el.open = true; el.dispatchEvent(new Event('toggle')); render(); out.staysOpen = !!document.querySelector('#libstats[open]'); out.text = document.querySelector('#libstats').textContent.slice(0, 120); }
+  P.library = JSON.parse(keep); S.libV++; S.libStatsOpen = false; S.tab = 'list'; render(); return out; });
+T('UI-B105-01', 'Library: Collection value shows the exact total, by colour and by type (each adding up to the total), the 10 most valuable cards, and how many owned cards are in decks; stays open once opened', b105.shown && b105.exact && b105.colSum && b105.typeSum && b105.topSorted && b105.used && b105.staysOpen, JSON.stringify(b105));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
