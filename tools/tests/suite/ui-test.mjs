@@ -522,6 +522,12 @@ const b95 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   const out = {btn:true, asks:!!cf && !cf.hidden, txt:cf ? cf.textContent.slice(0, 160) : ''}; if (cf) cf.querySelector('[data-act="conf-no"]').click(); out.cancelSafe = S.profile.decks.length === n0 && JSON.stringify(d.cards) === before;
   out.covered = ['build-gen', 'swap-all', 'fix-top', 'mana-apply', 'cmd-switch', 'an-apply'].every(k => typeof CONFIRM[k] === 'function'); S.tab = 'list'; render(); return out; });
 T('UI-B95-01', 'Generate a build with these settings (and the other many-card buttons: apply a whole tier, top fixes, adjust lands, switch commander, change mechanics) ask first; Cancel changes nothing', b95.btn && b95.asks && b95.cancelSafe && b95.covered, JSON.stringify(b95));
+// 47. Build 96: the fit tip weighs plans closely: a card hitting two secondary plans rates at least Good, ahead of the
+// popularity penalty, and says how many of the plans it hits.
+const b95b = await page.evaluate(() => { for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander) && (x.aims || []).length >= 3)){ const ctx = ctxOf(d);
+    const c = LIB.find(x => !tags(x).land && x.ci.every(z => ctx.ident.includes(z)) && !entryOf(d, x.n) && legalIn(x, 'commander') && matchAim(x, d.aims[0], ctx.tribe) < 0.3 && matchAim(x, d.aims[1], ctx.tribe) >= 0.7 && matchAim(x, d.aims[2], ctx.tribe) >= 0.7 && !foreignTribe(x));
+    if (c){ const f = evalFit(d, c); return {deck:d.name, aims:d.aims, card:c.n, level:f.level, pros:f.pros, cons:f.cons}; } } return {none:true}; });
+T('UI-B96-01', 'Fit tip: a card that hits two of the deck’s secondary plans is rated a Good fit or better and says it hits 2 of the plans', !b95b.none && ['good', 'great'].includes(b95b.level) && b95b.pros.some(x => /hits 2 of/.test(x)), JSON.stringify(b95b));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
