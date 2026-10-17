@@ -458,7 +458,7 @@ function fromScryfall(o){
   return {n:o.name, m:o.mana_cost || f0.mana_cost || '', t:o.type_line || f0.type_line || '',
     o:o.oracle_text != null ? o.oracle_text : (f || []).map(x => x.oracle_text || '').join(' // '),
     ci:o.color_identity || [], cmc:o.cmc || 0, p:isNaN(p) ? null : p, std, cmd, r:o.edhrec_rank || 0,
-    pt:pw.power != null ? pw.power + '/' + pw.toughness : (o.loyalty ? 'Loyalty ' + o.loyalty : ''), set:o.set_name || '', id:o.id || '', sc:o.set || '', oid:o.oracle_id || '', rar:o.rarity || '', cn:o.collector_number || '', gc:!!o.game_changer, src:'full'};
+    pt:pw.power != null ? pw.power + '/' + pw.toughness : (o.loyalty ? 'Loyalty ' + o.loyalty : ''), set:o.set_name || '', id:o.id || '', sc:o.set || '', oid:o.oracle_id || '', rar:o.rarity || '', cn:o.collector_number || '', gc:!!o.game_changer, fn:o.flavor_name || f0.flavor_name || '', src:'full'};
 }
 // ----- card identity -----
 // Every comparison between cards uses one identity: the Scryfall Oracle ID (c._k). Display names stay as the player or the
@@ -584,10 +584,11 @@ function parseDeckText(txt){
     if (!find(name) && !altName(name)) name = name.replace(/\s+\d+[a-z★]?$/i, '').trim();   // a trailing collector number, unless it is part of the name
     if (!name || q < 1 || q > 250) continue;
     if (sb || section === 'side'){ out.side += q; continue; }
-    let c = find(name); if (!c){ const real = altName(name) || labelled(name); if (real){ c = find(real); name = real; } } if (c) name = c.n;
+    const typed = name; let c = find(name); if (!c){ const real = altName(name) || labelled(name); if (real){ c = find(real); name = real; } } if (c) name = c.n;
+    const pn = c && norm(typed) !== c._n && altName(typed) ? typed : '';   // printed under another name (Humongous Fungus is Corpsejack Menace)
     if ((section === 'commander' || isCmd) && !out.commander){ out.commander = name; continue; }
     if ((section === 'commander' || isCmd) && !out.partner){ out.partner = name; continue; }
-    const k = norm(name); if (map.has(k)) map.get(k).q += q; else { const e = {n:name, q, l:false}; if (pm){ e.psc = pm[1].toLowerCase(); if (pm[2]) e.pcn = pm[2]; } map.set(k, e); out.cards.push(e); }
+    const k = norm(name); if (map.has(k)) map.get(k).q += q; else { const e = {n:name, q, l:false}; if (pn) e.pn = pn; if (pm){ e.psc = pm[1].toLowerCase(); if (pm[2]) e.pcn = pm[2]; } map.set(k, e); out.cards.push(e); }
   }
   return out;
 }

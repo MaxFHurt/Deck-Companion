@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 118. Each item ships as its own build: build, run the full test suite
+Live: Build 119. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -168,3 +168,7 @@ are worth more when this commander's players run them (full value at 10% of deck
 quality and may replace basics (up to 6 past the usual room). Tournament comparison (`tourney.js`, 10 commanders, 20 top-16 lists each):
 our cards matching 49% to 57%, shared core 45% to 55%, missed core cards that raise the score 24 to 43 of 80, Mid 45% to 50%;
 upgrade benchmark agreement@5 unchanged (0.233 / 0.286 / 0.292); popular picks still lead the upgrade list.
+119: printed names: a reskinned reprint shows the name on your card (the TMNT precon's "Humongous Fungus" is Corpsejack Menace)
+with the card's own name beside it, in the deck list (A–Z by the name shown, search finds either) and the card window; kept from
+precons and pasted lists, read from the precon list for decks saved earlier, and set by choosing a printing. A picture of a printing
+with another name says so (Sword of Fire and Ice's Marvel "Patriotic Shield"). Backup of Build 118: branch backup/build-118.
