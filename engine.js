@@ -951,6 +951,11 @@ function scoreCheck(d, R, o){
   o = o || {}; if (!R || d.format !== 'commander' || !find(d.commander)) return R;
   let base; try { base = o.base || evaluateDeck(d, {apex:o.apex, games:300}); } catch (e) { return R; } if (!base || base.exact == null) return R;
   const memo = new Map(), dOf = p => { const k = p.cut + '>' + p.add + '>' + (p.q || 1); if (!memo.has(k)) memo.set(k, swapScore(d, base, o.apex, p.cut, p.add, p.q)); return memo.get(k); };
+  // Unpopular pick (owner, option B): only when the gap is big: the alternative raises the score more, few players run it, and
+  // the suggested card is run by at least UP.unpopX times as many (and UP.unpopG more of all decks), and the alternative clearly
+  // scores more (by UP.unpopS, and UP.unpopR times the pick's gain), so the chip is rare and means something.
+  const incN = n => { const c = find(n), e = c && ctx0.edh && edhOf(ctx0.edh.map, c); return e ? e.inc : 0; };
+  const unpopOf = (w, inc, tp) => { if (!(w > tp.dScore && inc < UP.unpop)) return false; if (!UP.unpopX) return true; if (w - tp.dScore < UP.unpopS || w < UP.unpopR * tp.dScore) return false; const pi = incN(tp.add); return pi >= UP.unpopX * inc && pi - inc >= UP.unpopG; };
   const LAB = {apex:'Apex', mid:'Mid', budget:'Budget'}; let dropped = 0, refilled = 0, themed = 0, repaired = 0; const extra = [];
   const T = themeCtx(d), VM = new Map(), ctx0 = ctxOf(d), dis0 = new Set((d.dismissed || []).map(norm)); let TP = null; const own = upgradePaths.own, inUse = () => new Set(R.paths.flatMap(L => Object.values(L.opts).map(p => p.add)));
   const swapTo = (p, n, v, why) => { const c = find(n); return Object.assign({}, p, {add:c.n, dScore:v, held:false, own:!!(own && own.has(c._n)), gc:!!c.gc, why:(why ? [why] : []).concat((p.why || []).filter(w => !/^From |theme$/.test(w))).slice(0, 2), alt:p.add}); };
@@ -1009,7 +1014,7 @@ function scoreCheck(d, R, o){
       const alts = {apex:[], mid:[], budget:[]}; left.forEach(x => { const t = x.c.p != null && underCap(x.c.p, 'budget') ? 'budget' : x.c.p != null && underCap(x.c.p, 'mid') ? 'mid' : 'apex', tp = out[t] || out.mid || out.apex;
         if (!tp || alts[t].length >= 3 || (UP.rankPick && x.w > tp.dScore) || x.w < Math.max(scoreFloor(), 0.5 * tp.dScore)) return;
         const e = ctx0.edh && edhOf(ctx0.edh.map, x.c), inc = e ? e.inc : 0;
-        alts[t].push({n:x.c.n, p:x.c.p, dScore:x.w, theme:x.th, inc:+inc.toFixed(3), decks:ctx0.edh ? ctx0.edh.decks || 0 : 0, vs:tp.add, vsScore:tp.dScore, unpop:x.w > tp.dScore && inc < UP.unpop}); });
+        alts[t].push({n:x.c.n, p:x.c.p, dScore:x.w, theme:x.th, inc:+inc.toFixed(3), decks:ctx0.edh ? ctx0.edh.decks || 0 : 0, vs:tp.add, vsScore:tp.dScore, vsInc:+incN(tp.add).toFixed(3), unpop:unpopOf(x.w, inc, tp)}); });
       if (UP.rankPick) ['apex', 'mid', 'budget'].forEach(t => { if (out[t]) O[t] = out[t]; else if (O[t]){ delete O[t]; (L.none = L.none || {})[t] = 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score enough after the cards above it'; } });
       // Players decide what competes, the deck score picks the winner (UP.cand): the candidates are cards this commander's players
       // run in at least UP.cand of decks, proven staples and tournament staples. In each column the highest-scoring candidate at
@@ -1045,7 +1050,7 @@ function scoreCheck(d, R, o){
         if (best && best !== O.apex){ const nb = Object.assign({}, best, {t:'apex', held:false}); O.apex = nb; used.add(norm(nb.add));
           ['mid', 'budget'].forEach(t => { if (O[t] && norm(O[t].add) === norm(nb.add)){ delete O[t]; (L.none = L.none || {})[t] = 'The Apex card already costs under $' + TIERS[t].cap; } });
           // alternatives are measured against their tier's pick again (it may now be the stronger Apex card)
-          ['apex', 'mid', 'budget'].forEach(t => { const tp = O[t] || O.mid || O.apex; alts[t] = alts[t].filter(x => norm(x.n) !== norm(nb.add) && tp && x.dScore >= Math.max(scoreFloor(), 0.5 * tp.dScore)).map(x => Object.assign(x, {vs:tp.add, vsScore:tp.dScore, unpop:x.dScore > tp.dScore && x.inc < UP.unpop})); }); } }
+          ['apex', 'mid', 'budget'].forEach(t => { const tp = O[t] || O.mid || O.apex; alts[t] = alts[t].filter(x => norm(x.n) !== norm(nb.add) && tp && x.dScore >= Math.max(scoreFloor(), 0.5 * tp.dScore)).map(x => Object.assign(x, {vs:tp.add, vsScore:tp.dScore, vsInc:+incN(tp.add).toFixed(3), unpop:unpopOf(x.dScore, x.inc, tp)})); }); } }
       ['apex', 'mid', 'budget'].forEach(t => { if (O[t]) used.add(norm(O[t].add)); }); Object.values(alts).flat().forEach(a => used.add(norm(a.n))); L.alts = alts; L.ranked = true; } }
   // Spare lands (owner's rule): when the deck runs more lands than its target, each extra land is a slot that can go for a
   // stronger card, never more than the surplus and never when the deck is at or under target. Land changes are measured
@@ -1079,7 +1084,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){

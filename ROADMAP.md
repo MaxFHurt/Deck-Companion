@@ -41,8 +41,8 @@ Items marked "discuss first" need the owner's decision before they are built; th
        of our weakest card raised our score only 17 times in 80).
      - Mid decks fall further behind (Winota 57% to 45%, Lumra 44% to 29%, Yuriko 38% to 32%), because many
        tournament staples cost far more than $12.
-     - Note: tournament decks are the strongest level of play (Bracket 5). Matching them fully is a goal for an
-       optional "Tournament" build, not for every Apex deck.
+     - Note: tournament decks are the strongest level of play (Bracket 5). The owner ruled (17 Oct) that there is no
+       tier above Apex: Apex is the best version of the deck, so closing this gap is Apex work.
 
 ## Decided by the owner (12 October 2026), to build in this order
 
@@ -67,10 +67,25 @@ Items marked "discuss first" need the owner's decision before they are built; th
   the app never reads it, so app targets can differ by a land (Wakanda: 37 in the
   app, 36 in tests). Hooking it up would change land targets, the Lands alert,
   spare lands and upgrades; needs the owner's go-ahead and a benchmark run.
-- **Unpopular pick chip**: about half of all alternatives carry it, because the
-  deck score often likes cards players skip. Option: show it only when the gap
-  over the suggested card is large. (The Highest score pick, Build 103, now shows
-  the best-scoring card on every row anyway.)
+- ~~Unpopular pick chip~~: decided (option B), done in Build 134. It shows only for a
+  big gap: the alternative out-scores the pick by 0.2 and half again, and the pick is
+  run by 3 times as many players (and 10% more of all decks). Alternatives carrying it:
+  24% -> 9% over every benchmark precon. Its pop-up now gives both play rates.
+- **Published-guides spot-check (17 Oct, Build 134 tools):** `node guidecheck.js ../candidate
+  [--detail]` compares our rows with 9 written guides for the 5 test precons
+  (`guides/guides.json`: Draftsim, EDHREC, Card Kingdom, Wargamer). A check only, never for
+  tuning. Build 134: we offer 44% of the guides' adds somewhere (24% as the Apex pick); a
+  guide also cuts 30 of our first 56 cuts. The guides' own swaps lower our deck score on
+  average (-0.11; ours +0.57). Blind spots worth a look: Sheoldred, the Apocalypse and
+  Yawgmoth for Doom (almost no Doom players run them, so never candidates), Swords to
+  Plowshares for Turtle Power (18% of players add it, no removal slot), Brightglass Gearhulk
+  for Wakanda.
+- **Tramplesaurus cut accuracy (investigated 17 Oct):** our cut order is right (our first 9
+  cuts are 8 of the 9 cards players cut most). The problem is depth: Ghalta players keep most
+  of the precon, but we offer 26 rows, and from row 10 on we cut cards 60-83% of players keep
+  (Collective Resistance, Kenrith's Transformation, Thickest in the Thicket) for cards 1-15%
+  add. Options for the owner: fewer rows when players keep most of a precon, or a "More
+  ideas" fold for the rows past the evidence.
 - **Closer plan weighting: tried and rejected (17 Oct, after Build 133).** The
   fit tip's closer weights (2 / 1.75 / 1.5, plus a bonus per extra plan) were
   benchmarked in the engine. Main scorer 5/4.4/3.75: test 0.303 -> 0.281. Milder
