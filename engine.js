@@ -410,14 +410,14 @@ function evaluateDeck(d, opt){
   else why.mana = 'available once the deck has its full 100 cards';
   const raw = {synergy:syn, balance:bal, quality:qual, routes, mana}, parts = {}; let total = 0;
   // parts are shown as whole numbers; exact keeps the unrounded parts, so a small real gain (a better card) is not lost to rounding
-  let wsum = 0, exact = 0; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } const pe = k === 'quality' && qExact != null ? qExact : EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], EV_ANCHOR[k]);
-    parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(pe); total += parts[k] * EV_W[k] / 100; exact += pe * EV_W[k] / 100; wsum += EV_W[k]; }
-  if (wsum && wsum < 100){ total = total * 100 / wsum; exact = exact * 100 / wsum; }   // the parts that could be judged, weighted as usual
+  let wsum = 0, exact = 0; const contrib = {}; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } const pe = k === 'quality' && qExact != null ? qExact : EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], EV_ANCHOR[k]);
+    parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(pe); total += parts[k] * EV_W[k] / 100; exact += pe * EV_W[k] / 100; contrib[k] = pe * EV_W[k] / 100; wsum += EV_W[k]; }
+  if (wsum && wsum < 100){ total = total * 100 / wsum; exact = exact * 100 / wsum; for (const k in contrib) contrib[k] *= 100 / wsum; }   // the parts that could be judged, weighted as usual
   const onPlan = spells.filter(c => (d.aims || []).some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)).length;
   const feat = {lands:A.lands, tLands:T.lands, avg:+A.avg.toFixed(2), ramp:A.roles.ramp, draw:A.roles.draw, removal:A.roles.removal, wipe:A.roles.wipe, tRamp:T.ramp, tDraw:T.draw, tRem:T.removal, tWipe:T.wipe, inter, fin:fin.length, prot, rec, tut, wins:wins.length, combos:cb.full.length,
     onPlan:onPlan / n, synPos:E && E.map ? spells.filter(c => { const x = incOf(c); return x && x.syn >= 0.1; }).length / n : 0, cheap:spells.filter(c => c.cmc <= 2).length, big:spells.filter(c => c.cmc >= 6).length, gc:A.gc.length, weak:dead.length};
   const prof = profileOf(ctx.cmd), needs = prof ? prof.needs.map(k => Object.assign({key:k, label:k.startsWith('tribe:') ? k.slice(6) + ' creatures' : NEEDS[k].label}, supportOf(d, k))) : [];
-  return {total:Math.round(total), exact:+exact.toFixed(3), parts, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null, marks:AR && AR.apex != null ? {budget:qualityPct(AR.budget, AR.apex, AR.floor), mid:qualityPct(AR.mid, AR.apex, AR.floor)} : null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
+  return {total:Math.round(total), exact:+exact.toFixed(3), parts, contrib, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null, marks:AR && AR.apex != null ? {budget:qualityPct(AR.budget, AR.apex, AR.floor), mid:qualityPct(AR.mid, AR.apex, AR.floor)} : null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
 }
 function parsePrecon(j){
   const jd = (j && j.container && j.container.json_dict) || {}, dk = (j && j.deck) || {}, L = t => ((jd.cardlists || []).find(x => x.tag === t) || {}).cardviews || [];
@@ -1034,7 +1034,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1384,7 +1384,11 @@ function bestCuts(d, addName, k){
   return out.sort((a, b) => a.s - b.s).slice(0, k || 3);
 }
 // Player tip for a card being added by hand: how well does it fit this deck, and why?
-function evalFit(d, c){
+// sw (optional): the measured best swap for this card, {cut, dScore, gain}. The tip then leads with what the swap does to the
+// deck score, and the card's own rating (play data, fit) is kept as a separate signal instead of contradicting it.
+const IMPACT = [[2, 'Major upgrade', 'great'], [1, 'Strong upgrade', 'good'], [SCORE_MIN, 'Small upgrade', 'ok'], [-SCORE_MIN + 1e-9, 'No real change', 'ok'], [-Infinity, 'Lowers the deck score', 'poor']];
+const PART_LABEL = {synergy:'synergy', balance:'balance (jobs and lands)', quality:'card quality', routes:'ways to win', mana:'mana'};
+function evalFit(d, c, sw){
   const A = analyze(d), ctx = A.ctx, T = A.T, tg = tags(c), b = baseScore(c, d, ctx), pros = [], cons = [], cmdName = ctx.cmd ? ctx.cmd.n.split(',')[0] : '';
   let pts = 0;
   if (!legalIn(c, d.format)) return {level:'bad', title:'Not legal here', pros, cons:[c.n + ' is not legal in ' + (d.format === 'commander' ? 'Commander' : 'Standard') + ', so the deck could not be played with it.']};
@@ -1419,7 +1423,7 @@ function evalFit(d, c){
     const RN = {ramp:'mana ramp', draw:'card draw', removal:'removal', wipe:'board wipes'}; let filled = false;
     for (const r in RN) if (tg.roles.has(r)){
       if (A.roles[r] < T[r]){ if (!filled) pts += 2; filled = true; pros.push('The deck is short on ' + RN[r] + ' (' + A.roles[r] + ' of about ' + T[r] + ') and this adds one.'); }
-      else pros.push('Adds ' + RN[r] + '; the deck already has enough (' + A.roles[r] + ').'); }
+      else if (!sw) pros.push('Adds ' + RN[r] + '; the deck already has enough (' + A.roles[r] + ').'); }   // with a measured swap, the score line says what it adds
     if (CORE.has(c._n) || (c.r && c.r < 300)){ pts += 1; pros.push('A staple that is good in almost any deck.'); }
     if (ctx.bracket && c.gc){ const nb = bracketOf(ctx.gcIn + 1, ctx.mldIn);
       cons.push(nb > ctx.bracket ? 'A Game Changer. Adding it moves the deck from Bracket ' + ctx.bracket + ' to Bracket ' + nb + '.' : 'A Game Changer: it would be number ' + (ctx.gcIn + 1) + (ctx.bracket === 3 ? ' of the 3 that Bracket 3 allows.' : ' in the deck.')); }
@@ -1433,11 +1437,17 @@ function evalFit(d, c){
     if (sc.length >= 10){ const below = sc.filter(v => v < b.s).length, pc = below / sc.length;
       if (pc >= 0.6){ pts += 1; pros.push('By my scoring it beats ' + below + ' of the ' + sc.length + ' spells already in the deck.'); }
       // that ranking already counts how rarely players run it, so a card hitting two or more plans isn't marked down twice
-      else if (pc <= 0.15){ if (!multi) pts -= 1; cons.push('By my scoring it ranks below nearly every spell already in the deck.'); } }
+      else if (pc <= 0.15){ const up = sw && sw.dScore != null && sw.dScore >= SCORE_MIN;
+        if (!multi && !up) pts -= 1; cons.push(up ? 'On play data and fit alone it rates below nearly every spell in the deck' + '; the score gain comes from the swap itself (see above).' : 'By my scoring it ranks below nearly every spell already in the deck.'); } }
   }
   const level = pts >= 4 ? 'great' : pts >= 2 ? 'good' : pts >= -1 ? 'ok' : 'poor';
   if (!pros.length && !cons.length) cons.push('Nothing in its text connects to the deck’s plan, but nothing clashes with it.');
-  return {level, title:{great:'Great fit', good:'Good fit', ok:'Playable, not a natural fit', poor:'Poor fit'}[level], pros, cons};
+  const fitT = {great:'Great fit', good:'Good fit', ok:'Playable, not a natural fit', poor:'Poor fit'}[level];
+  if (sw && sw.dScore != null && !tags(c).land){ const im = IMPACT.find(x => sw.dScore >= x[0]), g = Object.entries(sw.gain || {}).filter(([, v]) => Math.abs(v) >= 0.05).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    const s = (sw.dScore >= 0 ? '+' : '−') + Math.abs(sw.dScore).toFixed(1);
+    pros.unshift('Swapping out ' + sw.cut + ' changes the deck score by ' + s + (g.length ? ': ' + g.slice(0, 3).map(([k, v]) => PART_LABEL[k] + ' ' + (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1)).join(', ') : '') + '.');
+    return {level:im[2], title:im[1] + ' · ' + fitT.toLowerCase(), fit:level, impact:im[1], pros, cons}; }
+  return {level, title:fitT, fit:level, pros, cons};
 }
 // Two commanders: which cards may share the command zone. Covers Partner, "Partner with", named partner variants
 // (both cards must have the same one), Friends forever, Choose a Background and Doctor's companion.
@@ -1503,15 +1513,30 @@ function manaPlan(d){
   const spell = Object.assign({}, pips);   // what the 99 need, before the commander's own cost is weighed in
   if (ctx.cmd) count(ctx.cmd, 2); if (ctx.par) count(ctx.par, 2);
   const cols = 'WUBRG'.split('').filter(k => pips[k] > 0 && (d.format !== 'commander' || !ctx.cmd || ctx.ident.includes(k))), tot = cols.reduce((s, k) => s + pips[k], 0), want = {W:0, U:0, B:0, R:0, G:0};
-  if (basics && tot){
+  // Commander (when no colour is short, a basic stays as it is): the basics are split the way the generator's mana base does it (manaBase): every colour source counts (nonbasic
+  // lands fully, rocks and dorks at 0.75), each basic goes to the colour furthest below what its spells need (colourDemand).
+  // Splitting basics by mana symbols alone ignored the other lands and told freshly built decks their colours had shifted.
+  if (basics && tot && d.format === 'commander' && ctx.ident.length && UP.msrc){ const id = ctx.ident, req = colourDemand(d, ctx), src = {}; id.forEach(k => src[k] = 0);
+    d.cards.forEach(e => { const c = find(e.n); if (!c || isBasic(c.n)) return; if (tags(c).land) [...landColors(c)].forEach(k => { if (k in src) src[k] += e.q; }); else { const sm = simCard(c, id); if (sm.mana) sm.cols.forEach(k => { if (k in src) src[k] += e.q * 0.75; }); } });
+    const gap = k => req[k] ? Math.max(0, 1 - src[k] / req[k]) : 0;
+    for (let i = 0; i < basics; i++){ const k = id.filter(x => COLOR_BASIC[x]).slice().sort((a, b) => (gap(b) - gap(a)) || ((want[b] < have[b]) - (want[a] < have[a])) || (req[b] - req[a]))[0]; if (!k) break; want[k]++; src[k] += 1; }
+  }
+  else if (basics && tot){
     const min = basics >= 20 && cols.length <= 4 ? 2 : 1, f = cols.map(k => basics * pips[k] / tot); cols.forEach((k, i) => want[k] = Math.max(min, Math.floor(f[i])));
     let left = basics - cols.reduce((s, k) => s + want[k], 0);
     cols.map((k, i) => [f[i] - Math.floor(f[i]), k]).sort((a, b) => b[0] - a[0]).forEach(([, k]) => { if (left > 0){ want[k]++; left--; } });
     while (left > 0){ const k = cols.slice().sort((a, b) => pips[b] - pips[a])[0]; want[k]++; left--; }
     while (left < 0){ const k = cols.filter(x => want[x] > min).sort((a, b) => want[b] - want[a])[0]; if (!k) break; want[k]--; left++; }
   }
-  const changes = basics && tot ? 'WUBRG'.split('').filter(k => want[k] !== have[k]).map(k => ({n:COLOR_BASIC[k], k, delta:want[k] - have[k]})) : [];
-  return {pips, spell, have, want, basics, changes, off:changes.reduce((s, x) => s + Math.max(0, x.delta), 0)};
+  let changes = basics && tot ? 'WUBRG'.split('').filter(k => want[k] !== have[k]).map(k => ({n:COLOR_BASIC[k], k, delta:want[k] - have[k]})) : [], stuck = null;
+  // A suggested rebalance must prove itself on the generator's own measure: the colour sources short of what the spells need
+  // (Karsten's tables, colourDemand) must drop by at least 2. Otherwise nothing is suggested. (The practice games barely react
+  // to basic lands, so they cannot be the judge here.)
+  if (changes.length && d.format === 'commander' && UP.msrc){ const id = ctx.ident, req = colourDemand(d, ctx), src = {}; id.forEach(k => src[k] = 0);
+    d.cards.forEach(e => { const c = find(e.n); if (!c || isBasic(c.n)) return; if (tags(c).land) [...landColors(c)].forEach(k => { if (k in src) src[k] += e.q; }); else { const sm = simCard(c, id); if (sm.mana) sm.cols.forEach(k => { if (k in src) src[k] += e.q * 0.75; }); } });
+    const short = b => id.reduce((t, k) => t + Math.max(0, (req[k] || 0) - src[k] - (b[k] || 0)), 0);
+    stuck = [+short(have).toFixed(1), +short(want).toFixed(1)]; if (!(stuck[1] <= stuck[0] - 2)){ changes = []; Object.assign(want, have); } }
+  return {pips, spell, have, want, basics, changes, stuck, off:changes.reduce((s, x) => s + Math.max(0, x.delta), 0)};
 }
 function applyMana(d, plan){ plan.changes.forEach(x => { if (x.delta > 0) addCard(d, x.n, x.delta); else cutCard(d, x.n, -x.delta); }); }
 function addCard(d, n, q){ const k = keyOf(n), e = d.cards.find(x => keyOf(x.n) === k); if (d.dismissed && d.dismissed.length) d.dismissed = d.dismissed.filter(x => keyOf(x) !== k); if (e) e.q += q; else d.cards.push({n, q, l:false}); }

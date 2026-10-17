@@ -1542,7 +1542,7 @@ function upPanel(d, A){
   const hasPlan = d.plan && d.plan.length, R = hasPlan ? null : recsFor(d), thumb = n => { const c = find(n); return c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>'; }, price = n => money(find(n));
   const side = (kind, n, q) => '<button class="sw ' + kind + '" data-act="card" data-n="' + esc(n) + '">' + thumb(n) + '<span><small>' + (kind === 'out' ? 'Remove' : 'Add') + '</small>' + (q > 1 ? q + '× ' : '') + esc(n) + (kind === 'in' ? printTag(find(n)) : '') + '</span><em>' + price(n) + '</em></button>';
   const mp = manaPlan(d);
-  if (mp.off >= 2) h += '<div class="gate"><b>Mana adjustment suggested</b>The deck’s colors have shifted, so its basic lands no longer match what the spells need. I would change: ' + esc(planText(mp)) + '.<div class="row" style="margin-top:10px"><button class="btn pri" data-act="mana-apply">Accept the change</button></div></div>';
+  if (mp.off >= 2) h += '<div class="gate"><b>Mana adjustment suggested</b>' + (mp.stuck ? 'Counting all your lands and mana rocks, the deck is ' + mp.stuck[0] + ' colour sources short of what its spells need; changing your basics brings that to ' + mp.stuck[1] + ': ' : 'The basic lands don’t match the colours the spells need. I would change: ') + esc(planText(mp)) + '.<div class="row" style="margin-top:10px"><button class="btn pri" data-act="mana-apply">Accept the change</button></div></div>';
   if (R.fixes.length || R.drops.length){
     h += '<div class="grp"><span class="lab">Fixes this deck needs</span>' +
       R.fixes.map((p, i) => isBasic(p.add) ? '' : '<div class="path">' + side('out', p.cut, p.q) + side('in', p.add, p.q) + '<div class="row"><span class="chip warn">' + esc(p.fix ? p.cutWhy[0] : p.why[0]) + '</span><button class="btn pri sm" data-act="fix" data-v="' + i + '" style="margin-left:auto">Swap</button></div></div>').join('') +
@@ -1878,7 +1878,7 @@ function viewProfile(){
 function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h > w && w < 900) || (w > h && h < 560); }   // phones held sideways too
 // sideways phones: the page scrolls (fitWork leaves the work area its natural height), not boxes inside it
 const phoneLand = () => innerWidth > innerHeight && innerHeight < 560;
-function fitWork(){ const w = document.querySelector('.work'); if (!w) return; if (phoneLand()){ w.style.height = ''; return; } const vh = (window.visualViewport && visualViewport.height) || innerHeight; w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
+function fitWork(){ const w = document.querySelector('.work'); if (!w) return; if (phoneLand()){ w.style.height = ''; return; } const vh = Math.min(innerHeight, (window.visualViewport && visualViewport.height) || innerHeight); w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
 function render(){
   // Scroll positions survive a redraw. If the list is briefly shorter (still being worked out), the wanted position is
   // carried for a few redraws until the full list is back.
@@ -1914,8 +1914,8 @@ function recolorHtml(d, c){
       : '<p class="note" style="margin:0">No commander in the card data covers all of those colors' + (DBINFO.complete ? '.' : ' yet. More appear when the card download finishes.') + '</p>') +
     '<div class="row"><button class="btn" data-act="close">Cancel</button></div></div>';
 }
-function tipHtml(d, c){
-  const f = evalFit(d, c); if (ownSet().has(c._n)) f.pros.unshift('You already own this card, so it costs nothing to add.'); const li = (xs, k, m) => xs.map(x => '<li class="' + k + '"><i>' + m + '</i>' + esc(x) + '</li>').join('');
+function tipHtml(d, c, sw){
+  const f = evalFit(d, c, sw); if (ownSet().has(c._n)) f.pros.unshift('You already own this card, so it costs nothing to add.'); const li = (xs, k, m) => xs.map(x => '<li class="' + k + '"><i>' + m + '</i>' + esc(x) + '</li>').join('');
   return '<div class="tip ' + f.level + '"><b><small>Tip</small>' + esc(f.title) + '</b><ul>' + li(f.pros, 'pro', '+') + li(f.cons, 'con', '–') + '</ul></div>';
 }
 // A swap's deck score change measured with fresh practice games (needed when a land comes out or goes in); the deck's own
@@ -1925,6 +1925,9 @@ function freshDelta(d, ar){ const k = d.id + '#' + d.cards.map(e => e.n + '×' +
   return (cut, add) => { try { if (b0 == null){ b0 = evaluateDeck(d, {apex:ar, games:200}).exact; FRESH.clear(); FRESH.set(k, b0); } const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (err) { return null; } }; }
 // The deck score change for one swap in the card window; tiny changes read as unchanged.
 function wantChip(v){ return v == null ? '' : Math.abs(v) < SCORE_MIN ? '<span class="chip" title="Change to the deck score if you make this swap">Score unchanged</span>' : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="Change to the deck score if you make this swap">' + (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1) + ' score</span>'; }
+// Which parts of the deck score a swap moves (practice games reused, as swapScore does; land swaps are not split).
+function swapGain(d, e, ar, b, c){ if (b.land || !e || !e.contrib) return null; try { const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, b.n, 1); addCard(u, c.n, 1); const a = evaluateDeck(u, {apex:ar, sim:e.sim}), g = {};
+  for (const k in e.contrib) if (a.contrib && a.contrib[k] != null) g[k] = a.contrib[k] - e.contrib[k]; return g; } catch (err) { return null; } }
 function wantHtml(d, c){
   if (offColor(d, c)) return recolorHtml(d, c);
   const A = analyze(d), open = A.T.size - A.size, warn = !legalIn(c, d.format) ? 'Not legal in ' + d.format : (A.ctx.ident.length || A.ctx.cmd) && !c.ci.every(x => A.ctx.ident.includes(x)) ? 'Outside this deck’s colors' : '';
@@ -1942,7 +1945,7 @@ function wantHtml(d, c){
   const side = (n, cls, small) => { const k = find(n); return '<button class="sw ' + cls + '" data-act="card" data-n="' + esc(n) + '">' + (k ? '<img alt="" src="' + artFor(k) + '">' : '<span></span>') + '<span><small>' + small + '</small>' + esc(n) + '</span><em>' + money(k) + '</em></button>'; };
   const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + 'Weighed against all ' + pool + ' ' + (tags(c).land ? 'lands' : cuts0.some(x => x.land) ? 'spells and spare lands' : 'spells') + ' it could replace. ' + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
   let h = lab + note + '<div class="swaphero">' + side(b.n, 'out', 'Take out') + '<span class="arrow" aria-hidden="true">→</span>' + side(c.n, 'in', 'Put in') + '</div>' +
-    '<div class="row"><span class="chip good">Best swap</span>' + wantChip(b.dScore) + '<span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c) + '</div>';
+    '<div class="row"><span class="chip good">Best swap</span>' + wantChip(b.dScore) + '<span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c, b.dScore != null ? {cut:b.n, dScore:b.dScore, gain:swapGain(d, e, ar, b, c)} : null) + '</div>';
   S.wantMore = '<div class="grp"><span class="lab">Or take out instead</span>' + cuts.slice(1).map(x => '<div class="path">' + side(x.n, 'out', 'Take out') + '<div class="row">' + wantChip(x.dScore) + '<span class="chip">' + esc(x.why[0]) + '</span><button class="btn sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>').join('') +
     '<div class="row"><button class="btn sm" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add without removing anything</button></div></div>';
   return h;
@@ -2463,6 +2466,10 @@ function restoreSpot(){ let u = null; try { u = JSON.parse(sessionStorage.getIte
   if (u.view === 'decks' && u.open){ const ok = (S.draft && S.draft.id === u.deckId) || S.profile.decks.some(d => d.id === u.deckId); if (!ok) return; S.deckId = u.deckId; S.view = 'decks'; S.open = true; S.tab = u.tab || null; }
   else if (['home', 'decks', 'search', 'profile'].includes(u.view)){ S.view = u.view; S.open = false; } }
 if (window.visualViewport) visualViewport.addEventListener('resize', () => fitWork());
+// The working area is sized from where it starts on screen, which moves while the page loads (fonts, the logo, Safari's
+// toolbar). Size it again once everything has loaded, so it never stays too tall to scroll until the window is zoomed or resized.
+addEventListener('load', () => { fitWork(); setTimeout(fitWork, 300); }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitWork());
+document.addEventListener('load', ev => { if (ev.target && ev.target.tagName === 'IMG' && ev.target.closest && ev.target.closest('.top')) fitWork(); }, true);
 addEventListener('pagehide', () => { saveSpot(); clearTimeout(saveT); if (!S.profile.example) persist(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden){ saveSpot(); if (!S.profile.example){ clearTimeout(saveT); persist(); } } });
 // ---------- boot ----------
