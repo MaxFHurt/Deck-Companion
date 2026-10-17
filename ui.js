@@ -616,8 +616,8 @@ function buyGroups(){ const G = S.profile.decks.filter(d => (d.want || []).lengt
 function buySel(){ if (!S.buySel) S.buySel = new Set(buyGroups().map(g => g.id)); return S.buySel; }
 function buyAllText(){ const sel = buySel(), m = new Map(); buyGroups().filter(g => sel.has(g.id)).forEach(g => g.list.forEach(x => { const c = find(x.n), k = keyOf(x.n), o = m.get(k); if (o) o.q += x.q || 1; else m.set(k, {n:c ? c.n : x.n, q:x.q || 1}); }));
   return [...m.values()].sort((a, b) => a.n.localeCompare(b.n)).map(x => x.q + ' ' + x.n).join('\n'); }
-function viewBuy(){ const G = buyGroups(), sel = buySel(), price = L => L.reduce((a, x) => { const c = find(x.n); return a + (c && c.p != null ? c.p * (x.q || 1) : 0); }, 0), est = DBINFO.source === 'starter' ? '~' : '';
-  const row = x => { const c = find(x.n); return '<button class="dl" data-act="card" data-n="' + esc(c ? c.n : x.n) + '">' + (c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>') + '<span class="q">' + (x.q || 1) + '×</span><span class="nm">' + esc(c ? c.n : x.n) + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c) + '</span></button>'; };
+function viewBuy(){ const G = buyGroups(), sel = buySel(), price = L => L.reduce((a, x) => { const c = find(x.n), p = x.pp != null ? x.pp : c && c.p; return a + (p != null ? p * (x.q || 1) : 0); }, 0), est = DBINFO.source === 'starter' ? '~' : '';
+  const row = x => { const c = find(x.n); return '<button class="dl" data-act="card" data-n="' + esc(c ? c.n : x.n) + '">' + (c ? '<img alt="" src="' + artFor(c) + '">' : '<span></span>') + '<span class="q">' + (x.q || 1) + '×</span><span class="nm">' + esc(c ? c.n : x.n) + (x.ps ? ' <span class="pnm" title="The printing you chose">' + esc(x.ps) + '</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + (x.pp != null ? '$' + x.pp.toFixed(2) : money(c)) + '</span></button>'; };
   const n = G.filter(g => sel.has(g.id)).reduce((a, g) => a + g.list.reduce((b, x) => b + (x.q || 1), 0), 0);
   return '<section class="panel"><div class="ph"><h2>Buy list</h2><small>' + G.length + ' list' + (G.length === 1 ? '' : 's') + '</small></div>' +
     (!G.length ? '<p class="note" style="margin:0">Nothing to buy yet. Add cards from a deck’s Upgrades, its decklist (Add all to buy list) or Card search.</p>' :
@@ -904,7 +904,9 @@ function wantFit(d, c){
   if (!legalIn(c, d.format)) return 'not legal in ' + (d.format === 'commander' ? 'Commander' : 'Standard');
   return '';
 }
-function addWant(d, name){ const c = find(name), n = c ? c.n : name; if (wantOf(d).some(x => keyOf(x.n) === keyOf(n))) return false; wantOf(d).push({n, q:1, at:Date.now()}); return true; }
+// The printing chosen in the card window (set and price), kept with a buy-list entry; exports still use the card's own name.
+function pickPrint(c){ return c && S.modalCard === c.n && S.pick && S.pick.set && S.pick.id ? {pid:S.pick.id, ps:S.pick.set, pp:S.pick.p != null ? S.pick.p : undefined} : {}; }
+function addWant(d, name, pr){ const c = find(name), n = c ? c.n : name, old = wantOf(d).find(x => keyOf(x.n) === keyOf(n)); if (old){ if (pr && pr.pid) Object.assign(old, pr); return false; } wantOf(d).push(Object.assign({n, q:1, at:Date.now()}, pr || {})); return true; }
 function buyData(d){
   const hasPlan = d.plan && d.plan.length, R = hasPlan ? {paths:[], fixes:[]} : recsFor(d), grp = c => !c ? 'C' : tags(c).land ? 'L' : c.ci.length > 1 ? 'M' : c.ci[0] || 'C', order = BUY_GROUPS.map(g => g[0]);
   const item = (p, t) => { const c = find(p.add); return {n:p.add, q:p.q, p:c ? c.p : null, t, gain:p.gain || 0}; };
@@ -914,7 +916,7 @@ function buyData(d){
   if (hasPlan) d.plan.filter(x => !x.own && !x.basic).forEach(x => { const mk = (n, gain) => { const c = find(n); return {n, q:x.q, p:c ? c.p : null, t:tierOfPrice(c), gain}; };
     groups.push({cut:x.a, slot:true, g:grp(find(x.a)), opts:[x.b && mk(x.b, 1), x.m && mk(x.m, 2), mk(x.a, 3)].filter(o => o && !isBasic(o.n))}); });
   if (hasPlan) groups.sort((a, b) => order.indexOf(a.g) - order.indexOf(b.g) || a.cut.localeCompare(b.cut));
-  const want = (d.want || []).map(x => { const c = find(x.n); return {n:x.n, q:x.q, p:c ? c.p : null, inDeck:!!entryOf(d, x.n), lack:x.from === 'lack'}; });
+  const want = (d.want || []).map(x => { const c = find(x.n); return {n:x.n, q:x.q, p:x.pp != null ? x.pp : c ? c.p : null, ps:x.ps, inDeck:!!entryOf(d, x.n), lack:x.from === 'lack'}; });
   const count = groups.reduce((s, G) => s + G.opts.length, 0) + fixes.length + want.length;
   return {groups, fixes, want, count};
 }
@@ -1278,7 +1280,7 @@ function rowCols(d, R, L, i){
 function alt3Html(d, R, rowShown, p, i, t){ const L = R.paths[i], A = (L && L.alts && L.alts[t] || []).filter(a => !(d.format === 'commander' && hasCard(d, a.n))); if (!p || p.own || !A.length) return '';
   return '<div class="alt3"><small class="lab" style="margin:0">Alternatives</small>' + A.map(a => { const c = find(a.n);
     return '<div class="a3"><button class="sw in" data-act="card" data-n="' + esc(a.n) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span>' + esc(a.n) + (a.theme ? ' <span class="chip gold">' + esc(a.theme) + '</span>' : '') + (c && c.gc ? ' <span class="chip gc">GC</span>' : '') + '</span><em>' + money(c) + '</em></button>' +
-      '<div class="row">' + scoreChip(a.dScore) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
+      '<div class="row">' + (a.most ? '<span class="chip gold" title="The card most of this commander’s players choose here; the pick above raises the deck score more">Most played' + (a.inc ? ' · in ' + Math.round(a.inc * 100) + '% of decks' : '') + '</span>' : '') + scoreChip(a.dScore) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
 function capBox(d, t){ const cap = TIERS[t].cap; if (!(S.capOpen && S.capOpen[d.id + t])) return '<div class="capbox" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><button class="btn sm" data-act="cap-show" data-v="' + t + '">Best deck with every card under $' + cap + '</button></div>';
   const L = capList(d, t); if (!L.length) return '<p class="note" style="margin:6px 0 0">Best deck with every new card under $' + cap + ': no worthwhile swaps.</p>';
   const cost = L.reduce((s, p) => { const a = find(p.add), c = find(p.cut); return s + ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }, 0);
@@ -2251,6 +2253,7 @@ function handleAct(act, v, n, pArg){
     case 'print-cheap': { const ch = cheapest(); if (ch) handleAct('print', S.prints.list.indexOf(ch)); return; }
     case 'print': { const x = S.prints && S.prints.list[+v]; if (!x) return; S.pick = Object.assign({n:S.modalCard}, x);
       const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id, S.face === 1); $('#prints').innerHTML = printsHtml(); { const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(find(S.modalCard)); const pn = $('#pic-note'); if (pn) pn.innerHTML = picNote(find(S.modalCard)); }
+      { const k = keyOf(S.modalCard), pr = {pid:x.id, ps:x.set, pp:x.p != null ? x.p : undefined}; [d && wantOf(d), myWant()].forEach(W => { const w = W && W.find(y => keyOf(y.n) === k); if (w) Object.assign(w, pr); }); }
       if (d){ const en = d.cards.find(e2 => e2.n === S.modalCard);
         if (en){ setPrint(en, x); }
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; d.cmdCn = x.cn || ''; }
@@ -2388,10 +2391,10 @@ function handleAct(act, v, n, pArg){
     case 'buy-copy': { const t = buyAllText(); if (!t) { toast('Choose at least one list with cards.'); return; } copyText(t, 'Buy list copied.'); return; }
     case 'mywant-copy': copyText(['// My buy list'].concat(myWant().map(x => x.q + ' ' + x.n)).join('\n'), 'Buy list copied.'); return;
     case 'want-add': case 'want-undo': { const c = find(n), sel = ($('#want-deck') || {}).value || MINE;
-      if (c && sel === MINE){ const W = myWant(); if (act === 'want-add'){ if (!W.some(x => keyOf(x.n) === c._k)) W.push({n:c.n, q:1, at:Date.now()}); toast('Added ' + c.n + ' to your buy list.'); } else { S.profile.want = W.filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from your buy list.'); }
+      if (c && sel === MINE){ const W = myWant(); if (act === 'want-add'){ const o = W.find(x => keyOf(x.n) === c._k); if (o) Object.assign(o, pickPrint(c)); else W.push(Object.assign({n:c.n, q:1, at:Date.now()}, pickPrint(c))); toast('Added ' + c.n + ' to your buy list.'); } else { S.profile.want = W.filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from your buy list.'); }
         S.wantDeck = MINE; touch(); const b = $('#wantbox'); if (b) b.outerHTML = wantBox(c); return; }
       const dk = S.profile.decks.concat(S.draft ? [S.draft] : []).find(x => x.id === sel); if (!c || !dk) return;
-      if (act === 'want-add'){ if (wantFit(dk, c)) return; addWant(dk, c.n); toast('Added ' + c.n + ' to the ' + dk.name + ' buy list.'); } else { dk.want = wantOf(dk).filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from the ' + dk.name + ' buy list.'); }
+      if (act === 'want-add'){ if (wantFit(dk, c)) return; addWant(dk, c.n, pickPrint(c)); toast('Added ' + c.n + ' to the ' + dk.name + ' buy list.'); } else { dk.want = wantOf(dk).filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from the ' + dk.name + ' buy list.'); }
       S.wantDeck = dk.id; touch(); const b = $('#wantbox'); if (b) b.outerHTML = wantBox(c); return; }
     case 'want-rm': { const w = wantOf(d), x = w[+v]; if (!x) return; w.splice(+v, 1); if (x.from === 'lack') d.lack = (d.lack || []).filter(y => keyOf(y) !== keyOf(x.n)); toast('Removed ' + x.n + ' from the buy list.'); break; }
     case 'gset-rm': S.gen.sets.splice(+v, 1); if (!S.gen.sets.length) S.gen.setsMust = false; openGenerate(); return;
