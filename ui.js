@@ -80,9 +80,11 @@ async function ensureTheme(){
   } catch (e) {}
 }
 // Remember which printing a deck entry uses, with its set, rarity and price, so the deck shows that printing everywhere.
-function setPrint(en, x){ en.pid = x.id; en.ps = x.set; en.pr = x.rar || ''; if (x.p != null) en.pp = x.p; else delete en.pp; if (x.sc) en.psc = x.sc; if (x.cn) en.pcn = x.cn; else delete en.pcn; }
+function setPrint(en, x){ if (x.fn) en.pn = x.fn; else if (x.id) delete en.pn; en.pid = x.id; en.ps = x.set; en.pr = x.rar || ''; if (x.p != null) en.pp = x.p; else delete en.pp; if (x.sc) en.psc = x.sc; if (x.cn) en.pcn = x.cn; else delete en.pcn; }
 function rarChip(r){ return r ? '<span class="rar rar-' + esc(r[0]) + '">' + esc(r[0].toUpperCase() + r.slice(1)) + '</span>' : ''; }
 // Set, rarity and price of the printing currently shown in the card pop-up.
+// When the picture is a printing that carries another name (Sword of Fire and Ice's Marvel printing is "Patriotic Shield"), say so.
+function picNote(c){ const x = S.pick, fn = x && x.fn != null ? x.fn : x && x.id === c.id ? c.fn : ''; return fn && norm(fn) !== c._n ? 'The picture shows the ' + esc(fn) + ' printing of ' + esc(c.n) + ' (same card, another name).' : ''; }
 function pickHtml(c){
   const d0 = cur(), en = S.view === 'decks' && S.open && d0 ? d0.cards.find(y => y.n === c.n) : null;
   const x = S.pick && S.pick.set ? S.pick : en && en.ps ? {set:en.ps, rar:en.pr, p:en.pp} : null, i = x ? {set:x.set, rar:x.rar} : (printInfo(c) || {set:'', rar:''});
@@ -96,11 +98,11 @@ function printsHtml(){
 }
 async function loadPrints(c){
   const list = [];
-  try { await scry(c.oid ? 'oracleid:' + c.oid : '!"' + c.n + '"', '&order=released&dir=desc', 4, o => list.push({id:o.id, set:o.set_name, sc:o.set, cn:o.collector_number || '', yr:String(o.released_at || '').slice(0, 4), p:priceOf(o), rar:o.rarity || ''})); }
+  try { await scry(c.oid ? 'oracleid:' + c.oid : '!"' + c.n + '"', '&order=released&dir=desc', 4, o => list.push({id:o.id, set:o.set_name, sc:o.set, cn:o.collector_number || '', yr:String(o.released_at || '').slice(0, 4), p:priceOf(o), rar:o.rarity || '', fn:o.flavor_name || ((o.card_faces || [])[0] || {}).flavor_name || ''})); }
   catch (e) { const b = $('#prints'); if (b && S.modalCard === c.n) b.innerHTML = '<p class="note" style="margin:0">Could not load the list of printings.</p>'; return; }
   if (S.modalCard !== c.n) return; S.prints = {n:c.n, list};
   if (S.pick && !S.pick.set){ const m = list.find(x => x.id === S.pick.id); if (m) S.pick = m; }
-  const b = $('#prints'); if (b) b.innerHTML = printsHtml(); const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(c);
+  const b = $('#prints'); if (b) b.innerHTML = printsHtml(); const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(c); const pn = $('#pic-note'); if (pn) pn.innerHTML = picNote(c);
 }
 async function printSearch(q){
   const out = []; S.printPending = q;
@@ -783,11 +785,17 @@ function aimPanel(d, ctx){
 function themeFirstToggle(d, dis){ const T = themeCtx(d); if (!T.fam.size && !T.types.size) return '';
   return '<div class="row"><button class="chk' + (d.themeFirst ? ' on' : '') + '" data-act="theme-first" role="switch" aria-checked="' + !!d.themeFirst + '"' + (dis || '') + '><i></i>Theme first</button><span class="note">Cards from ' + esc([...T.fam, ...[...T.types].slice(0, 2)].join(', ')) + ' are preferred, a little below the strongest cards from any set.</span></div>'; }
 const GROUPS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['Instant', 'Instants'], ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
+// The name printed on the player's copy when it differs from the card's own name (a reskinned reprint: the TMNT precon's
+// "Humongous Fungus" is Corpsejack Menace). Kept from the list the deck came from; for precon decks saved before Build 119, read
+// from the precon's own list (EDHREC, already loaded for the open deck).
+function printedName(d, e, c){ if (e.pn) return e.pn; if (!c || d.src !== 'precon' || !EDH.pre || !EDH.pre.list || EDH.key !== d.commander) return '';
+  if (printedName.pre !== EDH.pre){ printedName.pre = EDH.pre; printedName.m = new Map(); EDH.pre.list.forEach(x => { const r = find(x); if (r && norm(x) !== r._n && altName(x)) printedName.m.set(r._k, x); }); }
+  return printedName.m.get(c._k) || ''; }
 function listRows(d, q){
   const buckets = {}, unknown = [], lq = String(q || '').toLowerCase().trim(); let shown = 0;
-  const lr = S.listRole || ''; for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; if (lr && !(c && (lr === 'gc' ? c.gc : jobsOf(c.n).includes(lr)))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
+  const lr = S.listRole || ''; for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || printedName(d, e, c).toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; if (lr && !(c && (lr === 'gc' ? c.gc : jobsOf(c.n).includes(lr)))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
-    '<span class="nm' + (c ? '' : ' unk') + '">' + esc(e.n) + (lacks(d, e.n) ? ' <span class="chip warn" title="You added this card to the buy list">On buy list</span>' : '') + (c && c.gc && d.format === 'commander' ? ' <span class="chip gc" title="On Wizards’ Game Changer list">GC</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
+    '<span class="nm' + (c ? '' : ' unk') + '">' + (printedName(d, e, c) ? esc(printedName(d, e, c)) + ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(e.n) + '</span>' : esc(e.n)) + (lacks(d, e.n) ? ' <span class="chip warn" title="You added this card to the buy list">On buy list</span>' : '') + (c && c.gc && d.format === 'commander' ? ' <span class="chip gc" title="On Wizards’ Game Changer list">GC</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
     '<span class="pr">' + (e.pp != null ? '$' + e.pp.toFixed(2) : money(c)) + '</span></button>';
   let h = '';
   // The commander (and partner) lead the list with a Commander chip; they are not part of the 99.
@@ -795,7 +803,7 @@ function listRows(d, q){
     if (cm.length) h += '<div class="cmdgrp"><div class="gh"><span>Commander' + (cm.length > 1 ? 's' : '') + '</span><span>' + cm.length + '</span></div>' + cm.map(c => '<button class="dl cmdrow" data-act="card" data-n="' + esc(c.n) + '">' + (c.id ? '<img alt="" src="' + artFor(c, {}) + '">' : '<span></span>') + '<span class="q">1×</span><span class="nm">' + esc(c.n) + ' <span class="chip gold">Commander</span></span><span class="cost">' + (c.m ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c.id ? c : null) + '</span></button>').join('') + '</div>'; }
   if (!d.cards.length) h += '<p class="note">This deck is empty. Add cards from the Upgrades tab, or set the build and fill the open slots there.</p>';
   else if ((lq || lr) && !shown) h += '<p class="note">No card in this deck matches' + (lq ? ' “' + esc(q) + '”' : '') + (lr ? (lq ? ' and' : '') + ' the ' + esc(LIST_ROLE[lr].toLowerCase()) + ' filter' : '') + '.</p>';
-  for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; const so = S.listSort || 'name', pr = x => x[0].pp != null ? x[0].pp : x[1].p != null ? x[1].p : -1; b.sort((x, y) => (so === 'mv' ? x[1].cmc - y[1].cmc : so === 'price' ? pr(y) - pr(x) : 0) || x[1].n.localeCompare(y[1].n));
+  for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; const so = S.listSort || 'name', pr = x => x[0].pp != null ? x[0].pp : x[1].p != null ? x[1].p : -1; b.sort((x, y) => (so === 'mv' ? x[1].cmc - y[1].cmc : so === 'price' ? pr(y) - pr(x) : 0) || (printedName(d, x[0], x[1]) || x[1].n).localeCompare(printedName(d, y[0], y[1]) || y[1].n));
     h += '<div><div class="gh"><span>' + label + '</span><span>' + b.reduce((s, x) => s + x[0].q, 0) + '</span></div>' + b.map(x => rowH(x[0], x[1])).join('') + '</div>'; }
   if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card data yet</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These stay in your list but can’t be analyzed until the full card data has loaded.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
   return h;
@@ -1660,7 +1668,7 @@ function viewSearch(){
     '</div><div id="s-res" class="grp">' + searchResults() + '</div></section>';
 }
 function loadPrecon(p){
-  const cards = PRECON_LISTS[p.name].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x), n = m ? m[2] : x, c = find(n); return {n:c ? c.n : n, q:m ? +m[1] : 1, l:false}; });
+  const cards = PRECON_LISTS[p.name].split(';').map(x => { const m = /^(\d+) (.+)$/.exec(x), n = m ? m[2] : x, c = find(n), e = {n:c ? c.n : n, q:m ? +m[1] : 1, l:false}; if (c && norm(n) !== c._n && altName(n)) e.pn = n; return e; });
   const d = newDeck({name:p.name, format:'commander', cards, aims:p.aims.slice(), tribe:p.tribe || '', auto:'precon', src:'precon'}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; return d;
 }
 // Precon picker: the 16 built-in decks are always there; the full catalogue and other decklists come live from EDHREC.
@@ -1712,7 +1720,7 @@ async function loadPreconLive(slug, label){
   toast('Loading ' + label + '…');
   try {
     const j = await (await fetch('https://json.edhrec.com/pages/precon/' + slug + '.json')).json(), dk = j.deck || {}, cmds = dk.commander || [], map = new Map();
-    const put = (n, q) => { const c = find(n), name = c ? c.n : n, k = norm(name); if (map.has(k)) map.get(k).q += q; else map.set(k, {n:name, q, l:false}); };
+    const put = (n, q) => { const c = find(n), name = c ? c.n : n, k = norm(name); if (map.has(k)) map.get(k).q += q; else { const e = {n:name, q, l:false}; if (c && norm(n) !== c._n && altName(n)) e.pn = n; map.set(k, e); } };
     Object.values(dk.cards || {}).forEach(arr => (arr || []).forEach(t => { if (t && t[0]) put(t[0], +t[1] || 1); })); cmds.slice(2).forEach(n => put(n, 1));
     if (cmds[1] && !(find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1])))) put(cmds[1], 1);
     if (!map.size) throw new Error('empty');
@@ -2026,8 +2034,8 @@ function openCard(name, pid){
   S.wantMore = '';
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } phSeen(c); const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
   const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
-  S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(c.n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
+  S.modalCard = c.n; S.prints = null; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null; const pnm = inDeck ? printedName(d, inDeck, c) : '';
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(pnm || c.n) + (pnm ? ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(c.n) + '</span>' : '') + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" id="pic-note" style="margin:0 0 6px">' + picNote(c) + '</p>' + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => symImg(x)).join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' + phHtml(c) +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
@@ -2176,7 +2184,7 @@ function handleAct(act, v, n, pArg){
     case 'card': openCard(n, b.dataset.p); return;
     case 'print-cheap': { const ch = cheapest(); if (ch) handleAct('print', S.prints.list.indexOf(ch)); return; }
     case 'print': { const x = S.prints && S.prints.list[+v]; if (!x) return; S.pick = Object.assign({n:S.modalCard}, x);
-      const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id); $('#prints').innerHTML = printsHtml(); { const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(find(S.modalCard)); }
+      const im = $('#modal .card.real img'); if (im) im.src = imgUrl('normal', x.id); $('#prints').innerHTML = printsHtml(); { const pi = $('#pr-info'); if (pi) pi.innerHTML = pickHtml(find(S.modalCard)); const pn = $('#pic-note'); if (pn) pn.innerHTML = picNote(find(S.modalCard)); }
       if (d){ const en = d.cards.find(e2 => e2.n === S.modalCard);
         if (en){ setPrint(en, x); }
         if (d.format === 'commander' && d.commander === S.modalCard){ d.cmdPid = x.id; d.cmdSet = x.sc; d.cmdCn = x.cn || ''; }
