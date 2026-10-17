@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 132. Each item ships as its own build: build, run the full test suite
+Live: Build 133. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -209,3 +209,6 @@ above the Apex progress bar; the bar zooms to the range that matters and marks B
 power scores in a legend row (labels never overlap); the empty row under the bar is gone. No engine change.
 132: Upgrade paths as folder tabs: Budget, Mid and Apex stacked on the left with swaps and cost; the chosen tier's description,
 Apply all and Best deck under $X on the right (opens on the deck's own tier); about half the height. No engine change.
+133: customised Build panel: format, mechanics, filters, land colours and generate fold into one-line headers that always show their
+settings (open to change them; a section that needs input starts open); fits an iPad screen. The upgrade list keeps its order once
+shown (later scores don't move cards); it re-sorts when you leave the tab, change sort or filters, or regenerate. No engine change.
