@@ -347,6 +347,12 @@ function apexRef(d){
   for (let i = 0; i < Math.min(400, pool.length); i++) sample.push(pool[Math.floor(r() * pool.length)].n);
   return {key:apexKey(d), cards:{apex:pick('apex'), mid:pick('mid'), budget:pick('budget'), floor:sample.map(n => ({n, q:1}))}};
 }
+// Deck power of the reference builds: the Budget, Mid and Apex builds for this deck's settings, each scored as a whole deck by
+// evaluateDeck (the same score the player's deck gets). Apex progress places the player's deck on this scale, Apex = 100.
+function refScores(d, AR){ if (!AR || !AR.cards) return null; const out = {};
+  for (const t of ['budget', 'mid', 'apex']){ const u = JSON.parse(JSON.stringify(d)); delete u.plan; u.tier = t; u.cards = AR.cards[t].filter(x => x && x.n).map(x => ({n:x.n, q:x.q, l:false}));
+    try { out[t] = +evaluateDeck(u, {apex:AR, games:100}).exact.toFixed(2); } catch (e) { return null; } }
+  return out; }
 // The reference means for a deck, with a value function (the deck's own upgrade values when given).
 function apexMeans(AR, d, ctx, vf){ const m = L => spellMean(L, d, ctx, vf); return {apex:m(AR.cards.apex), mid:m(AR.cards.mid), budget:m(AR.cards.budget), floor:m(AR.cards.floor)}; }
 // Share of the way from the floor (random playable cards) to a reference build, 0–100.
@@ -458,7 +464,8 @@ function fromScryfall(o){
   return {n:o.name, m:o.mana_cost || f0.mana_cost || '', t:o.type_line || f0.type_line || '',
     o:o.oracle_text != null ? o.oracle_text : (f || []).map(x => x.oracle_text || '').join(' // '),
     ci:o.color_identity || [], cmc:o.cmc || 0, p:isNaN(p) ? null : p, std, cmd, r:o.edhrec_rank || 0,
-    pt:pw.power != null ? pw.power + '/' + pw.toughness : (o.loyalty ? 'Loyalty ' + o.loyalty : ''), set:o.set_name || '', id:o.id || '', sc:o.set || '', oid:o.oracle_id || '', rar:o.rarity || '', cn:o.collector_number || '', gc:!!o.game_changer, fn:o.flavor_name || f0.flavor_name || '', src:'full'};
+    pt:pw.power != null ? pw.power + '/' + pw.toughness : (o.loyalty ? 'Loyalty ' + o.loyalty : ''), set:o.set_name || '', id:o.id || '', sc:o.set || '', oid:o.oracle_id || '', rar:o.rarity || '', cn:o.collector_number || '', gc:!!o.game_changer, fn:o.flavor_name || f0.flavor_name || '', src:'full', df:!!(f && f.length === 2 && f[0].image_uris && f[1].image_uris),
+    fc:f && f.length === 2 && f[0].image_uris ? f.map(x => ({n:x.name || '', m:x.mana_cost || '', t:x.type_line || '', pt:x.power != null ? x.power + '/' + x.toughness : (x.loyalty ? 'Loyalty ' + x.loyalty : (x.defense ? 'Defense ' + x.defense : ''))})) : null};
 }
 // ----- card identity -----
 // Every comparison between cards uses one identity: the Scryfall Oracle ID (c._k). Display names stay as the player or the
@@ -1001,6 +1008,15 @@ function scoreCheck(d, R, o){
         const e = ctx0.edh && edhOf(ctx0.edh.map, x.c), inc = e ? e.inc : 0;
         alts[t].push({n:x.c.n, p:x.c.p, dScore:x.w, theme:x.th, inc:+inc.toFixed(3), decks:ctx0.edh ? ctx0.edh.decks || 0 : 0, vs:tp.add, vsScore:tp.dScore, unpop:x.w > tp.dScore && inc < UP.unpop}); });
       if (UP.rankPick) ['apex', 'mid', 'budget'].forEach(t => { if (out[t]) O[t] = out[t]; else if (O[t]){ delete O[t]; (L.none = L.none || {})[t] = 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score enough after the cards above it'; } });
+      // Apex is the strongest pick on the row: a cheaper pick (or, with UP.apexMax 2, the row's highest-scoring card) that raises the
+      // deck score more becomes the Apex pick, and is not repeated in its cheaper column.
+      if (UP.apexMax){ let best = O.apex, bw = O.apex && O.apex.dScore != null ? O.apex.dScore : -1e9;
+        ['mid', 'budget'].forEach(t => { const p = O[t]; if (p && p.dScore != null && p.dScore > bw + SCORE_MIN){ best = p; bw = p.dScore; } });
+        if (UP.apexMax > 1 && L.top && L.top.dScore > bw + SCORE_MIN && !(O.apex && norm(O.apex.add) === norm(L.top.n))){ const tc = find(L.top.n); if (tc){ best = Object.assign(swapTo(ref, tc.n, L.top.dScore, themeOf(tc, T)), {t:'apex'}); bw = L.top.dScore; } }
+        if (best && best !== O.apex){ const nb = Object.assign({}, best, {t:'apex', held:false}); O.apex = nb; used.add(norm(nb.add));
+          ['mid', 'budget'].forEach(t => { if (O[t] && norm(O[t].add) === norm(nb.add)){ delete O[t]; (L.none = L.none || {})[t] = 'The Apex card already costs under $' + TIERS[t].cap; } });
+          // alternatives are measured against their tier's pick again (it may now be the stronger Apex card)
+          ['apex', 'mid', 'budget'].forEach(t => { const tp = O[t] || O.mid || O.apex; alts[t] = alts[t].filter(x => norm(x.n) !== norm(nb.add) && tp && x.dScore >= Math.max(scoreFloor(), 0.5 * tp.dScore)).map(x => Object.assign(x, {vs:tp.add, vsScore:tp.dScore, unpop:x.dScore > tp.dScore && x.inc < UP.unpop})); }); } }
       ['apex', 'mid', 'budget'].forEach(t => { if (O[t]) used.add(norm(O[t].add)); }); Object.values(alts).flat().forEach(a => used.add(norm(a.n))); L.alts = alts; L.ranked = true; } }
   // Spare lands (owner's rule): when the deck runs more lands than its target, each extra land is a slot that can go for a
   // stronger card, never more than the surplus and never when the deck is at or under target. Land changes are measured
@@ -1034,7 +1050,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {apexMax:1, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1629,7 +1645,7 @@ function buildPlan(d, seeds, ownOnly, ownAll){
       let s = p.s + (p.ty === ty ? 3 : 0) + (p.th ? 2 : 0), share = 0; tags(p.c).roles.forEach(r => { if (tx.roles.has(r)) share++; }); s += share * 2; if (s > bs){ bs = s; best = p; } }
     if (best) best.used = true; return best ? best.c.n : null; };
   const basic = (splitBasics(1, ctx)[0] || {}).n || null, own = ownAll || new Set();
-  return tmp.cards.map((en, i) => {
+  const out = tmp.cards.map((en, i) => {
     const c = find(en.n), S0 = {id:i + 1, a:en.n, q:en.q}; if (!c) return S0;
     if (isBasic(c.n)){ S0.basic = true; S0.land = true; return S0; }
     if (tags(c).land) S0.land = true;
@@ -1641,6 +1657,13 @@ function buildPlan(d, seeds, ownOnly, ownAll){
     if (!S0.b && S0.land && basic) S0.b = basic;
     if (!S0.b) delete S0.b; return S0;
   });
+  // The Apex build is the strongest one: where a slot's cheaper stand-in makes the whole Apex deck score higher, it becomes the
+  // Apex card (and the cheaper tiers use it when it fits their price). Measured with the deck's own practice games.
+  if (UP.planMax && d.format === 'commander' && tmp.cards.length >= 90){ try { const S1 = simulate(tmp, 150, 7); let base = evaluateDeck(tmp, {sim:S1}).exact;
+    for (const S0 of out){ if (S0.seed || S0.own || S0.land || S0.basic) continue; for (const k of ['m', 'b']){ const alt = S0[k]; if (!alt) continue;
+      const u = JSON.parse(JSON.stringify(tmp)); cutCard(u, S0.a, 1); addCard(u, alt, 1); const v = evaluateDeck(u, {sim:S1}).exact;
+      if (v > base + SCORE_MIN){ cutCard(tmp, S0.a, 1); addCard(tmp, alt, 1); S0.a = alt; base = v; const ac = find(alt); if (ac && ac.p != null && ac.p < 12) delete S0.m; if (ac && ac.p != null && ac.p < 3) delete S0.b; break; } } } } catch (e) {} }
+  return out;
 }
 // Price band by the owner's rule: Budget strictly under $3, Mid strictly under $12, Apex anything else (or unknown).
 function priceBand(p){ return p == null ? 'apex' : p < 3 ? 'budget' : p < 12 ? 'mid' : 'apex'; }

@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 122. Each item ships as its own build: build, run the full test suite
+Live: Build 129. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -179,3 +179,17 @@ stays a separate line instead of "Poor fit" beside "+2.4" (Wakanda Forever, Grea
 scroll lock after reload; reproduced only partly in Chromium, needs an iPad check).
 122: the mana check counts every colour source the way the generator does (nonbasic lands, rocks and dorks) and suggests new basics only
 when they close 2+ missing colour sources; the banner says how short the deck is (a fresh Peter Parker deck no longer gets "colours shifted").
+123: Apex progress is deck power: the Budget, Mid and Apex reference builds are scored as whole decks and the deck's score is placed
+on that scale (Apex = 100); a chosen printing changes price and deck value, never score or tier (tested).
+124: Buy list page (Buy list and Library in the top bar and on Home): a group per deck plus Other, export of the chosen groups as plain
+"N Card Name" lines with quantities added up; Add all to buy list on the decklist (commanders and nonbasic lands, no basics, twice adds
+nothing); putting a buy-list card into its deck asks before taking it off that deck's list; no "Spent" figure.
+125: a New deck tile ends the Decks grid; Flip on two-faced cards swaps picture (same printing) and face name/type.
+126: Build stats tab between Decklist and Upgrades holds the analysis (health and fixes, score breakdown, bracket, curve, mana);
+Upgrades keeps the deck score and Apex progress at the top.
+127: upgrade sheets (default; List still there): one upgrade at a time as four cards (your card, Budget, Mid, Apex) with score
+change and price; tapping one shows its details and actions below; arrows move between upgrades.
+128: Build panel: player, folder and tags fold into one line; Regenerate upgrades sits at the panel's foot; the tier explanation folds.
+129: Apex is the strongest pick: a row's cheaper pick that raises the score more becomes its Apex pick, and the Apex reference build
+takes a cheaper stand-in when it makes the whole deck score higher (Doom: Apex 94.6 -> 96.2, above Mid 95.8). Benchmark agreement@5
+0.231 / 0.281 / 0.283 (was 0.233 / 0.286 / 0.292); making the highest-scoring card Apex outright was measured and rejected (0.018).

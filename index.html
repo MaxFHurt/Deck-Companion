@@ -176,6 +176,18 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .dl .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .dl .pnm, .ph .pnm{font-weight:400;font-size:.82em;opacity:.65}
 #pic-note:empty{display:none}
+.card.real{position:relative} .card.real .flip{position:absolute;right:8px;top:8px;z-index:2}
+.aimp{display:flex;flex-direction:column} .aimp .bfoot{flex:none;display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid #2a1d55;margin-top:8px} .aimp .bfoot .btn{width:auto}
+.dmeta summary{cursor:pointer;list-style:none} .dmeta[open] summary{margin-bottom:8px}
+.sheet4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.s4{display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid #2a1d55;border-radius:10px;background:#120a28;color:inherit;text-align:center;font:inherit;cursor:pointer;min-width:0}
+.s4.on{border-color:var(--glow);box-shadow:0 0 0 2px var(--violet) inset} .s4.empty{opacity:.6}
+.s4 img,.s4 .noimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;background:#1d1340;display:block}
+.s4 small{letter-spacing:.1em;text-transform:uppercase;color:var(--mute);font-size:11px} .s4 b{font-size:13px;line-height:1.25;overflow:hidden;overflow-wrap:anywhere} .s4 .r{font-size:12px;color:var(--glow)} .s4 .p{font-size:12px}
+.sheet[data-sel="cut"] .path > .opt, .sheet:not([data-sel="cut"]) .path > .sw.out, .sheet:not([data-sel="cut"]) .path > .cutwhy, .sheet:not([data-sel="cut"]) .path > .prog{display:none}
+.sheet[data-sel="apex"] .path > .opt:not([data-t="apex"]), .sheet[data-sel="mid"] .path > .opt:not([data-t="mid"]), .sheet[data-sel="budget"] .path > .opt:not([data-t="budget"]){display:none}
+@media (max-width:600px){ .sheet4{gap:4px} .s4{padding:4px} .s4 b{font-size:11px} .s4 small{font-size:9px} }
+.tile.newdeck{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;border:2px dashed var(--violet);background:transparent} .tile.newdeck .plus{font-size:64px;line-height:1;color:var(--glow);margin:18px 0 6px}
 .dl .lk{color:var(--gold);display:grid;place-items:center} .dl .lk svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .dl .pr{font:600 13px var(--label);color:var(--mute);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
 .dl .pr.over{color:var(--bad)}
@@ -417,7 +429,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 122;
+window.BUILD = 129;
 (function(){
   var last = 0;
   function check(){
@@ -429,9 +441,9 @@ window.BUILD = 122;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=122"></script>
-<script src="lists.js?v=122"></script>
-<script src="engine.js?v=122"></script>
-<script src="ui.js?v=122"></script>
+<script src="data.js?v=129"></script>
+<script src="lists.js?v=129"></script>
+<script src="engine.js?v=129"></script>
+<script src="ui.js?v=129"></script>
 </body>
 </html>
