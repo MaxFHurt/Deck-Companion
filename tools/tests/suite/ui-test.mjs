@@ -403,7 +403,7 @@ const b81b = await page.evaluate(async () => { const out = {}; const d = S.profi
   await loadEdh('Captain America, Team Leader'); const ea = await edhAimsFor(find('Captain America, Team Leader')); const g1 = startPlan('Captain America, Team Leader', [], null, null, {fill:'apex', aims:ea}), g2 = startPlan('Captain America, Team Leader', [], null, null, {fill:'apex', aims:ea});
   const cs = g => g.cards.map(e => e.n + '×' + e.q).sort().join('|'); out.sameBuild = cs(g1) === cs(g2);
   S.profile.decks.unshift(g1); S.draft = null; S.deckId = g1.id; S.tab = 'up'; for (let i = 0; i < 80 && !apexFor(g1); i++) await new Promise(r => setTimeout(r, 100)); recsFor.k = null; render(); await recsReady(g1); const pk = () => recsFor(g1).paths.map(L => L.cut + '>' + Object.values(L.opts).map(p => p.add).join('/')).join('|');
-  const p1 = pk(); await doRegen(); const p2 = pk(); out.sameRegen = p2 === p1 && p1.length > 0; if (!out.sameRegen){ const A = p1.split('|'), B = p2.split('|'); out.regenDiff = {before:A.filter(x => !B.includes(x)).slice(0, 6), after:B.filter(x => !A.includes(x)).slice(0, 6), recP:Object.keys(g1.recPrev || {}).length}; } $('#modal').hidden = true;
+  const p1 = pk(); await doRegen(); const p2 = pk(); out.sameRegen = p2 === p1 && p1.length > 0; if (!out.sameRegen){ const A = p1.split('|'), B = p2.split('|'); out.regenDiff = {la:A.length, lb:B.length, i:A.findIndex((x, k) => x !== B[k]), a:A[A.findIndex((x, k) => x !== B[k])], b:B[A.findIndex((x, k) => x !== B[k])], before:A.filter(x => !B.includes(x)).slice(0, 6), after:B.filter(x => !A.includes(x)).slice(0, 6), recP:Object.keys(g1.recPrev || {}).length}; } $('#modal').hidden = true;
   // tier inheritance on a made-up row: no Apex pick of its own, a Budget pick: the Apex and Mid columns show that card
   out.inherit = true;
   S.profile.decks = S.profile.decks.filter(x => x.id !== g1.id && x.id !== cp.id); S.deckId = d.id; render(); return out; });
@@ -583,7 +583,7 @@ T('UI-B101-01', 'Too many lands: Lands shows “N more than needed” with Fix t
 // list isn't reworked); health buttons read Show / Show all.
 const b102 = await page.evaluate(async () => { const keep = S.syncRecs; S.syncRecs = false; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(d); render();
   const sc = document.querySelector('#upscroll'), out = {}; const btns = [...sc.querySelectorAll('[data-act="up-buy"]')]; const b = btns[Math.floor(btns.length / 2)]; if (!b) return {btn:false};
-  sc.scrollTop = Math.max(0, b.offsetTop - 200); const y0 = sc.scrollTop, R0 = recsFor(d), n = b.dataset.n; b.click(); await new Promise(r => setTimeout(r, 400));
+  sc.scrollTop = Math.max(0, b.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 200);   /* Build 135: measured on the page, not inside its card */ const y0 = sc.scrollTop, R0 = recsFor(d), n = b.dataset.n; b.click(); await new Promise(r => setTimeout(r, 400));
   const sc2 = document.querySelector('#upscroll'); out.y0 = y0; out.y1 = sc2.scrollTop; out.kept = y0 > 100 && Math.abs(sc2.scrollTop - y0) < 5; out.sameList = recsFor(d) === R0; out.added = wantOf(d).some(x => x.n === n);
   const k = wantOf(d).findIndex(x => x.n === n); if (k >= 0) wantOf(d).splice(k, 1);
   S.tab = 'stats'; render(); const hb = [...document.querySelectorAll('[data-act="h-fix"]')].map(x => x.textContent.trim()); out.labels = hb; out.showLabels = hb.length > 0 && hb.every(t => /^Show( all)?( \(\d+\))?$/.test(t)) && !/Fix this|Fix all/.test(document.body.textContent);
@@ -888,6 +888,17 @@ const b134 = await page.evaluate(async () => { const out = {found:false}; S.sync
     if (out.found){ handleAct('unpop', out.i + '|' + out.t, out.n); const m = document.querySelector('#modal'); out.text = m ? m.textContent : ''; out.both = new RegExp(Math.round(out.vsInc * 100) + '% of decks play').test(out.text) && /only \d+% of/.test(out.text); m.hidden = true; break; } }
   render(); return out; });
 T('UI-B134-01', 'Unpopular pick shows only for a big gap (much higher score, far fewer players), never for a small edge; its pop-up gives the play rates of both cards', b134.found && b134.both && !b81c.unpopBad, JSON.stringify(b134).slice(0, 400) + ' quietSmallEdges=' + (b81c.unpopQuiet || 0));
+// 84. Build 135: swaps players mostly disagree with are left out (Tramplesaurus fix A): no row left is one the rule removes, held
+// swaps are never removed, the tier counts match the rows that remain, and the list says how many were left out.
+const b135 = await page.evaluate(async () => { const out = {decks:0, trimmed:0, bad:0, countOk:true, note:null, heldKept:null}; S.syncRecs = true; S.upView = 'list';
+  for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander))){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; d.tier = 'apex'; recsFor.k = null; render(); const R = await recsReady(d); out.decks++;
+    const tr = R.scored && R.scored.trimmed || 0; out.trimmed += tr; if (R.trimOf) out.bad += R.paths.filter(L => R.trimOf(L)).length;
+        render(); const R2 = recsFor(d); const nt = document.querySelector('#upscroll .trimnote'); { const t2 = R2.scored && R2.scored.trimmed || 0; if (t2 !== tr){ out.trimmed += t2 - tr; } } const trN = R2.scored && R2.scored.trimmed || 0, okN = trN ? !!nt && new RegExp('^' + trN + ' weaker swap').test(nt.textContent.trim()) : !nt; if (!okN){ out.note = false; out.noteFail = {name:d.name, tr, has:!!nt, txt:nt ? nt.textContent.slice(0, 60) : '', view:S.upView, tab:S.tab, any:!!document.querySelector('.trimnote')}; } else if (out.note == null && trN) out.note = true; }
+  // a held swap the rule would remove stays: hold the first row's pick on a deck, mark the rule to remove everything, re-check
+  const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; recsFor.k = null; render(); const R = await recsReady(d);
+  if (R.trimOf && R.paths[0] && R.paths[0].opts.apex){ const L = R.paths[0]; L.opts.apex.held = true; const keep = R.trimOf(L); out.heldKept = keep === false; L.opts.apex.held = false; } else out.heldKept = true;
+  recsFor.k = null; render(); return out; });
+T('UI-B135-01', 'Swaps that players mostly disagree with are left out of the upgrade list (never a held swap); the list says how many were left out', b135.decks > 0 && !b135.bad && b135.note !== false && b135.heldKept, JSON.stringify(b135));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

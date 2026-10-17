@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 133. Each item ships as its own build: build, run the full test suite
+Live: Build 135. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -80,12 +80,22 @@ Items marked "discuss first" need the owner's decision before they are built; th
   Yawgmoth for Doom (almost no Doom players run them, so never candidates), Swords to
   Plowshares for Turtle Power (18% of players add it, no removal slot), Brightglass Gearhulk
   for Wakanda.
-- **Tramplesaurus cut accuracy (investigated 17 Oct):** our cut order is right (our first 9
-  cuts are 8 of the 9 cards players cut most). The problem is depth: Ghalta players keep most
-  of the precon, but we offer 26 rows, and from row 10 on we cut cards 60-83% of players keep
-  (Collective Resistance, Kenrith's Transformation, Thickest in the Thicket) for cards 1-15%
-  add. Options for the owner: fewer rows when players keep most of a precon, or a "More
-  ideas" fold for the rows past the evidence.
+- ~~Tramplesaurus cut accuracy~~: done in Build 135 (owner chose fix A, fewer swaps). Our cut order was
+  right; we offered too many swaps. A swap is now left out when its card out is a precon card not among the
+  10 players cut most and fewer than 15% of upgraders add its replacement (76 of 80 such swaps went against
+  players). Ghalta: 26 swaps -> 17. The list says how many were left out. Benchmark: first 5 unchanged
+  everywhere; @10 tuneall 0.119 -> 0.124, test 0.196 -> 0.198, holdout 0.199 -> 0.205; whole-list sums up
+  on every set (tuneall -0.96 -> 8.69). `rowfeat.js` dumps the per-row evidence.
+- **Guide blind spots (looked into 17 Oct, Build 135):**
+  - Shipped: a slot whose pick does no core job may take a card that also does one (sjx), and a slot whose
+    pick barely helps (under 0.2) may show off-theme cards as alternatives, never as its pick (weakD/weakA).
+    Matches or beats every benchmark number.
+  - Not closed: Sheoldred and Yawgmoth (Doom), Swords to Plowshares (Turtle Power), Brightglass Gearhulk
+    (Wakanda). Each beats our pick only in a slot whose pick is a different kind of card (a creature slot
+    for Swords; Sheoldred barely run by Doom players). Every version that showed them (a few top Commander
+    staples measured per slot, stN; off-theme picks in weak slots) cost popular alternatives (row@5 0.240
+    -> 0.239) or agreement (@10 0.124 -> 0.122), so they were rejected. Open question for the owner:
+    should alternatives be matched to the card going out rather than to the pick?
 - **Closer plan weighting: tried and rejected (17 Oct, after Build 133).** The
   fit tip's closer weights (2 / 1.75 / 1.5, plus a bonus per extra plan) were
   benchmarked in the engine. Main scorer 5/4.4/3.75: test 0.303 -> 0.281. Milder

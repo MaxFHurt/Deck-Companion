@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 17 October 2026, Build 134 live.
+Last updated: 17 October 2026, Build 135 live.
 
 ## 1. What this is
 
@@ -77,18 +77,18 @@ Last updated: 17 October 2026, Build 134 live.
 
 ## 5. Where things stand
 
-- **Live:** Build 134 (Unpopular pick chip only for a big gap; guide spot-check tools). **Build 133:** (customised Build panel folds to one-line headers and fits; upgrade list keeps its order). **Build 132:** (upgrade paths as folder tabs). **Build 131:** (Upgrades layout: one row of filter drop-downs, EDHREC chip in the stats module, colour-coded Budget/Mid/Apex marks with scores). **Build 130:** (deck score stage 2; Apex = best credible card, popular card kept as Most played; buy-list printings).
+- **Live:** Build 135 (fewer swaps where players keep the precon; jobless and weak slots get better alternatives). **Build 134:** (Unpopular pick chip only for a big gap; guide spot-check tools). **Build 133:** (customised Build panel folds to one-line headers and fits; upgrade list keeps its order). **Build 132:** (upgrade paths as folder tabs). **Build 131:** (Upgrades layout: one row of filter drop-downs, EDHREC chip in the stats module, colour-coded Budget/Mid/Apex marks with scores). **Build 130:** (deck score stage 2; Apex = best credible card, popular card kept as Most played; buy-list printings).
 - **Before:** Build 129. The full history is the "Done" list in `ROADMAP.md`. Backup of Build 118: branch `backup/build-118`.
 - **Builds 119-129 (17 Oct)** worked through the owner's Oct 17 master handoff: printed names, score/tip agreement, scroll sizing, source-aware mana check, deck power, Buy list page, Flip, Build stats tab, upgrade sheets, compact Build panel, Apex strongest. Owner's rules from that session: batch builds, quick bug checks per build, full test before each live push, no need to confirm each push; decks scoring below Budget are fine, Mid outscoring Apex is a bug.
 - **Still open from that handoff:** the custom Build panel now fits (Build 133); the scroll lock after reload is fixed (owner confirmed on iPad, 17 Oct); the independent expert benchmark and Tramplesaurus cut accuracy (section 14); Buy list printing (done in 130); Apex as the outright highest-scoring card was measured and rejected (agreement 0.018).
 - **Done in Build 118:** smarter deck score, stage 1 (tournament staples for Apex): `TOURNEY` lists and `tourneyOf` in engine.js, `UP.ts/tsk/tl/tr`. Still missed: tutors and win cards (Demonic Consultation, Tainted Pact, Thassa's Oracle), and Lumra/Vivi gain least.
 - **Next:** not yet chosen by the owner (options: stage 2 of the deck score, the open decisions below).
 - **Waiting on the owner:**
-  - Tramplesaurus depth fix: fewer rows, or a "More ideas" fold (see ROADMAP);
-  - whether to look into the guide blind spots (Sheoldred/Yawgmoth for Doom, Swords to Plowshares for Turtle Power).
+  - whether alternatives should be matched to the card going out rather than the pick (the remaining guide blind spots);
+  - real-device check (phone and iPad screenshots).
 - **No fourth tier:** the owner ruled that Apex is the best version of a deck; the "Tournament build" idea is dropped. Closing the tournament gap is Apex work.
 - **Tried and rejected after Build 133 (see ROADMAP):** deck score stage 3 (test 0.303 -> 0.298) and closer plan weighting (test 0.303 -> 0.281 / 0.298). Engine unchanged.
-- **Benchmark baseline (Builds 133-134, SCORECHECK=1):** agreement@5 tuneall 0.238, test 0.303, holdout 0.292; with `WEIGHT=3,6` 0.268 / 0.322 / 0.318. Both must not drop. Note: without `SCORECHECK=1` the bench skips the Apex pick rule and reads 0.249 with gain 0 — wrong baseline.
+- **Benchmark baseline (Build 135, SCORECHECK=1):** agreement@5 tuneall 0.238, test 0.303, holdout 0.292 (row@5 0.240 / 0.303 / 0.292; @10 0.124 / 0.198 / 0.205); with `WEIGHT=3,6` 0.268 / 0.322 / 0.318. Both must not drop. Note: without `SCORECHECK=1` the bench skips the Apex pick rule and reads 0.249 with gain 0 — wrong baseline.
 - **Parked:** Visible practice games.
 - **Known limits:**
   - Decks over their land target take a few seconds more to check upgrades.
