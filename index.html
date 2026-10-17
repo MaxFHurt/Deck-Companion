@@ -179,6 +179,8 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .card.real{position:relative} .card.real .flip{position:absolute;right:8px;top:8px;z-index:2}
 .aimp{display:flex;flex-direction:column} .aimp .bfoot{flex:none;display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid #2a1d55;margin-top:8px} .aimp .bfoot .btn{width:auto}
 .dmeta summary{cursor:pointer;list-style:none} .dmeta[open] summary{margin-bottom:8px}
+.fbar{gap:10px;flex-wrap:nowrap} .fsel{display:flex;flex-direction:column;gap:3px;flex:1 1 0;min-width:0} .fsel .lab{margin:0} .fsel select{width:100%;min-width:0}
+@media (max-width:600px){ .fbar{flex-wrap:wrap} .fsel{flex:1 1 45%} }
 .sheet4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:8px}
 .s4{display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid #2a1d55;border-radius:10px;background:#120a28;color:inherit;text-align:center;font:inherit;cursor:pointer;min-width:0}
 .s4.on{border-color:var(--glow);box-shadow:0 0 0 2px var(--violet) inset} .s4.empty{opacity:.6}
@@ -241,9 +243,12 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:6px 0}
 .sgrid>div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#150c2e;min-width:0}
 .sgrid small{display:block;font:600 11px var(--label);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}.sgrid b{font-size:20px;color:var(--chrome);font-variant-numeric:tabular-nums}.sgrid .note{display:block;font-size:12px}
-.tmeter{padding:2px 4px 18px}.tmeter i{display:block;position:relative;height:12px;border-radius:9px;background:#1b1238;border:1px solid var(--line)}
+.tmeter{padding:2px 4px 0}.tmeter i{display:block;position:relative;height:12px;border-radius:9px;background:#1b1238;border:1px solid var(--line)}
 .tmeter i b{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#5b34c9,var(--gold))}
 .tmeter u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--chrome);text-decoration:none}
+.tmeter u.tk{width:3px;top:-6px;bottom:-6px;border-radius:2px;transform:translateX(-50%)} .tk.tb,.tml.tb i{background:#c98a4b} .tk.tm,.tml.tm i{background:#b9b2d6} .tk.ta,.tml.ta i{background:var(--gold)} .tml.ty i{background:#8d5cff}
+.tm-leg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font:600 11px var(--label);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.tml{display:inline-flex;align-items:center;gap:6px} .tml i{display:inline-block;width:10px;height:10px;border-radius:2px} .tml b{color:var(--ink);font-size:12px}
 .tm-lab{position:relative;height:14px;font:600 10px var(--label);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}.tm-lab span{position:absolute;top:3px;transform:translateX(-50%);white-space:nowrap}
 .hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;font-size:13px}
 .hi{display:flex;gap:6px;align-items:baseline;min-width:0}.hi i{flex:none;width:9px;height:9px;border-radius:50%;background:var(--good);transform:translateY(1px)}.hi.warn i{background:var(--warn)}.hi.bad i{background:var(--bad)}.hi.ign i{background:var(--chrome);opacity:.45}.hi.ign{opacity:.7}.hi b{font:600 12px var(--label);letter-spacing:.06em;text-transform:uppercase}
@@ -429,7 +434,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 130;
+window.BUILD = 131;
 (function(){
   var last = 0;
   function check(){
@@ -441,9 +446,9 @@ window.BUILD = 130;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=130"></script>
-<script src="lists.js?v=130"></script>
-<script src="engine.js?v=130"></script>
-<script src="ui.js?v=130"></script>
+<script src="data.js?v=131"></script>
+<script src="lists.js?v=131"></script>
+<script src="engine.js?v=131"></script>
+<script src="ui.js?v=131"></script>
 </body>
 </html>

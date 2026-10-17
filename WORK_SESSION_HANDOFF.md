@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 17 October 2026, Build 130 live.
+Last updated: 17 October 2026, Build 131 live.
 
 ## 1. What this is
 
@@ -21,7 +21,7 @@ Last updated: 17 October 2026, Build 130 live.
 
 ## 2. The owner and how to work with them
 
-- **Replies:** plain English, short. Every long reply ends with a **Summary** (✅ done / ⏳ needs the owner). Every question asked in a reply is repeated, reworded, as ❓ lines at the end of the summary. The owner multitasks and often reads only the summary.
+- **Replies:** plain English, short. Number questions whenever there are several. Every long reply ends with a **Summary** (✅ done / ⏳ needs the owner). Every question asked in a reply is repeated, reworded, as ❓ lines at the end of the summary. The owner multitasks and often reads only the summary.
 - **Builds:** one feature per build. For each one, build it, run the full test suite, check for regressions, and go live only if everything passes. The owner has given standing permission to push bug-free builds live one at a time. Save work in progress often by pushing to the working branch, but never merge a half-built feature.
 - **Usage:** the owner is often low on usage. Stay concise, don't re-explain, and when asked to just talk, don't build.
 - **Standing rules:** these are in `ROADMAP.md` under "Standing rules from the owner". Key ones:
@@ -40,7 +40,7 @@ Last updated: 17 October 2026, Build 130 live.
    - `index.html`: `window.BUILD = N;` and every `?v=N` on the script tags. The footer's `build-no` is filled from `window.BUILD` at boot.
    - `version.json`: `{"build": N}`. The live page reloads itself when this is newer.
 3. **Test from `proto/tests`** (commands in `tools/tests/suite/README.md`):
-   - **UI suite:** start the server with `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)`. It sometimes dies; if a run prints nothing, restart it. Then run `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. It must pass every test (88 at Build 130). The test setup switches Upgrades to List view (`S.upView = 'list'`); Sheets is the app's default.
+   - **UI suite:** start the server with `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)`. It sometimes dies; if a run prints nothing, restart it. Then run `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. It must pass every test (89 at Build 131). The test setup switches Upgrades to List view (`S.upView = 'list'`); Sheets is the app's default.
    - **Engine checks:** `node accept.js` (39 passed), `node claims.js ../candidate every` (FALSE 0), `node semantics.js ../candidate` (44 passed) and `node edge.js ../candidate` (no THROW).
    - **Engine changes also need the benchmark,** run in the background: `TIER=apex SCORECHECK=1 node bench.js ../candidate bN tuneall|test|holdout --quiet`. Current agreement@5 is tuneall 0.238, test 0.303, holdout 0.292 (Build 130), row@5 0.240 / 0.303 / 0.292. The owner's rule: no regression, ever; each build must gain.
    - **Deck-score changes also need the tournament comparison:** `node tourney.js ../candidate` (Build 118: match 57%, core 55%, raise 43/80, mid 50%). Its data is frozen in `tourney-data.json.gz`.
@@ -77,10 +77,10 @@ Last updated: 17 October 2026, Build 130 live.
 
 ## 5. Where things stand
 
-- **Live:** Build 130 (deck score stage 2; Apex = best credible card, popular card kept as Most played; buy-list printings).
+- **Live:** Build 131 (Upgrades layout: one row of filter drop-downs, EDHREC chip in the stats module, colour-coded Budget/Mid/Apex marks with scores). **Build 130:** (deck score stage 2; Apex = best credible card, popular card kept as Most played; buy-list printings).
 - **Before:** Build 129. The full history is the "Done" list in `ROADMAP.md`. Backup of Build 118: branch `backup/build-118`.
 - **Builds 119-129 (17 Oct)** worked through the owner's Oct 17 master handoff: printed names, score/tip agreement, scroll sizing, source-aware mana check, deck power, Buy list page, Flip, Build stats tab, upgrade sheets, compact Build panel, Apex strongest. Owner's rules from that session: batch builds, quick bug checks per build, full test before each live push, no need to confirm each push; decks scoring below Budget are fine, Mid outscoring Apex is a bug.
-- **Still open from that handoff:** a custom (non-precon) Build panel still scrolls on an iPad; the scroll lock after reload is unverified on a real iPad (Chromium can't reproduce it); the independent expert benchmark and Tramplesaurus cut accuracy (section 14); Buy list printing (done in 130); Apex as the outright highest-scoring card was measured and rejected (agreement 0.018).
+- **Still open from that handoff:** a custom (non-precon) Build panel still scrolls on an iPad; the scroll lock after reload is fixed (owner confirmed on iPad, 17 Oct); the independent expert benchmark and Tramplesaurus cut accuracy (section 14); Buy list printing (done in 130); Apex as the outright highest-scoring card was measured and rejected (agreement 0.018).
 - **Done in Build 118:** smarter deck score, stage 1 (tournament staples for Apex): `TOURNEY` lists and `tourneyOf` in engine.js, `UP.ts/tsk/tl/tr`. Still missed: tutors and win cards (Demonic Consultation, Tainted Pact, Thassa's Oracle), and Lumra/Vivi gain least.
 - **Next:** not yet chosen by the owner (options: stage 2 of the deck score, the open decisions below).
 - **Waiting on the owner:**

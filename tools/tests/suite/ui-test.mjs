@@ -41,7 +41,7 @@ T('UI-EX-01', 'Button reads “Remove suggestion”, names the card for screen r
 
 // 3. Clicking it excludes the card for this deck only; the deck is unchanged; nothing is swapped.
 const before = await page.evaluate(() => { const d = cur(); return {cards:JSON.stringify(d.cards), cmd:d.commander, size:analyze(d).size, recP:JSON.stringify(d.recP || {})}; });
-await page.click('[data-act="dismiss"]'); await page.click('#confirm [data-act="conf-yes"]'); await page.waitForTimeout(400);
+await page.click('[data-act="dismiss"][data-n="' + btn.n.replace(/"/g, '\\"') + '"]'); await page.click('#confirm [data-act="conf-yes"]');   // the card read above (the list can redraw in between) await page.waitForTimeout(400);
 const after = await page.evaluate(n => { const d = cur(), R = recsFor(d); return {cards:JSON.stringify(d.cards), cmd:d.commander, size:analyze(d).size, dismissed:(d.dismissed || []).slice(), stillShown:R.paths.some(L => Object.values(L.opts).some(p => p.add === n)), toast:(document.querySelector('#toast') || {}).textContent || ''}; }, btn.n);
 T('UI-EX-02', 'Excluding a suggestion leaves the deck, commander and card count unchanged and stops suggesting it', after.cards === before.cards && after.cmd === before.cmd && after.size === before.size && after.dismissed.includes(btn.n) && !after.stillShown && after.toast.includes('excluded from this deck’s recommendations'), 'toast: ' + after.toast);
 const heldAfter = await page.evaluate(() => JSON.stringify(cur().recP || {}));
@@ -265,13 +265,13 @@ const fit = await page.evaluate(async () => { const d = S.profile.decks.find(x =
 T('UI-FIT-01', 'Card fit: a card that serves a secondary mechanic is credited for it; a removal card isn’t told it fits no plan; a card that fits nothing is told so, naming every mechanic of the build', !!fit.sub && fit.subPro && !fit.subCon && !!fit.job && !fit.jobCon && !!fit.none && fit.listsAll, JSON.stringify(fit));
 // 25. Card-type filter on upgrades and on the build plan.
 const tf = await page.evaluate(async () => { const out = {}; const d = S.profile.decks.find(x => /Doom Prevails/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await new Promise(r => setTimeout(r, 300));
-  const bar = [...document.querySelectorAll('.typebar [data-act="uptype"]')].map(b => b.dataset.v); out.types = bar; if (bar.length < 2){ out.dbg = {paths:recsFor(d).paths.length, plan:!!d.plan, aimed:isAimed(d), txt:document.querySelector('#main').textContent.slice(0, 300), pt:recsFor(d).paths.map(L => [...slotTypes(Object.values(L.opts).map(o => o.add))].join('/'))}; return out; } const t = bar.includes('Creature') ? 'Creature' : bar[1];
-  document.querySelector('.typebar [data-act="uptype"][data-v="' + t + '"]').click(); await new Promise(r => setTimeout(r, 100)); S.pathShow = 99; render();
+  const bar = [...document.querySelectorAll('select[data-act="uptype"] option')].map(o => o.value);   /* Build 131: drop-downs */ out.types = bar; if (bar.length < 2){ out.dbg = {paths:recsFor(d).paths.length, plan:!!d.plan, aimed:isAimed(d), txt:document.querySelector('#main').textContent.slice(0, 300), pt:recsFor(d).paths.map(L => [...slotTypes(Object.values(L.opts).map(o => o.add))].join('/'))}; return out; } const t = bar.includes('Creature') ? 'Creature' : bar[1];
+  handleAct('uptype', t); await new Promise(r => setTimeout(r, 100)); S.pathShow = 99; render();
   const R = recsFor(d), shown = [...document.querySelectorAll('.paths [data-act="swap"]')].map(b => +b.dataset.v.split('|')[0]);
   out.t = t; out.shown = new Set(shown).size; out.allMatch = [...new Set(shown)].every(i => Object.values(R.paths[i].opts).some(o => mainType(find(o.add)) === t));
   out.expected = R.paths.filter(L => Object.values(L.opts).some(o => mainType(find(o.add)) === t)).length;
   const sw = document.querySelector('.paths [data-act="swap"]:not([data-v$="|alt"])'); if (sw){ const [i, k] = sw.dataset.v.split('|'), p = R.paths[+i].opts[k]; sw.click(); await new Promise(r => setTimeout(r, 200)); out.swapRight = d.cards.some(e => e.n === p.add) && !d.cards.some(e => e.n === p.cut); }
-  document.querySelector('.typebar [data-act="uptype"][data-v=""]').click(); out.allBack = document.querySelectorAll('.paths .path').length >= Math.min(12, recsFor(d).paths.length);
+  handleAct('uptype', ''); out.allBack = document.querySelectorAll('.paths .path').length >= Math.min(12, recsFor(d).paths.length);
   const g = startPlan('Captain America, Team Leader', []); S.profile.decks.unshift(g); S.draft = null; S.deckId = g.id; S.tab = 'up'; render(); out.otherDeckUnfiltered = !document.querySelector('.typebar .btn.pri[data-v]:not([data-v=""])');
   const pb = document.querySelector('.typebar [data-act="uptype"][data-v="Instant"]'); if (pb){ pb.click(); S.planShow = 99; render(); const ids = [...document.querySelectorAll('.paths.plan [data-act="plan-add"]')].map(b => +b.dataset.v.split('|')[0]); out.planAll = ids.length > 0 && ids.every(id => { const x = g.plan.find(y => y.id === id); return [x.a, x.m, x.b].some(n => n && mainType(find(n)) === 'Instant'); }); }
   return out; });
@@ -333,8 +333,8 @@ const b78 = await page.evaluate(async () => { const out = {}; const wait = async
   const R = recsFor(d), all = R.paths.flatMap(L => Object.values(L.opts)); out.picks = all.length; out.allPositive = all.every(p => p.dScore != null && p.dScore >= 0);
   out.chips = [...document.querySelectorAll('.paths .opt .chip')].filter(x => /score$/.test(x.textContent)).length; out.noMinus = ![...document.querySelectorAll('.paths .opt .chip')].some(x => /−\d.*score$/.test(x.textContent));
   // kind filter
-  const kb = [...document.querySelectorAll('.typebar [data-act="upkind"]')].map(b => b.dataset.v).filter(Boolean); out.kinds = kb; if (kb.length){ const k = kb[0]; document.querySelector('.typebar [data-act="upkind"][data-v="' + k + '"]').click(); await new Promise(r => setTimeout(r, 100));
-    const shown = [...document.querySelectorAll('.paths [data-act="swap"]')].map(b => +b.dataset.v.split('|')[0]); out.kindOk = shown.length > 0 && [...new Set(shown)].every(i => slotKinds(d, Object.values(R.paths[i].opts)).has(k)); document.querySelector('[data-act="upkind"][data-v=""]').click(); }
+  const kb = [...document.querySelectorAll('select[data-act="upkind"] option')].map(o => o.value).filter(Boolean); out.kinds = kb; if (kb.length){ const k = kb[0]; handleAct('upkind', k); await new Promise(r => setTimeout(r, 100));
+    const shown = [...document.querySelectorAll('.paths [data-act="swap"]')].map(b => +b.dataset.v.split('|')[0]); out.kindOk = shown.length > 0 && [...new Set(shown)].every(i => slotKinds(d, Object.values(R.paths[i].opts)).has(k)); handleAct('upkind', ''); }
   // alternatives: theme-first ordering wherever both kinds appear
   let themeOk = true, checked = 0; for (const ub of [...document.querySelectorAll('.paths [data-act="alts"]')].slice(0, 8)){ ub.click(); await wait(); const rows = [...document.querySelectorAll('#modal .opt.alt')].map(o => !!o.querySelector('.chip.gold')); if (rows.length){ checked++; const first = rows.indexOf(false); if (first >= 0 && rows.slice(first).some(Boolean)) themeOk = false; } $('#modal').hidden = true; }
   out.altChecked = checked; out.themeFirst = themeOk;
@@ -369,7 +369,7 @@ const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true;
   // upgrades: impact order, GC chip
   S.tab = 'up'; S.upSort = 'impact'; recsFor.k = null; render(); await recsReady(d); render(); const R = recsFor(d), imp = L => Math.max(...Object.values(L.opts).map(p => p.dScore != null ? p.dScore : -1e9));
   const shown = [...document.querySelectorAll('.paths [data-act="swap"]')].map(b => +b.dataset.v.split('|')[0]).filter((x, i, A) => A.indexOf(x) === i), vals = shown.map(i => imp(R.paths[i]));
-  out.impactSorted = vals.length > 2 && vals.every((v, i) => !i || vals[i - 1] >= v - 1e-9); out.sortBar = !!document.querySelector('[data-act="upsort"][data-v="impact"].pri');
+  out.impactSorted = vals.length > 2 && vals.every((v, i) => !i || vals[i - 1] >= v - 1e-9); out.sortBar = (document.querySelector('select[data-act="upsort"]') || {}).value === 'impact';
   out.gcRows = R.paths.filter(L => Object.values(L.opts).some(p => p.gc)).length; out.gcChip = R.paths.some(L => Object.values(L.opts).some(p => p.gc)) ? !!document.querySelector('.paths .chip.gc') : 'none';
   // health: make the deck short on ramp, then Fix this / Ignore
   const ramp = d.cards.filter(e => { const x = find(e.n); return x && tags(x).roles.has('ramp') && !tags(x).land; }).slice(0, 6).map(e => e.n); d.save81 = JSON.parse(JSON.stringify(d.cards));
@@ -840,7 +840,7 @@ const b127 = await page.evaluate(async () => { const d = S.profile.decks.find(x 
   const sel = document.querySelector('.sheet').dataset.sel; out.oneShown = vis().length === 1 && vis()[0] === sel;
   document.querySelector('.s4[data-v="cut"]').click(); out.cutShown = vis().length === 0 && !!document.querySelector('.sheet .path > .sw.out').offsetParent;
   const head = () => document.querySelector('.sheethead .lab').textContent; out.h1 = /^Upgrade 1 of \d+/.test(head()); document.querySelector('[data-act="sheet-go"][data-v="1"]').click(); out.h2 = /^Upgrade 2 of/.test(head());
-  document.querySelector('[data-act="upview"][data-v="list"]').click(); out.list = document.querySelectorAll('.paths .path').length > 1 && !document.querySelector('.sheet4'); S.upView = 'list'; render(); return out; });
+  handleAct('upview', 'list'); out.list = document.querySelectorAll('.paths .path').length > 1 && !document.querySelector('.sheet4'); S.upView = 'list'; render(); return out; });
 T('UI-B127-01', 'Upgrade sheets: four cards (your card, Budget, Mid, Apex) with score change and price; tapping one shows only its details; arrows move between upgrades; List shows them all', Object.values(b127).every(v => v === true), JSON.stringify(b127));
 // 78. Build 129: Apex is the strongest pick on each row: no Mid or Budget pick raises the deck score more than the row's Apex pick.
 const b129 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); const R = await recsReady(d);
@@ -856,6 +856,14 @@ const b130 = await page.evaluate(async () => { const d = S.profile.decks.find(x 
   const w = d.want[0]; out.kept = !!w && w.ps === 'Fancy Foil Edition' && w.pp === 9.99; S.view = 'buy'; S.buySel = null; render(); const t = document.querySelector('#main').textContent; out.shown = /Fancy Foil Edition/.test(t) && /\$9\.99/.test(t);
   out.plainExport = buyAllText().split('\n').includes('1 Sol Ring'); d.want = JSON.parse(keep); S.pick = null; S.view = 'decks'; render(); return out; });
 T('UI-B130-01', 'Apex is the strongest credible pick and a popular card it replaces stays first as Most played; the buy list keeps the chosen printing (set and price) and still exports the plain name', b130.mostFirst && b130.apexStrongest && b130.kept && b130.shown && b130.plainExport, JSON.stringify(b130));
+// 80. Build 131: the upgrade filters are one row of drop-downs; the EDHREC chip sits in the stats module above the Apex progress bar;
+// the bar marks Budget, Mid and Apex in their own colours with their power scores in a legend row, with no empty row under it.
+const b131 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; render(); await recsReady(d); render();
+  const sels = [...document.querySelectorAll('.fbar select')], tops = new Set(sels.map(x => Math.round(x.getBoundingClientRect().top))), out = {selects:sels.length, oneRow:tops.size === 1, oldButtons:!document.querySelector('#upscroll .typebar [data-act="upsort"]')};
+  const m = document.querySelector('#upscroll .tmeter'), g = m && m.closest('.grp'); out.chipAbove = !!(g && g.querySelector('.chip.good, .chip.warn, .chip') && g.querySelector('.chip').compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const leg = m ? m.querySelector('.tm-leg').textContent : ''; out.legend = /Budget\s*\d/.test(leg) && /Mid\s*\d/.test(leg) && /Apex\s*\d/.test(leg) && /You\s*\d/.test(leg); out.ticks = m ? m.querySelectorAll('u.tk').length : 0;
+  const nx = m && m.nextElementSibling; out.gap = nx ? Math.round(nx.getBoundingClientRect().top - m.getBoundingClientRect().bottom) : 0; return out; });
+T('UI-B131-01', 'Upgrade filters are one row of drop-downs; the EDHREC chip is in the stats module above the progress bar; Budget, Mid and Apex are marked in their own colours with their scores in a legend; no empty row under the bar', b131.selects >= 2 && b131.oneRow && b131.oldButtons && b131.chipAbove && b131.legend && b131.ticks === 3 && b131.gap <= 14, JSON.stringify(b131));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
