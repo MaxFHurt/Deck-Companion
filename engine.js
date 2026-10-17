@@ -154,6 +154,64 @@ function simulate(d, games, seed){
     manaSpentT1to8:R.spent.map(v => +(v / n).toFixed(2)), manaUsedBy6:+(R.spent.slice(0, 6).reduce((a, b) => a + b, 0) / n).toFixed(1),
     colourStuck:+(R.colourStuck / n).toFixed(3), screwT5:+(R.screw / n).toFixed(3), floodT8:+(R.flood / n).toFixed(3), mulligan:+(R.mull / n).toFixed(3), landsT4:+(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)};
 }
+// Visible practice games (Build 136): the same games as simulate(), step by step, for the Practice panel. A copy that also
+// records each turn, so simulate() (the deck score's 300 games) stays exactly as it is; a test checks both agree game for game.
+function practiceGames(d, games, seed){
+  const ctx = ctxOf(d), ident = ctx.ident.length ? ctx.ident : ['C'], cmds = [d.commander, d.partner].filter(Boolean).map(find).filter(Boolean);
+  const lib0 = []; d.cards.forEach(e => { const c = find(e.n); if (c) for (let i = 0; i < e.q; i++) lib0.push(c); });
+  const R = {games:games || 500, cmdTurn:[], spent:[0, 0, 0, 0, 0, 0, 0, 0], colourStuck:0, screw:0, flood:0, landsT4:[], noPlayT3:0, mull:0}, rnd = rng32(seed || 1), logs = [], nm = c => c ? c.n : '';
+  const colsOf = s => s.cols.length ? s.cols.filter(k => k === 'C' || ident.includes(k)) : ['C'];
+  for (let g = 0; g < R.games; g++){
+    let lib = lib0.slice(), hand = []; const shuffle = () => { for (let i = lib.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [lib[i], lib[j]] = [lib[j], lib[i]]; } };
+    shuffle(); hand = lib.splice(0, 7); const G = {hand0:hand.map(nm), mull:false, bottom:'', turns:[]}; logs.push(G); const nl = () => hand.filter(c => simCard(c, ident).land).length;
+    if (nl() < 2 || nl() > 5){ R.mull++; lib = lib.concat(hand); shuffle(); hand = lib.splice(0, 7); const h = hand.map(c => simCard(c, ident)); // keep 7, bottom the worst one (a spare land or the costliest spell)
+      const spare = nl() > 4 ? hand.findIndex(c => simCard(c, ident).land) : hand.reduce((b, c, i) => simCard(c, ident).land ? b : (b < 0 || c.cmc > hand[b].cmc ? i : b), -1); if (spare >= 0){ G.bottom = nm(hand[spare]); lib.push(hand.splice(spare, 1)[0]); } G.mull = true; G.hand1 = hand.map(nm); }
+    const bf = [], cz = cmds.slice(); let cmdT = 0, stuckAny = false, ramped = 0;
+    for (let turn = 1; turn <= 10; turn++){
+      const T = {turn, draw:'', land:'', tapped:false, cast:[], mana:0, spent:0}; G.turns.push(T);
+      if (turn > 1 || true) { if (lib.length){ T.draw = nm(lib[0]); hand.push(lib.shift()); } }   // multiplayer Commander: everyone draws on turn 1
+      bf.forEach(s => { s.sickNow = false; if (s.wake === turn) s.tappedNow = false; });
+      // land: the untapped one adding a colour the hand needs, else any
+      const lands = hand.map((c, i) => [c, i]).filter(([c]) => simCard(c, ident).land);
+      if (lands.length){ const needCol = new Set(); hand.forEach(c => Object.keys(simCard(c, ident).pips).forEach(k => k.split('/').forEach(z => needCol.add(z))));
+        const have = new Set(bf.flatMap(s => colsOf(s)));
+        const score = ([c]) => { const s = simCard(c, ident); return colsOf(s).filter(k => needCol.has(k) && !have.has(k)).length * 2 + (s.tapped ? 0 : 1) + (s.cond && bf.length >= 2 ? 1 : 0); };
+        const [c, i] = lands.sort((a, b) => score(b) - score(a))[0], s = simCard(c, ident); hand.splice(i, 1); T.land = c.n;
+        const tap = s.tapped || (s.cond && bf.filter(z => z.land).length < 2); bf.push(Object.assign({}, s, {tappedNow:tap, land:true, cols:s.fetch ? ident.slice() : colsOf(s)})); T.tapped = !!tap; }
+      // spend mana: commander first, then mana sources, then card draw, then the costliest castable spell
+      let spent = 0; T.mana = bf.filter(s => s.mana && !s.tappedNow && !s.sickNow).reduce((a, s) => a + s.mana, 0);
+      for (let k = 0; k < 12; k++){
+        const srcs = bf.filter(s => s.mana && !s.tappedNow && !s.sickNow && !s.used), pool = []; srcs.forEach(s => { for (let m = 0; m < s.mana; m++) pool.push({s, cols:s.cols.length ? s.cols : ['C']}); });
+        const red = x => x.redPower ? bf.reduce((a, s) => a + (s.power || 0), 0) : x.redEach ? bf.filter(s => x.redEach === 'creature' ? s.creature : s.artifact).length : 0;
+        const costOf = c => { const x = simCard(c, ident), pp = Object.values(x.pips).reduce((a, b) => a + b, 0); return pp + Math.max(0, c.cmc - pp - red(x)); };
+        const can = c => { const x = simCard(c, ident), pp = Object.values(x.pips).reduce((a, b) => a + b, 0), gen = Math.max(0, c.cmc - pp - red(x)); return payable(x.pips, gen, pool.map(p => p.cols)); };
+        let pick = null, from = null, use = null;
+        for (const c of cz){ const u = can(c); if (u){ pick = c; from = 'cz'; use = u; break; } }
+        if (!pick){ const opts = hand.map((c, i) => ({c, i, x:simCard(c, ident)})).filter(o => !o.x.land).map(o => Object.assign(o, {u:can(o.c)})).filter(o => o.u);
+          const pri = o => (o.x.mana || o.x.ramp ? 100 : 0) + (o.x.draw ? 50 : 0) + costOf(o.c); opts.sort((a, b) => pri(b) - pri(a)); if (opts.length){ pick = opts[0].c; from = opts[0].i; use = opts[0].u; } }
+        if (!pick){   // stuck on colour: enough mana sources for a spell, but a colour it needs is made by none of them
+          const have = new Set(bf.filter(z => z.mana).flatMap(z => z.cols.length ? z.cols : ['C'])), nSrc = bf.filter(z => z.mana).reduce((a, z) => a + z.mana, 0);
+          if (hand.some(c => { const x = simCard(c, ident); return !x.land && c.cmc <= nSrc && Object.keys(x.pips).some(k => !k.split('/').some(z => have.has(z))); })) stuckAny = stuckAny || turn <= 6; break; }
+        use.forEach((u, j) => { if (u) pool[j].s.usedCount = (pool[j].s.usedCount || 0) + 1; }); srcs.forEach(s => { if ((s.usedCount || 0) >= s.mana) s.used = true; s.usedCount = s.usedCount || 0; });
+        spent += costOf(pick); const x = simCard(pick, ident); T.cast.push({n:pick.n, cmd:from === 'cz', cost:costOf(pick)});
+        if (from === 'cz'){ cz.splice(cz.indexOf(pick), 1); if (!cmdT) cmdT = turn; } else hand.splice(from, 1);
+        if (x.mana) bf.push(Object.assign({}, x, {sickNow:x.sick, tappedNow:!!x.tappedRock, cols:x.cols.length ? x.cols.filter(k => ident.includes(k)) : ['C']}));
+        else if (x.perm) bf.push({mana:0, cols:[], power:x.power, creature:x.creature, artifact:x.artifact});
+        if (x.ramp){ ramped += x.ramp; for (let r = 0; r < x.ramp; r++) bf.push({land:true, mana:1, cols:ident.slice(), tappedNow:true, wake:turn + 1}); if (x.rampHand) hand.push({n:'(basic)', cmc:0, m:'', t:'Basic Land', o:'', _sim:{land:true, mana:1, cols:ident.slice(), pips:{}, cmc:0}, ci:[]}); }
+        for (let q = 0; q < (x.draw || 0); q++) if (lib.length) hand.push(lib.shift());
+      }
+      bf.forEach(s => { s.used = false; s.usedCount = 0; s.tappedNow = false; });
+      T.spent = spent; if (turn <= 8) R.spent[turn - 1] += spent;
+      const L = bf.filter(s => s.land).length; if (turn === 4) R.landsT4.push(L); if (turn === 3 && !spent && !cmdT) R.noPlayT3++;
+      if (turn === 5 && L < 4) R.screw++; if (turn === 8 && L + hand.filter(c => simCard(c, ident).land).length - ramped >= 9) R.flood++;   // flood: 9+ of the ~15 cards seen by turn 8 are lands
+    }
+    R.cmdTurn.push(cmdT || 11); if (stuckAny) R.colourStuck++; G.cmdTurn = cmdT || 0; G.stuck = stuckAny;
+  }
+  const n = R.games, med = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
+  return {logs, games:n, cmdMedianTurn:med(R.cmdTurn), cmdByT4:R.cmdTurn.filter(t => t <= 4).length / n, cmdByT6:R.cmdTurn.filter(t => t <= 6).length / n,
+    manaSpentT1to8:R.spent.map(v => +(v / n).toFixed(2)), manaUsedBy6:+(R.spent.slice(0, 6).reduce((a, b) => a + b, 0) / n).toFixed(1),
+    colourStuck:+(R.colourStuck / n).toFixed(3), screwT5:+(R.screw / n).toFixed(3), floodT8:+(R.flood / n).toFixed(3), mulligan:+(R.mull / n).toFixed(3), landsT4:+(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)};
+}
 // ----- combos (Commander Spellbook, via the card-data job; see tools/build-combos.mjs) -----
 // COMBOS.list: {keys, names, ci, win, what, decks, bt, note}; COMBOS.by: card key -> combos it is in.
 let COMBOS = {list:[], by:new Map(), at:'', state:''};

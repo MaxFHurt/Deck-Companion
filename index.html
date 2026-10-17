@@ -205,6 +205,10 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .meter i b{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#5b34c9,var(--glow));box-shadow:0 0 8px var(--violet)}
 .meter.good i b{background:linear-gradient(90deg,#1c8a52,var(--good))} .meter.bad i b{background:linear-gradient(90deg,#9a2444,var(--bad))} .meter.warn i b{background:linear-gradient(90deg,#9a6414,var(--warn))}
 .meter span:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--chrome)}
+/* Build 136: practice games */
+table.pg{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}table.pg th{text-align:left;font-weight:600;color:var(--mute,#888);padding:2px 4px}table.pg th:first-child,table.pg td:first-child{width:34px}table.pg th:last-child,table.pg td:last-child{width:52px}
+table.pg td{padding:3px 4px;border-top:1px solid var(--line,rgba(127,127,127,.2));vertical-align:top;overflow-wrap:anywhere}table.pg small{color:var(--mute,#888)}
+.chip.pgc{font-size:11px;padding:1px 6px;margin:1px 2px 1px 0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}.pg-hand small{display:block;color:var(--mute,#888);margin-bottom:2px}
 .curve{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;align-items:end;height:74px;padding-top:4px}
 .curve div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font:600 11px var(--label);color:var(--mute);gap:2px}
 .curve i{display:block;width:100%;border-radius:3px 3px 0 0;background:linear-gradient(180deg,var(--glow),#4a2aa8);min-height:2px;box-shadow:0 0 8px rgba(141,92,255,.5)}
@@ -444,7 +448,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 135;
+window.BUILD = 136;
 (function(){
   var last = 0;
   function check(){

@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 17 October 2026, Build 135 live.
+Last updated: 17 October 2026, Build 136 live.
 
 ## 1. What this is
 
@@ -40,7 +40,7 @@ Last updated: 17 October 2026, Build 135 live.
    - `index.html`: `window.BUILD = N;` and every `?v=N` on the script tags. The footer's `build-no` is filled from `window.BUILD` at boot.
    - `version.json`: `{"build": N}`. The live page reloads itself when this is newer.
 3. **Test from `proto/tests`** (commands in `tools/tests/suite/README.md`):
-   - **UI suite:** start the server with `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)`. It sometimes dies; if a run prints nothing, restart it. Then run `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. It must pass every test (91 at Build 133). The test setup switches Upgrades to List view (`S.upView = 'list'`); Sheets is the app's default.
+   - **UI suite:** start the server with `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)`. It sometimes dies; if a run prints nothing, restart it. Then run `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. It must pass every test (94 at Build 136). The test setup switches Upgrades to List view (`S.upView = 'list'`); Sheets is the app's default.
    - **Engine checks:** `node accept.js` (39 passed), `node claims.js ../candidate every` (FALSE 0), `node semantics.js ../candidate` (44 passed) and `node edge.js ../candidate` (no THROW).
    - **Engine changes also need the benchmark,** run in the background: `TIER=apex SCORECHECK=1 node bench.js ../candidate bN tuneall|test|holdout --quiet`. Current agreement@5 is tuneall 0.238, test 0.303, holdout 0.292 (Build 130), row@5 0.240 / 0.303 / 0.292. The owner's rule: no regression, ever; each build must gain.
    - **Deck-score changes also need the tournament comparison:** `node tourney.js ../candidate` (Build 118: match 57%, core 55%, raise 43/80, mid 50%). Its data is frozen in `tourney-data.json.gz`.
@@ -77,7 +77,7 @@ Last updated: 17 October 2026, Build 135 live.
 
 ## 5. Where things stand
 
-- **Live:** Build 135 (fewer swaps where players keep the precon; jobless and weak slots get better alternatives). **Build 134:** (Unpopular pick chip only for a big gap; guide spot-check tools). **Build 133:** (customised Build panel folds to one-line headers and fits; upgrade list keeps its order). **Build 132:** (upgrade paths as folder tabs). **Build 131:** (Upgrades layout: one row of filter drop-downs, EDHREC chip in the stats module, colour-coded Budget/Mid/Apex marks with scores). **Build 130:** (deck score stage 2; Apex = best credible card, popular card kept as Most played; buy-list printings).
+- **Live:** Build 136 (visible practice games on the Build stats tab). **Build 135:** (fewer swaps where players keep the precon; jobless and weak slots get better alternatives). **Build 134:** (Unpopular pick chip only for a big gap; guide spot-check tools). **Build 133:** (customised Build panel folds to one-line headers and fits; upgrade list keeps its order). **Build 132:** (upgrade paths as folder tabs). **Build 131:** (Upgrades layout: one row of filter drop-downs, EDHREC chip in the stats module, colour-coded Budget/Mid/Apex marks with scores). **Build 130:** (deck score stage 2; Apex = best credible card, popular card kept as Most played; buy-list printings).
 - **Before:** Build 129. The full history is the "Done" list in `ROADMAP.md`. Backup of Build 118: branch `backup/build-118`.
 - **Builds 119-129 (17 Oct)** worked through the owner's Oct 17 master handoff: printed names, score/tip agreement, scroll sizing, source-aware mana check, deck power, Buy list page, Flip, Build stats tab, upgrade sheets, compact Build panel, Apex strongest. Owner's rules from that session: batch builds, quick bug checks per build, full test before each live push, no need to confirm each push; decks scoring below Budget are fine, Mid outscoring Apex is a bug.
 - **Still open from that handoff:** the custom Build panel now fits (Build 133); the scroll lock after reload is fixed (owner confirmed on iPad, 17 Oct); the independent expert benchmark and Tramplesaurus cut accuracy (section 14); Buy list printing (done in 130); Apex as the outright highest-scoring card was measured and rejected (agreement 0.018).
@@ -89,7 +89,7 @@ Last updated: 17 October 2026, Build 135 live.
 - **No fourth tier:** the owner ruled that Apex is the best version of a deck; the "Tournament build" idea is dropped. Closing the tournament gap is Apex work.
 - **Tried and rejected after Build 133 (see ROADMAP):** deck score stage 3 (test 0.303 -> 0.298) and closer plan weighting (test 0.303 -> 0.281 / 0.298). Engine unchanged.
 - **Benchmark baseline (Build 135, SCORECHECK=1):** agreement@5 tuneall 0.238, test 0.303, holdout 0.292 (row@5 0.240 / 0.303 / 0.292; @10 0.124 / 0.198 / 0.205); with `WEIGHT=3,6` 0.268 / 0.322 / 0.318. Both must not drop. Note: without `SCORECHECK=1` the bench skips the Apex pick rule and reads 0.249 with gain 0 — wrong baseline.
-- **Parked:** Visible practice games.
+- **Roadmap:** every buildable item is done. Left: the real-device check (needs the owner's phone and iPad) and the open question on matching alternatives to the card going out.
 - **Known limits:**
   - Decks over their land target take a few seconds more to check upgrades.
   - The card window takes about half a second to open.

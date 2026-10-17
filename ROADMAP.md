@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 135. Each item ships as its own build: build, run the full test suite
+Live: Build 136. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -51,14 +51,13 @@ Items marked "discuss first" need the owner's decision before they are built; th
 3. ~~Phone layout~~: done in Build 116.
 4. ~~Smarter deck score, stage 1~~: done in Build 118 (tournament comparison: match 49% to 57%, core 45% to 55%; benchmark unchanged).
 
-## Parked (not needed for now, per the owner)
+## Done from the parked list
 
-- **Visible practice games**
-   - *You'll see:* a "Practice" panel: draw opening hands, mulligan, and watch a few turns of the app's practice games (lands played, mana, spells cast), with how often the deck is short of lands or colours.
-   - *Builds on:* the practice-game simulator the deck score already runs in the background.
-   - *Size:* Large. *Upgrades engine:* no.
-   - *Risks:* showing the games is easy; making the play choices look sensible to a player is harder, so it starts as hands and simple turns.
-   - *Tested by:* seeded games give the same hands every run; tests check hand size, mulligans and land counts.
+- ~~Visible practice games~~: done in Build 136 (owner: "finish the road map"). Build stats tab → Practice games:
+  a 100-game summary (short of lands on turn 5, stuck on a colour, flooded, mulligan, commander turn), then one game's
+  opening hand, mulligan and first 8 turns (draw, land, spells cast, mana used of available), with Deal another game /
+  Previous. It uses `practiceGames`, a step-by-step copy of `simulate`; `simulate` is unchanged and a test checks the
+  two agree game for game.
 
 ## Open decisions
 

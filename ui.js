@@ -1587,6 +1587,26 @@ function manaWhy(d){ const e = evalFor(d), m = e && e.sim; if (!m) return FIX_WH
   return 'In practice games the deck is stuck without a colour it needs in ' + st + '% of games and runs out of lands by turn 5 in ' + sh + '%' + (analyze(d).lands > analyze(d).T.lands ? ' (with ' + analyze(d).lands + ' lands that is just bad luck, so no lands are added)' : '') + '. ' + (m.screwT5 >= m.colourStuck && analyze(d).lands <= analyze(d).T.lands ? 'Missing lands is the bigger problem, so swaps that add a land for the spell the deck can best spare come first when they help most.' : 'Colours are the bigger problem, so lands that make more of your colours and enter untapped come first when they help most.') + ' Every swap below raises the deck score.'; }
 function manaNone(d){ const mp = manaPlan(d); return '<p class="note" style="margin:0">No land swap raised the deck score in fresh practice games, so none is suggested. ' + (mp.changes.length ? 'Rebalancing your basic lands to match the colours your spells need may still help:' : 'Your lands already match what your spells need; the alert reflects normal variance for this deck, so ignoring it is reasonable.') + '</p>' + (mp.changes.length ? '<div class="row"><button class="btn pri sm" data-act="mana-apply">Rebalance basics: ' + esc(planText(mp)) + '</button></div>' : ''); }
 function fixApply(d, list){ let k = 0; list.forEach(p => { if (entryOf(d, p.cut) && !entryOf(d, p.add)){ doSwap(d, {cut:p.cut, add:p.add, q:1}, 0); k++; } }); return k; }
+// Visible practice games (Build 136, roadmap): opening hands, mulligans and the first turns of the same practice games the deck
+// score plays (practiceGames, a step-by-step copy of simulate). Worked out only while the panel is open.
+const PRAC = {k:'', v:null};
+function practiceHtml(d){
+  const open = !!S.pracOpen, seed = ((S.pgSeed || {})[d.id]) || 1;
+  let h = '<details class="grp" id="practice"' + (open ? ' open' : '') + '><summary class="lab" style="cursor:pointer">Practice games</summary>';
+  if (!open) return h + '</details>';
+  const n = d.cards.reduce((a, e) => a + e.q, 0); if (n < 40) return h + '<p class="note" style="margin:0">Add more cards to play practice games.</p></details>';
+  const key = d.id + '|' + d.commander + '|' + d.cards.map(e => e.n + 'x' + e.q).join(',');
+  if (PRAC.k !== key){ try { PRAC.v = practiceGames(d, 100, 1); } catch (e) { PRAC.v = null; } PRAC.k = key; }
+  const S100 = PRAC.v, pct = x => Math.round(100 * x) + '%'; let G = null; try { G = practiceGames(d, seed, 1).logs[seed - 1]; } catch (e) {}
+  if (S100) h += '<p class="note" style="margin:0">In 100 practice games: short of lands on turn 5 in <b>' + pct(S100.screwT5) + '</b>, stuck without a colour a spell needs in <b>' + pct(S100.colourStuck) + '</b>, flooded by turn 8 in ' + pct(S100.floodT8) + ', mulligan in ' + pct(S100.mulligan) + (d.commander ? '; commander out by turn 4 in ' + pct(S100.cmdByT4) + ' (usually turn ' + (S100.cmdMedianTurn > 10 ? '11+' : S100.cmdMedianTurn) + ')' : '') + '.</p>';
+  if (!G) return h + '</details>';
+  const card = n => '<button class="chip pgc" data-act="card" data-n="' + esc(n) + '">' + esc(n.split(' // ')[0]) + '</button>';
+  h += '<div class="row"><span class="note">Game ' + seed + '</span><button class="btn sm" data-act="prac-new" data-v="-1"' + (seed > 1 ? '' : ' disabled') + '>Previous</button><button class="btn sm pri" data-act="prac-new" data-v="1">Deal another game</button></div>';
+  h += '<div class="pg-hand"><small>Opening hand</small><div class="row">' + G.hand0.map(card).join('') + '</div>' + (G.mull ? (() => { const nl = G.hand0.filter(x => { const c = find(x); return c && tags(c).land; }).length; return '<p class="note" style="margin:0">Mulligan (' + nl + ' land' + (nl === 1 ? '' : 's') + '): seven new cards'; })() + (G.bottom ? ', then ' + esc(G.bottom) + ' goes to the bottom' : '') + '.</p><div class="row">' + G.hand1.map(card).join('') + '</div>' : '') + '</div>';
+  h += '<table class="pg"><thead><tr><th>Turn</th><th>Draw</th><th>Land</th><th>Cast</th><th>Mana</th></tr></thead><tbody>' + G.turns.slice(0, 8).map(T => '<tr><td>' + T.turn + '</td><td>' + (T.draw ? card(T.draw) : '') + '</td><td>' + (T.land ? card(T.land) + (T.tapped ? ' <small>tapped</small>' : '') : '<small>none</small>') + '</td><td>' + (T.cast.length ? T.cast.map(x => card(x.n) + (x.cmd ? ' <small>commander</small>' : '')).join(' ') : '<small>nothing</small>') + '</td><td>' + T.spent + ' of ' + T.mana + '</td></tr>').join('') + '</tbody></table>';
+  h += '<p class="note" style="margin:0">The deck score plays 300 of these. Play is simple on purpose: a land each turn (the one that adds a missing colour), then the commander, mana cards, card draw and the costliest spell it can cast.</p>';
+  return h + '</details>';
+}
 function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck analysis); otherwise the Upgrades tab
   const T = A.T, meter = (label, have, want) => { const cls = have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad'; return want ? '<div class="meter ' + cls + '"><span>' + label + '</span><i><b style="width:' + Math.min(100, have / want * 100) + '%"></b></i><span>' + have + ' / ' + want + '</span></div>' : ''; };
   const stats = mode === 'stats';
@@ -1603,6 +1623,7 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
   if (!(d.plan && d.plan.length)) h += scoreHtml(d, A);
   h += '<div class="grp"><span class="lab">Card types</span><div class="row">' + TYPE_ORDER.filter(k => A.types[k]).map(k => '<span class="chip">' + (k === 'Sorcery' ? 'Sorceries' : k + 's') + ' · ' + A.types[k] + '</span>').join('') + '</div></div>';
   { const mp0 = manaPlan(d), cols = 'WUBRG'.split('').filter(k => mp0.pips[k] || mp0.have[k]); if (cols.length) h += '<div class="grp"><span class="lab">Colored mana · spells need vs basic lands</span><div class="row">' + cols.map(k => '<span class="chip' + (mp0.basics && Math.abs(mp0.want[k] - mp0.have[k]) >= 2 ? ' warn' : '') + '"><i class="pip p' + k + '">' + k + '</i> ' + mp0.pips[k] + ' symbols · ' + mp0.have[k] + ' ' + COLOR_BASIC[k] + '</span>').join('') + '</div></div>'; }
+  h += practiceHtml(d);   // Build 136: visible practice games
   const mx = Math.max(1, ...A.curve);
   h += '<div class="grp"><span class="lab">Mana curve · average ' + A.avg.toFixed(2) + '</span><div class="curve">' + A.curve.map((v, i) => '<div><span>' + v + '</span><i style="height:' + (v / mx * 44) + 'px"></i><span>' + (i === 6 ? '6+' : i) + '</span></div>').join('') + '</div></div>';
   const flags = [];
@@ -2279,6 +2300,7 @@ function handleAct(act, v, n, pArg){
     case 'card': openCard(n, b.dataset.p); return;
     case 'flip': { const c = find(S.modalCard); if (!c || !c.df) return; S.face = S.face ? 0 : 1; const im = $('#modal .card.real img'), id = (S.pick && S.pick.id) || pidOf(c); if (im) im.src = imgUrl('normal', id, S.face === 1); const fn = $('#face-note'); if (fn) fn.innerHTML = faceNote(c); return; }
     case 'tier-tab': S.tierTab = v; render(); return;
+    case 'prac-new': { const d = cur(); if (!d) return; S.pgSeed = S.pgSeed || {}; S.pgSeed[d.id] = Math.max(1, ((S.pgSeed[d.id]) || 1) + (+v || 1)); render(); return; }
     case 'upview': S.upView = v; S.sheetSel = null; render(); return;
     case 'sheet-go': S.sheetI = +v; S.sheetSel = null; render(); return;
     case 'sheet-pick': S.sheetSel = v; render(); return;
@@ -2554,7 +2576,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
 });
-document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'libstats') S.libStatsOpen = ev.target.open; if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; if (ev.target && ev.target.id === 'dmeta') S.dmetaOpen = ev.target.open; if (ev.target && ev.target.id && ev.target.id.startsWith('bs-')) (S.bsec || (S.bsec = {}))[ev.target.id.slice(3)] = ev.target.open; if (ev.target && ev.target.id === 'tierhow') S.tierHowOpen = ev.target.open; }, true);
+document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'libstats') S.libStatsOpen = ev.target.open; if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; if (ev.target && ev.target.id === 'dmeta') S.dmetaOpen = ev.target.open; if (ev.target && ev.target.id && ev.target.id.startsWith('bs-')) (S.bsec || (S.bsec = {}))[ev.target.id.slice(3)] = ev.target.open; if (ev.target && ev.target.id === 'tierhow') S.tierHowOpen = ev.target.open; if (ev.target && ev.target.id === 'practice' && S.pracOpen !== ev.target.open){ S.pracOpen = ev.target.open; if (S.pracOpen) render(); } }, true);
 document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target && ev.target.id === 'deck-tag'){ ev.preventDefault(); handleAct('dtag-add'); return; } if (ev.key === 'Escape' && $('#confirm') && !$('#confirm').hidden){ confirmDone(false); return; } if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
 addEventListener('orientationchange', () => setTimeout(() => { wasNarrow = isNarrow(); render(); }, 250));

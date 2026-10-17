@@ -899,6 +899,18 @@ const b135 = await page.evaluate(async () => { const out = {decks:0, trimmed:0, 
   if (R.trimOf && R.paths[0] && R.paths[0].opts.apex){ const L = R.paths[0]; L.opts.apex.held = true; const keep = R.trimOf(L); out.heldKept = keep === false; L.opts.apex.held = false; } else out.heldKept = true;
   recsFor.k = null; render(); return out; });
 T('UI-B135-01', 'Swaps that players mostly disagree with are left out of the upgrade list (never a held swap); the list says how many were left out', b135.decks > 0 && !b135.bad && b135.note !== false && b135.heldKept, JSON.stringify(b135));
+// 85. Build 136: visible practice games on the Build stats tab: the 100-game summary (lands, colours, flood, mulligan, commander
+// turn), one game's opening hand and its first 8 turns; Deal another game shows the next game; the same game number always
+// shows the same game; the step-by-step games agree with the deck score's own games; it fits a phone screen.
+const b136 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; S.pracOpen = true; S.pgSeed = {}; render();
+  const pr = () => document.querySelector('#practice'), out = {}; out.open = !!pr() && pr().open; out.summary = /In 100 practice games: short of lands on turn 5 in \d+%/.test(pr().textContent);
+  out.rows = pr().querySelectorAll('table.pg tbody tr').length; out.hand = pr().querySelectorAll('.pg-hand .row')[0].querySelectorAll('.pgc').length; const h1 = pr().querySelector('.pg-hand').textContent;
+  pr().querySelector('[data-act="prac-new"][data-v="1"]').click(); out.game2 = /Game 2/.test(pr().textContent); const h2 = pr().querySelector('.pg-hand').textContent; out.changed = h1 !== h2;
+  render(); out.stable = pr().querySelector('.pg-hand').textContent === h2; pr().querySelector('[data-act="prac-new"][data-v="-1"]').click(); out.back = pr().querySelector('.pg-hand').textContent === h1;
+  const a = simulate(d, 60, 9), b = practiceGames(d, 60, 9); delete b.logs; out.same = JSON.stringify(a) === JSON.stringify(b); return out; });
+await page.setViewportSize({width:390, height:844}); const b136p = await page.evaluate(() => { render(); const t = document.querySelector('#practice table.pg'), r = t && t.getBoundingClientRect(); return {fits:!!r && r.right <= window.innerWidth + 1, pageX:document.documentElement.scrollWidth <= window.innerWidth + 1}; });
+await page.setViewportSize({width:1366, height:1024}); await page.evaluate(() => { S.pracOpen = false; S.tab = 'up'; render(); });
+T('UI-B136-01', 'Practice games: summary of 100 games, an opening hand of 7 and 8 turns; Deal another game and Previous move between games and the same game always looks the same; agrees with the deck score games; fits a phone', b136.open && b136.summary && b136.rows === 8 && b136.hand === 7 && b136.game2 && b136.changed && b136.stable && b136.back && b136.same && b136p.fits && b136p.pageX, JSON.stringify(b136) + ' ' + JSON.stringify(b136p));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
