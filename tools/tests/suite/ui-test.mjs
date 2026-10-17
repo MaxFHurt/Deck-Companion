@@ -770,6 +770,23 @@ const b119b = await page.evaluate(() => { const out = {}, sw = find('Sword of Fi
   const e = d.cards.find(x => x.n === 'Corpsejack Menace'); setPrint(e, {id:'x1', set:'Return to Ravnica', sc:'rtr', cn:'145', rar:'rare', fn:''}); out.cleared = !e.pn;
   setPrint(e, {id:'x2', set:'TMNT Commander', sc:'tmc', cn:'1', rar:'rare', fn:'Humongous Fungus'}); out.set = e.pn; sw.fn = keep; return out; });
 T('UI-B119-02', 'Printed names in the card window: the title shows the deck’s printed name with the card’s own name beside it; a picture of a printing with another name says so (Sword of Fire and Ice shown as its Marvel “Patriotic Shield” printing); choosing a printing sets or clears the printed name', /Patriotic Shield printing of Sword of Fire and Ice/.test(b119b.note) && /^Humongous Fungus Corpsejack Menace/.test(b119b.title) && b119b.cleared && b119b.set === 'Humongous Fungus', JSON.stringify(b119b));
+// 70. Build 120: the card window's tip agrees with the measured swap. A swap that raises the score is named an upgrade with the
+// parts that moved, and never sits beside "Poor fit" or "ranks below nearly every spell" (Wakanda Forever, Sword of Fire and Ice).
+const b120 = await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+  openCard('Sword of Fire and Ice'); const m = $('#modal'), chip = [...m.querySelectorAll('.swaphero ~ .row .chip')].map(x => x.textContent).join('|'), tip = (m.querySelector('.tip b') || {}).textContent || '', txt = (m.querySelector('.tip') || {}).textContent || '';
+  m.hidden = true; return {chip, tip, up:/\+\d/.test(chip), saysGain:/changes the deck score by/.test(txt), oldLine:/ranks below nearly every spell already/.test(txt), poor:/Poor fit/.test(tip)}; });
+T('UI-B120-01', 'Score and tip agree: when the best swap raises the deck score the tip is an upgrade label with the parts that moved, never Poor fit or "ranks below nearly every spell"', !b120.up || (b120.saysGain && !b120.oldLine && !b120.poor && /upgrade/i.test(b120.tip)), JSON.stringify(b120));
+// 71. Build 121: the deck's working area fits the visible screen after it is sized, and the Upgrades list scrolls inside it.
+const b121 = await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; $('#modal').hidden = true; render(); fitWork();
+  const w = document.querySelector('.work'), up = document.querySelector('.work .scroll.up'), out = {fits:w ? Math.round(w.getBoundingClientRect().bottom + scrollY) <= Math.ceil(innerHeight + scrollY) + 1 : false, long:up ? up.scrollHeight > up.clientHeight : false};
+  if (up){ up.scrollTop = 200; out.scrolls = up.scrollTop > 0; up.scrollTop = 0; } S.tab = 'list'; render(); return out; });
+T('UI-B121-01', 'Working area fits the visible screen and the Upgrades list scrolls inside it (reload scroll lock)', b121.fits && (!b121.long || b121.scrolls), JSON.stringify(b121));
+// 72. Build 122: the mana check counts every colour source the way the generator does, and suggests new basics only when they
+// close a real shortfall (2+ sources); the banner says how short the deck is instead of "the colours have shifted".
+const b122 = await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)), u = JSON.parse(JSON.stringify(d)); const ok = manaPlan(u);
+  const w = u.cards.find(e => e.n === 'Plains'), q = w ? w.q : 0; if (q){ cutCard(u, 'Plains', q); addCard(u, 'Forest', q); } const bad = manaPlan(u);
+  return {okOff:ok.off, badOff:bad.off, stuck:bad.stuck, closes:!!bad.stuck && bad.stuck[1] <= bad.stuck[0] - 2}; });
+T('UI-B122-01', 'Mana check: a healthy deck gets no basic-land change; a deck with the wrong basics gets one that closes 2+ missing colour sources, and says by how much', b122.okOff === 0 && b122.badOff > 0 && b122.closes, JSON.stringify(b122));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

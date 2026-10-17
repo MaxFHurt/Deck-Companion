@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 119. Each item ships as its own build: build, run the full test suite
+Live: Build 122. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -172,3 +172,10 @@ upgrade benchmark agreement@5 unchanged (0.233 / 0.286 / 0.292); popular picks s
 with the card's own name beside it, in the deck list (A–Z by the name shown, search finds either) and the card window; kept from
 precons and pasted lists, read from the precon list for decks saved earlier, and set by choosing a printing. A picture of a printing
 with another name says so (Sword of Fire and Ice's Marvel "Patriotic Shield"). Backup of Build 118: branch backup/build-118.
+120: the card window's tip agrees with the measured swap: a swap that raises the score leads with an upgrade label (Major / Strong /
+Small upgrade, No real change, Lowers the deck score) and the parts of the score that moved; the card's own rating (play data, fit)
+stays a separate line instead of "Poor fit" beside "+2.4" (Wakanda Forever, Greater Good -> Sword of Fire and Ice).
+121: the deck's working area is sized again once fonts and images finish loading and never taller than the visible screen (Upgrades
+scroll lock after reload; reproduced only partly in Chromium, needs an iPad check).
+122: the mana check counts every colour source the way the generator does (nonbasic lands, rocks and dorks) and suggests new basics only
+when they close 2+ missing colour sources; the banner says how short the deck is (a fresh Peter Parker deck no longer gets "colours shifted").
