@@ -770,6 +770,9 @@ function openMechList(){
 function metaBox(d){ return '<details class="grp dmeta" id="dmeta"' + (S.dmetaOpen ? ' open' : '') + '><summary><span class="lab" style="margin:0">Player, folder and tags</span></summary>' + playerSel('deck-player', playerOf(d)) + orgBox(d) + '</details>'; }
 // Regenerate upgrades sits at the foot of the Build panel (it rebuilds the suggestions from these settings; the deck's cards stay).
 function buildFoot(d){ return isAimed(d) && d.cards.length && !(d.plan && d.plan.length) ? '<div class="bfoot"><button class="btn pri" data-act="regen" title="Weigh every upgrade again from these settings; the cards in your deck stay as they are">Regenerate upgrades</button></div>' : ''; }
+// Customised Build panel sections fold into one-line headers that always show their settings (Build 133); a section that still
+// needs input starts open, and each remembers being opened or closed.
+function bsec(key, lab, sum, def){ const S0 = S.bsec || (S.bsec = {}), op = key in S0 ? S0[key] : def; return '<details class="grp bsec" id="bs-' + key + '"' + (op ? ' open' : '') + '><summary><span class="lab" style="margin:0">' + lab + '</span><span class="bsum">' + sum + '</span></summary>'; }
 function aimPanel(d, ctx){
   if (d.auto && !d.custom && isAimed(d)){
     return '<section class="panel aimp"><div class="ph"><h2>Build</h2><small>' + (d.auto === 'precon' ? 'Precon theme' : 'Set from the commander') + '</small></div>' +
@@ -782,7 +785,7 @@ function aimPanel(d, ctx){
   const lock = d.aimLocked, dis = lock ? ' disabled' : '', aimed = isAimed(d);
   let h = '<section class="panel aimp"><div class="ph"><h2>Build</h2><button class="ico' + (lock ? ' on' : '') + '" data-act="lock-aim" title="' + (lock ? 'Unlock the build settings' : 'Lock the build settings') + '" aria-pressed="' + lock + '">' + SVG.lock + '</button></div>';
   h += '<div class="grp"><label class="lab" for="deck-name">Deck name</label><input type="text" id="deck-name" value="' + esc(d.name) + '" maxlength="60"></div>' + metaBox(d);
-  h += '<div class="grp"><span class="lab">Format</span><div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></div>';
+  h += bsec('fmt', 'Format', d.format === 'commander' ? 'Commander' : 'Standard', false) + '<div class="seg">' + ['commander', 'standard'].map(f => '<button data-act="fmt" data-v="' + f + '" class="' + (d.format === f ? 'on' : '') + '"' + dis + '>' + f + '</button>').join('') + '</div></details>';
   if (d.format === 'commander'){
     h += '<div class="grp"><span class="lab">Commander</span>';
     if (ctx.cmd){ h += '<div class="cmdbox"><img alt="" src="' + artFor(ctx.cmd, {pid:d.cmdPid}) + '"><div><b>' + esc(ctx.cmd.n) + '</b><span>' + pips(ctx.cmd.m) + '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' + esc(ctx.cmd.n) + '">View</button>' + (lock ? '' : '<button class="btn sm" data-act="clear-cmd">Change</button><button class="btn sm" data-act="cmd-find">Find a commander</button>') + '</div></div></div>' + partnerBox(d, lock);
@@ -794,26 +797,27 @@ function aimPanel(d, ctx){
         (leg.length ? '<div class="row"><span class="note">From your list:</span>' + leg.map(c => '<button class="btn sm" data-act="set-cmd" data-n="' + esc(c.n) + '">' + esc(c.n) + '</button>').join('') + '</div>' : ''); }
     h += '</div>';
   }
-  h += '<div class="grp"><span class="lab">Mechanics, in priority order</span>';
+  h += bsec('mech', 'Mechanics, in priority order', d.aims.length ? d.aims.map((a, i) => (i + 1) + ' ' + esc(a === 'tribal' ? (ctx.tribe || 'Creature type') + ' tribal' : aimLabel(a, ctx.tribe).split(' / ')[0])).join(' · ') : 'None yet: add one', !d.aims.length || (d.aims.includes('tribal') && !ctx.tribe));
   h += d.aims.map((a, i) => '<div class="aim"><span class="n">' + (i + 1) + '</span><button class="t" data-act="mech-info" data-v="' + esc(a) + '" title="What this mechanic means">' + (a === 'tribal' ? esc(ctx.tribe || 'Pick a creature type') + ' tribal' : esc(aimLabel(a, ctx.tribe))) + (ctx.cmdThemes.includes(a) ? '<small>Commander strategy</small>' : '') + '</button><span class="row" style="gap:3px">' +
     (lock ? '' : '<button class="ico" data-act="aim-up" data-v="' + i + '" title="Raise priority"' + (i ? '' : ' disabled') + '>↑</button><button class="ico" data-act="aim-down" data-v="' + i + '" title="Lower priority"' + (i < d.aims.length - 1 ? '' : ' disabled') + '>↓</button><button class="ico" data-act="aim-rm" data-v="' + i + '" title="Remove">×</button>') + '</span></div>').join('');
   { const own = ctx.cmd && EDH.key === ctx.cmd.n ? (EDH.tags || []).filter(t => !d.aims.includes('edh:' + t.slug)).slice(0, 12) : [];
     if (!lock && d.aims.length < 5) h += '<button class="btn" data-act="mech-list">+ Add a mechanic…</button>';
     if (d.aims.some(isEdhAim)) h += '<p class="note" style="margin:0">' + (d.aimAuto ? 'Set from what players build ' + esc(ctx.cmd ? ctx.cmd.n.split(',')[0] : 'this commander') + ' around. ' : '') + 'Recommendations lean toward the cards players of each mechanic run, the first mechanic most. Reorder them to steer the build.</p>'; }
   if (d.aims.includes('tribal')) h += '<select id="tribe" aria-label="Creature type"' + dis + '><option value="">Creature type…</option>' + TRIBES.slice().sort().map(t => '<option' + (t === ctx.tribe ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>';
-  h += '</div>';
+  h += '</details>';
   { const ty = d.types || [], ky = d.keys || [], tog = (act, on, a, b) => '<button class="btn sm' + (on ? ' pri' : '') + '" data-act="' + act + '"' + dis + ' title="Switch between a preference and a rule">' + (on ? b : a) + '</button>';
-    h += '<div class="grp"><span class="lab">Filters · optional</span>' +
+    const fs = [ty.length ? 'Types: ' + ty.map(esc).join(', ') + (d.typesMust ? ' (rule)' : '') : '', ky.length ? 'Keywords: ' + ky.map(k => esc((KEYWORDS[k] || {label:k}).label)).join(', ') + (d.keysMust ? ' (rule)' : '') : '', (d.sets || []).length ? 'Sets: ' + d.sets.map(x => esc(setName(x))).join(', ') + (d.setsMust ? ' (rule)' : '') : ''].filter(Boolean);
+    h += bsec('filt', 'Filters · optional', fs.length ? fs.join(' · ') : 'None', false) +
       '<div class="row">' + ty.map((t, i) => '<button class="chip gold" data-act="type-rm" data-v="' + i + '"' + dis + '>' + esc(t) + ' ×</button>').join('') + (lock || ty.length >= 4 ? '' : '<input type="search" id="type-add" list="ctype-list" placeholder="+ Creature type…" autocomplete="off" style="flex:1 1 130px;min-width:0;width:auto"><datalist id="ctype-list">' + creatureTypes().map(t => '<option value="' + esc(t) + '">').join('') + '</datalist>') + (ty.length ? tog('types-must', d.typesMust, 'Preferred', 'Creatures must match') : '') + '</div>' +
       '<div class="row">' + ky.map((k, i) => '<button class="chip gold" data-act="key-rm" data-v="' + i + '"' + dis + '>' + esc((KEYWORDS[k] || {label:k}).label) + ' ×</button>').join('') + (lock || ky.length >= 4 ? '' : '<select id="key-add" aria-label="Add a keyword" style="flex:1 1 130px;min-width:0;width:auto"><option value="">+ Keyword or effect…</option>' + Object.keys(KEYWORDS).filter(k => !ky.includes(k)).map(k => '<option value="' + k + '">' + KEYWORDS[k].label + '</option>').join('') + '</select>') + (ky.length ? tog('keys-must', d.keysMust, 'Preferred', 'Theme cards must match') : '') + '</div>' +
       setFilterHtml(d.sets || [], d.setsMust, 'dset', lock ? dis : '') +
-      '<p class="note" style="margin:0">' + ((d.sets || []).length && d.setsMust ? 'Only cards printed in ' + d.sets.map(setName).join(', ') + ' (and basic lands) are suggested. ' : '') + (d.typesMust || d.keysMust ? 'A rule narrows the choices: ' + (d.typesMust ? 'every creature must be one of your types' : '') + (d.typesMust && d.keysMust ? ', and ' : '') + (d.keysMust ? 'every theme card must have one of your keywords' : '') + '. Lands, ramp, card draw and removal are still chosen freely.' : 'Preferred filters push matching cards up the list. Switch one to a rule to allow only matching cards.') + '</p></div>'; }
+      '<p class="note" style="margin:0">' + ((d.sets || []).length && d.setsMust ? 'Only cards printed in ' + d.sets.map(setName).join(', ') + ' (and basic lands) are suggested. ' : '') + (d.typesMust || d.keysMust ? 'A rule narrows the choices: ' + (d.typesMust ? 'every creature must be one of your types' : '') + (d.typesMust && d.keysMust ? ', and ' : '') + (d.keysMust ? 'every theme card must have one of your keywords' : '') + '. Lands, ramp, card draw and removal are still chosen freely.' : 'Preferred filters push matching cards up the list. Switch one to a rule to allow only matching cards.') + '</p></details>'; }
   const pool = d.format === 'commander' ? ctx.ident : ['W', 'U', 'B', 'R', 'G'];
-  h += '<div class="grp"><span class="lab">Land colors to focus on' + (d.format === 'commander' && ctx.ident.length ? ' · ' + ctx.focus.length + ' of ' + ctx.ident.length : '') + '</span>';
+  h += bsec('col', 'Land colors to focus on', pool.length ? (ctx.focus.length ? ctx.focus.join(' ') : 'None') + (d.format === 'commander' && ctx.ident.length ? ' · ' + ctx.focus.length + ' of ' + ctx.ident.length : '') : 'Set by the commander', !pool.length || !ctx.focus.length);
   if (!pool.length) h += '<p class="note" style="margin:0">' + (d.format === 'commander' ? (ctx.cmd ? 'Colorless commander: the deck uses Wastes and colorless cards.' : 'Pick a commander to set the colors.') : '') + '</p>';
   else h += '<div class="row">' + pool.map(c => '<button class="pip p' + c + ((d.colors || []).includes(c) ? ' on' : '') + '" data-act="color" data-v="' + c + '" aria-pressed="' + (d.colors || []).includes(c) + '"' + dis + '>' + c + '</button>').join('') + '</div><p class="note" style="margin:0">' + (d.format === 'commander' ? 'Focus colors get most of the basic lands and first pick of upgrades. The rest become a light splash.' : 'Pick one to three colors. Every card must fit inside them.') + '</p>';
-  h += '</div>';
-  if (d.format === 'commander' && ctx.cmd && aimed) h += '<div class="grp"><span class="lab">Generate</span><div class="row"><button class="btn pri" data-act="build-gen">Generate a build with these settings</button></div><p class="note" style="margin:0">Designs a full 100-card build for ' + esc(ctx.cmd.n.split(',')[0]) + (ctx.par ? ' and ' + esc(ctx.par.n.split(',')[0]) : '') + ' from the mechanics above, in their order, and your filters and colors, at the ' + TIERS[S.gen.tier || 'apex'].label + ' price level, straight into a new deck. This one stays as it is. Cards you hold here are kept.</p>' + themeFirstToggle(d, lock ? dis : '') + '</div>';
+  h += '</details>';
+  if (d.format === 'commander' && ctx.cmd && aimed) h += bsec('gen', 'Generate', 'A full 100-card build from these settings, in a new deck', false) + '<div class="row"><button class="btn pri" data-act="build-gen">Generate a build with these settings</button></div><p class="note" style="margin:0">Designs a full 100-card build for ' + esc(ctx.cmd.n.split(',')[0]) + (ctx.par ? ' and ' + esc(ctx.par.n.split(',')[0]) : '') + ' from the mechanics above, in their order, and your filters and colors, at the ' + TIERS[S.gen.tier || 'apex'].label + ' price level, straight into a new deck. This one stays as it is. Cards you hold here are kept.</p>' + themeFirstToggle(d, lock ? dis : '') + '</details>';
   h += '<div class="row"><span class="chip ' + (aimed ? 'good' : 'warn') + '">' + (aimed ? 'Deck is aimed' : 'Not aimed yet') + '</span><span class="note">' + 'Saved in this browser' + '</span></div></section>';
   return h;
 }
@@ -971,7 +975,8 @@ function openRegen(){
     '<div class="row"><button class="btn pri" data-act="regen-go">Regenerate</button><button class="btn" data-act="close">Cancel</button></div></div>';
   $('#modal').hidden = false;
 }
-async function doRegen(){
+async function doRegen(){ S.upOrd = null;   // the new list is sorted afresh
+
   const d = cur(); if (!d) return; const before = picksOf(d), c = d.format === 'commander' ? find(d.commander) : null;
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Regenerate picks"><div class="ph"><h2>Regenerating…</h2><small>' + esc(d.name) + '</small></div><p class="note" style="margin:0">Fetching the latest data and weighing every option again.</p></div>';
   d.recPrev = d.recP || {}; d.recP = {}; d.regenAt = new Date().toISOString().slice(0, 10);
@@ -1643,7 +1648,11 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
     const show = S.pathShow || 12, PT = R.paths.map(L => slotTypes(Object.values(L.opts).map(o => o.add))), PK = R.paths.map(L => slotKinds(d, Object.values(L.opts))), PV = R.paths.map((L, i) => [L, i]).filter(([, i]) => (!upT() || PT[i].has(upT())) && (!upK() || PK[i].has(upK())));
     // Sort: by how much each upgrade raises the deck score (the default), the engine's own ranking, or cheapest first.
     { const so = S.upSort || 'impact', imp = L => Math.max(...Object.values(L.opts).map(p => p && p.dScore != null ? p.dScore : -1e9)), cost = L => { const p = tierPick(L, d.tier || 'apex') || L.opts.apex || Object.values(L.opts)[0], c = p && find(p.add); return p && p.own ? -1 : c && c.p != null ? c.p : 1e6; };
-      if (so === 'impact') PV.sort((a, b) => imp(b[0]) - imp(a[0]) || a[1] - b[1]); else if (so === 'price') PV.sort((a, b) => cost(a[0]) - cost(b[0]) || a[1] - b[1]); }
+      if (so === 'impact') PV.sort((a, b) => imp(b[0]) - imp(a[0]) || a[1] - b[1]); else if (so === 'price') PV.sort((a, b) => cost(a[0]) - cost(b[0]) || a[1] - b[1]);
+      // Once shown, the list keeps its order (Build 133): scores that arrive later (the Apex reference) don't move cards under
+      // your finger. It re-sorts when you leave the tab, change the sort or filters, or regenerate.
+      const ok = d.id + '|' + so + '|' + (upT() || '') + '|' + (upK() || ''); if (!S.upOrd || S.upOrd.id !== d.id) S.upOrd = {id:d.id, m:{}};
+      const fz = S.upOrd.m[ok]; if (fz){ const pos = new Map(fz.map((c, i) => [c, i])), at = x => pos.has(x[0].cut) ? pos.get(x[0].cut) : 1e6; PV.sort((a, b) => at(a) - at(b)); } else if (!R.pending) S.upOrd.m[ok] = PV.map(([L]) => L.cut); }
     const sheet = (S.upView || 'sheet') === 'sheet' && PV.length > 0, si = sheet ? (S.sheetI = Math.max(0, Math.min(PV.length - 1, S.sheetI || 0))) : 0, sel = sheet ? sheetSel(d, R, PV[si][0], PV[si][1]) : '';
     h += filterBar(PT, PV.length, PK) + (upK() && !PV.length ? '<p class="note" style="margin:0">No ' + esc(KIND_LAB[upK()].toLowerCase()) + ' upgrades right now' + (upT() ? ' of that card type' : '') + '.</p>' : '') + (sheet ? '<div class="sheet" data-sel="' + sel + '">' + sheetHead(d, R, PV[si][0], PV[si][1], si, PV.length, sel) : '') + '<div class="paths">' + (sheet ? [PV[si]] : PV.slice(0, show)).map(([L, i]) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
       const fp = L.opts.free;
@@ -2281,7 +2290,7 @@ function handleAct(act, v, n, pArg){
         if (en || d.commander === S.modalCard){ touch(); render(); toast('Using the ' + x.set + ' printing.'); } }
       return; }
     case 'open-deck': $('#modal').hidden = true; recentAdd(v); S.deckId = v; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; changed = false; break;
-    case 'tab': S.tab = v; changed = false; break;
+    case 'tab': S.tab = v; S.upOrd = null; changed = false; break;
     case 'deck-back': S.open = false; S.confirmDel = null; changed = false; break;
     case 'draft-open': if (S.draft){ S.deckId = S.draft.id; S.open = true; S.tab = null; } changed = false; break;
     case 'draft-save': if (S.draft){ const nd = S.draft; S.profile.decks.unshift(nd); S.draft = null; S.deckId = nd.id; toast('Saved ' + nd.name + ' to your decks.'); } break;
@@ -2543,7 +2552,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
   else if (t.id === 'db-file' && t.files[0]) loadBulk(t.files[0]);
   else if (t.id === 'restore-file' && t.files[0]) t.files[0].text().then(readBackup).catch(() => toast('That file could not be read.'));
 });
-document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'libstats') S.libStatsOpen = ev.target.open; if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; if (ev.target && ev.target.id === 'dmeta') S.dmetaOpen = ev.target.open; if (ev.target && ev.target.id === 'tierhow') S.tierHowOpen = ev.target.open; }, true);
+document.addEventListener('toggle', ev => { if (ev.target && ev.target.id === 'libstats') S.libStatsOpen = ev.target.open; if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open; if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open; if (ev.target && ev.target.id === 'dmeta') S.dmetaOpen = ev.target.open; if (ev.target && ev.target.id && ev.target.id.startsWith('bs-')) (S.bsec || (S.bsec = {}))[ev.target.id.slice(3)] = ev.target.open; if (ev.target && ev.target.id === 'tierhow') S.tierHowOpen = ev.target.open; }, true);
 document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target && ev.target.id === 'deck-tag'){ ev.preventDefault(); handleAct('dtag-add'); return; } if (ev.key === 'Escape' && $('#confirm') && !$('#confirm').hidden){ confirmDone(false); return; } if (ev.key === 'Escape'){ $('#modal').hidden = true; document.querySelectorAll('.ddl').forEach(x => x.hidden = true); } });
 
 addEventListener('orientationchange', () => setTimeout(() => { wasNarrow = isNarrow(); render(); }, 250));
