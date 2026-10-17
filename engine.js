@@ -404,7 +404,10 @@ function evaluateDeck(d, opt){
   // Win routes and resilience: complete combos that win, cards that close a game, ways to protect or rebuild, card flow.
   const cb = COMBOS.list.length ? combosOf(d, ctx.ident) : {full:[], near:[]}, wins = cb.full.filter(x => x.win), fin = spells.filter(isFinisher), prot = spells.filter(c => tags(c).roles.has('protect') || tags(c).roles.has('counter')).length,
     rec = spells.filter(c => RECUR_RE.test(c.o || '')).length, tut = spells.filter(c => tags(c).roles.has('tutor')).length;
-  const routes = Math.min(1, 0.45 * Math.min(1, fin.length / 6) + (wins.length ? 0.25 : cb.full.length ? 0.12 : 0) + 0.15 * Math.min(1, prot / 5) + 0.1 * Math.min(1, rec / 3) + 0.05 * Math.min(1, tut / 2) + 0.1 * Math.min(1, A.roles.draw / Math.max(6, T.draw)));
+  // Smarter deck score, stage 2 (UP.rs): ways to win rise smoothly, so one card can't swing the score more than it is worth. Each
+  // finisher adds less than the one before (1 - e^(-n/UP.rfn)), and winning combos count by how many there are (the first 60% of UP.rc).
+  const finV = UP.rs ? 1 - Math.exp(-fin.length / UP.rfn) : Math.min(1, fin.length / 6), cbV = UP.rs ? (wins.length ? UP.rc * (0.6 + 0.4 * Math.min(1, (wins.length - 1) / 3)) : cb.full.length ? UP.rc * 0.5 : 0) : (wins.length ? 0.25 : cb.full.length ? 0.12 : 0);
+  const routes = Math.min(1, (UP.rs ? UP.rf : 0.45) * finV + cbV + 0.15 * Math.min(1, prot / 5) + 0.1 * Math.min(1, rec / 3) + 0.05 * Math.min(1, tut / 2) + 0.1 * Math.min(1, A.roles.draw / Math.max(6, T.draw)));
   why.routes = fin.length + ' finishers' + (wins.length ? ', ' + wins.length + ' winning combo' + (wins.length > 1 ? 's' : '') + ' (' + wins.slice(0, 2).map(x => x.names.join(' + ')).join('; ') + ')' : '') + ', ' + prot + ' protection/counters, ' + rec + ' recursion';
   // Mana and curve: goldfish games (seeded, so the same deck always gets the same score).
   // An unfinished deck (opt.partial) is not played out: practice games with a part of a deck say nothing about its mana.
@@ -416,7 +419,7 @@ function evaluateDeck(d, opt){
   else why.mana = 'available once the deck has its full 100 cards';
   const raw = {synergy:syn, balance:bal, quality:qual, routes, mana}, parts = {}; let total = 0;
   // parts are shown as whole numbers; exact keeps the unrounded parts, so a small real gain (a better card) is not lost to rounding
-  let wsum = 0, exact = 0; const contrib = {}; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } const pe = k === 'quality' && qExact != null ? qExact : EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], EV_ANCHOR[k]);
+  let wsum = 0, exact = 0; const contrib = {}; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } const pe = k === 'quality' && qExact != null ? qExact : EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]);   // stage 2: the smoother ways-to-win, shifted so a typical deck keeps its score
     parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(pe); total += parts[k] * EV_W[k] / 100; exact += pe * EV_W[k] / 100; contrib[k] = pe * EV_W[k] / 100; wsum += EV_W[k]; }
   if (wsum && wsum < 100){ total = total * 100 / wsum; exact = exact * 100 / wsum; for (const k in contrib) contrib[k] *= 100 / wsum; }   // the parts that could be judged, weighted as usual
   const onPlan = spells.filter(c => (d.aims || []).some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)).length;
@@ -1008,6 +1011,32 @@ function scoreCheck(d, R, o){
         const e = ctx0.edh && edhOf(ctx0.edh.map, x.c), inc = e ? e.inc : 0;
         alts[t].push({n:x.c.n, p:x.c.p, dScore:x.w, theme:x.th, inc:+inc.toFixed(3), decks:ctx0.edh ? ctx0.edh.decks || 0 : 0, vs:tp.add, vsScore:tp.dScore, unpop:x.w > tp.dScore && inc < UP.unpop}); });
       if (UP.rankPick) ['apex', 'mid', 'budget'].forEach(t => { if (out[t]) O[t] = out[t]; else if (O[t]){ delete O[t]; (L.none = L.none || {})[t] = 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score enough after the cards above it'; } });
+      // Players decide what competes, the deck score picks the winner (UP.cand): the candidates are cards this commander's players
+      // run in at least UP.cand of decks, proven staples and tournament staples. In each column the highest-scoring candidate at
+      // that price is the pick (each card once on the row); the popular pick it replaces stays first among the alternatives, marked
+      // Most played, so the popular vote is never lost.
+      if (UP.cand > 0){ const thin = !ctx0.edh || !ctx0.edh.map || ctx0.edh.map.size < 100, cred = x => thin || CORE.has(x.c._n) || (x.c.r && x.c.r < 400) || !!tourneyOf(x.c, d) || ((ctx0.edh && edhOf(ctx0.edh.map, x.c)) || {inc:0}).inc >= UP.cand;
+        // the players' vote counts as evidence of strength the score can't see: each candidate's value is its score gain plus
+        // UP.candL times the share of this commander's players who run it (UP.candL 0: the score alone decides)
+        const incOf = x => ((ctx0.edh && edhOf(ctx0.edh.map, x.c)) || {inc:0}).inc, est = x => x.w + (UP.candL || 0) * incOf(x);
+        const CR = C.filter(x => cred(x) && x.w >= UP.candMin).sort((a, b) => est(b) - est(a)), taken = new Set(), pop = {};   // a new pick clears practice-game noise
+        for (const t of ['apex', 'mid', 'budget']){ let cur = O[t]; if (cur && cur.held){ taken.add(norm(cur.add)); continue; }   // a pick the player chose holds its place
+          if (cur && taken.has(norm(cur.add))){ cur = null; delete O[t]; }
+          const b = (t === 'apex' ? CR : CR.filter(x => x.c.p != null && underCap(x.c.p, t))).find(x => !taken.has(x.c._n));
+          const curEst = cur ? (cur.dScore != null ? cur.dScore : -1e9) + (UP.candL || 0) * ((ctx0.edh && edhOf(ctx0.edh.map, find(cur.add))) || {inc:0}).inc : -1e9;
+          if (b && (!cur || (est(b) > curEst + Math.max(SCORE_MIN, UP.candM || 0) && b.w > (cur.dScore != null ? cur.dScore : -1e9))) && !(cur && norm(cur.add) === b.c._n)){ if (cur) pop[t] = cur; O[t] = Object.assign(swapTo(ref, b.c.n, b.w, b.th), {t, held:false, cut:L.cut, q:ref.q}); }
+          if (O[t]) taken.add(norm(O[t].add)); else if (!(L.none && L.none[t])) (L.none = L.none || {})[t] = 'The Apex card already costs under $' + TIERS[t].cap; }
+        const onRow = new Set(['apex', 'mid', 'budget'].map(t => O[t] && norm(O[t].add)).filter(Boolean));
+        for (const t in pop){ const p0 = pop[t]; if (onRow.has(norm(p0.add))) continue; const c0 = find(p0.add), e0 = c0 && ctx0.edh && edhOf(ctx0.edh.map, c0);
+          (L.pop = L.pop || {})[t] = p0; alts[t] = [{n:p0.add, p:c0 ? c0.p : null, dScore:p0.dScore, theme:themeOf(c0, T), inc:e0 ? +e0.inc.toFixed(3) : 0, decks:ctx0.edh ? ctx0.edh.decks || 0 : 0, vs:O[t] && O[t].add, vsScore:O[t] && O[t].dScore, most:true}].concat(alts[t].filter(x => norm(x.n) !== norm(p0.add))).slice(0, 3); onRow.add(norm(p0.add)); }
+        // Mid and Budget never raise the deck score more than the Apex pick: a cheaper card that would is moved to the
+        // alternatives (still on the row) and the column takes the best candidate that doesn't
+        const ap = O.apex && O.apex.dScore != null ? O.apex.dScore : null;
+        if (ap != null) for (const t of ['mid', 'budget']){ const p = O[t]; if (!p || p.held || p.dScore == null || p.dScore <= ap + SCORE_MIN) continue;
+          const c0 = find(p.add), e0 = c0 && ctx0.edh && edhOf(ctx0.edh.map, c0); alts[t] = [{n:p.add, p:c0 ? c0.p : null, dScore:p.dScore, theme:themeOf(c0, T), inc:e0 ? +e0.inc.toFixed(3) : 0, decks:ctx0.edh ? ctx0.edh.decks || 0 : 0, vs:O.apex.add, vsScore:ap, unpop:false}].concat(alts[t]).slice(0, 3);
+          onRow.delete(norm(p.add)); const b = CR.filter(x => x.c.p != null && underCap(x.c.p, t)).find(x => !onRow.has(x.c._n) && x.w <= ap + SCORE_MIN && x.c._n !== norm(p.add));
+          if (b){ O[t] = Object.assign(swapTo(ref, b.c.n, b.w, b.th), {t, held:false, cut:L.cut, q:ref.q}); onRow.add(b.c._n); } else { delete O[t]; (L.none = L.none || {})[t] = 'The cheaper cards for this job would raise the score more than the Apex pick; they are listed as alternatives'; } }
+        ['apex', 'mid', 'budget'].forEach(t => { const tp = O[t] || O.mid || O.apex; alts[t] = alts[t].filter(x => x.most || (!onRow.has(norm(x.n)) && (!tp || x.dScore >= Math.max(scoreFloor(), 0.5 * tp.dScore) || x.dScore > tp.dScore))); }); }
       // Apex is the strongest pick on the row: a cheaper pick (or, with UP.apexMax 2, the row's highest-scoring card) that raises the
       // deck score more becomes the Apex pick, and is not repeated in its cheaper column.
       if (UP.apexMax){ let best = O.apex, bw = O.apex && O.apex.dScore != null ? O.apex.dScore : -1e9;
@@ -1050,7 +1079,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {apexMax:1, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, unpop:0.1, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){

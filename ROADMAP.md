@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 129. Each item ships as its own build: build, run the full test suite
+Live: Build 130. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -193,3 +193,12 @@ change and price; tapping one shows its details and actions below; arrows move b
 129: Apex is the strongest pick: a row's cheaper pick that raises the score more becomes its Apex pick, and the Apex reference build
 takes a cheaper stand-in when it makes the whole deck score higher (Doom: Apex 94.6 -> 96.2, above Mid 95.8). Benchmark agreement@5
 0.231 / 0.281 / 0.283 (was 0.233 / 0.286 / 0.292); making the highest-scoring card Apex outright was measured and rejected (0.018).
+130: smarter deck score, stage 2, and "players decide what competes, the score picks the winner". Ways to win rise smoothly (each
+finisher adds less than the one before; a winning combo is a small step), so one card can't swing the score more than it is worth;
+the scale is shifted so a typical deck keeps its score. Each column's pick is the candidate (in 10%+ of this commander's decks, a
+proven staple or a tournament staple; gain at least 0.3) with the best estimate: score gain + 6 x share of players who run it. The
+popular card a pick replaces stays first among the alternatives, marked Most played; Mid and Budget never raise the score more than
+Apex (a cheaper card that would is listed as an alternative); held picks stay. Buy lists remember the chosen printing (set and price;
+exports keep the plain name). Benchmark agreement@5 0.238 / 0.303 / 0.292 (Build 128 0.233 / 0.286 / 0.292, Build 129 0.231 / 0.281 /
+0.283); new row@5 (best match among the cards a row offers) 0.240 / 0.303 / 0.292. Tested and rejected on the way: 10-40% floors with the
+score alone (agreement 0.05-0.13), lambda 4 (holdout 0.286). bench.js now also prints row@5 and gain@5.

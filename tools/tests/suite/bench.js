@@ -62,6 +62,10 @@ for (const [slug, file] of list){
   const sp = (a, b) => { if (a.length < 3) return NaN; const ra = rk(a), rb = rk(b), n = a.length, m = (n - 1) / 2; let u = 0, x = 0, y = 0; for (let i = 0; i < n; i++){ u += (ra[i] - m) * (rb[i] - m); x += (ra[i] - m) ** 2; y += (rb[i] - m) ** 2; } return u / Math.sqrt(x * y); };
   const dg = R._dbg || {cuts:[], pool:[]}, cutR = sp(dg.cuts.filter(c => ev.K.has(c.k)).map(c => c.v), dg.cuts.filter(c => ev.K.has(c.k)).map(c => ev.K.get(c.k))), addR = sp(dg.pool.map(c => c.v), dg.pool.map(c => ev.A.get(c.k) || 0));
   const top = swaps.slice(0, 10), kOf = p => ev.K.get(run('keyOf')(p.cut)) || 0, aOf = p => ev.A.get(run('keyOf')(p.add)) || 0, mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  // row@5: per row, the best player match among the cards the row offers (its pick, and the "Most played" card when that is not
+  // the pick), so a stronger pick never hides the popular one; gain@5: how much the picks raise the deck score.
+  const PL = R.paths.map(L => ({L, p:X.tierPick ? X.tierPick(L, TIER) : L.opts[TIER]})).filter(x => x.p && (process.env.LANDS ? isLand(x.p.cut) && isLand(x.p.add) : !isLand(x.p.cut) && !isLand(x.p.add))).slice(0, 5);
+  const rowAg5 = mean(PL.map(({L, p}) => Math.max(aOf(p), ...['apex', 'mid', 'budget'].map(t => L.opts[t] ? aOf(L.opts[t]) : -1), ...Object.values(L.pop || {}).map(x => aOf(x))) - kOf(p))), gain5 = mean(PL.map(({p}) => p.dScore || 0));
   const ag5 = mean(swaps.slice(0, 5).map(p => aOf(p) - kOf(p))), ag10 = mean(top.map(p => aOf(p) - kOf(p))), k10 = mean(top.map(kOf)), a10 = mean(top.map(aOf));
   const sk = [...ev.K.values()].sort((a, b) => a - b), sa = [...ev.A.values()].sort((a, b) => b - a), ceil10 = mean(sa.slice(0, 10).map((v, i) => v - sk[i]));
   const sc = score(ev, swaps), kc = swaps.map(p => ev.K.get(run('keyOf')(p.cut)) || 0), aa = swaps.map(p => ev.A.get(run('keyOf')(p.add)) || 0);
@@ -86,14 +90,14 @@ for (const [slug, file] of list){
   // (best adds paired with least-kept cuts), per swap. 0 = matches the crowd's best possible list; lower is better.
   { const N = swaps.length; let best = 0; for (let i = 0; i < N; i++) best += (sa[i] || 0) - (sk[i] != null ? sk[i] : 1); r.regret = N ? +((best - sc) / N).toFixed(3) : 0; }
   if (!ev.n){ out.decks[slug] = r; continue; }   // no player data for this deck yet: reported, not averaged
-  out.decks[slug] = r; tot.score += sc; tot.swaps += swaps.length; tot.ag = (tot.ag || 0) + ag10; tot.a5 = (tot.a5 || 0) + ag5; tot.n = (tot.n || 0) + 1; tot.cr = (tot.cr || 0) + (cutR || 0); tot.rg = (tot.rg || 0) + r.regret; tot.ar = (tot.ar || 0) + (addR || 0);
+  out.decks[slug] = r; tot.score += sc; tot.swaps += swaps.length; tot.ag = (tot.ag || 0) + ag10; tot.a5 = (tot.a5 || 0) + ag5; tot.rw = (tot.rw || 0) + rowAg5; tot.g5 = (tot.g5 || 0) + gain5; tot.n = (tot.n || 0) + 1; tot.cr = (tot.cr || 0) + (cutR || 0); tot.rg = (tot.rg || 0) + r.regret; tot.ar = (tot.ar || 0) + (addR || 0);
   if (!quiet){ console.log('\n## ' + slug + ' — ' + d.commander + ' · upgraded copies ' + ev.n + ' of ' + ev.total);
     r.pairs.forEach(p => console.log('  ' + (p.addRate - p.keep >= 0 ? '+' : '-') + ' cut ' + p.cut.padEnd(36) + ' kept ' + String(Math.round(p.keep * 100)).padStart(3) + '%  → ' + p.add.padEnd(36) + ' added ' + String(Math.round(p.addRate * 100)).padStart(3) + '%')); }
 }
-out.total = {score:+tot.score.toFixed(2), swaps:tot.swaps, ag10:+(tot.ag / tot.n).toFixed(3), ag5:+(tot.a5 / tot.n).toFixed(3), regret:+(tot.rg / tot.n).toFixed(3), cutRank:+(tot.cr / tot.n).toFixed(3), addRank:+(tot.ar / tot.n).toFixed(3)};
+out.total = {score:+tot.score.toFixed(2), swaps:tot.swaps, ag10:+(tot.ag / tot.n).toFixed(3), ag5:+(tot.a5 / tot.n).toFixed(3), row5:+(tot.rw / tot.n).toFixed(3), gain5:+(tot.g5 / tot.n).toFixed(2), regret:+(tot.rg / tot.n).toFixed(3), cutRank:+(tot.cr / tot.n).toFixed(3), addRank:+(tot.ar / tot.n).toFixed(3)};
 fs.mkdirSync(path.resolve(__dirname, '../out/bench'), {recursive:true});
 fs.writeFileSync(path.resolve(__dirname, '../out/bench/' + label + '-' + which + '.json'), JSON.stringify(out, null, 1));
 console.log('\n' + 'deck'.padEnd(20) + 'copies swaps  agree@10 ceil@10 keep@10 add@10 | sum   90% CI         recall');
 for (const [k, r] of Object.entries(out.decks)) console.log(k.padEnd(20) + String(r.upgraded).padStart(6) + String(r.swaps).padStart(6) + String(r.ag10).padStart(9) + String(r.ceil10).padStart(8) + String(r.keep10).padStart(8) + String(r.add10).padStart(7) + ' | ' + String(r.score).padStart(6) + '  ' + JSON.stringify(r.ci90).padEnd(15) + r.cutRecall + ' of ' + r.lowKeep);
 if (tot.cpN) console.log('RANK (decks with swaps: ' + tot.cpN + ') cut percentile ' + (tot.cp / tot.cpN).toFixed(2) + ' | add percentile ' + (tot.apc / tot.cpN).toFixed(2) + '  (0.5 = random)');
-console.log('MEAN agreement@5 ' + out.total.ag5 + ' @10 ' + out.total.ag10 + ' | whole-list regret ' + out.total.regret + ' | cutRank ' + out.total.cutRank + ' addRank ' + out.total.addRank + ' | sum ' + out.total.score + ' over ' + out.total.swaps + ' swaps');
+console.log('MEAN agreement@5 ' + out.total.ag5 + ' row@5 ' + out.total.row5 + ' gain@5 ' + out.total.gain5 + ' @10 ' + out.total.ag10 + ' | whole-list regret ' + out.total.regret + ' | cutRank ' + out.total.cutRank + ' addRank ' + out.total.addRank + ' | sum ' + out.total.score + ' over ' + out.total.swaps + ' swaps');
