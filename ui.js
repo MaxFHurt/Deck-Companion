@@ -1201,6 +1201,13 @@ function sheetHead(d, R, L, i, si, n, sel){ const RC = rowCols(d, R, L, i), en =
   const sc = p => p.dScore == null ? 'Not measured' : Math.abs(p.dScore) < SCORE_MIN ? 'Score unchanged' : (p.dScore > 0 ? '+' : '−') + Math.abs(p.dScore).toFixed(1) + ' score';
   return '<div class="row sheethead"><button class="btn sm" data-act="sheet-go" data-v="' + (si - 1) + '"' + (si ? '' : ' disabled') + ' aria-label="Previous upgrade">‹</button><span class="lab" style="flex:1;text-align:center;margin:0">Upgrade ' + (si + 1) + ' of ' + n + '</span><button class="btn sm" data-act="sheet-go" data-v="' + (si + 1) + '"' + (si + 1 < n ? '' : ' disabled') + ' aria-label="Next upgrade">›</button></div>' +
     '<div class="sheet4">' + slot('cut', 'Your card', L.cut, 'In the deck', en && en.pp != null ? '$' + en.pp.toFixed(2) : money(find(L.cut))) + ['budget', 'mid', 'apex'].map(t => { const p = RC[t] && RC[t].p; return slot(t, TIERS[t].label, p ? p.add : '', p ? sc(p) : 'None for this slot', p ? money(find(p.add)) : ''); }).join('') + '</div>'; }
+// The upgrade filters as one row of drop-downs: view, sort, card type and kind (owner's layout, Build 131).
+function filterBar(PT, shown, PK){ const sel = (act, lab, opts, v) => '<label class="fsel"><span class="lab">' + lab + '</span><select data-act="' + act + '" aria-label="' + lab + '">' + opts.map(([k, t]) => '<option value="' + esc(k) + '"' + (k === v ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>';
+  const cT = {}, cK = {}; PT.forEach(s => s.forEach(t => cT[t] = (cT[t] || 0) + 1)); PK.forEach(s => s.forEach(k => cK[k] = (cK[k] || 0) + 1)); const ts = TYPE_ORDER.filter(t => cT[t]), ks = Object.keys(KIND_LAB).filter(k => cK[k]);
+  return '<div class="row fbar">' + sel('upview', 'View', [['sheet', 'Sheets'], ['list', 'List']], S.upView || 'sheet') + sel('upsort', 'Sort', Object.keys(SORT_LAB).map(k => [k, SORT_LAB[k]]), S.upSort || 'impact') +
+    (ts.length >= 2 || upT() ? sel('uptype', 'Card type', [['', 'All · ' + PT.length]].concat(ts.map(t => [t, t + ' · ' + cT[t]])), upT() || '') : '') +
+    (ks.length >= 2 || upK() ? sel('upkind', 'Kind', [['', 'All']].concat(ks.map(k => [k, KIND_LAB[k] + ' · ' + cK[k]])), upK() || '') : '') + '</div>' +
+    (upT() && !shown ? '<p class="note" style="margin:0">No ' + esc(upT().toLowerCase()) + ' suggestions right now.</p>' : ''); }
 function sortBar(){ const so = S.upSort || 'impact', b = v => '<button class="btn sm' + (so === v ? ' pri' : '') + '" data-act="upsort" data-v="' + v + '" aria-pressed="' + (so === v) + '">' + SORT_LAB[v] + '</button>';
   return '<div class="row typebar" role="group" aria-label="Sort upgrades"><span class="lab" style="margin:0">Sort</span>' + Object.keys(SORT_LAB).map(b).join('') + '</div>'; }
 function kindBar(sets){ const cnt = {}; sets.forEach(s => s.forEach(t => cnt[t] = (cnt[t] || 0) + 1)); const ks = Object.keys(KIND_LAB).filter(k => cnt[k]);
@@ -1449,6 +1456,14 @@ function scoreHtml(d, A){
 const STATL = new Map();
 function statDelta(v, ref, unit){ if (ref == null || v == null || v === ref) return ''; const x = v - ref; return '<em class="' + (x > 0 ? 'up' : 'dn') + '">' + (x > 0 ? '+' : '−') + Math.abs(x) + (unit || '') + '</em>'; }
 // Tier-meter labels: marks closer than 22 points share one label so they never overlap on a phone.
+// Apex progress bar (Build 131): zoomed to the range that matters (from a little below the lower of your deck and the Budget
+// build up to Apex), with Budget, Mid and Apex each marked in their own colour and labelled with their power score in a legend
+// row under the bar (labels never overlap).
+function tmeterHtml(qp, mk, lvl, sc, power){ const lo = mk ? Math.max(0, Math.floor(Math.min(qp, mk.budget) - 8)) : 0, x = v => Math.max(0, Math.min(100, 100 * (v - lo) / Math.max(1, 100 - lo)));
+  const mark = (k, v, t) => '<u class="tk ' + k + '" style="left:' + x(v).toFixed(1) + '%" title="' + t + '"></u>', lab = (k, name, v) => '<span class="tml ' + k + '"><i></i>' + name + ' <b>' + v + '</b></span>';
+  return '<div class="tmeter" role="img" aria-label="' + (power ? 'Deck power ' : 'Card quality ') + qp + '% of the Apex build; ' + lvl + ' level"><i><b style="width:' + x(qp).toFixed(1) + '%"></b>' +
+    (mk ? mark('tb', mk.budget, 'Best build with every card under $3') + mark('tm', mk.mid, 'Best build with every card under $12') : '') + mark('ta', 100, 'Apex build') + '</i>' +
+    '<div class="tm-leg">' + lab('ty', 'You', sc ? sc.you : qp + '%') + (mk ? lab('tb', 'Budget', sc ? sc.budget : mk.budget + '%') + lab('tm', 'Mid', sc ? sc.mid : mk.mid + '%') : '') + lab('ta', 'Apex', sc ? sc.apex : '100%') + '</div></div>'; }
 function tmLabels(mk){ const L = (mk ? [{p:mk.budget, t:'Budget ' + mk.budget}, {p:mk.mid, t:mk.mid >= 99 ? 'Mid' : 'Mid ' + mk.mid}] : []).concat({p:100, t:'Apex'}), out = [];
   L.forEach(x => { const y = out[out.length - 1]; if (y && x.p - y.p < 22){ y.t += ' · ' + x.t; y.p = x.p; } else out.push(Object.assign({}, x)); });
   return out.map(x => '<span style="' + (x.p >= 80 ? 'right:' + (100 - x.p) + '%;transform:none' : x.p <= 15 ? 'left:' + x.p + '%;transform:none' : 'left:' + x.p + '%') + '">' + esc(x.t) + '</span>').join(''); }
@@ -1481,16 +1496,16 @@ function statsHtml(d, A, R, mode){   // mode "compact" (Upgrades tab): deck scor
   const mk = pw != null ? {budget:pc(100 * T0.budget / T0.apex), mid:pc(100 * T0.mid / T0.apex)} : q.marks, qp = pw != null ? pc(pw) : q.vsApex;
   const lvl = qp == null || !mk ? '' : (pw != null ? pw >= 99.5 : qp >= 97) ? 'Apex' : qp >= mk.mid ? 'Mid' : qp >= mk.budget ? 'Budget' : 'Starter';
   const tierMeter = qp == null ? '<p class="note" style="margin:0">' + (e ? 'Measuring against this deck’s Apex build…' : A.size < 90 ? 'The tier meter appears once the deck has 90 or more cards.' : 'The tier meter appears once the card data has finished downloading.') + '</p>'
-    : '<div class="tmeter" role="img" aria-label="' + (pw != null ? 'Deck power ' : 'Card quality ') + qp + '% of the Apex build; ' + lvl + ' level"><i><b style="width:' + qp + '%"></b>' + (mk ? '<u style="left:' + mk.budget + '%" title="Best build with every card under $3"></u><u style="left:' + mk.mid + '%" title="Best build with every card under $12"></u>' : '') + '</i>' +
-      '<div class="tm-lab">' + tmLabels(mk) + '</div></div>' +
+    : tmeterHtml(qp, mk, lvl, pw != null ? {you:e.total, budget:Math.round(T0.budget), mid:Math.round(T0.mid), apex:Math.round(T0.apex)} : null, pw != null) +
       (pw != null ? '<p class="note" style="margin:0">Your deck is at <b>' + lvl + '</b> level' + (lvl === 'Starter' ? ' (below the best Budget build)' : '') + ': it scores ' + e.total + ', ' + (pw > 100.5 ? 'above' : Math.round(pw) + '% of') + ' the Apex build’s ' + Math.round(T0.apex) + '. The marks show where the best all-under-$3 (' + Math.round(T0.budget) + ') and all-under-$12 (' + Math.round(T0.mid) + ') builds score.</p>'
       : '<p class="note" style="margin:0">Your cards are at <b>' + lvl + '</b> level' + (lvl === 'Starter' ? ' (below the best Budget build)' : '') + ': ' + qp + '% of the way from random playable cards to the Apex build' + statDelta(qp, B && B.q, ' pts') + (B && B.q != null && B.q !== qp ? ' since ' + B.at : '') + '. The marks show where the best all-under-$3 and all-under-$12 builds land.</p>');
   const strip = '<div class="statbar" role="status" aria-live="polite"><span><b>' + (e ? e.total : '—') + '</b>/100' + (e ? statDelta(e.total, prev && prev.score) : '') + '</span>' +
     (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') + (A.ctx.bracket ? '<span>Bracket <b>' + A.ctx.bracket + '</b></span>' : '') +
     '<span>Swaps <b>' + nSw + '</b></span><span class="hdot ' + hs + '">Health ' + (nBad + nWarn ? nBad + nWarn + ' to watch' : 'good') + '</span></div>';
   const open1 = S.statsOpen !== false;
-  if (mode === 'compact') return strip + '<div class="grp"><span class="lab">Apex progress</span>' + tierMeter + '</div>';
-  return strip + '<div class="grp"><span class="lab">Apex progress</span>' + tierMeter + '</div>' + apexTips(d, A, R, e, HA, lvl) + '<details class="stats grp" id="stats-more"' + (open1 ? ' open' : '') + '><summary><span class="lab" style="margin:0">Build stats</span></summary>' +
+  const prog = '<div class="grp"><div class="row" style="justify-content:space-between"><span class="lab" style="margin:0">Apex progress</span>' + edhNote(A.ctx.cmd) + '</div>' + tierMeter + '</div>';
+  if (mode === 'compact') return strip + prog;
+  return strip + prog + apexTips(d, A, R, e, HA, lvl) + '<details class="stats grp" id="stats-more"' + (open1 ? ' open' : '') + '><summary><span class="lab" style="margin:0">Build stats</span></summary>' +
     '<div class="sgrid"><div><small>Deck score</small><b>' + (e ? e.total : '—') + '</b>' + (e ? statDelta(e.total, B && B.score) + (B && B.score !== e.total ? '<span class="note"> since ' + B.at + '</span>' : '') : '') + '</div>' +
     '<div><small>Card quality</small><b>' + (qp == null ? '—' : qp + '%') + '</b><span class="note">of Apex</span></div>' +
     '<div><small>Bracket</small><b>' + (A.ctx.bracket || '—') + '</b><span class="note">' + (A.ctx.bracket ? esc(BRACKETS[A.ctx.bracket].label) : '') + '</span></div>' +
@@ -1576,7 +1591,7 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
   if (d.plan && d.plan.length) return h + (stats ? '<p class="note">Build stats appear once the deck is built: install the plan on the Upgrades tab.</p>' : planHtml(d)) + '</div>';
   h += statsHtml(d, A, isAimed(d) ? recsFor(d) : null, stats ? 'full' : 'compact');
   if (d.regenUndo) h += '<div class="row"><span class="note">Rebuilt around your cards: they are the starting point, and every suggestion is an upgrade from here.</span><button class="btn sm" data-act="plan-regen-undo" style="margin-left:auto">Undo</button></div>';
-  if (A.ctx.cmd || !DBINFO.complete) h += '<div class="row">' + edhNote(A.ctx.cmd) + (DBINFO.complete ? '' : '<span class="chip warn">Card data still downloading · results will improve</span>') + '</div>';
+  if (!DBINFO.complete) h += '<div class="row"><span class="chip warn">Card data still downloading · results will improve</span></div>';   // the EDHREC chip sits in the stats module (Build 131)
   if (stats){
   if (d.format === 'commander') h += bracketHtml(d, A);
   if (d.format !== 'commander') h += '<div class="grp"><span class="lab">Deck health</span>' + meter('Lands', A.lands, T.lands) + meter('Ramp', A.roles.ramp, T.ramp) + meter('Card draw', A.roles.draw, T.draw) + meter('Removal', A.roles.removal, T.removal) + meter('Board wipes', A.roles.wipe, T.wipe) + '</div>';   // Commander decks show these in Build stats
@@ -1625,7 +1640,7 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
     { const so = S.upSort || 'impact', imp = L => Math.max(...Object.values(L.opts).map(p => p && p.dScore != null ? p.dScore : -1e9)), cost = L => { const p = tierPick(L, d.tier || 'apex') || L.opts.apex || Object.values(L.opts)[0], c = p && find(p.add); return p && p.own ? -1 : c && c.p != null ? c.p : 1e6; };
       if (so === 'impact') PV.sort((a, b) => imp(b[0]) - imp(a[0]) || a[1] - b[1]); else if (so === 'price') PV.sort((a, b) => cost(a[0]) - cost(b[0]) || a[1] - b[1]); }
     const sheet = (S.upView || 'sheet') === 'sheet' && PV.length > 0, si = sheet ? (S.sheetI = Math.max(0, Math.min(PV.length - 1, S.sheetI || 0))) : 0, sel = sheet ? sheetSel(d, R, PV[si][0], PV[si][1]) : '';
-    h += viewBar() + sortBar() + typeBar(PT, PV.length) + kindBar(PK) + (upK() && !PV.length ? '<p class="note" style="margin:0">No ' + esc(KIND_LAB[upK()].toLowerCase()) + ' upgrades right now' + (upT() ? ' of that card type' : '') + '.</p>' : '') + (sheet ? '<div class="sheet" data-sel="' + sel + '">' + sheetHead(d, R, PV[si][0], PV[si][1], si, PV.length, sel) : '') + '<div class="paths">' + (sheet ? [PV[si]] : PV.slice(0, show)).map(([L, i]) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
+    h += filterBar(PT, PV.length, PK) + (upK() && !PV.length ? '<p class="note" style="margin:0">No ' + esc(KIND_LAB[upK()].toLowerCase()) + ' upgrades right now' + (upT() ? ' of that card type' : '') + '.</p>' : '') + (sheet ? '<div class="sheet" data-sel="' + sel + '">' + sheetHead(d, R, PV[si][0], PV[si][1], si, PV.length, sel) : '') + '<div class="paths">' + (sheet ? [PV[si]] : PV.slice(0, show)).map(([L, i]) => { const en = d.cards.find(x => x.n === L.cut), step = en && en.step || 0;
       const fp = L.opts.free;
       const cw = (L.opts.apex || L.opts.mid || L.opts.budget || {}).cutWhy || [];
       // the explanation shares the swap-history row, so every card keeps the same 7 rows and lines up with its neighbours
@@ -2497,6 +2512,7 @@ document.addEventListener('input', ev => {
 });
 document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' + ((ev.target.getAttribute && (ev.target.getAttribute('aria-label') || ev.target.id)) || 'setting');
   const t = ev.target, d = cur();
+  if (t.tagName === 'SELECT' && t.dataset && t.dataset.act){ handleAct(t.dataset.act, t.value); return; }   // drop-downs that act like buttons (upgrade filters)
   if (t.id === 'deck-name' && d){ d.name = t.value.trim() || 'Untitled deck'; d.example = false; touch(); }
   else if (t.id === 'deck-player' && d){ d.player = t.value || ''; if (!d.player) delete d.player; touch(); render(); }
   else if (t.id === 'gen-player'){ S.gen.player = t.value || ''; }

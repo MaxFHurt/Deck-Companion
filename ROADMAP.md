@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 130. Each item ships as its own build: build, run the full test suite
+Live: Build 131. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -113,7 +113,9 @@ Items marked "discuss first" need the owner's decision before they are built; th
 - Plain English in the app and in reports. No runtime AI.
 - Replies to the owner: plain English, and every long reply ends with a short
   summary (done / works / needs the owner). Any question asked in a reply is
-  repeated, reworded, at the end of that summary.
+  repeated, reworded, at the end of that summary. Several questions or inputs are
+  always numbered so the owner can answer by number.
+- No regression: every engine build must match or beat the last benchmark.
 - The MTG Commander Deck Manager spreadsheet never supplies benchmark inputs.
 
 ## Done (recent builds)
@@ -202,3 +204,6 @@ Apex (a cheaper card that would is listed as an alternative); held picks stay. B
 exports keep the plain name). Benchmark agreement@5 0.238 / 0.303 / 0.292 (Build 128 0.233 / 0.286 / 0.292, Build 129 0.231 / 0.281 /
 0.283); new row@5 (best match among the cards a row offers) 0.240 / 0.303 / 0.292. Tested and rejected on the way: 10-40% floors with the
 score alone (agreement 0.05-0.13), lambda 4 (holdout 0.286). bench.js now also prints row@5 and gain@5.
+131: Upgrades layout: the filters (view, sort, card type, kind) are one row of drop-downs; the EDHREC chip sits in the stats module
+above the Apex progress bar; the bar zooms to the range that matters and marks Budget (bronze), Mid (silver) and Apex (gold) with their
+power scores in a legend row (labels never overlap); the empty row under the bar is gone. No engine change.
