@@ -270,6 +270,14 @@ img.ms.ms.ms{display:inline-block;width:1.05em;height:1.05em;min-width:0;aspect-
 .prog i{position:relative;z-index:1;width:14px;height:14px;border-radius:50%;background:#150c2e;border:2px solid #3a2a6b}
 .prog .has i{border-color:var(--gold)} .prog .done i{background:var(--glow);border-color:#fff} .prog .done{color:var(--ink)}
 .prog .here i{box-shadow:0 0 0 3px rgba(185,147,255,.35),0 0 12px var(--violet)}
+.tiertabs{display:grid;grid-template-columns:minmax(140px,28%) minmax(0,1fr);align-items:stretch}
+.ttabs{display:flex;flex-direction:column;gap:4px;padding:4px 0}
+.ttab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 12px;border:1px solid var(--line);border-right:0;border-radius:9px 0 0 9px;background:#120a28;color:var(--mute);font:600 11px var(--label);letter-spacing:.06em;text-transform:uppercase;text-align:left;cursor:pointer;margin-right:-1px;position:relative}
+.ttab b{font:700 15px var(--display);color:var(--gold);letter-spacing:.04em;text-transform:none} .ttab.on{background:var(--well);color:var(--ink);border-color:var(--glow);z-index:1} .ttab:not(.on){opacity:.8}
+.tpanes{border:1px solid var(--glow);border-radius:0 10px 10px 10px;background:var(--well);padding:10px 12px;min-width:0}
+.tpane{display:none;flex-direction:column;gap:6px} .tiertabs[data-sel="budget"] .tpane[data-t="budget"], .tiertabs[data-sel="mid"] .tpane[data-t="mid"], .tiertabs[data-sel="apex"] .tpane[data-t="apex"]{display:flex}
+.tpane em{font-style:normal;font-size:13px;color:var(--chrome);line-height:1.3} .tpane .capbox{margin-top:0!important;border-top:0!important;padding-top:0!important}
+@media (max-width:600px){ .tiertabs{grid-template-columns:minmax(0,1fr)} .ttabs{flex-direction:row} .ttab{flex:1;border-right:1px solid var(--line);border-bottom:0;border-radius:9px 9px 0 0;margin:0 0 -1px} .tpanes{border-radius:0 0 10px 10px} }
 .tiers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .tierbox{display:flex;flex-direction:column;gap:2px;align-items:center;padding:7px 4px;border:1px solid var(--line);border-radius:8px;background:var(--well);font:600 12px var(--label);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);text-align:center}
 .tierbox em{font-style:normal;font-size:11px;letter-spacing:.02em;text-transform:none;color:var(--chrome);margin-top:3px;line-height:1.25}
@@ -434,7 +442,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 131;
+window.BUILD = 132;
 (function(){
   var last = 0;
   function check(){
@@ -446,9 +454,9 @@ window.BUILD = 131;
   check(); document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
 })();
 </script>
-<script src="data.js?v=131"></script>
-<script src="lists.js?v=131"></script>
-<script src="engine.js?v=131"></script>
-<script src="ui.js?v=131"></script>
+<script src="data.js?v=132"></script>
+<script src="lists.js?v=132"></script>
+<script src="engine.js?v=132"></script>
+<script src="ui.js?v=132"></script>
 </body>
 </html>

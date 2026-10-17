@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 131. Each item ships as its own build: build, run the full test suite
+Live: Build 132. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -207,3 +207,5 @@ score alone (agreement 0.05-0.13), lambda 4 (holdout 0.286). bench.js now also p
 131: Upgrades layout: the filters (view, sort, card type, kind) are one row of drop-downs; the EDHREC chip sits in the stats module
 above the Apex progress bar; the bar zooms to the range that matters and marks Budget (bronze), Mid (silver) and Apex (gold) with their
 power scores in a legend row (labels never overlap); the empty row under the bar is gone. No engine change.
+132: Upgrade paths as folder tabs: Budget, Mid and Apex stacked on the left with swaps and cost; the chosen tier's description,
+Apply all and Best deck under $X on the right (opens on the deck's own tier); about half the height. No engine change.
