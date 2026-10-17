@@ -84,9 +84,10 @@ Last updated: 17 October 2026, Build 133 live.
 - **Done in Build 118:** smarter deck score, stage 1 (tournament staples for Apex): `TOURNEY` lists and `tourneyOf` in engine.js, `UP.ts/tsk/tl/tr`. Still missed: tutors and win cards (Demonic Consultation, Tainted Pact, Thassa's Oracle), and Lumra/Vivi gain least.
 - **Next:** not yet chosen by the owner (options: stage 2 of the deck score, the open decisions below).
 - **Waiting on the owner:**
-  - real-device check on iPad;
   - the "Unpopular pick" chip decision;
-  - closer plan weighting in the upgrades engine (it's only in the fit tip today).
+  - published-guides spot-check (which precons and which guide sources).
+- **Tried and rejected after Build 133 (see ROADMAP):** deck score stage 3 (test 0.303 -> 0.298) and closer plan weighting (test 0.303 -> 0.281 / 0.298). Engine unchanged.
+- **Benchmark baseline (Build 133, SCORECHECK=1):** agreement@5 tuneall 0.238, test 0.303, holdout 0.292; with `WEIGHT=3,6` 0.268 / 0.322 / 0.318. Both must not drop. Note: without `SCORECHECK=1` the bench skips the Apex pick rule and reads 0.249 with gain 0 — wrong baseline.
 - **Parked:** Visible practice games.
 - **Known limits:**
   - Decks over their land target take a few seconds more to check upgrades.

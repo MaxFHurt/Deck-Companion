@@ -27,18 +27,21 @@ function evidence(slug, file){
   const d = H.retail(slug), cmdK = run('keyOf')(d.commander);
   const LANDS = !!process.env.LANDS, isUp = n => { const c = X.find(n); return !!c && run('tags')(c).land && !run('isBasic')(c.n) && !/Basic/.test(c.t); };
   const P = new Map(); d.cards.forEach(e => { if (LANDS ? isUp(e.n) : !isLand(e.n)) P.set(run('keyOf')(e.n), e.n); });
-  const decks = corpusOf(file).filter(x => !process.env.STRONG || x.bracket >= +process.env.STRONG).map(x => { const s = new Set(); x.cards.forEach(([n, q, cats, uid]) => { if (!n || (cats || []).includes('Commander')) return; const k = keyFor(n, uid); if (k !== cmdK) s.add(k); }); return s; });
+  // WEIGHT=a,b: a deck its builder marks bracket 3 counts a times, bracket 4 or 5 b times (the rest once): the stronger builders'
+  // choices weigh more without throwing the rest away. Each deck set carries its weight (s.w).
+  const WT = process.env.WEIGHT ? process.env.WEIGHT.split(',').map(Number) : null, wOf = x => !WT ? 1 : x.bracket >= 4 ? WT[1] : x.bracket === 3 ? WT[0] : 1;
+  const decks = corpusOf(file).filter(x => !process.env.STRONG || x.bracket >= +process.env.STRONG).map(x => { const s = new Set(); s.w = wOf(x); s.br = x.bracket || 0; x.cards.forEach(([n, q, cats, uid]) => { if (!n || (cats || []).includes('Commander')) return; const k = keyFor(n, uid); if (k !== cmdK) s.add(k); }); return s; });
   const PN = new Map(); d.cards.forEach(e => { if (!isLand(e.n)) PN.set(run('keyOf')(e.n), e.n); });   // 'upgraded copy' is always judged on the spells
   let up = decks.filter(s => { let o = 0; PN.forEach((n, k) => { if (s.has(k)) o++; }); return o >= 0.4 * PN.size && PN.size - o >= 5; });
   // GROUP=lo / hi: judge against the cheapest half / priciest quarter of upgraded copies (snapshot prices) — the Budget and Apex questions.
   if (process.env.GROUP){ const pr = s => [...s].reduce((a, k) => { const c = KP.get(k); return a + (c && c.p != null ? c.p : 0); }, 0), srt = up.map(s => [pr(s), s]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
     up = process.env.GROUP === 'lo' ? srt.slice(0, srt.length >> 1) : srt.slice(-Math.floor(srt.length / 4)); }
   const K = new Map(), A = new Map();
-  P.forEach((n, k) => K.set(k, up.filter(s => s.has(k)).length / Math.max(1, up.length)));
+  const W = up.reduce((a, s) => a + s.w, 0) || 1; P.forEach((n, k) => K.set(k, up.filter(s => s.has(k)).reduce((a, s) => a + s.w, 0) / W));
   const landK = new Map(), landOf = k => { if (!landK.has(k)){ const c = run('LIB').find(c => c._k === k); landK.set(k, !c || run('tags')(c).land); } return landK.get(k); };
   const want = k => LANDS ? (landOf(k) && KP.get(k) && !run('isBasic')(KP.get(k).n) && !/Basic/.test(KP.get(k).t)) : !landOf(k);
-  up.forEach(s => s.forEach(k => { if (!P.has(k) && want(k)) A.set(k, (A.get(k) || 0) + 1); }));   // adds of the same kind as the swaps judged
-  A.forEach((v, k) => A.set(k, v / up.length));
+  up.forEach(s => s.forEach(k => { if (!P.has(k) && want(k)) A.set(k, (A.get(k) || 0) + s.w); }));   // adds of the same kind as the swaps judged
+  A.forEach((v, k) => A.set(k, v / W));
   return {d, P, K, A, n:up.length, total:decks.length, up};
 }
 function score(ev, swaps, Kx, Ax){
@@ -74,7 +77,7 @@ for (const [slug, file] of list){
   // bootstrap over upgraded copies
   const B = [], rnd = (() => { let x = 12345; return () => (x = (x * 1103515245 + 12345) % 2147483648) / 2147483648; })();
   for (let b = 0; b < 1000 && ev.n; b++){ const smp = Array.from({length:ev.n}, () => ev.up[Math.floor(rnd() * ev.n)]); const Kb = new Map(), Ab = new Map();
-    swaps.forEach(p => { const kc = run('keyOf')(p.cut), ka = run('keyOf')(p.add); Kb.set(kc, smp.filter(s => s.has(kc)).length / ev.n); Ab.set(ka, smp.filter(s => s.has(ka)).length / ev.n); }); B.push(score(ev, swaps, Kb, Ab)); }
+    const Wb = smp.reduce((a, s) => a + s.w, 0) || 1; swaps.forEach(p => { const kc = run('keyOf')(p.cut), ka = run('keyOf')(p.add); Kb.set(kc, smp.filter(s => s.has(kc)).reduce((a, s) => a + s.w, 0) / Wb); Ab.set(ka, smp.filter(s => s.has(ka)).reduce((a, s) => a + s.w, 0) / Wb); }); B.push(score(ev, swaps, Kb, Ab)); }
   B.sort((a, b) => a - b);
   const r = {commander:d.commander, upgraded:ev.n, corpus:ev.total, swaps:swaps.length, cutRank:+cutR.toFixed(3), addRank:+addR.toFixed(3), ag5:+ag5.toFixed(3), ag10:+ag10.toFixed(3), keep10:+k10.toFixed(3), add10:+a10.toFixed(3), ceil10:+ceil10.toFixed(3), score:+sc.toFixed(2), ci90:B.length ? [+B[50].toFixed(2), +B[949].toFixed(2)] : null,
     meanKeepCut:+(kc.reduce((a, b) => a + b, 0) / Math.max(1, kc.length)).toFixed(3), meanKeepAll:+meanK.toFixed(3), meanAddRate:+(aa.reduce((a, b) => a + b, 0) / Math.max(1, aa.length)).toFixed(3),

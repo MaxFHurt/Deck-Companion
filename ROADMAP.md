@@ -71,10 +71,18 @@ Items marked "discuss first" need the owner's decision before they are built; th
   deck score often likes cards players skip. Option: show it only when the gap
   over the suggested card is large. (The Highest score pick, Build 103, now shows
   the best-scoring card on every row anyway.)
-- **Closer plan weighting in the upgrades engine?** Build 96 changed only the fit
-  tip: plans weighted 2 / 1.75 / 1.5, plus 1.25 for each extra plan a card hits.
-  The engine still weights plans 5 / 3.6 / 2.6. This is an upgrades-engine change,
-  so it needs the owner's go-ahead and a benchmark run first.
+- **Closer plan weighting: tried and rejected (17 Oct, after Build 133).** The
+  fit tip's closer weights (2 / 1.75 / 1.5, plus a bonus per extra plan) were
+  benchmarked in the engine. Main scorer 5/4.4/3.75: test 0.303 -> 0.281. Milder
+  5/4/3.1: test 0.298. Extra-plan bonus +1: test 0.286 (+0.5: no change).
+  Upgrade-theme weights alone: no change. Kept as is.
+- **Deck score stage 3: tried and rejected (17 Oct).** Smoother protection,
+  recursion and tutor credit, and part credit for a combo one card short: test
+  0.303 -> 0.298 (weighted 0.322 -> 0.318). Code left in engine history, not shipped.
+- **Strength-weighted yardstick (17 Oct):** `WEIGHT=3,6 node bench.js ...` counts
+  bracket-3 decks 3x and bracket 4+ 6x. `wcheck.js` checked it: valid (overlap with
+  strong-only decks 0.77 -> 0.82, same build ordering) but adds little. Used as a
+  second must-not-drop check. Baseline: tuneall 0.268, test 0.322, holdout 0.318.
 - **Deck-score ranking** (tried in Build 82, reverted in 83): ranking slots purely
   by the app's deck score cut agreement with real players to about zero, so popular
   picks lead. Revisit only with proof the score beats player data.

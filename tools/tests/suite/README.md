@@ -28,10 +28,13 @@ Needs Node 22 and, for the browser tests, Playwright with Chromium
 
     TIER=apex SCORECHECK=1 node bench.js ../candidate x tuneall --quiet   # also: test, holdout
     STRONG=4 TIER=apex SCORECHECK=1 node bench.js ../candidate x test --quiet
+    WEIGHT=3,6 TIER=apex SCORECHECK=1 node bench.js ../candidate x test --quiet   # bracket 3 x3, 4+ x6
+    node wcheck.js ../candidate 1,1 3,6          # is a weighted yardstick sound? (coverage, validity, stability)
 
 `agreement@5`: of the top 5 suggestions, how many match cards real players added
 when upgrading the same precon (0 = no better than random). Build 118:
-tuneall 0.233, test 0.286, holdout 0.292. The holdout set is for final checks only.
+tuneall 0.233, test 0.286, holdout 0.292. Build 133: 0.238 / 0.303 / 0.292
+(weighted 3,6: 0.268 / 0.322 / 0.318). Always set SCORECHECK=1. The holdout set is for final checks only.
 
     node genstrong.js ../candidate tuneall          # generated decks vs strong (bracket 4+) decks
     node tourney.js ../candidate                    # our Apex decks vs 20 top-16 tournament lists, 10 commanders
