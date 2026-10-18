@@ -922,6 +922,19 @@ const b137 = await page.evaluate(async () => { const out = {}, id5 = ['W','U','B
     F.forEach(x => { if (!landCovers(find(x.cut), find(x.add), id)) out.badFix.push(d.name + ': ' + x.cut + ' -> ' + x.add); }); }
   out.covers = landCovers(find('Thriving Isle'), find('Wooded Foothills'), id5) === false && landCovers(find('Thriving Isle'), find('Glacial Fortress'), id5) === true; return out; });
 T('UI-B137-01', 'Lands: Wooded Foothills makes only red/green (what it can find), Thriving Isle makes blue plus the colour needed, Big Apple is not colourless; a mana fix never takes out a colour the old land made', b137.foothills === 'GR' && b137.thriving === 'UW' && b137.bigApple > 0 && b137.thrivingLC === 5 && b137.covers && !b137.badFix.length && !b137.err, JSON.stringify(b137));
+// 87. Build 138 (owner: the Mana fix offered a swap, but the card's window said its best swap was a different card): every land the
+// Mana fix offers goes where the card window puts it, with the same score; when the deck runs short of lands a weak spell may go.
+const b138 = await page.evaluate(async () => { const out = {decks:0, rows:0, agree:0, mismatch:[], ms:0};
+  for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander) && ctxOf(x).ident.length >= 2).slice(0, 3)){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; recsFor.k = null; render(); await recsReady(d); for (let i = 0; i < 80 && !evalFor(d); i++) await new Promise(r => setTimeout(r, 100)); out.decks++;
+    const t0 = performance.now(), L = fixList(d, 'Mana'); out.ms = Math.max(out.ms, Math.round(performance.now() - t0));
+    L.forEach(p => { out.rows++; const r = landRank(d, p.add, apexFor(d)), top = r.find(y => y.n === p.cut); const firstFree = r[0]; if (top && top.dScore === p.dScore && (p.best ? firstFree.n === p.cut : true)) out.agree++; else out.mismatch.push(d.name + ': ' + p.cut + ' -> ' + p.add + ' ' + p.dScore + ' vs window ' + (firstFree && firstFree.n) + ' ' + (firstFree && firstFree.dScore)); });
+    const p0 = L[0]; if (p0 && out.window == null){ S.cardWant = true; const h = wantHtml(d, find(p0.add)); out.window = p0.best ? h.indexOf(esc(p0.cut)) >= 0 && h.indexOf(esc(p0.cut)) < h.indexOf('Least') + 1e6 : true; } }
+  out.starvedSpell = (() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)), A = analyze(d), c = bestCuts(d, 'Sulfur Falls', 999, {starved:true}); return c.some(x => x.spell) && !bestCuts(d, 'Sulfur Falls', 999, {}).some(x => x.spell); })();
+  return out; });
+const b138b = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.tab = 'stats'; render(); openFixSoon(['Mana']); const first = /Checking land swaps/.test($('#modal').textContent);
+  for (let i = 0; i < 100 && /Checking land swaps/.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100)); const done = /practice games/.test($('#modal').textContent) && !/Checking land swaps/.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });
+b138.soon = b138b.first && b138b.done;
+T('UI-B138-01', 'Mana fix and card window agree: each land the fix offers goes where the card window puts it, with the same score; when the deck runs short of lands a weak spell may make room', b138.decks > 0 && !b138.mismatch.length && b138.starvedSpell && b138.window !== false && b138.soon, JSON.stringify(b138).slice(0, 900));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

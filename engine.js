@@ -1162,7 +1162,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1507,19 +1507,28 @@ function spareLands(d){
   L.filter(x => isBasic(x.c.n)).sort((a, b) => b.e.q - a.e.q).forEach(x => { for (let i = 0; i < Math.max(0, x.e.q - 1); i++) out.push(x.e.n); });
   return out.slice(0, extra);
 }
-function bestCuts(d, addName, k){
+// A deck is short of mana when its practice games run out of lands by turn 5 in UP.starve of games or more, or it runs fewer
+// lands than its target: then a spell may make room for a land (owner, Build 138), if the deck score agrees.
+function manaStarved(d, e){ const A = analyze(d); return A.lands < A.T.lands || !!(e && e.sim && e.sim.screwT5 >= UP.starve); }
+// The lands the Mana fix offers: untapped lands making two or more of the deck's colours, then (short of mana) any untapped land
+// making a deck colour.
+function manaAdds(d, n, starved){ const ctx = ctxOf(d), inDeck = new Set(d.cards.map(e => keyOf(e.n))), dis = new Set((d.dismissed || []).map(keyOf)), val = c => baseScore(c, d, ctx).s;
+  const ok = c => tags(c).land && !isBasic(c.n) && !inDeck.has(c._k) && !dis.has(c._k) && legalIn(c, d.format) && c.ci.every(z => ctx.ident.includes(z)) && mustOk(c, d) && (!d.tier || d.tier === 'apex' || c.p == null || underCap(c.p, d.tier)) && landSpeed(c) !== 'tapped';
+  const evid = c => { const e = ctx.edh && edhOf(ctx.edh.map, c); return (e && e.inc >= 0.05) || (c.r && c.r < 3000); }, cols = c => [...landColors(c)].filter(z => ctx.ident.includes(z)).length;
+  return LIB.filter(c => ok(c) && evid(c) && (ctx.ident.length < 2 ? cols(c) >= 1 : cols(c) >= 2 || (starved && cols(c) >= 1))).map(c => ({c, v:val(c)})).sort((a, b) => b.v - a.v).slice(0, n).map(x => x.c); }
+function bestCuts(d, addName, k, o){ o = o || {};
   const add = find(addName); if (!add) return [];
   const A = analyze(d), ctx = A.ctx, T = A.T, top = (d.aims || [])[0], addLand = tags(add).land, roles = Object.assign({}, A.roles);
   if (!addLand) tags(add).roles.forEach(r => { if (r in roles) roles[r]++; });
   const isId = c => !!(top && matchAim(c, top, ctx.tribe) >= 0.7), addId = !addLand && isId(add), out = [];
   for (const e of d.cards){
-    if (e.l || norm(e.n) === add._n) continue; const c = find(e.n); if (!c) continue; const land = tags(c).land; if (land !== addLand) continue;
+    if (e.l || norm(e.n) === add._n) continue; const c = find(e.n); if (!c) continue; const land = tags(c).land; if (land !== addLand && !(addLand && o.starved && !land)) continue;   // short of mana: a spell may go for a land (Build 138)
     if (land){ out.push(isBasic(c.n) ? {n:e.n, s:-e.q, why:['You run ' + e.q + ' of these']} : {n:e.n, s:baseScore(c, d, ctx).s + 3, why:['Least useful land']}); continue; }
-    const b = baseScore(c, d, ctx); let s = b.s, why = b.hit ? 'Weakest fit for the build' : "Doesn't serve the build";
+    const b = baseScore(c, d, ctx); let s = b.s, why = addLand ? 'The deck runs short of lands: a weak spell can make room' : b.hit ? 'Weakest fit for the build' : "Doesn't serve the build";
     tags(c).roles.forEach(r => { if (r in roles) s += roles[r] - 1 < T[r] ? 2.5 : 0.6; });
     s += 0.2 * Math.abs(c.cmc - add.cmc); if (isId(c) && !addId) s += 2; if (mainType(c) !== mainType(add)) s += 1.5;
     if (!legalIn(c, d.format)){ s = -90; why = 'Not legal in ' + d.format; } else if (!c.ci.every(x => ctx.ident.includes(x))){ s = -80; why = 'Outside your colors'; }
-    out.push({n:e.n, s, why:[why]});
+    out.push(addLand ? {n:e.n, s:s + 4, spell:true, why:[why]} : {n:e.n, s, why:[why]});
   }
   if (!addLand) [...new Set(spareLands(d))].forEach(n => out.push({n, s:50, land:true, why:['Spare land: ' + A.lands + ' lands, about ' + T.lands + ' needed']}));
   return out.sort((a, b) => a.s - b.s).slice(0, k || 3);

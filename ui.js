@@ -1560,12 +1560,21 @@ function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind
   // The Mana alert covers two problems: games stuck without a colour, and games short of lands by turn 5. So it offers both
   // kinds of swap (better lands for worse ones, and a land for the spell the deck can best spare), each measured with fresh
   // practice games, and keeps only the ones that raise the deck score, best first.
-  if (FIX_OF[key] === 'mana' && landScore){ try { const col = kind === 'mana' ? fixSwaps(d, 'mana', {n:5, val:R && R.valOf, score, landScore}) : [];
-      const A0 = analyze(d), up = A0.lands < A0.T.lands ? fixSwaps(d, 'landsUp', {n:5, val:R && R.valOf, score}).map(p => Object.assign(p, {dScore:landScore(p.cut, p.add)})) : [];
-      const seen = new Set(); return col.concat(up).filter(p => !hasCard(d, p.add) && p.dScore != null && p.dScore >= SCORE_MIN).sort((a, b) => b.dScore - a.dScore).filter(p => !seen.has(p.add) && !seen.has(p.cut) && seen.add(p.add) && seen.add(p.cut)).slice(0, 5); } catch (err) { return []; } }
+  // Build 138: each land the fix offers goes where the card window would put it (landRank), so the two always agree; the swaps
+  // that raise the score most are taken first, each card once.
+  if (FIX_OF[key] === 'mana' && e && e.exact != null){ try { const starved = manaStarved(d, e), ranks = manaAdds(d, 5, starved).map(c => ({c, r:landRank(d, c.n, ar)})).filter(x => x.r.length);
+      const used = new Set(), out = []; ranks.sort((a, b) => b.r[0].dScore - a.r[0].dScore);
+      for (const x of ranks){ if (out.length >= 5) break; const b = x.r.find(y => !used.has(y.n) && y.dScore >= SCORE_MIN); if (!b) continue; used.add(b.n);
+        out.push({cut:b.n, add:x.c.n, q:1, kind:'mana', dScore:b.dScore, best:b === x.r[0], why:b.spell ? 'A land for a weak spell: the deck runs short of lands' : landSpeed(find(b.n)) === 'tapped' ? 'Replaces a land that enters tapped' : isBasic(b.n) ? 'Replaces a basic with a land making more of your colours' : 'A better land for the same colours'}); }
+      return out.sort((a, b) => b.dScore - a.dScore); } catch (err) { return []; } }
   // adding or cutting lands changes the mana, which only fresh practice games measure; keep the swaps that raise the score
   if (key === 'Lands'){ try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score}).filter(p => !hasCard(d, p.add)).map(p => Object.assign(p, {dScore:landScore(p.cut, p.add)})).filter(p => p.dScore != null && p.dScore >= SCORE_MIN).sort((a, b) => b.dScore - a.dScore); } catch (err) { return []; } }
   try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score, landScore, spareLands:true}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
+// The Mana fix plays fresh practice games for every land swap it weighs (a few seconds on a phone): the window opens at once with a
+// note, and the swaps appear when they are ready (Build 138).
+function openFixSoon(keys){ if (!keys.includes('Mana')) return openFix(keys); const t = keys.length > 1 ? 'Fix all alerts' : 'Fix: ' + keys[0];
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Fix deck health"><div class="ph"><h2>' + esc(t) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note">Checking land swaps with fresh practice games…</p></div>'; $('#modal').hidden = false;
+  setTimeout(() => { if (!$('#modal').hidden) openFix(keys); }, 40); }
 function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
   const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
   const tgt = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]};
@@ -2033,7 +2042,15 @@ function tipHtml(d, c, sw){
 // score on those games is kept per deck version so it is worked out once.
 const FRESH = new Map();
 function freshDelta(d, ar){ const k = d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|') + '#' + !!ar; let b0 = FRESH.get(k);
-  return (cut, add) => { try { if (b0 == null){ b0 = evaluateDeck(d, {apex:ar, games:200}).exact; FRESH.clear(); FRESH.set(k, b0); } const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (err) { return null; } }; }
+  // each measured swap is kept (Build 138), so the Mana fix list and the card window show the same number for the same swap
+  return (cut, add) => { const mk = k + '|' + cut + '>' + add; if (FRESH.has(mk)) return FRESH.get(mk); try { if (b0 == null){ b0 = evaluateDeck(d, {apex:ar, games:200}).exact; FRESH.clear(); FRESH.set(k, b0); } const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); const v = +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); FRESH.set(mk, v); return v; } catch (err) { return null; } }; }
+// Where a land should go in (Build 138): one method for the card window and the Mana fix list, so both always agree. The lands it
+// could replace that keep every colour they made (best few by the quick guess), plus, when the deck runs short of mana, the
+// weakest spells; each measured with fresh practice games (lands change the mana), best first.
+const LAND_CUTS = 6, LAND_SPELLS = 3;
+function landRank(d, addName, ar){ const add = find(addName), id = ctxOf(d).ident, e = evalFor(d), starved = manaStarved(d, e), fd = freshDelta(d, ar);
+  const all = bestCuts(d, addName, 999, {starved}), lands = all.filter(x => !x.spell && landCovers(find(x.n), add, id)).slice(0, LAND_CUTS), spells = all.filter(x => x.spell).slice(0, LAND_SPELLS);
+  const out = lands.concat(spells).map(x => Object.assign({}, x, {dScore:fd(x.n, addName)})).filter(x => x.dScore != null).sort((a, b) => b.dScore - a.dScore); out.starved = starved; out.pool = lands.length + spells.length; return out; }
 // The deck score change for one swap in the card window; tiny changes read as unchanged.
 function wantChip(v){ return v == null ? '' : Math.abs(v) < SCORE_MIN ? '<span class="chip" title="Change to the deck score if you make this swap">Score unchanged</span>' : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="Change to the deck score if you make this swap">' + (v > 0 ? '+' : '−') + Math.abs(v).toFixed(1) + ' score</span>'; }
 // Which parts of the deck score a swap moves (practice games reused, as swapScore does; land swaps are not split).
@@ -2049,12 +2066,13 @@ function wantHtml(d, c){
   // Weigh this card against every card it could plausibly replace: the deck score with each swap made, best first. Both cards
   // can be weak for the deck and the swap still be a gain, so the player sees the +/- on each one.
   const e = d.format === 'commander' && A.size >= 90 ? evalFor(d) : null, ar = e && e.exact != null ? apexFor(d) : null;
-  let cuts = bestCuts(d, c.n, e && e.exact != null ? 999 : 3); const pool = cuts.length, cuts0 = cuts.slice();
-  if (e && e.exact != null){ const ls = cuts.some(x => x.land) ? freshDelta(d, ar) : null; cuts.forEach(x => { x.dScore = x.land ? ls(x.n, c.n) : swapScore(d, e, ar, x.n, c.n, 1); }); const key = x => (x.s <= -80 ? 1e6 : 0) + (x.dScore ?? -1e9);   // a card that is illegal or outside the colours always goes first
+  let cuts = bestCuts(d, c.n, e && e.exact != null ? 999 : 3); let pool = cuts.length; const cuts0 = cuts.slice(), landIn = tags(c).land && e && e.exact != null;
+  if (landIn){ const r = landRank(d, c.n, ar); pool = r.pool; cuts = r.slice(0, 3); cuts.starved = r.starved; }
+  else if (e && e.exact != null){ const ls = cuts.some(x => x.land) ? freshDelta(d, ar) : null; cuts.forEach(x => { x.dScore = x.land ? ls(x.n, c.n) : swapScore(d, e, ar, x.n, c.n, 1); }); const key = x => (x.s <= -80 ? 1e6 : 0) + (x.dScore ?? -1e9);   // a card that is illegal or outside the colours always goes first
     cuts = cuts.map((x, i) => [x, i]).sort((a, b) => key(b[0]) - key(a[0]) || a[1] - b[1]).map(x => x[0]).slice(0, 3); }
   if (!cuts.length) return lab + '<p class="note" style="margin:0">Every card it could replace is locked.</p><div class="row"><button class="btn" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add anyway</button></div>' + tipHtml(d, c) + '</div>';
   const side = (n, cls, small) => { const k = find(n); return '<button class="sw ' + cls + '" data-act="card" data-n="' + esc(n) + '">' + (k ? '<img alt="" src="' + artFor(k) + '">' : '<span></span>') + '<span><small>' + small + '</small>' + esc(n) + '</span><em>' + money(k) + '</em></button>'; };
-  const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + 'Weighed against all ' + pool + ' ' + (tags(c).land ? 'lands' : cuts0.some(x => x.land) ? 'spells and spare lands' : 'spells') + ' it could replace. ' + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
+  const b = cuts[0], note = b.dScore != null ? '<p class="note" style="margin:0">' + (landIn ? 'Weighed against the ' + pool + ' cards it could best replace (lands that keep your colours' + (cuts.starved ? ', and weak spells: the deck runs short of lands' : '') + ') with fresh practice games. ' : 'Weighed against all ' + pool + ' ' + (cuts0.some(x => x.land) ? 'spells and spare lands' : 'spells') + ' it could replace. ') + (b.dScore >= SCORE_MIN ? 'Each swap shows how the deck score would change.' : 'Every swap would ' + (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') + ' the deck score; the least harmful one is first.') + '</p>' : '';
   let h = lab + note + '<div class="swaphero">' + side(b.n, 'out', 'Take out') + '<span class="arrow" aria-hidden="true">→</span>' + side(c.n, 'in', 'Put in') + '</div>' +
     '<div class="row"><span class="chip good">Best swap</span>' + wantChip(b.dScore) + '<span class="chip">' + esc(b.why[0]) + '</span><button class="btn pri sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(b.n) + '" style="margin-left:auto">Swap in</button></div>' + tipHtml(d, c, b.dScore != null ? {cut:b.n, dScore:b.dScore, gain:swapGain(d, e, ar, b, c)} : null) + '</div>';
   S.wantMore = '<div class="grp"><span class="lab">Or take out instead</span>' + cuts.slice(1).map(x => '<div class="path">' + side(x.n, 'out', 'Take out') + '<div class="row">' + wantChip(x.dScore) + '<span class="chip">' + esc(x.why[0]) + '</span><button class="btn sm" data-act="want" data-n="' + esc(c.n) + '" data-v="' + esc(x.n) + '" style="margin-left:auto">Swap in</button></div></div>').join('') +
@@ -2469,7 +2487,7 @@ function handleAct(act, v, n, pArg){
         if (g.mech.length){ await loadEdh(c.n); const ed = g.mech.filter(isEdhAim); if (ed.length) await loadThemes(c.n, ed); aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]); }
         else aims = await edhAimsFor(c);
         setStatus(''); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length, player:g.player || ''}, sets.length ? {sets, setsMust:must} : {}, aims.length ? {aims} : {})); touch(); render(); })(); return; }
-    case 'h-fix': { const H0 = Object.keys(FIX_OF); if (v === '*'){ const st = $('.hfix'); const ks = st ? [...st.querySelectorAll('[data-act="h-fix"]')].map(b => b.dataset.v).filter(x => x !== '*') : H0; openFix(ks); } else openFix([v]); return; }
+    case 'h-fix': { const H0 = Object.keys(FIX_OF); if (v === '*'){ const st = $('.hfix'); const ks = st ? [...st.querySelectorAll('[data-act="h-fix"]')].map(b => b.dataset.v).filter(x => x !== '*') : H0; openFixSoon(ks); } else openFixSoon([v]); return; }
     case 'h-ignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v).concat(v); toast('The ' + v + ' alert is ignored for this deck. You can stop ignoring it under Health.'); if (!$('#modal').hidden && S.fixKeys){ const ks = S.fixKeys.filter(x => x !== v); if (ks.length) openFix(ks); else $('#modal').hidden = true; } break;
     case 'h-unignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v); toast('The ' + v + ' alert is back on.'); break;
     case 'fix-swap': { const [k, i] = String(v).split('|'), g = (S.fixG || []).find(x => x.k === k), p = g && g.L[+i]; if (!d || !p) return; if (fixApply(d, [p])) toast('Swapped ' + p.cut + ' for ' + p.add + '.'); touch(); render(); openFix(S.fixKeys); return; }

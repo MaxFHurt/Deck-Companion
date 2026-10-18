@@ -59,7 +59,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
   Previous. It uses `practiceGames`, a step-by-step copy of `simulate`; `simulate` is unchanged and a test checks the
   two agree game for game.
 
-## Build 137 (on the work branch, waiting for the owner's OK to touch the practice games)
+## Builds 137-138 (on the work branch, waiting for the owner's OK to touch the practice games)
 
 - Owner's iPad report: Fix Mana offered Thriving Isle -> Wooded Foothills (+0.3) in the five-colour Turtle deck. Three bugs:
   in the practice games every fetch land made all the deck's colours (Wooded Foothills can only find Mountains and Forests);
@@ -67,6 +67,12 @@ Items marked "discuss first" need the owner's decision before they are built; th
   that the new land makes the colours the old one made. Fixed (UP.lfix): fetch lands make what they can find in this deck,
   chosen-colour lands make their colour plus the one the hand needs, and a mana fix must keep every colour (landCovers).
   Spell benchmark unchanged; of the benchmark precons only Turtle Power's practice games change (stuck on a colour 18% -> 16%).
+- Build 138 (owner: the Mana fix offered a swap, but the card's window said its best swap was a different card): the card window
+  measured a land swap with the old practice games (so the mana change was never measured) and weighed its own set of cuts.
+  Now one method (landRank) serves both: lands that keep every colour (6 best by the quick guess) plus, when the deck runs short
+  of lands (practice games out of lands by turn 5 in 8%+ of games, or under the land target), its 3 weakest spells; each measured
+  with fresh practice games and remembered, so both show the same swap and the same number. The Mana fix opens at once and fills
+  in when ready (about 3 s on a desktop).
 - Full-pool measurement (`fullsearch.js`): scoring every legal same-job card finds a higher-scoring card than the app measured
   in 62 of 80 slots (mean gap 0.4), nearly all run by under 10% of players; many look wrong (Kozilek in Avengers, Quilled
   Greatwurm in Turtles, Nissa, Vital Force in 5 of 8 Ghalta slots) because the deck score credits any big creature as a way
