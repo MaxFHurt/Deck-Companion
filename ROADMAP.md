@@ -153,14 +153,17 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   14.06 -> 14.19), every other number equal. Screened on tuneall (about 30 settings, each halved and raised by half): almost all
   flat. Game Changer / tutor bonus 1.5 -> 2.25 helped upgrades slightly (@10 0.126 -> 0.127) but made generated decks worse
   (typicality 0.396 -> 0.393), so it stays. Fewer trimmed rows (trimPa 0.2) raised the sum to 12.0 but lowered @10: rejected.
-- **Card reading, tried and left off (UP.nmh 0):** "You have no maximum hand size" (Thought Vessel, Spellbook, Venser's
-  Journal, Decanter of Endless Water) is read as card draw, which it is not; the correct reading lowers the test set (@10 0.199
-  -> 0.197), so it stays off under the no-regression rule. A check of ramp, removal and board-wipe readings found no misreads.
+- **Card reading (UP.nmh 1, owner: "the hand size should always be fixed"):** "You have no maximum hand size" (Thought Vessel,
+  Spellbook, Venser's Journal, Decanter of Endless Water) is no longer read as card draw. The correct reading lowers the test
+  set a little (@10 0.199 -> 0.197, sum 6.69 -> 6.58, weighted 0.219 -> 0.215 / 7.59 -> 7.49) and takes back the rankN sum gain
+  (tuneall 9.30 -> 9.12); the owner ruled the correct reading wins. Generated decks improve (beat the median strong deck 10 ->
+  11 of 13; tournament match 55% -> 56%, core 53% -> 54%). A check of ramp, removal and board-wipe readings found no misreads.
 - **Tests:** UI suite 103/103 (new: UI-B141-01 thinking not shifting, -02 Build by theme, -03 obscure commanders and one-colour
   lands). UI-B118-01 (Tivit with no play data loaded) now tests the stage-1 bonus with the obscure-commander multipliers at 1.
   New tools: `genstrong.js` takes NOEDH=1 (no play data), `landsof.js` (a generated deck's lands).
-- **Benchmark (Build 141):** tuneall 0.244 / 0.245 / 0.126 / 9.30 (weighted 0.274 / 0.275 / 0.153 / 14.19); test 0.303 / 0.303
-  / 0.199 / 6.69; holdout 0.292 / 0.292 / 0.205 / 15.74: equal to or better than Build 140 everywhere.
+- **Benchmark (Build 141):** tuneall 0.244 / 0.245 / 0.126 / 9.12 (weighted 0.274 / 0.275 / 0.153 / 14.06); test 0.303 / 0.303
+  / 0.197 / 6.58 (weighted 0.322 / 0.322 / 0.215 / 7.49); holdout 0.292 / 0.292 / 0.205 / 15.74 (weighted 19.37). Equal to Build
+  140 except test @10 and sums, lowered by the hand-size reading (owner's ruling).
 
 ## Open decisions
 
@@ -250,7 +253,8 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   summary (done / works / needs the owner). Any question asked in a reply is
   repeated, reworded, at the end of that summary. Several questions or inputs are
   always numbered so the owner can answer by number.
-- No regression: every engine build must match or beat the last benchmark.
+- No regression: every engine build must match or beat the last benchmark. Exception (owner, 18 Oct): a correct rules reading
+  wins over the benchmark (first case: no maximum hand size is not card draw).
 - Tests: run only the checks the change can affect, and always its regression check before going live (the table in
   `WORK_SESSION_HANDOFF.md`, section 3). No tests for changes that can't affect them.
 - The MTG Commander Deck Manager spreadsheet never supplies benchmark inputs.
