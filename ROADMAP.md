@@ -166,7 +166,11 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   Changers that raised the score (Notion Thief +1.72, Farewell +0.83, Smothering Tithe +0.77, Enlightened Tutor +0.62) were all
   removed after scoring by those two steps; the three-card limit itself changed nothing. Apex upgrade lists on the tuning set:
   2 Game Changers in 197 picks -> 25 in 222, 6 of them ones strong (bracket 4+) players commonly add. They sort after the other
-  rows, so the benchmark is unchanged. Each row already says when it moves the deck up a bracket. Generated Apex decks already
+  rows, so the benchmark is unchanged. Each row already says when it moves the deck up a bracket.
+  Owner's rule (18 Oct): Game Changers follow the rule of every other mechanic: recommended only when they fit. A Game Changer
+  row stays only when the card window would rate it a Good or Great fit (evalFit); up to 3 (UP.gcK), and more (up to 6, UP.gcN)
+  only when one is a Strong upgrade or better (deck score +1 or more, UP.gcS). Tuning set: 27 suggested in 224 Apex picks, 7 of
+  them ones strong players commonly add (3 rows without the fit gate: 25 and 6; 6 rows: 40 and 7). Generated Apex decks already
   hold Game Changers (2.9 on average; strong real decks 1.7). `gcwhy.js` shows how the score judges each Game Changer row.
 - **"I don't have this card"** (owner): a card in the deck has the button in its window. It thinks, then lists cards that do
   the same job (the alternatives' rule) under the deck's price limit (cards you own at any price), each measured in the deck in

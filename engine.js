@@ -1232,6 +1232,13 @@ function scoreCheck(d, R, o){
   // re-paired picks follow the engine's own list (measured: better agreement with players than keeping their old place)
   extra.forEach(x => delete x.after); R.paths = R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])).concat(extra);
    // the engine's order (strongest upgrade first, checked against real players) is kept
+  // Game Changers follow the rule of every other mechanic (owner, 18 Oct): an Apex Game Changer row stays only when the card is a
+  // Good or Great fit for this deck (evalFit, the card window's own rating); up to UP.gcK of them, and more only when one is a
+  // Strong upgrade or better (raises the deck score by UP.gcS or more).
+  if (UP.gcF){ const G = R.paths.filter(L => L.gcPick && L.opts.apex && L.opts.apex.gcPick).sort((a, b) => (b.opts.apex.dScore || 0) - (a.opts.apex.dScore || 0)); let k = 0; const drop = new Set();
+    for (const L of G){ const p = L.opts.apex, c = find(p.add); let f = 'poor'; try { f = evalFit(d, c, null).fit; } catch (e) {}
+      if (!(f === 'great' || f === 'good') || (k >= UP.gcK && !((p.dScore || 0) >= UP.gcS))) drop.add(L); else k++; }
+    if (drop.size){ R.paths = R.paths.filter(L => !drop.has(L)); R.gcDropped = (R.gcDropped || 0) + drop.size; } }
   if (R.trimOf){ const n0 = R.paths.length; R.paths = R.paths.filter(L => !R.trimOf(L)); R.trimN = (R.trimN || 0) + n0 - R.paths.length; } const trimmed = R.trimN || 0;
   // Past the maximum (UP.uncTail): a row whose gain shows only past the parts' maximum (its pick raises the shown score by less
   // than the floor) stays on the list but goes after every row with a gain on the shown score.
@@ -1264,7 +1271,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {gcT:1, gc3:0, nmh:1, thA:1, thP:0.3, thT:0.3, thS:1.5, reF:1, rcap:2, rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, kw:1, kwB:0, kwS:0, unc:0.25, uncK:'', uncPick:0, uncTail:1, uncR:0, altCut:2, pool2:1, poolN:250, bs:1, bsF:0.5, bsP:9, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:18, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:10, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {gcT:1, gc3:0, nmh:1, thA:1, thP:0.3, thT:0.3, thS:1.5, reF:1, rcap:2, rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, kw:1, kwB:0, kwS:0, unc:0.25, uncK:'', uncPick:0, uncTail:1, uncR:0, altCut:2, pool2:1, poolN:250, bs:1, bsF:0.5, bsP:9, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:18, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:6, gcB:10, gcK:3, gcS:1, gcF:1, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
