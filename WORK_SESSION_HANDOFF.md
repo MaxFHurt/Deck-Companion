@@ -61,6 +61,7 @@ Last updated: 18 October 2026, Build 140 live; Build 141 built and tested on bra
   - Understand the commander: build around what it makes and what sets it off (e.g. a token maker wants cards that use
     or double that token).
   - A spell may be cut for a land when the deck is short of mana (owner, 18 Oct).
+  - **Never compromise the rules:** a correct rules reading always wins over the benchmark (owner, 18 Oct).
   - The MTG Commander Deck Manager spreadsheet never supplies benchmark inputs. Phone layout changes must not affect
     the iPad. Never overwrite the backup (`backup/build-118`). The practice-game simulation may change only with the
     owner's OK (given for Build 137's land-colour fix).

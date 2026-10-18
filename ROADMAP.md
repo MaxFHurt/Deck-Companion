@@ -253,8 +253,9 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   summary (done / works / needs the owner). Any question asked in a reply is
   repeated, reworded, at the end of that summary. Several questions or inputs are
   always numbered so the owner can answer by number.
-- No regression: every engine build must match or beat the last benchmark. Exception (owner, 18 Oct): a correct rules reading
-  wins over the benchmark (first case: no maximum hand size is not card draw).
+- **Never compromise the rules (owner, 18 Oct).** A correct reading of the Magic rules always wins over the benchmark (first case:
+  no maximum hand size is not card draw).
+- No regression: otherwise every engine build must match or beat the last benchmark.
 - Tests: run only the checks the change can affect, and always its regression check before going live (the table in
   `WORK_SESSION_HANDOFF.md`, section 3). No tests for changes that can't affect them.
 - The MTG Commander Deck Manager spreadsheet never supplies benchmark inputs.
