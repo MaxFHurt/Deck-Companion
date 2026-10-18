@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 141. Each item ships as its own build: build, run the full test suite
+Live: Build 141 (Build 142 built and tested, waiting for the owner's OK to push). Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -182,6 +182,42 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
 - **Benchmark (Build 141):** tuneall 0.244 / 0.245 / 0.126 / 9.12 (weighted 0.274 / 0.275 / 0.153 / 14.06); test 0.303 / 0.303
   / 0.197 / 6.58 (weighted 0.322 / 0.322 / 0.215 / 7.49); holdout 0.292 / 0.292 / 0.205 / 15.74 (weighted 19.37). Equal to Build
   140 except test @10 and sums, lowered by the hand-size reading (owner's ruling).
+
+## Build 142 (18 October 2026; not pushed: waits for the owner's OK)
+
+Owner: "do the rules audit, then push the deck builder to its max potential. Every generation should be the best it can be,
+no more leaving room for better."
+- **Rules audit** (every role the engine reads, on the 3,000 most-played Commander cards; misreads fixed, correct reading wins):
+  - Cycling is not card draw (its reminder text "Discard this card: Draw a card" made about 20 popular cards count as draw:
+    Unearth, Migration Path, Cloud of Faeries, Cast Out, Street Wraith, Starstorm...).
+  - "Target player draws" can be you: Peer into the Abyss is card draw.
+  - Lands put onto your battlefield over two sentences are ramp: Traverse the Outlands, Open the Way, Planar Genesis,
+    Shigeki, Hedge Shredder, Archdruid's Charm (giving an opponent a land, as Path to Exile does, stays not ramp).
+  - "Target attacking or blocking creature" is removal (Razorgrass Ambush); "creatures you don't control get -1/-1 for each"
+    is a board wipe (Toxrill).
+  - Checked and correct: counterspells, tutors (land searches are ramp, not tutors), protection (self-only protection and
+    "can't be countered" are not), land speed and colours, wipes (one-sided ones included), finishers (a few judgement calls,
+    such as Garruk's Uprising's team trample, left as they are). Side effect: Archdruid's Charm no longer counts as a tutor.
+  - Benchmark: holdout @5 0.292 -> 0.295, @10 0.205 -> 0.209 (weighted 0.318 -> 0.322, 0.241 -> 0.244); test @10 0.197 ->
+    0.196, sum 6.58 -> 5.98 (weighted @5 0.322 -> 0.321); tuneall @10 0.126 -> 0.127, sum 9.12 -> 9.24. Correct readings win.
+- **Never a swap that lowers the shown score:** a row whose gain is only past the parts' maximum (UP.uncTail) is now dropped,
+  not just moved last, when it lowers the shown score.
+- **Polished generation** (UP.polish 4 rounds, UP.polishK 10 swaps a round): the finished Apex build is run through the
+  upgrade engine itself and every swap it finds that raises the deck score is made, strongest first, until none is left; Mid
+  and Budget builds are then polished the same way at their own price level (polishDeck). The Apex reference build (the 100%
+  mark for card quality) is never polished and is now cached. The deck builder's buttons say "Thinking..." with the spinner
+  while it builds (the build takes about 13 s on a desktop at Apex, 25-30 s at Mid or Budget; longer on a phone).
+  Room left in a generated deck's own upgrade list (13 tuneall commanders): Apex 3.5 swaps / +0.74 -> 2.1 / +0.18; Mid 2.2 /
+  +0.26 -> 0.6 / +0.03; Budget 4.0 / +0.91 -> 1.5 / +0.10. Deck score Apex 94.7 -> 95.0, Budget 91.0 -> 91.6. Against strong
+  real decks: typicality 0.396 -> 0.409, core coverage 0.69 -> 0.71; tournament lists: match 55% -> 59%, core 53% -> 57%,
+  Mid 50% -> 53%. Commanders with no play data are unchanged (0.176): polishing relies on the same play data.
+- **Tried and not taken:** a higher score floor (0.08 / 0.1) or confirming borderline swaps on fresh practice games removes
+  many swaps players make (holdout @5 0.295 -> 0.271-0.282). Finding: for some swaps the stored practice games (which don't
+  play the new card) and fresh ones disagree (Sultai: Muldrotha +0.05 stored, -0.40 fresh), while players add those cards. One
+  borderline swap in the score check (Doom: Endless Ranks of HYDRA -> Taskmaster, +0.07 stored, -0.07 on 300 fresh games,
+  -0.01 on 600) remains: scheck bad 1.
+- **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
+  `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
 ## Open decisions
 

@@ -363,6 +363,10 @@ function phHtml(c){ const L = phOf(c); if (!L) return ''; const f = L[0], l = L[
   return '<dt>Price history</dt><dd><svg class="spark" viewBox="0 0 ' + W + ' ' + Hh + '" width="' + W + '" height="' + Hh + '" role="img" aria-label="Price from ' + fmt(f[1]) + ' to ' + fmt(l[1]) + '"><polyline fill="none" stroke="currentColor" stroke-width="2" points="' + pts + '"/></svg> ' +
     fmt(f[1]) + ' on ' + esc(f[0]) + ' → ' + fmt(l[1]) + ' on ' + esc(l[0]) + ' <span class="chip ' + (ch > 0.02 ? 'warn' : ch < -0.02 ? 'good' : '') + '">' + (ch > 0.02 ? '▲ ' : ch < -0.02 ? '▼ ' : '') + (ch >= 0 ? '+' : '−') + Math.abs(ch * 100).toFixed(0) + '%</span> · low ' + fmt(lo) + ', high ' + fmt(hi) + '</dd>'; }
 function setStatus(t){ const el = $('#status'); if (el){ const was = el.hidden; el.textContent = t; el.hidden = !t; if (was !== el.hidden) fitWork(); } }
+// Building a deck takes a few seconds (longer on a phone: the build is polished until no upgrade is left). The status line says
+// the app is thinking, with the spinner, and is drawn before the work starts so the screen never looks frozen (owner: wait
+// rather than shift; "it's okay to tell the user the app is thinking").
+async function thinkThen(msg, fn){ const el = $('#status'); setStatus(msg); if (el) el.classList.add('think'); await new Promise(r => setTimeout(r, 60)); try { return fn(); } finally { if (el) el.classList.remove('think'); setStatus(''); } }
 async function ingest(stream, size, when){
   const rows = []; let buf = '', read = 0, lines = 0;
   const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
@@ -1129,7 +1133,8 @@ function dycbRank(k){ const own = Object.keys(lib()).map(find).filter(c => c && 
       return {c, s, inC:inC.length, onT, own:ownSetN.has(c._n)}; })
     .filter(x => x.inC >= 5).sort((a, b) => b.s - a.s).slice(0, k || 10); }
 function dycbCost(c){ const own = ownSet(), d = {id:'dycb', name:'dycb', format:'commander', commander:'', tier:'apex', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}; setCommander(d, c.n);
-  const P = buildPlan(d, [], own, own); let have = own.has(c._n) ? 1 : 0, total = 1, cost = 0, missing = 0;
+  const was = buildPlan.inRef; buildPlan.inRef = true; let P; try { P = buildPlan(d, [], own, own); } finally { buildPlan.inRef = was; }   // a cost estimate for many commanders: no polishing
+  let have = own.has(c._n) ? 1 : 0, total = 1, cost = 0, missing = 0;
   P.forEach(sl => { const x = find(sl.a); total += sl.q; if (x && (own.has(x._n) || isBasic(x.n))) have += sl.q; else { missing += sl.q; cost += ((x && x.p) || 0) * sl.q; } });
   if (!own.has(c._n)) cost += c.p || 0; return {have, total, cost, missing}; }
 function openDycb(){ const sig = Object.keys(lib()).length + ':' + S.libV + ':' + DBINFO.count; if (!S.dycb || S.dycb.sig !== sig) S.dycb = {sig, rows:dycbRank(10).map(r => Object.assign(r, {cost:null})), i:0};
@@ -1405,7 +1410,7 @@ function startPlan(cmdName, seeds, extraAims, partner, opts){
   nd.plan = buildPlan(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
   { const n = nd.plan.reduce((s, x) => s + x.q, 0), want = 100 - 1 - (nd.partner ? 1 : 0), short = n < want ? ' Only ' + n + ' of ' + want + ' slots could be filled' + ((nd.sets || []).length && nd.setsMust ? ' from the chosen sets' : '') + '; the rest stay open.' : '';
     // The deck is built straight into the decklist at the chosen price level; the stronger picks stay as its upgrades.
-    if (opts && opts.fill){ const k = planAll(nd, opts.fill); delete nd.plan; nd.tier = opts.fill; S.tab = 'list'; toast('Built ' + k + ' cards for ' + c.n.split(',')[0] + ' at ' + TIERS[opts.fill].label + '.' + short + (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.')); }
+    if (opts && opts.fill){ const k = planAll(nd, opts.fill); delete nd.plan; nd.tier = opts.fill; if (opts.fill !== 'apex') polishDeck(nd); S.tab = 'list'; toast('Built ' + k + ' cards for ' + c.n.split(',')[0] + ' at ' + TIERS[opts.fill].label + '.' + short + (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.')); }
     else toast('Designed a ' + n + '-card build for ' + c.n + '.' + short + ' Add the cards you want from the Upgrades tab.'); }
   return nd;
 }
@@ -1886,7 +1891,7 @@ function regenBuild(d){
   setCommander(nd, c.n); if (d.partner){ const p = find(d.partner); if (p && canPair(c, p)) nd.partner = p.n; }
   nd.colors = (d.colors || []).length ? d.colors.slice() : ctxOf(nd).ident.slice(); nd.tribe = d.tribe || nd.tribe;   // setCommander resets them; keep the player's
   if (d.themeFirst) nd.themeFirst = true;
-  nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.planShow = 0; const k = planAll(nd, S.gen.tier || 'apex'); delete nd.plan; nd.tier = S.gen.tier || 'apex'; S.tab = 'list';
+  nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.planShow = 0; const k = planAll(nd, S.gen.tier || 'apex'); delete nd.plan; nd.tier = S.gen.tier || 'apex'; if (nd.tier !== 'apex') polishDeck(nd); S.tab = 'list';
   toast('Built a new ' + k + '-card deck with your mechanics at ' + TIERS[S.gen.tier || 'apex'].label + '. Your original deck is unchanged.'); return nd;
 }
 // Build by theme (owner, 18 Oct): pick what the deck should do (and, if you like, its colours or creature type); the app ranks the
@@ -2375,7 +2380,7 @@ function handleAct(act, v, n, pArg){
       $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Regenerate around my cards"><div class="ph"><h2>Regenerate around my cards?</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
         '<p class="note" style="margin:0">Every card in your deck stays, as the starting point. The ' + room + ' open slot' + (room === 1 ? '' : 's') + ' are filled with the cheapest card that suits each one, designed around your cards. From then on every suggestion in Upgrades is an upgrade from where your deck is (Budget, then Mid, then Apex), and each one must raise the deck score. You can undo this.</p>' +
         '<div class="row"><button class="btn pri" data-act="plan-regen-go">Regenerate</button><button class="btn" data-act="close">Cancel</button></div></div>'; $('#modal').hidden = false; return; }
-    case 'plan-regen-go': { if (!d || !d.plan) return; $('#modal').hidden = true; toast('Designing the open slots around your ' + d.cards.reduce((a, e) => a + e.q, 0) + ' cards…'); setTimeout(() => { if (cur() !== d) return; const n = regenPlan(d); S.tab = 'up'; touch(); render(); toast('Filled ' + n + ' slot' + (n === 1 ? '' : 's') + ' around your cards. Every suggestion is now an upgrade from here.'); }, 30); return; }
+    case 'plan-regen-go': { if (!d || !d.plan) return; $('#modal').hidden = true; setStatus('Thinking… designing the open slots around your ' + d.cards.reduce((a, e) => a + e.q, 0) + ' cards'); { const el = $('#status'); if (el) el.classList.add('think'); } setTimeout(() => { { const el = $('#status'); if (el) el.classList.remove('think'); } setStatus(''); if (cur() !== d) return; const n = regenPlan(d); S.tab = 'up'; touch(); render(); toast('Filled ' + n + ' slot' + (n === 1 ? '' : 's') + ' around your cards. Every suggestion is now an upgrade from here.'); }, 30); return; }
     case 'plan-regen-undo': if (d && d.regenUndo){ d.cards = d.regenUndo.cards; if (d.regenUndo.plan) d.plan = d.regenUndo.plan; d.recP = d.regenUndo.recP || {}; delete d.regenUndo; S.planShow = 0; toast('Put your deck and the previous plan back.'); } break;
     case 'regen-go': doRegen(); return;
     case 'hold-release': if (d.recP) delete d.recP[norm(n)]; toast(n + ' is no longer held for this deck.'); break;
@@ -2513,7 +2518,7 @@ function handleAct(act, v, n, pArg){
     case 'seed-del': S.seed.cards = S.seed.cards.filter(x => x !== n); openSeed(); return;
     case 'seed-paste': S.seed.paste = true; openSeed(); return;
     case 'seed-paste-go': { const r = parseDeckText(($('#seed-text') || {}).value || ''); let k = 0, miss = 0; (r.commander ? [{n:r.commander}] : []).concat(r.partner ? [{n:r.partner}] : [], r.cards).forEach(x => { const c = find(x.n); if (!c){ miss++; return; } if (!S.seed.cards.includes(c.n)){ S.seed.cards.push(c.n); k++; } }); S.seed.paste = false; openSeed(); toast('Added ' + k + ' card' + (k === 1 ? '' : 's') + (miss ? ' · ' + miss + ' not recognised' : '') + '.'); return; }
-    case 'seed-go': { $('#modal').hidden = true; toast('Building your deck…'); const go = () => seedBuild(n, v); loadEdh(n).then(go, go); return; }
+    case 'seed-go': { $('#modal').hidden = true; const go = () => thinkThen('Thinking… building the strongest deck around your cards', () => seedBuild(n, v)); loadEdh(n).then(go, go); return; }
         case 'precon': { $('#modal').hidden = true; const nd = loadPrecon(PRECONS[+v]), unk = nd.cards.filter(e => !find(e.n)).length; toast('Loaded the official ' + nd.name + ' list.' + (unk ? ' ' + unk + ' cards need the full card database to show details.' : '')); break; }
     case 'analyze': openAnalysis(); return;
     case 'alts': openAlts(v); return;
@@ -2544,7 +2549,7 @@ function handleAct(act, v, n, pArg){
     case 'dset-rm': (d.sets || []).splice(+v, 1); if (!d.sets.length) d.setsMust = false; aimsChanged(d); break;
     case 'dset-must': d.setsMust = !d.setsMust; aimsChanged(d); break;
     case 'gen-partner': S.gen.partner = n || ''; openGenerate(); return;
-    case 'build-gen': { if (S.draft){ const dr = S.draft; S.profile.decks.unshift(dr); S.draft = null; toast('Saved ' + dr.name + ' to your decks first.'); } if (!regenBuild(d)) return; break; }
+    case 'build-gen': { if (S.draft){ const dr = S.draft; S.profile.decks.unshift(dr); S.draft = null; toast('Saved ' + dr.name + ' to your decks first.'); } thinkThen('Thinking… building the strongest deck', () => { if (regenBuild(d)){ touch(); render(); } }); return; }
     case 'gen-pick': S.gen.cmd = n; S.gen.partner = ''; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
     case 'gen-tpick': S.gen.tk = S.gen.tk === v ? '' : v; S.gen.tmore = false; openGenerate(); { const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); } return;
     case 'gen-tmore': S.gen.tmore = !S.gen.tmore; openGenerate(); { const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); } return;
@@ -2555,7 +2560,7 @@ function handleAct(act, v, n, pArg){
       (async () => { setStatus('Thinking… reading how players build ' + c.n.split(',')[0] + ' for this theme'); let aims = [k];
         try { await loadEdh(c.n); if (EDH.key === c.n && EDH.state === 'ok'){ const re = k === 'tribal' ? new RegExp(tribe.toLowerCase().slice(0, 4)) : THEME_EDH[k], T0 = (EDH.tags || []).slice(0, 12), hit = T0.filter(t => re && re.test(t.slug)).slice(0, 1), rest = T0.filter(t => !hit.includes(t)).slice(0, 2 - hit.length);
           const ed = hit.concat(rest).map(t => 'edh:' + t.slug); if (ed.length) await loadThemes(c.n, ed); aims = aims.concat(ed.filter(a => (EDH.tmap || {})[a.slice(4)])).slice(0, 3); } } catch (e) {}
-        setStatus(''); startPlan(c.n, [], null, null, {fill:g.tier || 'apex', mechChosen:true, aims, tribe, player:g.player || ''}); touch(); render(); })(); return; }
+        await thinkThen('Thinking… building the strongest deck for ' + c.n.split(',')[0], () => startPlan(c.n, [], null, null, {fill:g.tier || 'apex', mechChosen:true, aims, tribe, player:g.player || ''})); touch(); render(); })(); return; }
     case 'gen-tier': S.gen.tier = TIERS[v] ? v : 'apex'; S.gen.warn = ''; openGenerate(); return;
     case 'gen-best': { const g = S.gen; g.warn = ''; if (!g.best && (g.theme || g.mech.length)){ g.warn = 'Best overall builds from any set around what top players build this commander around, so it can’t also put ' + [g.theme ? 'the theme' : '', g.mech.length ? 'your mechanics' : ''].filter(Boolean).join(' or ') + ' first. ' + [g.theme ? 'Theme first' : '', g.mech.length ? 'Focus on mechanics' : ''].filter(Boolean).join(' and ') + (g.theme && g.mech.length ? ' were' : ' was') + ' switched off.'; g.theme = false; g.mech = []; g.mechOpen = false; } g.best = !g.best; openGenerate(); return; }
     case 'gen-theme': { const g = S.gen; g.warn = ''; if (!g.theme && g.best){ g.best = false; g.warn = 'Theme first puts the commander’s own set and creature types ahead of the strongest cards from any set, so Best overall was switched off. Theme first and mechanics can be used together.'; } g.theme = !g.theme; openGenerate(); return; }
@@ -2566,7 +2571,7 @@ function handleAct(act, v, n, pArg){
         setStatus('Reading how players build ' + c.n.split(',')[0] + '…'); let aims = [];
         if (g.mech.length){ await loadEdh(c.n); const ed = g.mech.filter(isEdhAim); if (ed.length) await loadThemes(c.n, ed); aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]); }
         else aims = await edhAimsFor(c);
-        setStatus(''); startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length, player:g.player || ''}, sets.length ? {sets, setsMust:must} : {}, aims.length ? {aims} : {})); touch(); render(); })(); return; }
+        await thinkThen('Thinking… building the strongest deck for ' + c.n.split(',')[0], () => startPlan(c.n, [], null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length, player:g.player || ''}, sets.length ? {sets, setsMust:must} : {}, aims.length ? {aims} : {}))); touch(); render(); })(); return; }
     case 'h-fix': { const H0 = Object.keys(FIX_OF); if (v === '*'){ const st = $('.hfix'); const ks = st ? [...st.querySelectorAll('[data-act="h-fix"]')].map(b => b.dataset.v).filter(x => x !== '*') : H0; openFixSoon(ks); } else openFixSoon([v]); return; }
     case 'h-ignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v).concat(v); toast('The ' + v + ' alert is ignored for this deck. You can stop ignoring it under Health.'); if (!$('#modal').hidden && S.fixKeys){ const ks = S.fixKeys.filter(x => x !== v); if (ks.length) openFix(ks); else $('#modal').hidden = true; } break;
     case 'h-unignore': if (!d) return; d.ignoreH = (d.ignoreH || []).filter(x => x !== v); toast('The ' + v + ' alert is back on.'); break;

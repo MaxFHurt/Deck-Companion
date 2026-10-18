@@ -1,5 +1,5 @@
 // After the score check: no recommended swap (any tier, free, best-under-$X) lowers the deck score; how many paths remain.
-const path = require('path'), H = require('./h.js')(path.resolve(process.argv[2])), X = H.ctx, run = H.run;
+const path = require('path'), H = require('./h.js')(path.resolve(process.argv[2])), X = H.ctx, run = H.run; if (process.env.UP){ X.__up = JSON.parse(process.env.UP); run('Object.assign(UP, __up)'); }
 const slugs = 'doom-prevails,turtle-power,wakanda-forever,avengers-assemble,family-matters,limit-break,abzan-armor,counter-blitz,grand-larceny,squirreled-away'.split(',');
 let tot = {paths0:0, paths:0, opts:0, bad:0, dropped:0, ms:0};
 for (const s of slugs){ const d = H.retail(s); H.edh(d.commander); X.__d = d;
