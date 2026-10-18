@@ -352,7 +352,7 @@ T('UI-B78-01', 'Build 78: loading a precon asks how to upgrade (plan, tier, sets
 // 31. The real (background) score check: the tab draws at once with a "checking" note, nothing is held meanwhile, then the checked list.
 const asy = await page.evaluate(async () => { const out = {}; S.syncRecs = false; await loadPreconLive('family-matters', 'Family Matters'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up';
   await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); d.recP = {}; recsFor.k = null; render();
-  out.placeholder = /Checking each upgrade against your deck score/.test(document.body.textContent); out.heldWhilePending = Object.keys(d.recP || {}).length; out.noSwapsWhilePending = !document.querySelector('.paths [data-act="swap"]');
+  out.placeholder = /checking each upgrade against your deck score/i.test(document.body.textContent); out.heldWhilePending = Object.keys(d.recP || {}).length; out.noSwapsWhilePending = !document.querySelector('.paths [data-act="swap"]');
   await recsReady(d); await new Promise(r => setTimeout(r, 100)); out.listed = document.querySelectorAll('.paths [data-act="swap"]').length; out.allOk = recsFor(d).paths.every(L => Object.values(L.opts).every(p => p.dScore != null && p.dScore >= 0)); S.syncRecs = true; return out; });
 T('UI-ASYNC-01', 'Background score check: Upgrades draws at once and says it is checking, holds nothing and offers no swap until the check is done, then lists only checked upgrades', asy.placeholder && asy.heldWhilePending === 0 && asy.noSwapsWhilePending && asy.listed > 0 && asy.allOk, JSON.stringify(asy));
 // 32. Build 81: decklist A–Z inside each type; a card goes on the player's own buy list with no deck; Upgrades sort by impact;
@@ -751,9 +751,12 @@ T('UI-B117-01', 'Phones: Continue under the home tiles and above Profile, no ext
 // 68. Build 118: smarter deck score, stage 1. In an Apex deck a tournament staple (fast mana, free interaction, the best lands) is
 // worth more and says why; the best lands count toward card quality. Mid decks are unchanged.
 const b118 = await page.evaluate(() => { const mk = t => { const d = newDeck({name:'Staples ' + t, format:'commander'}); setCommander(d, 'Tivit, Seller of Secrets'); d.tier = t; return d; };
+  // Build 141: this deck has no play data loaded, so it counts as an obscure commander, whose generic-power bonuses are scaled
+  // (UP.thT, UP.thP; tested in UI-B141-03); the stage-1 bonus itself is tested at full value
+  const th = [UP.thT, UP.thP]; UP.thT = 1; UP.thP = 1;
   const A = mk('apex'), M = mk('mid'), cA = ctxOf(A), cM = ctxOf(M), mox = find('Mox Diamond'), fow = find('Force of Will'), sA = baseScore(mox, A, cA), sM = baseScore(mox, M, cM);
   return {apexWhy:sA.why.includes('Tournament staple: fast mana'), midWhy:sM.why.some(w => /Tournament/.test(w)), gain:+(sA.s - sM.s).toFixed(2), fowWhy:baseScore(fow, A, cA).why.includes('Tournament staple: free or one-mana interaction'),
-    tombA:spellMean([{n:'Ancient Tomb', q:1}], A, cA) > 0, tombM:spellMean([{n:'Ancient Tomb', q:1}], M, cM) === 0}; });
+    tombA:spellMean([{n:'Ancient Tomb', q:1}], A, cA) > 0, tombM:spellMean([{n:'Ancient Tomb', q:1}], M, cM) === 0, restore:([UP.thT, UP.thP] = th, true)}; });
 T('UI-B118-01', 'Smarter deck score, stage 1: in an Apex deck tournament staples (Mox Diamond, Force of Will) score higher and say why, and Ancient Tomb counts toward card quality; a Mid deck is unchanged', b118.apexWhy && !b118.midWhy && b118.gain >= 5.9 && b118.fowWhy && b118.tombA && b118.tombM, JSON.stringify(b118));
 // 69. Build 119: printed names. A reskinned reprint shows the name on the card ("Humongous Fungus" in the TMNT precon) with the
 // card's own name beside it: kept when a precon or a pasted list is loaded, and read from the precon list for decks saved earlier.
@@ -931,8 +934,8 @@ const b138 = await page.evaluate(async () => { const out = {decks:0, rows:0, agr
     const p0 = L[0]; if (p0 && out.window == null){ S.cardWant = true; const h = wantHtml(d, find(p0.add)); out.window = p0.best ? h.indexOf(esc(p0.cut)) >= 0 && h.indexOf(esc(p0.cut)) < h.indexOf('Least') + 1e6 : true; } }
   out.starvedSpell = (() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)), A = analyze(d), c = bestCuts(d, 'Sulfur Falls', 999, {starved:true}); return c.some(x => x.spell) && !bestCuts(d, 'Sulfur Falls', 999, {}).some(x => x.spell); })();
   return out; });
-const b138b = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.tab = 'stats'; render(); openFixSoon(['Mana']); const first = /Checking land swaps/.test($('#modal').textContent);
-  for (let i = 0; i < 100 && /Checking land swaps/.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100)); const done = /practice games/.test($('#modal').textContent) && !/Checking land swaps/.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });
+const b138b = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.tab = 'stats'; render(); openFixSoon(['Mana']); const first = /checking land swaps/i.test($('#modal').textContent);
+  for (let i = 0; i < 100 && /checking land swaps/i.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100)); const done = /practice games/.test($('#modal').textContent) && !/checking land swaps/i.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });
 b138.soon = b138b.first && b138b.done;
 T('UI-B138-01', 'Mana fix and card window agree: each land the fix offers goes where the card window puts it, with the same score; when the deck runs short of lands a weak spell may make room', b138.decks > 0 && !b138.mismatch.length && b138.starvedSpell && b138.window !== false && b138.soon, JSON.stringify(b138).slice(0, 900));
 // 88. Build 139: the engine knows the rules' keywords (graveyard, token, counter… mechanics) and reads the commander's engine: what
@@ -981,6 +984,38 @@ const b140e = await page.evaluate(async () => { const f = n => find(n), out = {}
   out.found = Rn.paths.filter(L => L.top && L.top.pool).map(L => L.cut + ' -> ' + L.top.n + ' ' + L.top.dScore);
   out.slots = document.querySelectorAll('.topslot[data-i]').length > 0; S.syncRecs = sync0; UP.poolN = n0; return out; });
 T('UI-B140-03', 'Engine: The Soul Stone and Living Death read as reanimation (Living Death a way to win); Kozilek wins only by size and Nissa, Vital Force is not card draw; the background search measures every card for each row, says so while it runs, and keeps only finds that raise the score', b140e.reanim && b140e.blind && b140e.done && b140e.total > 0 && b140e.never && b140e.slots, JSON.stringify(b140e).slice(0, 900));
+// 92. Build 141 (owner: wait rather than shift; "it's okay to tell the user the app is thinking"): Fix: Mana and a land's card
+// window open at once with a small spinner and fill in once, complete; each row's Highest score says it is thinking until the
+// background search is done, and the rows never change while it runs.
+const b141 = await page.evaluate(async () => { const out = {}, d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.syncRecs = true; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; render();
+  openFixSoon(['Mana']); out.fixSpin = !!document.querySelector('#modal .think'); for (let i = 0; i < 150 && document.querySelector('#modal .think'); i++) await new Promise(r => setTimeout(r, 100)); out.fixDone = !document.querySelector('#modal .think'); $('#modal').hidden = true;
+  S.tab = 'list'; render(); const land = LIB.find(c => tags(c).land && !isBasic(c.n) && c.cmd && c.ci.length && c.ci.every(x => ctxOf(d).ident.includes(x)) && !hasCard(d, c.n));
+  openCard(land.n); out.landSpin = !!document.querySelector('#want-think .think'); for (let i = 0; i < 150 && document.querySelector('#want-think'); i++) await new Promise(r => setTimeout(r, 100));
+  out.landDone = !document.querySelector('#want-think') && /Put this card in/.test($('#modal').textContent); $('#modal').hidden = true;
+  const n0 = UP.poolN; UP.poolN = 30; S.syncRecs = false; S.tab = 'up'; recsFor.k = null; render(); await recsReady(d); await new Promise(r => setTimeout(r, 600)); let R = recsFor(d);
+  const snap = () => [...document.querySelectorAll('.topslot[data-i]')].map(e => e.textContent).join('|');
+  out.thinking = document.querySelectorAll('.topslot .think').length > 0; const mid = snap(); await new Promise(r => setTimeout(r, 400)); out.steady = R.poolDone || snap() === mid;
+  for (let i = 0; i < 600 && !(R.poolDone && R === recsFor(d)); i++){ await new Promise(r => setTimeout(r, 100)); R = recsFor(d); }
+  await new Promise(r => setTimeout(r, 100)); out.after = document.querySelectorAll('.topslot .think').length === 0 && R.poolDone; UP.poolN = n0; S.syncRecs = true; return out; });
+T('UI-B141-01', 'Thinking, not shifting: Fix: Mana and a land’s card window open with a spinner and fill in once; Highest score says it is thinking until the search is done, nothing changes meanwhile, then every row fills at once', b141.fixSpin && b141.fixDone && b141.landSpin && b141.landDone && b141.thinking && b141.steady && b141.after, JSON.stringify(b141));
+// 93. Build 141: Build by theme. Pick a theme (and a creature type, colours) and the builder lists the commanders that build around
+// it; Build makes the deck with that theme as its first mechanic.
+const b141t = await page.evaluate(async () => { const out = {}; S.gen = {}; openGenerate(); out.box = !!document.querySelector('#themebuild');
+  handleAct('gen-tpick', 'graveyard'); handleAct('gen-tcol', 'B'); out.list = [...document.querySelectorAll('#themebuild [data-act="gen-tbuild"]')].map(b => b.dataset.n);
+  out.allBlack = out.list.every(n => find(n).ci.includes('B')); out.allGrave = out.list.every(n => detectStrategy(find(n)).themes.includes('graveyard') || tags(find(n)).th.graveyard === 1);
+  handleAct('gen-tpick', 'tribal'); const sel = document.querySelector('#gen-ttribe'); sel.value = 'Elf'; sel.dispatchEvent(new Event('change', {bubbles:true})); out.elves = [...document.querySelectorAll('#themebuild [data-act="gen-tbuild"]')].map(b => b.dataset.n);
+  handleAct('gen-tpick', 'graveyard'); const n0 = S.profile.decks.length, b = document.querySelector('#themebuild [data-act="gen-tbuild"]'); out.built = b.dataset.n; b.click();
+  for (let i = 0; i < 300 && !(S.draft && S.draft.commander === out.built); i++) await new Promise(r => setTimeout(r, 100)); const d = S.draft;
+  out.deck = d && {cmd:d.commander, first:d.aims[0], size:analyze(d).size}; out.valid = d ? validateDeck(d).filter(v => v.key !== 'wrong_deck_size').length === 0 : false; return out; });
+T('UI-B141-02', 'Build by theme: graveyard + black lists only black graveyard commanders; Elf lists Elf commanders; Build makes a full deck with the theme first and no rule problems', b141t.box && b141t.list.length >= 4 && b141t.allBlack && b141t.allGrave && b141t.elves.some(n => /Lathril|Marwyn|Ezuri/.test(n)) && b141t.deck && b141t.deck.first === 'graveyard' && b141t.deck.size >= 99 && b141t.valid, JSON.stringify(b141t).slice(0, 900));
+// 94. Build 141: a commander with no play data (obscure or new) gives generic power less weight (tournament staples, Game Changers
+// and tutors at UP.thT / UP.thP, the most-played staples at UP.thS); a one-colour deck never takes City of Brass, Mana
+// Confluence, Exotic Orchard or Command Tower over a basic; two-colour decks still may.
+const b141e = await page.evaluate(() => { const out = {}, mk = () => { const d = {format:'commander', commander:'', tier:'apex', aims:[], cards:[], tribe:'', colors:[]}; setCommander(d, 'Tivit, Seller of Secrets'); return d; }, d = mk(), c = ctxOf(d), mox = find('Mox Diamond');
+  const th = [UP.thT, UP.thP, UP.thS], thin = baseScore(mox, d, c).s; UP.thT = 1; UP.thP = 1; UP.thS = 1; const full = baseScore(mox, d, c).s; [UP.thT, UP.thP, UP.thS] = th; out.less = thin < full - 3;
+  out.mono = ['City of Brass', 'Mana Confluence', 'Exotic Orchard', 'Command Tower'].every(n => monoJunkLand(find(n), ['G'])) && !monoJunkLand(find('Gemstone Caverns'), ['G']) && !monoJunkLand(find("Gaea's Cradle"), ['G']) && !monoJunkLand(find('Mana Confluence'), ['G', 'B']);
+  return out; });
+T('UI-B141-03', 'Obscure commanders: with no play data, generic power counts less; one-colour decks never take pain or any-colour lands over a basic (two colours still may)', b141e.less && b141e.mono, JSON.stringify(b141e));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

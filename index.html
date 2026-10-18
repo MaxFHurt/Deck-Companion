@@ -45,6 +45,8 @@ h1,h2,h3{margin:0;font-family:var(--display);text-wrap:balance}
 .brand .pulse{animation:pulse 3.6s ease-in-out infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{50%{opacity:.45}}
+/* "Thinking" (owner, 18 Oct): results wait until they are final; a small spinner shows the app is working */
+.think{display:flex;align-items:center;gap:8px;color:var(--mute)} .think::before{content:'';flex:none;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--glow);border-radius:50%;animation:spin .9s linear infinite}
 .brand b{display:block;font:900 30px/1 var(--display);letter-spacing:.12em;margin-right:-.12em;background:linear-gradient(180deg,#fff,#cfc6ee 45%,#8f86b8);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 22px rgba(185,147,255,.35)}
 .brand span{display:block;font:500 13px/1.2 var(--display);letter-spacing:.52em;color:var(--chrome);margin-top:4px;margin-right:-.52em}
 button.brand{background:none;border:0;padding:0;color:inherit;font:inherit}
@@ -423,7 +425,7 @@ a{color:var(--glow)}
   /* stay clear of the notch without the full safe-area band */
   .app{padding-inline:max(8px,calc(env(safe-area-inset-left,0px) - 22px)) max(8px,calc(env(safe-area-inset-right,0px) - 22px))}
 }
-@media (prefers-reduced-motion:reduce){ .brand .spin,.brand .pulse{animation:none} button.card:hover{transform:none} }
+@media (prefers-reduced-motion:reduce){ .brand .spin,.brand .pulse{animation:none} .think::before{animation:pulse 1.6s ease-in-out infinite} button.card:hover{transform:none} }
 </style>
 </head>
 <body>
@@ -454,7 +456,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 140;
+window.BUILD = 141;
 (function(){
   var last = 0;
   function check(){

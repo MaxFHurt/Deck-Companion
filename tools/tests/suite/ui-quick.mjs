@@ -38,7 +38,7 @@ const q1 = await page.evaluate(async () => { await loadPreconLive('wakanda-forev
 T('Q-LOAD', 'A precon loads with every card recognised', q1.size >= 99 && !q1.unknown, JSON.stringify(q1));
 // Q2. Upgrades in the background: says it is checking, then lists checked swaps within 15 s (catches a slower score check or a hidden list).
 await open('up', false);
-const q2 = await page.evaluate(async () => { const d = cur(); recsFor.k = null; render(); const checking = /Checking each upgrade/.test(document.body.textContent), t0 = performance.now(); await recsReady(d); const ms = Math.round(performance.now() - t0); await new Promise(r => setTimeout(r, 200));
+const q2 = await page.evaluate(async () => { const d = cur(); recsFor.k = null; render(); const checking = /checking each upgrade/i.test(document.body.textContent), t0 = performance.now(); await recsReady(d); const ms = Math.round(performance.now() - t0); await new Promise(r => setTimeout(r, 200));
   return {checking, ms, rows:document.querySelectorAll('.paths .path').length, swaps:document.querySelectorAll('.paths [data-act="swap"]').length, alts:document.querySelectorAll('.paths .alt3 .a3').length, slots:document.querySelectorAll('.topslot[data-i]').length}; });
 T('Q-UPGRADES', 'Upgrades: says it is checking, then shows rows with Swap buttons, alternatives and Highest score slots within 15 s', q2.checking && q2.ms < 15000 && q2.rows > 0 && q2.swaps > 0 && q2.alts > 0 && q2.slots > 0, JSON.stringify(q2));
 // Q3. A swap goes in, and Undo brings the deck back.
@@ -54,8 +54,8 @@ T('Q-CARD', 'Card window opens with its swap box and says when a card is over th
 const q5 = {}; for (const t of ['list', 'stats', 'buy']){ await open(t, true); await page.waitForTimeout(300); q5[t] = await page.evaluate(() => ({len:document.querySelector('#main').innerText.length, practice:/Practice games/i.test(document.body.textContent)})); }
 T('Q-TABS', 'Decklist, Build stats (practice games) and Buy list draw', q5.list.len > 500 && q5.stats.practice && q5.buy.len > 200, JSON.stringify(q5));
 // Q6. Fix: Mana opens at once and fills in.
-const q6 = await page.evaluate(async () => { openFixSoon(['Mana']); const first = /Checking land swaps/.test($('#modal').textContent); for (let i = 0; i < 150 && /Checking land swaps/.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100));
-  const done = !/Checking land swaps/.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });
+const q6 = await page.evaluate(async () => { openFixSoon(['Mana']); const first = /checking land swaps/i.test($('#modal').textContent); for (let i = 0; i < 150 && /checking land swaps/i.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100));
+  const done = !/checking land swaps/i.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });
 T('Q-FIX', 'Fix: Mana opens at once and fills in', q6.first && q6.done, JSON.stringify(q6));
 // Q7. Layouts: upright phones (390 and 320 wide), phone sideways, iPad portrait and landscape.
 const q7 = {}; for (const [k, vw, vh] of [['phone', 390, 844], ['big', 320, 693], ['side', 844, 390], ['ipadP', 820, 1180], ['ipadL', 1180, 820]]){ await page.setViewportSize({width:vw, height:vh}); await page.waitForTimeout(150);

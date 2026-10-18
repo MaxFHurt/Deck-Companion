@@ -1,7 +1,7 @@
 // Generated Apex decks vs the strongest real decks for the same commander (declared bracket 4–5 on Archidekt).
 // strongTyp = mean share of strong decks that run each generated spell (the median strong deck's own value, leave-one-out,
 // is the reference); core = share of the strong decks' core spells (in half or more of them) that the generator includes.
-// node genstrong.js <engineDir> [set] [--show]      UP='{...}' for experiments
+// node genstrong.js <engineDir> [set] [--show]      UP='{...}' for experiments; NOEDH=1 hides the commander's play data
 const path = require('path'), fs = require('fs'), which = process.argv[3] || 'tuneall', show = process.argv.includes('--show');
 process.argv = [process.argv[0], 'x', path.resolve(process.argv[2]), 'g', which, '--quiet']; const B = require('./bench.js'), H = B.H, X = H.ctx, run = H.run;
 if (process.env.UP){ X.__up = JSON.parse(process.env.UP); run('Object.assign(UP, __up)'); }
@@ -11,6 +11,8 @@ const list = which === 'all' ? B.SETS.tuneall.concat(B.SETS.test, B.SETS.holdout
 const FAST = new Set(['Sol Ring', 'Mana Crypt', 'Mana Vault', 'Chrome Mox', 'Mox Diamond', 'Jeweled Lotus', 'Lotus Petal', 'Mox Opal', 'Grim Monolith', 'Ancient Tomb', 'Arcane Signet', 'Fellwar Stone', 'Mind Stone', 'Talisman of Dominance']);
 for (const [slug, file] of list){
   const pd = H.retail(slug), cmdN = pd.commander; H.edh(cmdN);
+  // NOEDH=1: an obscure commander with no play data at all (only the card text guides the build)
+  if (process.env.NOEDH) run("EDH={key:'',map:null,decks:0,state:'fail'}");
   let decks = []; for (const d of CORP){ const p = path.join(d, file + '.jsonl'); if (fs.existsSync(p)){ decks = fs.readFileSync(p, 'utf8').split('\n').filter(Boolean).map(JSON.parse); break; } }
   const toSet = x => { const s = new Set(); x.cards.forEach(([n, q, cats, uid]) => { if (!n || (cats || []).includes('Commander') || (cats || []).some(t => /Maybe|Side/i.test(t))) return; const c = X.find(n); if (c && !run('tags')(c).land) s.add(c._k); }); return s; };
   const strong = decks.filter(x => x.bracket >= 4).map(toSet).filter(s => s.size >= 40);

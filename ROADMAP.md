@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 140. Each item ships as its own build: build, run the full test suite
+Live: Build 140 (Build 141 built and tested, waiting for the owner's OK to push). Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -129,6 +129,38 @@ Owner's answers to the open questions: 1 find the best ceiling version; 3 yes; 4
 - **iPhone (owner's screenshots):** upright phones scroll the page instead of a fixed-height deck box (with large text the box
   left the card list no room and buttons spilled past the frame); deck tabs take a second row instead of running off the panel;
   the card count stays on one line. iPad and desktop unchanged.
+
+## Build 141 (18 October 2026; not pushed: the owner confirms every push from now on)
+
+Owner: "Let them wait if that's what it takes... a loading style message with a small animation rather than shifting results";
+"optimize every recommendation"; "a build by theme option in the deck builder"; tweak settings, no major system changes.
+- **Thinking, not shifting:** Fix: Mana, a land's card window (now opens at once instead of freezing for a few seconds), the
+  upgrade check and the card-quality line show a small spinner ("Thinking…") and fill in once, complete. Each row's Highest score
+  says it is thinking until the whole-pool search is done, then every row fills at once (it used to update row by row).
+- **Build by theme** (Generate window, "Or start from a theme"): pick one of the 16 themes (creature type: pick the type), and
+  optionally colours; commanders are ranked by how much they build around it (their own text), how many strong cards for it
+  exist in their colours, and how proven they are; More commanders shows 30 (less-known ones). Build loads the commander's
+  play data, puts the theme first and the commander's matching EDHREC theme page next, at the chosen price level.
+- **Obscure commanders** (little or no play data; UP.thP 0.3, thT 0.3, thS 1.5): generated with no play data at all, decks
+  leaned on generic power (6.2 Game Changers, 6.6 tutors). Tournament-staple, Game Changer and tutor bonuses now count 0.3 and
+  the most-played staples 1.5 when play data is thin. Against strong real decks: typicality 0.134 -> 0.176, core coverage 18% ->
+  28%, deck score 81 -> 85. Tried: more weight on the detected mechanics (worse: 0.112), fewer staples (worse), power 0 (0.155).
+  Decks with play data are unchanged (typicality 0.396, coverage 0.69).
+- **One-colour mana bases** (rules): City of Brass, Mana Confluence, Exotic Orchard, Reflecting Pool, Forbidden Orchard and
+  Command Tower are never better than a basic in a one-colour deck; they no longer go into generated mono-coloured decks or the
+  Mana fix (Ghalta now gets Mosswort Bridge, Myriad Landscape, Gemstone Caverns instead). Two-colour and up unchanged.
+- **Upgrades** (UP.rankN 12 -> 18: more of each slot's most-played candidates are measured): tuneall sum 9.12 -> 9.30 (weighted
+  14.06 -> 14.19), every other number equal. Screened on tuneall (about 30 settings, each halved and raised by half): almost all
+  flat. Game Changer / tutor bonus 1.5 -> 2.25 helped upgrades slightly (@10 0.126 -> 0.127) but made generated decks worse
+  (typicality 0.396 -> 0.393), so it stays. Fewer trimmed rows (trimPa 0.2) raised the sum to 12.0 but lowered @10: rejected.
+- **Card reading, tried and left off (UP.nmh 0):** "You have no maximum hand size" (Thought Vessel, Spellbook, Venser's
+  Journal, Decanter of Endless Water) is read as card draw, which it is not; the correct reading lowers the test set (@10 0.199
+  -> 0.197), so it stays off under the no-regression rule. A check of ramp, removal and board-wipe readings found no misreads.
+- **Tests:** UI suite 103/103 (new: UI-B141-01 thinking not shifting, -02 Build by theme, -03 obscure commanders and one-colour
+  lands). UI-B118-01 (Tivit with no play data loaded) now tests the stage-1 bonus with the obscure-commander multipliers at 1.
+  New tools: `genstrong.js` takes NOEDH=1 (no play data), `landsof.js` (a generated deck's lands).
+- **Benchmark (Build 141):** tuneall 0.244 / 0.245 / 0.126 / 9.30 (weighted 0.274 / 0.275 / 0.153 / 14.19); test 0.303 / 0.303
+  / 0.199 / 6.69; holdout 0.292 / 0.292 / 0.205 / 15.74: equal to or better than Build 140 everywhere.
 
 ## Open decisions
 

@@ -43,7 +43,8 @@ suite below still runs once before every live build (not alongside the benchmark
 `agreement@5`: of the top 5 suggestions, how many match cards real players added
 when upgrading the same precon (0 = no better than random). Build 118:
 tuneall 0.233, test 0.286, holdout 0.292. Build 133: 0.238 / 0.303 / 0.292
-(weighted 3,6: 0.268 / 0.322 / 0.318). Build 140: 0.244 / 0.303 / 0.292 (weighted 0.274 / 0.322 / 0.318). Always set SCORECHECK=1. The holdout set is for final checks only.
+(weighted 3,6: 0.268 / 0.322 / 0.318). Build 140: 0.244 / 0.303 / 0.292 (weighted 0.274 / 0.322 / 0.318). Build 141: the same, tuneall sum 9.30.
+Obscure commanders: `NOEDH=1 node genstrong.js ../candidate tuneall` (Build 141: typicality 0.176, coverage 0.28). Always set SCORECHECK=1. The holdout set is for final checks only.
 
     node genstrong.js ../candidate tuneall          # generated decks vs strong (bracket 4+) decks
     node tourney.js ../candidate                    # our Apex decks vs 20 top-16 tournament lists, 10 commanders

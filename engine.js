@@ -645,7 +645,7 @@ function tags(c){
     // Card draw is drawing more cards than you discard, for you: looting and conniving (draw one, discard one) only filter,
     // and a draw any player may get (Selvala) is not yours. The monarch and the initiative draw every turn.
     { const fx = UP.fx ? effectsOf(c).effects : null, real = fx && fx.some(e => (e.kind === 'draw' && !e.symmetric && e.who !== 'each opponent') || e.kind === 'monarch' || e.kind === 'initiative') && (!UP.bs || ro === o || THEMES.draw.re.test(ro) || /you become the monarch|take the initiative/i.test(ro)), only = fx && !real && fx.some(e => e.kind === 'filter' || (e.kind === 'draw' && e.symmetric));
-      if (real || (((THEMES.draw.re.test(ro) && !/each player draws|target opponent draws/i.test(ro)) || /you become the monarch|take the initiative/i.test(ro)) && !(UP.fx && only))) roles.add('draw'); }
+      if (real || (((THEMES.draw.re.test(UP.nmh ? ro.replace(/you have no maximum hand size\.?/gi, '') : ro) && !/each player draws|target opponent draws/i.test(ro)) || /you become the monarch|take the initiative/i.test(ro)) && !(UP.fx && only))) roles.add('draw'); }
     // Each sentence or mode is judged on its own: a wipe clause makes a wipe, and a separate one-target clause on the same
     // card (Ugin's Binding, a planeswalker's minus) still counts as removal. Blink text ("exile ..., then return it") is not removal.
     const parts = ro.replace(/exile[^.]*\.?( then,?)? ?return[^.]*(to|onto) the battlefield[^.]*\./gi, '').split(/(?<=\.)\s+|•|\n/);
@@ -902,7 +902,10 @@ const TOURNEY_WHY = {fast:'Tournament staple: fast mana', free:'Tournament stapl
 function tourneyOf(c, d){ return UP.ts && c && d && d.format === 'commander' && (d.tier === 'apex' || !d.tier) ? TOURNEY_OF.get(c._n) || '' : ''; }
 function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
-  (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe)); } } });
+  // Little or no play data for this commander (obscure or new; UP.th*): the deck's own mechanics count more and generic power
+  // (tournament staples, Game Changers, tutors, the most-played staples) less, so the build follows the commander's plan.
+  const thinE = d.format === 'commander' && (!ctx.edh || !ctx.edh.map || ctx.edh.map.size < 60), kA = thinE ? UP.thA : 1, kP = thinE ? UP.thP : 1, kT = thinE ? UP.thT : 1, kS = thinE ? UP.thS : 1;
+  (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += kA * AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe)); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
   // the commander's engine (Build 139): shown as the reason; it adds to the value only with UP.kwB (benchmark: not yet)
   if (ctx.engine){ const f = engineFit(c, ctx.engine); if (f.v){ s += UP.kwB * f.v; if (UP.kwB) hit = true; if (f.v >= 0.8) why.unshift(f.why); else why.push(f.why); } }
@@ -917,18 +920,18 @@ function baseScore(c, d, ctx){
   const ft = foreignTribe(c); if (ft && ft !== ctx.tribe && !(ctx.cmd && new RegExp('\\b' + ft + '\\b').test(ctx.cmd.t))){ s -= 5; hit = false; a0 = 0; }
   // Proven staples: the most-played cards anywhere (Rhystic Study, Teferi's Protection, Swords to Plowshares) earn their
   // slot in any deck, tapering off by about #400. The top ~250 count as a fit even when they touch no aim.
-  if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6 * STAPLE_K;
-  else if (c.r && c.r < 400) s += STAPLE_K * 6 * Math.log(400 / c.r) / Math.log(400 / 60);
+  if (CORE.has(c._n) || (c.r && c.r < 60)) s += 6 * STAPLE_K * kS;
+  else if (c.r && c.r < 400) s += kS * STAPLE_K * 6 * Math.log(400 / c.r) / Math.log(400 / 60);
   if (!hit && (CORE.has(c._n) || (c.r && c.r < 250)) && !(ft && ft !== ctx.tribe)){ hit = true; why.push('Proven staple'); }
   // Apex power: what the strongest real decks (bracket 4–5) run that average decks skip. Wizards' Game Changer list (the
   // cards that warp games most), tutors and fast mana. Only for the Apex build (d.tier apex), so Budget and Mid are unchanged.
   if ((UP.pw || UP.pt || UP.pf) && (d.tier === 'apex' || !d.tier) && d.format === 'commander' && !(ft && ft !== ctx.tribe)){ const r = tags(c).roles;
-    if (c.gc && UP.pw){ s += UP.pw; why.push('Game Changer: among the strongest cards in Commander'); }
-    if (r.has('tutor') && UP.pt) s += UP.pt;
+    if (c.gc && UP.pw){ s += kP * UP.pw; why.push('Game Changer: among the strongest cards in Commander'); }
+    if (r.has('tutor') && UP.pt) s += kP * UP.pt;
     if (UP.pf && FAST_MANA.has(c._n)) s += UP.pf; }
   // a staple this commander's players rarely run is worth less here (full value at UP.tsk of decks; all of it without play data)
   { const tk = !(ft && ft !== ctx.tribe) && tourneyOf(c, d); if (tk){ const x = ctx.edh && ctx.edh.map && ctx.edh.map.size >= 100 ? edhOf(ctx.edh.map, c) : null, f = !UP.tsk || !(ctx.edh && ctx.edh.map && ctx.edh.map.size >= 100) ? 1 : x ? Math.min(1, x.inc / UP.tsk) : 0;
-    if (f > 0){ s += UP.ts * f; if (f >= 0.5) why.push(TOURNEY_WHY[tk]); } } }
+    if (f > 0){ s += kT * UP.ts * f; if (f >= 0.5) why.push(TOURNEY_WHY[tk]); } } }
   return {s, hit, why, a:a0};
 }
 function splitBasics(k, ctx){
@@ -1261,7 +1264,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {reF:1, rcap:2, rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, kw:1, kwB:0, kwS:0, unc:0.25, uncK:'', uncPick:0, uncTail:1, uncR:0, altCut:2, pool2:1, poolN:250, bs:1, bsF:0.5, bsP:9, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {nmh:0, thA:1, thP:0.3, thT:0.3, thS:1.5, reF:1, rcap:2, rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, kw:1, kwB:0, kwS:0, unc:0.25, uncK:'', uncPick:0, uncTail:1, uncR:0, altCut:2, pool2:1, poolN:250, bs:1, bsF:0.5, bsP:9, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:18, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1612,7 +1615,7 @@ function manaStarved(d, e){ const A = analyze(d); return A.lands < A.T.lands || 
 // The lands the Mana fix offers: untapped lands making two or more of the deck's colours, then (short of mana) any untapped land
 // making a deck colour.
 function manaAdds(d, n, starved){ const ctx = ctxOf(d), inDeck = new Set(d.cards.map(e => keyOf(e.n))), dis = new Set((d.dismissed || []).map(keyOf)), val = c => baseScore(c, d, ctx).s;
-  const ok = c => tags(c).land && !isBasic(c.n) && !inDeck.has(c._k) && !dis.has(c._k) && legalIn(c, d.format) && c.ci.every(z => ctx.ident.includes(z)) && mustOk(c, d) && (!d.tier || d.tier === 'apex' || c.p == null || underCap(c.p, d.tier)) && landSpeed(c) !== 'tapped';
+  const ok = c => tags(c).land && !isBasic(c.n) && !monoJunkLand(c, ctx.ident) && !inDeck.has(c._k) && !dis.has(c._k) && legalIn(c, d.format) && c.ci.every(z => ctx.ident.includes(z)) && mustOk(c, d) && (!d.tier || d.tier === 'apex' || c.p == null || underCap(c.p, d.tier)) && landSpeed(c) !== 'tapped';
   const evid = c => { const e = ctx.edh && edhOf(ctx.edh.map, c); return (e && e.inc >= 0.05) || (c.r && c.r < 3000); }, cols = c => [...landColors(c)].filter(z => ctx.ident.includes(z)).length;
   return LIB.filter(c => ok(c) && evid(c) && (ctx.ident.length < 2 ? cols(c) >= 1 : cols(c) >= 2 || (starved && cols(c) >= 1))).map(c => ({c, v:val(c)})).sort((a, b) => b.v - a.v).slice(0, n).map(x => x.c); }
 function bestCuts(d, addName, k, o){ o = o || {};
@@ -1806,6 +1809,11 @@ function colourDemand(d, ctx){
 // Chooses n lands for the deck's spells. Each pick goes to the land that most helps the colours furthest below what they need
 // (an untapped land counts fully, a sometimes-tapped one a bit less, an always-tapped one less again), plus how much this
 // commander's players run it. Basics fill the rest, each to the colour furthest behind. Mana rocks and dorks count as sources.
+// One-colour decks (rules, Build 141): a land whose only job is making a colour of your choice, or that hurts you or depends on an
+// opponent's lands to do it (City of Brass, Mana Confluence, Exotic Orchard, Command Tower), is never better than a basic there.
+function monoJunkLand(c, id){ if (id.length !== 1 || !c || isBasic(c.n)) return false; const o = (c.o || '').replace(/\([^)]*\)/g, '');
+  if (!/any colou?r|could produce/i.test(o)) return false; if (/deals? \d+ damage to you|pay \d+ life|could produce|opponent creates/i.test(o)) return true;
+  return !o.replace(/\{T\}[^.\n]*?:\s*Add [^.\n]*\.?/gi, '').trim(); }
 function manaBase(d, n, keep){
   const ctx = ctxOf(d), id = ctx.ident.length ? ctx.ident : [], req = colourDemand(d, ctx), src = {}; id.forEach(k => src[k] = 0);
   d.cards.forEach(e => { const c = find(e.n); if (!c) return; const s = simCard(c, id); if (!s.land && s.mana) s.cols.forEach(k => { if (k in src) src[k] += e.q * 0.75; }); });
@@ -1813,7 +1821,7 @@ function manaBase(d, n, keep){
   const out = [], used = new Set(d.cards.map(e => keyOf(e.n)).concat((keep || []).map(e => keyOf(e.n)))); used.add(keyOf(d.commander || '')); if (d.partner) used.add(keyOf(d.partner));
   if (!id.length){ if (n > 0) out.push({n:'Wastes', q:n}); return out; }
   const gap = k => req[k] ? Math.max(0, 1 - src[k] / req[k]) : 0, room = Math.min(n, [0, 8, 14, 20, 23, 24][id.length]);
-  const pool = LIB.filter(c => tags(c).land && !isBasic(c.n) && legalIn(c, d.format) && c.ci.every(x => id.includes(x)) && !used.has(c._k) && mustOk(c, d) && !(d.dismissed || []).some(x => keyOf(x) === c._k))
+  const pool = LIB.filter(c => tags(c).land && !isBasic(c.n) && !monoJunkLand(c, id) && legalIn(c, d.format) && c.ci.every(x => id.includes(x)) && !used.has(c._k) && mustOk(c, d) && !(d.dismissed || []).some(x => keyOf(x) === c._k))
     .map(c => { const cols = [...landColors(c)].filter(k => id.includes(k)), sp = landSpeed(c); return {c, cols, sp, v:baseScore(c, d, ctx).s, spd:sp === 'untapped' ? 1 : sp === 'cond' ? 0.85 : 0.6, t:!!tourneyOf(c, d)}; });
   // Apex: the best lands (tournament staples) may come in past the usual room for nonbasics, up to UP.tr more
   let nb = 0; const roomT = Math.min(n, room + (UP.ts ? UP.tr : 0));

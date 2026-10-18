@@ -1,9 +1,11 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 18 October 2026, Build 140 live.
+Last updated: 18 October 2026, Build 140 live; Build 141 built and tested on branch `claude/build-140`, NOT pushed.
 
 ## 0. Open questions for the owner (ask these first, numbered)
+
+**Owner's rule (18 Oct): do not push anything without the owner's confirmation.** Build 141 waits for it.
 
 1. **Commander engine reasons** (not answered yet). Cards say why they fit the commander ("Doubles the tokens your commander
    makes", "Uses the cards your commander puts in your graveyard"). Do they read the owner's commanders correctly? Misreads
@@ -73,7 +75,7 @@ Last updated: 18 October 2026, Build 140 live.
    - While working, after each change: the quick check `PW=/opt/node22/lib/node_modules/playwright node ui-quick.mjs 8765 q`
      (about 25 s, 10 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
    - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
-     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (100 at Build 140). If it
+     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (103 at Build 141). If it
      prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
    - Benchmark (engine changes), all six must not drop:
      `SCORECHECK=1 [WEIGHT=3,6] node bench.js ../candidate x tuneall|test|holdout --quiet`.

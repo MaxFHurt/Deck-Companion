@@ -666,15 +666,16 @@ function recsFor(d){ const key = recsKey(d); if (recsFor.k !== key){ recsFor.k =
 recsFor.done = d => { try { const c = find(d.commander); if (d.format === 'commander' && c && EDH.key === c.n && EDH.state === 'ok' && !(d.plan && d.plan.length) && S.profile.decks.some(x => x.id === d.id)){
   lsSet('dc.upx.' + d.id, {sig:deckSig(d), rows:recsFor.v.paths.flatMap(L => Object.entries(L.opts).filter(([, p]) => p && p.add).map(([t, p]) => [p.add, p.cut, t]))}); UPX.sig = ''; } } catch (e) {} };
 // Whole-pool search (owner, 18 Oct): once the list is checked, every card that does the same job is measured in the background,
-// a few milliseconds at a time, and a row's Highest score updates in place when a stronger card turns up. It stops when the list
-// changes (another deck, a swap, a new list).
+// a few milliseconds at a time. Each row's Highest score says the app is thinking until the search is done, then all of them
+// appear at once (owner: wait rather than shift). It stops when the list changes (another deck, a swap, a new list).
 function poolRun(d, R, k){ let Q = null; try { Q = poolQueue(d, R); } catch (e) { return; } if (!Q || !Q.total) return; R.pool = Q;
   const tick = () => { if (recsFor.k !== k || recsFor.v !== R) return; let ch; try { ch = poolStep(Q, 12); } catch (e) { Q.r = Q.rows.length; }
-    if (ch) ch.forEach(i => { const el = document.querySelector('.topslot[data-i="' + i + '"]'); if (el) el.innerHTML = topInner(d, R, R.paths[i], i); });
-    const n = document.querySelector('#pool-note'), done = Q.r >= Q.rows.length; if (n) n.textContent = done ? '' : poolNote(Q);
-    if (!done) setTimeout(tick, 8); else R.poolDone = true; };
+    const n = document.querySelector('#pool-note'), done = Q.r >= Q.rows.length; if (n){ n.textContent = done ? '' : poolNote(Q); if (done) n.remove(); }
+    if (!done){ setTimeout(tick, 8); return; }
+    // every row's Highest score appears at once, when the search is done: nothing shifts while it runs
+    R.poolDone = true; document.querySelectorAll('.topslot[data-i]').forEach(el => { const i = +el.dataset.i; if (R.paths[i]) el.innerHTML = topInner(d, R, R.paths[i], i); }); };
   setTimeout(tick, 400); }
-function poolNote(Q){ return 'Still checking every card that could fill these slots for a higher score: ' + Math.floor(100 * Q.done / Math.max(1, Q.total)) + '%'; }
+function poolNote(Q){ return 'Thinking… checking every card that could fill these slots for a higher score: ' + Math.floor(100 * Q.done / Math.max(1, Q.total)) + '%'; }
 // Waits for the score check of the current list (Regenerate and the tests use it).
 async function recsReady(d){ for (let i = 0; i < 200 && recsFor(d).pending; i++) await new Promise(r => setTimeout(r, 50)); return recsFor(d); }
 
@@ -1335,7 +1336,8 @@ function altSrc(d, v){ const [k, a, b] = String(v || '').split('|');
 // Highest score: the card that raises the deck score most for this slot, of the cards measured, shown under the tier picks
 // (popular picks still lead). Shown when it is not already one of the picks and beats the Apex pick by a real margin.
 function topHtml(d, R, L, i){ return '<div class="topslot" data-i="' + i + '">' + topInner(d, R, L, i) + '</div>'; }   // always one block, so every row keeps the same rows and lines up
-function topInner(d, R, L, i){ const tp = L.top; if (!tp || tp.dScore < SCORE_MIN || hasCard(d, tp.n)) return '';
+function topInner(d, R, L, i){ if (R.pool && !R.poolDone && R.pool.rows.some(x => x.L === L)) return '<p class="note think" style="margin:0">Thinking… searching every card for a higher score</p>';   // results wait until the search is done (owner)
+  const tp = L.top; if (!tp || tp.dScore < SCORE_MIN || hasCard(d, tp.n)) return '';
   const cols = rowCols(d, R, L, i), picks = TIER_KEYS.map(t => cols[t] && cols[t].p).filter(Boolean), same = picks.find(p => keyOf(p.add) === keyOf(tp.n)), ap = cols.apex && cols.apex.p;
   if (same) return '<p class="note" style="margin:0"><span class="chip good">Highest score</span> ' + esc(tp.n) + ' (shown above) raises the deck score the most of the cards measured for this slot.</p>';
   if (ap && ap.dScore != null && tp.dScore < ap.dScore + 0.1) return '';
@@ -1396,6 +1398,7 @@ function startPlan(cmdName, seeds, extraAims, partner, opts){
   // loaded): measured against the strongest real decks (bracket 4–5) it matches them more closely than the detected mechanics.
   if (opts && opts.aims && opts.aims.length){ nd.aims = opts.aims.slice(0, 3); nd.aimAuto = !opts.mechChosen; if (opts.mechChosen) nd.aimLocked = true; }
   if (opts && opts.themeFirst) nd.themeFirst = true;
+  if (opts && opts.tribe){ nd.tribe = opts.tribe; nd.aimLocked = true; }   // Build by theme: the chosen creature type
   if (opts && opts.player) nd.player = opts.player;
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
   if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
@@ -1460,7 +1463,7 @@ function scoreHtml(d, A){
     (near.length ? near.map(x => '<p class="note" style="margin:0">One card from a combo: add <b>' + esc(x.miss) + '</b> to ' + esc(x.x.names.filter(n => n !== x.miss).join(' + ')) + ' · ' + esc(x.x.what.toLowerCase()) + '</p>').join('') : '') +
     (COMBOS.state === 'fail' ? '<p class="note" style="margin:0">Combo data could not be downloaded, so combos are not shown.</p>' : COMBOS.state === 'loading' ? '<p class="note" style="margin:0">Loading combo data…</p>' : '') +
     (COMBOS.list.length ? '<p class="note" style="margin:0">Combos from Commander Spellbook.</p>' : '');
-  const qq = e.quality || {}, qLine = qq.pending ? '<p class="note" style="margin:-2px 0 4px">Card quality is being measured against this deck’s Apex build…</p>'
+  const qq = e.quality || {}, qLine = qq.pending ? '<p class="note think" style="margin:-2px 0 4px">Thinking… measuring card quality against this deck’s Apex build</p>'
     : '<p class="note" style="margin:-2px 0 4px">Card quality: ' + qq.vsApex + '% of the Apex build (the best cards for this deck at any price)' + (qq.tier ? ' · ' + qq.tier.pct + '% of the best build with every card under $' + (qq.tier.tier === 'budget' ? 3 : 12) : '') + '</p>';
   return '<div class="grp"><span class="lab">Deck score · ' + e.total + ' of 100</span>' + Object.keys(L).map(k => bar(k) + (k === 'quality' ? qLine : '')).join('') +
     '<details class="more" id="score-more"' + (S.scoreOpen ? ' open' : '') + '><summary>Why, how ' + cmdN + ' works, and how the deck wins</summary><div class="grp" style="margin-top:8px">' + more + '</div></details></div>';
@@ -1510,7 +1513,7 @@ function statsHtml(d, A, R, mode){   // mode "compact" (Upgrades tab): deck scor
   const T0 = (apexFor(d) || {}).tot, pw = e && T0 && T0.apex > 0 ? 100 * e.exact / T0.apex : null, pc = v => Math.max(0, Math.min(100, Math.round(v)));
   const mk = pw != null ? {budget:pc(100 * T0.budget / T0.apex), mid:pc(100 * T0.mid / T0.apex)} : q.marks, qp = pw != null ? pc(pw) : q.vsApex;
   const lvl = qp == null || !mk ? '' : (pw != null ? pw >= 99.5 : qp >= 97) ? 'Apex' : qp >= mk.mid ? 'Mid' : qp >= mk.budget ? 'Budget' : 'Starter';
-  const tierMeter = qp == null ? '<p class="note" style="margin:0">' + (e ? 'Measuring against this deck’s Apex build…' : A.size < 90 ? 'The tier meter appears once the deck has 90 or more cards.' : 'The tier meter appears once the card data has finished downloading.') + '</p>'
+  const tierMeter = qp == null ? '<p class="note' + (e ? ' think' : '') + '" style="margin:0">' + (e ? 'Thinking… measuring against this deck’s Apex build' : A.size < 90 ? 'The tier meter appears once the deck has 90 or more cards.' : 'The tier meter appears once the card data has finished downloading.') + '</p>'
     : tmeterHtml(qp, mk, lvl, pw != null ? {you:e.total, budget:Math.round(T0.budget), mid:Math.round(T0.mid), apex:Math.round(T0.apex)} : null, pw != null) +
       (pw != null ? '<p class="note" style="margin:0">Your deck is at <b>' + lvl + '</b> level' + (lvl === 'Starter' ? ' (below the best Budget build)' : '') + ': it scores ' + e.total + ', ' + (pw > 100.5 ? 'above' : Math.round(pw) + '% of') + ' the Apex build’s ' + Math.round(T0.apex) + '. The marks show where the best all-under-$3 (' + Math.round(T0.budget) + ') and all-under-$12 (' + Math.round(T0.mid) + ') builds score.</p>'
       : '<p class="note" style="margin:0">Your cards are at <b>' + lvl + '</b> level' + (lvl === 'Starter' ? ' (below the best Budget build)' : '') + ': ' + qp + '% of the way from random playable cards to the Apex build' + statDelta(qp, B && B.q, ' pts') + (B && B.q != null && B.q !== qp ? ' since ' + B.at : '') + '. The marks show where the best all-under-$3 and all-under-$12 builds land.</p>');
@@ -1583,7 +1586,7 @@ function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind
 // The Mana fix plays fresh practice games for every land swap it weighs (a few seconds on a phone): the window opens at once with a
 // note, and the swaps appear when they are ready (Build 138).
 function openFixSoon(keys){ if (!keys.includes('Mana')) return openFix(keys); const t = keys.length > 1 ? 'Fix all alerts' : 'Fix: ' + keys[0];
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Fix deck health"><div class="ph"><h2>' + esc(t) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note">Checking land swaps with fresh practice games…</p></div>'; $('#modal').hidden = false;
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Fix deck health"><div class="ph"><h2>' + esc(t) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note think" role="status">Thinking… checking land swaps with fresh practice games</p></div>'; $('#modal').hidden = false;
   setTimeout(() => { if (!$('#modal').hidden) openFix(keys); }, 40); }
 function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
   const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
@@ -1673,8 +1676,8 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
   const out0 = (d.dismissed || []).filter(n => !entryOf(d, n));
   const outHtml = out0.length ? '<div class="grp"><span class="lab">Excluded cards for this deck · ' + out0.length + '</span><p class="note" style="margin:0">These are not suggested for this deck: cards you swapped out or removed, and cards you chose “Don’t suggest for this deck” for. Your deck itself is unchanged. The list keeps the latest 80. Tap a card to allow it in recommendations again.</p><div class="row">' + out0.map(n => '<button class="chip" data-act="undismiss" data-n="' + esc(n) + '" aria-label="Allow ' + esc(n) + ' in recommendations">Allow ' + esc(n) + '</button>').join('') + '</div></div>' : '';
   h += '<div class="grp"><span class="lab">Upgrade paths' + (any && !R.pending ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
-  if (!R.pending && R.pool && !R.poolDone) h += '<p class="note" style="margin:0" id="pool-note">' + poolNote(R.pool) + '</p>';   // shown above the list while the search runs
-  if (R.pending) h += '<p class="note" style="margin:0" role="status">Checking each upgrade against your deck score…</p>';
+  if (!R.pending && R.pool && !R.poolDone) h += '<p class="note think" style="margin:0" id="pool-note" role="status">' + poolNote(R.pool) + '</p>';   // shown above the list while the search runs
+  if (R.pending) h += '<p class="note think" style="margin:0" role="status">Thinking… checking each upgrade against your deck score</p>';
   else if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
   else {
     if (R.count.free) h += '<div class="tip good"><b><small>Tip</small>' + R.count.free + ' free swap' + (R.count.free === 1 ? '' : 's') + ' from your library</b><ul><li class="pro"><i>+</i>You already own ' + (R.count.free === 1 ? 'a card' : 'cards') + ' that would improve this deck, so there is nothing to buy. They are listed first below.</li></ul><div class="row" style="margin-top:8px"><button class="btn sm" data-act="swap-all" data-v="free">Make all free swaps</button></div></div>';
@@ -1886,6 +1889,32 @@ function regenBuild(d){
   nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.planShow = 0; const k = planAll(nd, S.gen.tier || 'apex'); delete nd.plan; nd.tier = S.gen.tier || 'apex'; S.tab = 'list';
   toast('Built a new ' + k + '-card deck with your mechanics at ' + TIERS[S.gen.tier || 'apex'].label + '. Your original deck is unchanged.'); return nd;
 }
+// Build by theme (owner, 18 Oct): pick what the deck should do (and, if you like, its colours or creature type); the app ranks the
+// commanders that build around it, by how much the commander itself cares about the theme, how many strong cards for it exist in
+// its colours, and how proven the commander is, then generates the deck with that theme as its first mechanic.
+const THEME_EDH = {tokens:/token|go-wide/, counters:/counter/, graveyard:/reanimat|graveyard|self-mill|dredge/, sacrifice:/aristocrat|sacrifice/, spells:/spell/, artifacts:/artifact/, enchantments:/enchant/, lifegain:/lifegain|life-gain|drain/, lands:/land/, voltron:/voltron|equipment|aura/, blink:/blink|flicker|etb/, burn:/burn/, aggro:/aggro|combat/, control:/control|stax/, draw:/draw|wheel/};
+function themeCards(k, tribe){ const key = k + '|' + (tribe || '') + '|' + LIB.length; if (themeCards.k === key) return themeCards.v; const tre = tribe ? new RegExp('\\b' + tribe + (tribe === 'Elf' ? '|\\bElves' : '') + 's?\\b') : null;
+  const v = LIB.filter(c => c.cmd && !tags(c).land && c.r && c.r < 6000 && (k === 'tribal' ? tre && (tre.test(frontType(c)) || tre.test(c.o || '')) : tags(c).th[k] === 1)); themeCards.k = key; themeCards.v = v; return v; }
+function themeCommanders(k, tribe, colors, n){ if (k === 'tribal' && !tribe) return []; const pool = themeCards(k, tribe), tre = tribe ? new RegExp('\\b' + tribe + (tribe === 'Elf' ? '|Elves' : '') + 's?\\b') : null, out = [];
+  for (const c of LIB){ if (!c.cmd || !canLead(c) || !colors.every(x => c.ci.includes(x))) continue;
+    const st = detectStrategy(c), own = k === 'tribal' ? (st.tribe === tribe ? 2 : tre.test(c.o || '') ? 1.5 : tre.test(frontType(c)) ? 0.5 : 0) : st.themes[0] === k ? 2 : st.themes.includes(k) ? 1.5 : tags(c).th[k] === 1 ? 1 : 0;
+    if (!own) continue; const deep = pool.filter(x => x.ci.every(z => c.ci.includes(z))).length, pop = c.r ? Math.max(0, 1 - Math.log(c.r + 1) / Math.log(40000)) : 0;
+    out.push({n:c.n, s:2 * own + 1.5 * Math.min(1, deep / 150) + 1.5 * pop, deep, own}); }
+  return out.sort((a, b) => b.s - a.s).slice(0, n || 8); }
+function themeBuildBox(){ const g = S.gen, k = g.tk || '', cols = g.tcol || [], tribe = g.ttribe || '';
+  let h = '<div class="grp" id="themebuild"><span class="lab">Or start from a theme</span><p class="note" style="margin:0">Pick what the deck should do. Deck Companion suggests the commanders that build around it best, then designs the deck with that theme first.</p><div class="row" role="group" aria-label="Theme">' +
+    Object.keys(THEMES).map(t => '<button class="btn sm' + (k === t ? ' pri' : '') + '" data-act="gen-tpick" data-v="' + t + '" aria-pressed="' + (k === t) + '">' + esc(THEMES[t].label) + '</button>').join('') + '</div>';
+  if (!k) return h + '</div>';
+  if (k === 'tribal') h += '<div class="row"><label class="lab" for="gen-ttribe" style="margin:0">Creature type</label><select id="gen-ttribe" aria-label="Creature type"><option value="">Choose a type</option>' + TRIBES.slice().sort().map(t => '<option' + (t === tribe ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></div>';
+  h += '<div class="row" role="group" aria-label="Colours"><span class="lab" style="margin:0">Colours · optional</span>' + 'WUBRG'.split('').map(x => '<button class="btn sm' + (cols.includes(x) ? ' pri' : '') + '" data-act="gen-tcol" data-v="' + x + '" aria-pressed="' + cols.includes(x) + '"><i class="pip p' + x + '">' + x + '</i></button>').join('') + '</div>';
+  if (k === 'tribal' && !tribe) return h + '<p class="note" style="margin:0">Choose a creature type to see its commanders.</p></div>';
+  if (!DBINFO.complete) h += '<p class="note" style="margin:0">Card data is still downloading, so more commanders appear when it finishes.</p>';
+  const L = themeCommanders(k, tribe, cols, g.tmore ? 30 : 8), lab = k === 'tribal' ? tribe + ' tribal' : THEMES[k].label;
+  h += L.length ? L.map(x => { const c = find(x.n), why = [x.own >= 2 ? 'Built around ' + lab : 'Supports ' + lab, x.deep + ' strong ' + lab + ' cards in its colours'].concat(c.r && c.r < 1500 ? ['Popular commander'] : []);
+      return '<div class="pre"><img alt="" src="' + artFor(c) + '"><div style="min-width:0"><b>' + esc(c.n) + '</b> ' + c.ci.map(z => '<i class="pip p' + z + '">' + z + '</i>').join('') + '<div class="why">' + why.map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div></div><div class="acts"><button class="btn sm" data-act="card" data-n="' + esc(c.n) + '">View</button><button class="btn pri sm" data-act="gen-tbuild" data-n="' + esc(c.n) + '">Build</button></div></div>'; }).join('')
+    + (L.length >= 8 ? '<div class="row"><button class="btn sm" data-act="gen-tmore">' + (g.tmore ? 'Fewer commanders' : 'More commanders, including less-known ones') + '</button></div>' : '')
+    : '<p class="note" style="margin:0">No commander builds around ' + esc(lab) + (cols.length ? ' in these colours' : '') + '. Try fewer colours.</p>';
+  return h + '<span class="lab">Price level</span><div class="row" role="group" aria-label="Price level">' + TIER_KEYS.slice().reverse().map(t => '<button class="btn sm' + ((g.tier || 'apex') === t ? ' pri' : '') + '" data-act="gen-tier" data-v="' + t + '" aria-pressed="' + ((g.tier || 'apex') === t) + '">' + TIERS[t].label + '</button>').join('') + '</div><p class="note" style="margin:0">' + GEN_PRICE[g.tier || 'apex'] + '</p></div>'; }
 function openGenerate(){
   S.gen = Object.assign({tier:'apex', best:true, theme:false, mech:[], warn:''}, S.gen); if (!TIERS[S.gen.tier]) S.gen.tier = 'apex';
   if (!S.setList && !S.setErr) ensureSets().then(() => { if (S.setList && !$('#modal').hidden && $('#gen-q')) openGenerate(); });
@@ -1900,6 +1929,7 @@ function openGenerate(){
     (DBINFO.complete ? '<div class="row"><button class="btn pri" data-act="gen-go"' + (EDH.key === c.n && EDH.state === 'loading' ? ' disabled' : '') + '>Generate this deck</button></div>'
       : '<div class="gate"><b>Card data is still downloading</b>' + (DBINFO.source === 'full' ? 'Only ' + DBINFO.count.toLocaleString() + ' cards are loaded so far' : 'Only the ' + DBINFO.count + '-card starter list is loaded') + ', so a deck generated now would miss most of what fits this commander. This button unlocks by itself when the download finishes.<div class="row" style="margin-top:10px"><button class="btn pri" disabled>Generate this deck</button><button class="btn" data-act="gen-go">Generate anyway</button></div></div>') +
     '</div></div>';
+  h += themeBuildBox();
   h += '<div class="grp"><span class="lab">Or a 60-card Standard deck from a theme</span>' + STD_STARTERS.map((p, i) => '<div class="pre" style="grid-template-columns:minmax(0,1fr) auto"><div style="min-width:0"><b>' + esc(p.name) + '</b> ' + p.colors.map(x => '<i class="pip p' + x + '">' + x + '</i>').join('') + '<div class="note">' + esc(p.note) + '</div></div><div><button class="btn pri sm" data-act="std-starter" data-v="' + i + '">Generate</button></div></div>').join('') + '</div></div>';
   $('#modal').innerHTML = h; $('#modal').hidden = false;
 }
@@ -2182,9 +2212,9 @@ function overCap(d, c){ const t = d && TIERS[d.tier]; return t && isFinite(t.cap
 function openCard(name, pid){
   S.wantMore = '';
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } phSeen(c); const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
-  const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n), wantOn = !inDeck && d && !isCmd && S.view === 'decks' && S.open;
+  const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n), wantOn = !inDeck && d && !isCmd && S.view === 'decks' && S.open, wantLater = wantOn && !offColor(d, c) && tags(c).land && d.format === 'commander';   // a land is measured with fresh practice games (a few seconds): the window opens at once and says it is thinking
   S.modalCard = c.n; S.prints = null; S.face = 0; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null; const pnm = inDeck ? printedName(d, inDeck, c) : '';
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(pnm || c.n) + (pnm ? ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(c.n) + '</span>' : '') + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" id="pic-note" style="margin:0 0 6px">' + picNote(c) + '</p>' + (c.df && c.fc ? '<p class="note" id="face-note" style="margin:0 0 6px">' + faceNote(c) + '</p>' : '') + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : wantOn ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(pnm || c.n) + (pnm ? ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(c.n) + '</span>' : '') + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" id="pic-note" style="margin:0 0 6px">' + picNote(c) + '</p>' + (c.df && c.fc ? '<p class="note" id="face-note" style="margin:0 0 6px">' + faceNote(c) + '</p>' : '') + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : wantOn ? (wantLater ? '<div class="grp" id="want-think"><span class="lab">Put this card in ' + esc(d.name) + overCap(d, c) + '</span><p class="note think" role="status" style="margin:0">Thinking… playing practice games with this land in each place it could go</p></div>' : wantHtml(d, c)) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => symImg(x)).join('') : 'Colorless') + '</dd>' +
     '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p < TIERS.budget.cap ? 'fits Budget, Mid and Apex' : c.p < TIERS.mid.cap ? 'fits Mid and Apex' : 'Apex only') + (wantOn && !offColor(d, c) ? '' : overCap(d, c)) + '</dd>' + phHtml(c) +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
@@ -2200,6 +2230,7 @@ function openCard(name, pid){
     const anchor = mine ? ($('#modal #ctl') || $('#modal .ph')) : null; if (anchor) anchor.insertAdjacentHTML('afterend', box); else p.insertAdjacentHTML('beforeend', box); loadPrints(c); }
   // the other cards it could replace come last, after the card details and its printings
   if (!inDeck && S.wantMore && d && !isCmd && S.view === 'decks' && S.open) $('#modal .panel').insertAdjacentHTML('beforeend', S.wantMore);
+  if (wantLater) setTimeout(() => { const el = $('#want-think'); if (!el || S.modalCard !== c.n || $('#modal').hidden) return; const h = wantHtml(d, c); if (!$('#want-think') || S.modalCard !== c.n) return; $('#want-think').outerHTML = h; if (S.wantMore) $('#modal .panel').insertAdjacentHTML('beforeend', S.wantMore); }, 40);
 }
 function openImport(preset){
   const d = cur();
@@ -2493,6 +2524,16 @@ function handleAct(act, v, n, pArg){
     case 'gen-partner': S.gen.partner = n || ''; openGenerate(); return;
     case 'build-gen': { if (S.draft){ const dr = S.draft; S.profile.decks.unshift(dr); S.draft = null; toast('Saved ' + dr.name + ' to your decks first.'); } if (!regenBuild(d)) return; break; }
     case 'gen-pick': S.gen.cmd = n; S.gen.partner = ''; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
+    case 'gen-tpick': S.gen.tk = S.gen.tk === v ? '' : v; S.gen.tmore = false; openGenerate(); { const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); } return;
+    case 'gen-tmore': S.gen.tmore = !S.gen.tmore; openGenerate(); { const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); } return;
+    case 'gen-tcol': { const a = S.gen.tcol = S.gen.tcol || [], i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); openGenerate(); { const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); } return; }
+    case 'gen-tbuild': { const c = find(n); if (!c) return; $('#modal').hidden = true; const g = S.gen, k = g.tk, tribe = k === 'tribal' ? g.ttribe || '' : '';
+      // the theme leads; the commander's own EDHREC theme pages that match it (and then its most-built ones) follow, so the deck is
+      // built on what players run for that theme with this commander
+      (async () => { setStatus('Thinking… reading how players build ' + c.n.split(',')[0] + ' for this theme'); let aims = [k];
+        try { await loadEdh(c.n); if (EDH.key === c.n && EDH.state === 'ok'){ const re = k === 'tribal' ? new RegExp(tribe.toLowerCase().slice(0, 4)) : THEME_EDH[k], T0 = (EDH.tags || []).slice(0, 12), hit = T0.filter(t => re && re.test(t.slug)).slice(0, 1), rest = T0.filter(t => !hit.includes(t)).slice(0, 2 - hit.length);
+          const ed = hit.concat(rest).map(t => 'edh:' + t.slug); if (ed.length) await loadThemes(c.n, ed); aims = aims.concat(ed.filter(a => (EDH.tmap || {})[a.slice(4)])).slice(0, 3); } } catch (e) {}
+        setStatus(''); startPlan(c.n, [], null, null, {fill:g.tier || 'apex', mechChosen:true, aims, tribe, player:g.player || ''}); touch(); render(); })(); return; }
     case 'gen-tier': S.gen.tier = TIERS[v] ? v : 'apex'; S.gen.warn = ''; openGenerate(); return;
     case 'gen-best': { const g = S.gen; g.warn = ''; if (!g.best && (g.theme || g.mech.length)){ g.warn = 'Best overall builds from any set around what top players build this commander around, so it can’t also put ' + [g.theme ? 'the theme' : '', g.mech.length ? 'your mechanics' : ''].filter(Boolean).join(' or ') + ' first. ' + [g.theme ? 'Theme first' : '', g.mech.length ? 'Focus on mechanics' : ''].filter(Boolean).join(' and ') + (g.theme && g.mech.length ? ' were' : ' was') + ' switched off.'; g.theme = false; g.mech = []; g.mechOpen = false; } g.best = !g.best; openGenerate(); return; }
     case 'gen-theme': { const g = S.gen; g.warn = ''; if (!g.theme && g.best){ g.best = false; g.warn = 'Theme first puts the commander’s own set and creature types ahead of the strongest cards from any set, so Best overall was switched off. Theme first and mechanics can be used together.'; } g.theme = !g.theme; openGenerate(); return; }
@@ -2590,6 +2631,7 @@ document.addEventListener('change', ev => { UNDO.seq++; UNDO.label = 'change ' +
   if (t.id === 'deck-name' && d){ d.name = t.value.trim() || 'Untitled deck'; d.example = false; touch(); }
   else if (t.id === 'deck-player' && d){ d.player = t.value || ''; if (!d.player) delete d.player; touch(); render(); }
   else if (t.id === 'gen-player'){ S.gen.player = t.value || ''; }
+  else if (t.id === 'gen-ttribe'){ S.gen.ttribe = t.value || ''; openGenerate(); const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); }
   else if (t.id === 'imp-player'){ S.impPlayer = t.value || ''; }
   else if (t.id === 'deck-filter-player'){ S.deckPlayer = t.value; render(); }
   else if (t.id === 'deck-filter-folder'){ S.deckFolder = t.value; render(); }
