@@ -168,6 +168,10 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   2 Game Changers in 197 picks -> 25 in 222, 6 of them ones strong (bracket 4+) players commonly add. They sort after the other
   rows, so the benchmark is unchanged. Each row already says when it moves the deck up a bracket. Generated Apex decks already
   hold Game Changers (2.9 on average; strong real decks 1.7). `gcwhy.js` shows how the score judges each Game Changer row.
+- **"I don't have this card"** (owner): a card in the deck has the button in its window. It thinks, then lists cards that do
+  the same job (the alternatives' rule) under the deck's price limit (cards you own at any price), each measured in the deck in
+  the missing card's place, best first; owned cards are listed first ("In your library"). Swap in asks first, swaps, and rules
+  the missing card out of later suggestions. Wakanda (Budget), Beast Within: Collective Resistance +0.2, Path to Exile +0.1, ...
 - **Tests:** UI suite 103/103 (new: UI-B141-01 thinking not shifting, -02 Build by theme, -03 obscure commanders and one-colour
   lands). UI-B118-01 (Tivit with no play data loaded) now tests the stage-1 bonus with the obscure-commander multipliers at 1.
   New tools: `genstrong.js` takes NOEDH=1 (no play data), `landsof.js` (a generated deck's lands).

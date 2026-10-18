@@ -2056,10 +2056,31 @@ function render(){
   watchSoon();
   ensureTheme(); ensureEdh(); ensureSetCards(S.view === 'decks' && S.open ? cur() : null);
 }
+// "I don't have this card" (owner, 18 Oct): the cards that do the same job (the alternatives' rule, at any price your deck's
+// level allows; cards you own always count), each measured in this deck with the card swapped out, best first; the ones you own
+// are listed first. It thinks first and shows the list once, complete.
+function noHaveList(d, n){ const c = find(n); if (!c) return []; const ctx = ctxOf(d), same = sameJobAs(c, d, ctx), own = ownSet(), dis = new Set((d.dismissed || []).map(norm)), e = evalFor(d), ar = apexFor(d), q = (entryOf(d, n) || {q:1}).q;
+  const cap = TIERS[d.tier] && isFinite(TIERS[d.tier].cap) ? TIERS[d.tier].cap : Infinity, land = !!tags(c).land;
+  const P = LIB.filter(x => x._n !== c._n && !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx.ident.includes(k) || !ctx.ident.length) && mustOk(x, d) && !dis.has(x._n) && !hasCard(d, x.n) && x.n !== d.commander && x.n !== d.partner && (own.has(x._n) || (x.p != null && x.p < cap)) && same(x))
+    .map(x => { const r = ctx.edh && edhOf(ctx.edh.map, x); return {c:x, g:(own.has(x._n) ? 5 : 0) + (r ? 10 * r.inc + 4 * Math.max(0, r.syn) : 0) + (x.r ? Math.max(0, 1 - Math.log(x.r + 1) / Math.log(40000)) : 0) + 0.2 * baseScore(x, d, ctx).s}; }).sort((a, b) => b.g - a.g).slice(0, 30);
+  const fd = land && e && e.exact != null ? freshDelta(d, ar) : null;
+  return P.map(y => ({n:y.c.n, p:y.c.p, own:own.has(y.c._n), q, dScore:e && e.exact != null ? (land ? fd(n, y.c.n) : swapScore(d, e, ar, n, y.c.n, q)) : null, g:y.g}))
+    .sort((a, b) => (b.dScore ?? -1e9) - (a.dScore ?? -1e9) || b.g - a.g); }
+function openNoHave(n){ const d = cur(), c = find(n); if (!d || !c) return; S.modalCard = null; S.noHave = n; const job = mainJob(n);
+  const head = '<div class="panel" role="dialog" aria-label="Without ' + esc(n) + '"><div class="ph"><h2>Without ' + esc(n) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>';
+  $('#modal').innerHTML = head + '<p class="note think" role="status">Thinking… measuring every card that does the same job in your deck</p></div>'; $('#modal').hidden = false;
+  setTimeout(() => { if (cur() !== d || $('#modal').hidden || S.noHave !== n) return; let L = []; try { L = noHaveList(d, n); } catch (err) { console.error(err); } if (S.noHave !== n || $('#modal').hidden) return;
+    const mine = L.filter(a => a.own).slice(0, 3), rest = L.filter(a => !mine.includes(a)).slice(0, 8), lab = job ? (JOB_LABEL[job] || job) : tags(c).land ? 'a land making the same colours' : 'a ' + mainType(c).toLowerCase() + ' for the same part of your plan';
+    const row = a => { const ac = find(a.n); return '<div class="opt alt"><button class="sw in" data-act="card" data-n="' + esc(a.n) + '">' + (ac ? '<img alt="" src="' + artFor(ac, {pid:ac.id}) + '">' : '<span></span>') + '<span>' + (a.q > 1 ? a.q + '× ' : '') + esc(a.n) + printTag(ac) + '</span><em>' + money(ac) + '</em></button><div class="row">' + (a.dScore != null ? scoreChip(a.dScore) : '') + (a.own ? '<span class="chip good">You own this</span>' : '') + (ac && ac.gc ? '<span class="chip gc">GC</span>' : '') + '</div><div class="row">' + (a.own ? '' : upBuyBtn(d, a.n)) + '<button class="btn pri sm" data-act="nh-swap" data-v="' + esc(n) + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap in</button></div></div>'; };
+    const cap = TIERS[d.tier] && isFinite(TIERS[d.tier].cap) ? ' under your ' + TIERS[d.tier].label + ' limit ($' + TIERS[d.tier].cap + ')' : '';
+    $('#modal').innerHTML = head + '<p class="note" style="margin:0 0 8px">Cards that do the same job as ' + esc(n.split(' // ')[0]) + ' (' + esc(lab) + ')' + cap + ', each measured in your deck in its place, best first. Cards you own count at any price.</p>' +
+      (mine.length ? '<div class="grp"><span class="lab">In your library</span><div class="alts">' + mine.map(row).join('') + '</div></div>' : '') +
+      (rest.length ? '<div class="grp"><span class="lab">Best replacements</span><div class="alts">' + rest.map(row).join('') + '</div></div>' : '') +
+      (!mine.length && !rest.length ? '<p class="note" style="margin:0">No other card' + cap + ' does the same job in this deck’s colours.</p>' : '') + '</div>'; }, 40); }
 function ctlHtml(n){
   const d = cur(), e = d && d.cards.find(x => x.n === n); if (!e) return '';
   return '<span class="lab">In this deck</span><div class="row"><span class="qty"><button data-act="dec" data-n="' + esc(n) + '" aria-label="Remove one copy">−</button><span>' + e.q + '</span><button data-act="inc" data-n="' + esc(n) + '" aria-label="Add one copy"' + (e.q >= copyLimit(d, find(n)) ? ' disabled style="opacity:.35"' : '') + '>+</button></span>' +
-    '<button class="btn' + (e.l ? ' gold' : '') + '" data-act="lock" data-n="' + esc(n) + '" aria-pressed="' + !!e.l + '">' + (e.l ? 'Locked · tap to unlock' : 'Lock card') + '</button><button class="btn danger" data-act="rm" data-n="' + esc(n) + '">Remove from deck</button></div>' +
+    '<button class="btn' + (e.l ? ' gold' : '') + '" data-act="lock" data-n="' + esc(n) + '" aria-pressed="' + !!e.l + '">' + (e.l ? 'Locked · tap to unlock' : 'Lock card') + '</button><button class="btn danger" data-act="rm" data-n="' + esc(n) + '">Remove from deck</button>' + (isBasic(n) || d.commander === n || d.partner === n ? '' : '<button class="btn" data-act="no-have" data-n="' + esc(n) + '">I don’t have this card</button>') + '</div>' +
     '<p class="note" style="margin:0">' + (e.l ? 'Locked cards are never suggested as cuts.' : 'Lock a card to keep it out of the suggested cuts.') + '</p>';
 }
 function switchCommander(d, n){
@@ -2313,6 +2334,7 @@ const CONFIRM = {
   want:(v, n) => swapAsk(v, n),
   'dtag-rm':(v, n) => ['Remove the tag ' + n + '?', 'Only the tag comes off; the deck itself does not change.', 'Remove tag'],
   'folder-del':(v, n) => { const k = S.profile.decks.filter(x => (x.folder || '').trim() === n).length; return ['Delete the folder ' + n + '?', 'Its ' + k + ' deck' + (k === 1 ? ' is' : 's are') + ' kept and move to No folder.', 'Delete folder']; },
+  'nh-swap':(v, n) => swapAsk(v, n),
   'swap-top':(v, n) => { const d = cur(), L = d && recsFor(d).paths[+v]; return swapAsk(L && L.cut, n); },
   'fix-swap':v => { const [k, i] = String(v).split('|'), g = (S.fixG || []).find(x => x.k === k), p = g && g.L[+i]; return swapAsk(p && p.cut, p && p.add); },
   'swap-cap':v => { const d = cur(), k = d ? capList(d, v).length : 0; return ['Make ' + (k || 'these') + ' swap' + (k === 1 ? '' : 's') + '?', 'Every card in this price-capped list is swapped in at once. Undo can put them back.', 'Make the swaps']; },
@@ -2552,6 +2574,9 @@ function handleAct(act, v, n, pArg){
     case 'fix-top': { const g = (S.fixG || []).find(x => x.k === v); if (!d || !g) return; const A = analyze(d), tg = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]}[v], n = tg ? Math.max(1, Math.abs(tg[1] - tg[0])) : 1;
       const k = fixApply(d, g.L.filter(p => p.dScore == null || p.dScore >= 0).slice(0, n)); toast('Made ' + k + ' swap' + (k === 1 ? '' : 's') + ' for ' + v + '.'); touch(); render(); openFix(S.fixKeys); return; }
     // Highest score: the player's own choice over the slot's picks (checked as its own kind, not a tier, so a held pick doesn't block it)
+    case 'no-have': openNoHave(n); return;
+    case 'nh-swap': { const e0 = entryOf(d, v); if (!e0 || !n || hasCard(d, n)) return; const p = {cut:e0.n, add:n, q:e0.q}; const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t:'own'}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; }
+      doSwap(d, p, 0); S.noHave = null; $('#modal').hidden = true; toast('Swapped ' + p.cut + ' for ' + p.add + '. ' + p.cut + ' won’t be suggested again.'); break; }
     case 'swap-top': { const R = recsFor(d), L = R.paths[+v], ref = L && (L.opts.apex || L.opts.mid || L.opts.budget); if (!ref || !n || !L.top || L.top.n !== n || hasCard(d, n)) return; const p = {cut:L.cut, add:n, q:ref.q};
       const bad = validatePackage(d, [{cut:p.cut, add:p.add, q:p.q, t:'top'}]); if (bad.length){ toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.'); return; } doSwap(d, p, TIER_KEYS.length); toast('Swapped ' + p.cut + ' for ' + p.add + '.'); break; }
     case 'dycb-open': openDycb(); return;

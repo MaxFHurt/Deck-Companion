@@ -1016,6 +1016,19 @@ const b141e = await page.evaluate(() => { const out = {}, mk = () => { const d =
   out.mono = ['City of Brass', 'Mana Confluence', 'Exotic Orchard', 'Command Tower'].every(n => monoJunkLand(find(n), ['G'])) && !monoJunkLand(find('Gemstone Caverns'), ['G']) && !monoJunkLand(find("Gaea's Cradle"), ['G']) && !monoJunkLand(find('Mana Confluence'), ['G', 'B']);
   return out; });
 T('UI-B141-03', 'Obscure commanders: with no play data, generic power counts less; one-colour decks never take pain or any-colour lands over a basic (two colours still may)', b141e.less && b141e.mono, JSON.stringify(b141e));
+// 95. Build 141 (owner): a card in the deck has "I don't have this card"; it thinks, then lists cards that do the same job, at the
+// deck's price level (owned cards at any price), measured in the deck, best first; Swap in asks first, swaps, and rules the
+// missing card out of later suggestions.
+const b141n = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)), keep = JSON.stringify(d.cards), dis = JSON.stringify(d.dismissed || []), aY = S.autoYes; S.autoYes = new Set();
+  S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); const e = d.cards.find(x => { const c = find(x.n); return c && !tags(c).land && tags(c).roles.has('removal') && x.n !== d.commander; }), out = {card:e.n};
+  openCard(e.n); const btn = document.querySelector('#modal [data-act="no-have"]'); out.btn = !!btn; btn.click(); out.think = !!document.querySelector('#modal .think');
+  for (let i = 0; i < 200 && document.querySelector('#modal .think'); i++) await new Promise(r => setTimeout(r, 100));
+  const B = [...document.querySelectorAll('#modal [data-act="nh-swap"]')], cap = TIERS[d.tier] && isFinite(TIERS[d.tier].cap) ? TIERS[d.tier].cap : Infinity; out.n = B.length;
+  out.sameJob = B.every(b => jobsOf(b.dataset.n).includes('removal')); out.inCap = B.every(b => { const c = find(b.dataset.n); return ownSet().has(c._n) || (c.p != null && c.p < cap); });
+  const sc = B.map(b => { const t = (b.closest('.opt').querySelector('.chip') || {}).textContent || ''; const m = /([+−-])\s?([\d.]+)/.exec(t); return m ? (m[1] === '+' ? 1 : -1) * +m[2] : 0; }); out.sorted = sc.every((v, i) => !i || v <= sc[i - 1] + 1e-9);
+  const add = B[0].dataset.n; B[0].click(); await new Promise(r => setTimeout(r, 100)); out.asked = !!document.querySelector('#confirm:not([hidden]) [data-act="conf-yes"]'); document.querySelector('#confirm [data-act="conf-yes"]').click(); await new Promise(r => setTimeout(r, 200));
+  out.swapped = hasCard(d, add) && !hasCard(d, e.n); out.ruledOut = (d.dismissed || []).includes(e.n); d.cards = JSON.parse(keep); d.dismissed = JSON.parse(dis); S.autoYes = aY; $('#modal').hidden = true; recsFor.k = null; render(); return out; });
+T('UI-B141-04', 'I don’t have this card: thinks, then lists cards that do the same job at the deck’s price level, best first; Swap in asks first, swaps, and the missing card is not suggested again', b141n.btn && b141n.think && b141n.n >= 3 && b141n.sameJob && b141n.inCap && b141n.sorted && b141n.asked && b141n.swapped && b141n.ruledOut, JSON.stringify(b141n));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
