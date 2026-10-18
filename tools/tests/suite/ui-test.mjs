@@ -911,6 +911,17 @@ const b136 = await page.evaluate(async () => { const d = S.profile.decks.find(x 
 await page.setViewportSize({width:390, height:844}); const b136p = await page.evaluate(() => { render(); const t = document.querySelector('#practice table.pg'), r = t && t.getBoundingClientRect(); return {fits:!!r && r.right <= window.innerWidth + 1, pageX:document.documentElement.scrollWidth <= window.innerWidth + 1}; });
 await page.setViewportSize({width:1366, height:1024}); await page.evaluate(() => { S.pracOpen = false; S.tab = 'up'; render(); });
 T('UI-B136-01', 'Practice games: summary of 100 games, an opening hand of 7 and 8 turns; Deal another game and Previous move between games and the same game always looks the same; agrees with the deck score games; fits a phone', b136.open && b136.summary && b136.rows === 8 && b136.hand === 7 && b136.game2 && b136.changed && b136.stable && b136.back && b136.same && b136p.fits && b136p.pageX, JSON.stringify(b136) + ' ' + JSON.stringify(b136p));
+// 86. Build 137 (owner's iPad report: Fix Mana swapped Thriving Isle for Wooded Foothills in a five-colour deck): a fetch land makes
+// only the colours it can find, a "choose a colour" land makes its colour plus one, and a mana fix never takes out a colour the
+// old land made.
+const b137 = await page.evaluate(async () => { const out = {}, id5 = ['W','U','B','R','G'], lib = ['Forest','Forest','Mountain','Island','Swamp','Plains','Wooded Foothills'].map(find);
+  const reach = fetchReach(lib, id5), cs = n => simLandCols(find(n), simCard(find(n), id5), id5, reach, new Set(['U']), new Set(), s => s.cols);
+  out.foothills = cs('Wooded Foothills').slice().sort().join(''); out.thriving = cs('Thriving Isle').slice().sort().join(''); out.bigApple = [...landColors(find('Big Apple, 3 a.m.'))].length;
+  out.thrivingLC = [...landColors(find('Thriving Isle'))].length; out.badFix = [];
+  for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander))){ const id = ctxOf(d).ident; if (id.length < 2) continue; let F = []; try { F = fixSwaps(d, 'mana', {}); } catch (e) { out.err = e.message; }
+    F.forEach(x => { if (!landCovers(find(x.cut), find(x.add), id)) out.badFix.push(d.name + ': ' + x.cut + ' -> ' + x.add); }); }
+  out.covers = landCovers(find('Thriving Isle'), find('Wooded Foothills'), id5) === false && landCovers(find('Thriving Isle'), find('Glacial Fortress'), id5) === true; return out; });
+T('UI-B137-01', 'Lands: Wooded Foothills makes only red/green (what it can find), Thriving Isle makes blue plus the colour needed, Big Apple is not colourless; a mana fix never takes out a colour the old land made', b137.foothills === 'GR' && b137.thriving === 'UW' && b137.bigApple > 0 && b137.thrivingLC === 5 && b137.covers && !b137.badFix.length && !b137.err, JSON.stringify(b137));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

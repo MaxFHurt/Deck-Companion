@@ -59,6 +59,20 @@ Items marked "discuss first" need the owner's decision before they are built; th
   Previous. It uses `practiceGames`, a step-by-step copy of `simulate`; `simulate` is unchanged and a test checks the
   two agree game for game.
 
+## Build 137 (on the work branch, waiting for the owner's OK to touch the practice games)
+
+- Owner's iPad report: Fix Mana offered Thriving Isle -> Wooded Foothills (+0.3) in the five-colour Turtle deck. Three bugs:
+  in the practice games every fetch land made all the deck's colours (Wooded Foothills can only find Mountains and Forests);
+  "choose a colour" lands counted as one colour (Thriving) or none (Big Apple, 3 a.m.); and the mana fix list never checked
+  that the new land makes the colours the old one made. Fixed (UP.lfix): fetch lands make what they can find in this deck,
+  chosen-colour lands make their colour plus the one the hand needs, and a mana fix must keep every colour (landCovers).
+  Spell benchmark unchanged; of the benchmark precons only Turtle Power's practice games change (stuck on a colour 18% -> 16%).
+- Full-pool measurement (`fullsearch.js`): scoring every legal same-job card finds a higher-scoring card than the app measured
+  in 62 of 80 slots (mean gap 0.4), nearly all run by under 10% of players; many look wrong (Kozilek in Avengers, Quilled
+  Greatwurm in Turtles, Nissa, Vital Force in 5 of 8 Ghalta slots) because the deck score credits any big creature as a way
+  to win and stacks multi-job credit. Plan agreed with the owner: fix those score blind spots first, then a background full search
+  whose best find is always shown (Highest score / alternative); the Apex pick keeps score + popularity.
+
 ## Open decisions
 
 - ~~EDHREC land count in the app~~: decided, our own land formula (see above). Found in Build 104's cleanup: the tests and

@@ -81,7 +81,8 @@ function simCard(c, ident){
   { const m = /costs \{1\} less to cast for each (creature|artifact) you control/i.exec(o); if (m) x.redEach = m[1].toLowerCase(); }
   ((c.m || '').match(/\{[^}]+\}/g) || []).forEach(p => { const k = p.slice(1, -1); if (/^[WUBRG]$/.test(k)) x.pips[k] = (x.pips[k] || 0) + 1; else if (/^[WUBRG]\/[WUBRG]$/.test(k)) x.pips[k] = (x.pips[k] || 0) + 1; });
   if (land){ x.mana = 1; x.cols = [...landColors(c)]; const sp = landSpeed(c); x.tapped = sp === 'tapped'; x.cond = sp === 'cond'; if (!x.cols.length && /\{C\}/.test(o)) x.cols = ['C'];
-    if (/search your library for/i.test(o) && /sacrifice/i.test(o)){ x.fetch = true; x.tapped = x.tapped || /tapped/i.test(o); } }
+    if (/search your library for/i.test(o) && /sacrifice/i.test(o)){ x.fetch = true; x.tapped = x.tapped || /tapped/i.test(o); x.fetchBasic = /basic land/i.test(o); x.fetchTypes = Object.keys(LTYPE).filter(k => new RegExp('\\b' + k + '\\b').test(o)); }
+    if (/choose a colou?r/i.test(o) && /chosen colou?r/i.test(o)){ x.chosen = true; x.fixed = ((/Add ([^.]*)/i.exec(o) || [])[1] || '').match(/\{[WUBRG]\}/g) || []; x.fixed = x.fixed.map(q => q[1]); } }
   else {
     const add = /\{T\}[^.]{0,40}: Add ([^.]*)/i.exec(o);
     if (add && !/Spend this mana only/i.test(o)){ const sy = (add[1].match(/\{[WUBRGC]\}/g) || []); x.mana = Math.max(1, sy.length > 1 && !/ or /.test(add[1]) ? sy.length : 1);
@@ -99,9 +100,19 @@ function payable(pips, generic, srcs){
   for (const opts of need){ const i = order.find(j => !used[j] && opts.some(k => srcs[j].includes(k))); if (i == null) return null; used[i] = true; }
   let g = generic; for (const j of order){ if (g <= 0) break; if (!used[j]){ used[j] = true; g--; } } return g > 0 ? null : used;
 }
+// Lands in practice games (Build 137, UP.lfix): a fetch land makes only the colours of the lands it can find in this deck (Wooded
+// Foothills: Mountains and Forests, so red and green, or a dual with those types), and a "choose a colour" land makes its fixed
+// colour plus the one colour chosen as it enters (the colour the hand needs most).
+function fetchReach(lib0, ident){ const basics = new Set(), typed = {}; lib0.forEach(c => { if (!tags(c).land) return; const t = frontType(c);
+  Object.keys(LTYPE).forEach(k => { if (new RegExp('\\b' + k + '\\b').test(t)){ const cols = [...landColors(c)].filter(z => ident.includes(z)); (typed[k] = typed[k] || new Set()); cols.forEach(z => typed[k].add(z)); if (/Basic/.test(t)) basics.add(LTYPE[k]); } }); });
+  return {basics, typed}; }
+function simLandCols(c, s, ident, reach, needCol, have, colsOf){
+  if (s.fetch){ const out = new Set(); if (s.fetchBasic) reach.basics.forEach(z => out.add(z)); (s.fetchTypes || []).forEach(k => (reach.typed[k] || []).forEach(z => out.add(z))); const v = [...out].filter(z => ident.includes(z)); return v.length ? v : ['C']; }
+  if (s.chosen){ const fx = (s.fixed || []).filter(z => ident.includes(z)), want = ident.filter(z => !fx.includes(z)), pick = want.find(z => needCol.has(z) && !have.has(z)) || want.find(z => !have.has(z)) || want[0]; return fx.concat(pick ? [pick] : []).length ? fx.concat(pick ? [pick] : []) : ['C']; }
+  return colsOf(s); }
 function simulate(d, games, seed){
   const ctx = ctxOf(d), ident = ctx.ident.length ? ctx.ident : ['C'], cmds = [d.commander, d.partner].filter(Boolean).map(find).filter(Boolean);
-  const lib0 = []; d.cards.forEach(e => { const c = find(e.n); if (c) for (let i = 0; i < e.q; i++) lib0.push(c); });
+  const lib0 = []; d.cards.forEach(e => { const c = find(e.n); if (c) for (let i = 0; i < e.q; i++) lib0.push(c); }); const reach = UP.lfix ? fetchReach(lib0, ident) : null;
   const R = {games:games || 500, cmdTurn:[], spent:[0, 0, 0, 0, 0, 0, 0, 0], colourStuck:0, screw:0, flood:0, landsT4:[], noPlayT3:0, mull:0}, rnd = rng32(seed || 1);
   const colsOf = s => s.cols.length ? s.cols.filter(k => k === 'C' || ident.includes(k)) : ['C'];
   for (let g = 0; g < R.games; g++){
@@ -119,7 +130,7 @@ function simulate(d, games, seed){
         const have = new Set(bf.flatMap(s => colsOf(s)));
         const score = ([c]) => { const s = simCard(c, ident); return colsOf(s).filter(k => needCol.has(k) && !have.has(k)).length * 2 + (s.tapped ? 0 : 1) + (s.cond && bf.length >= 2 ? 1 : 0); };
         const [c, i] = lands.sort((a, b) => score(b) - score(a))[0], s = simCard(c, ident); hand.splice(i, 1);
-        const tap = s.tapped || (s.cond && bf.filter(z => z.land).length < 2); bf.push(Object.assign({}, s, {tappedNow:tap, land:true, cols:s.fetch ? ident.slice() : colsOf(s)})); }
+        const tap = s.tapped || (s.cond && bf.filter(z => z.land).length < 2); bf.push(Object.assign({}, s, {tappedNow:tap, land:true, cols:UP.lfix ? simLandCols(c, s, ident, reach, needCol, have, colsOf) : s.fetch ? ident.slice() : colsOf(s)})); }
       // spend mana: commander first, then mana sources, then card draw, then the costliest castable spell
       let spent = 0;
       for (let k = 0; k < 12; k++){
@@ -158,7 +169,7 @@ function simulate(d, games, seed){
 // records each turn, so simulate() (the deck score's 300 games) stays exactly as it is; a test checks both agree game for game.
 function practiceGames(d, games, seed){
   const ctx = ctxOf(d), ident = ctx.ident.length ? ctx.ident : ['C'], cmds = [d.commander, d.partner].filter(Boolean).map(find).filter(Boolean);
-  const lib0 = []; d.cards.forEach(e => { const c = find(e.n); if (c) for (let i = 0; i < e.q; i++) lib0.push(c); });
+  const lib0 = []; d.cards.forEach(e => { const c = find(e.n); if (c) for (let i = 0; i < e.q; i++) lib0.push(c); }); const reach = UP.lfix ? fetchReach(lib0, ident) : null;
   const R = {games:games || 500, cmdTurn:[], spent:[0, 0, 0, 0, 0, 0, 0, 0], colourStuck:0, screw:0, flood:0, landsT4:[], noPlayT3:0, mull:0}, rnd = rng32(seed || 1), logs = [], nm = c => c ? c.n : '';
   const colsOf = s => s.cols.length ? s.cols.filter(k => k === 'C' || ident.includes(k)) : ['C'];
   for (let g = 0; g < R.games; g++){
@@ -177,7 +188,7 @@ function practiceGames(d, games, seed){
         const have = new Set(bf.flatMap(s => colsOf(s)));
         const score = ([c]) => { const s = simCard(c, ident); return colsOf(s).filter(k => needCol.has(k) && !have.has(k)).length * 2 + (s.tapped ? 0 : 1) + (s.cond && bf.length >= 2 ? 1 : 0); };
         const [c, i] = lands.sort((a, b) => score(b) - score(a))[0], s = simCard(c, ident); hand.splice(i, 1); T.land = c.n;
-        const tap = s.tapped || (s.cond && bf.filter(z => z.land).length < 2); bf.push(Object.assign({}, s, {tappedNow:tap, land:true, cols:s.fetch ? ident.slice() : colsOf(s)})); T.tapped = !!tap; }
+        const tap = s.tapped || (s.cond && bf.filter(z => z.land).length < 2); bf.push(Object.assign({}, s, {tappedNow:tap, land:true, cols:UP.lfix ? simLandCols(c, s, ident, reach, needCol, have, colsOf) : s.fetch ? ident.slice() : colsOf(s)})); T.tapped = !!tap; }
       // spend mana: commander first, then mana sources, then card draw, then the costliest castable spell
       let spent = 0; T.mana = bf.filter(s => s.mana && !s.tappedNow && !s.sickNow).reduce((a, s) => a + s.mana, 0);
       for (let k = 0; k < 12; k++){
@@ -977,6 +988,8 @@ function landColors(c){
   const sent = o.split(/(?<=\.)\s+/);
   sent.forEach((x, i) => { if (!/\badd\b/i.test(x) || /^Spend this mana only/i.test(sent[i + 1] || '') || /a land you control could produce/i.test(x)) return;
     (x.match(/\{([WUBRG])\}/g) || []).forEach(y => out.add(y[1])); if (/mana of any (one )?colou?r|any colou?r|mana of any type/i.test(x)) 'WUBRG'.split('').forEach(z => out.add(z)); });
+  // "As it enters, choose a color … Add one mana of the chosen color" (Thriving lands, Big Apple): any colour, picked as it enters.
+  if (UP.lfix && /choose a colou?r/i.test(o) && /chosen colou?r/i.test(o)) 'WUBRG'.split('').forEach(z => out.add(z));
   const f = /search your library for (an? |up to \w+ )?(basic land|[^.]*?(Plains|Island|Swamp|Mountain|Forest)[^.]*?) cards?/i.exec(o);
   if (f){ if (/basic land/i.test(f[2])) 'WUBRG'.split('').forEach(x => out.add(x)); else Object.keys(LTYPE).forEach(k => { if (new RegExp('\\b' + k + '\\b').test(f[2])) out.add(LTYPE[k]); }); }
   return c._lc = out;
@@ -1149,7 +1162,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1426,6 +1439,11 @@ function upgradePaths(d, opt){
 // whose job the deck is already short of) and puts in the strongest card that fixes the problem, at the deck's price level.
 // o.val: the deck's own card values (the upgrade list's), o.n: how many swaps to offer.
 const FIX_KINDS = {ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes', landsUp:'More lands', landsDown:'Fewer lands', curve:'Lower curve', wins:'A way to win', mana:'Better mana'};
+// A land may replace another only if it makes every deck colour the old one made (Build 137): Thriving Isle (blue and one chosen
+// colour) needs a land making blue and another colour; a basic needs its colour.
+function landCovers(cut, add, ident){ if (!cut || !add) return false; const A = new Set([...landColors(add)].filter(z => ident.includes(z))), sc = simCard(cut, ident);
+  if (sc.chosen){ const fx = (sc.fixed || []).filter(z => ident.includes(z)); return fx.every(z => A.has(z)) && A.size >= fx.length + 1; }
+  return [...landColors(cut)].filter(z => ident.includes(z)).every(z => A.has(z)); }
 function fixSwaps(d, kind, o){
   o = o || {}; if (d.format !== 'commander' || !find(d.commander)) return [];
   const ctx = ctxOf(d), A = analyze(d), T = A.T, val = o.val || (c => baseScore(c, d, ctx).s), n = o.n || 6;
@@ -1463,7 +1481,7 @@ function fixSwaps(d, kind, o){
       .map(x => ({n:x.e.n, v:(landSpeed(x.c) === 'tapped' && !isBasic(x.c.n) ? 0 : 10) - (isBasic(x.c.n) ? basicsBy[x.c.n] || 0 : 0) * 0.1 + cols(x.c)}));
     const cuts = []; L.sort((a, b) => a.v - b.v).forEach(x => { if (isBasic(x.n)) { const k = cuts.filter(y => y.n === x.n).length; if (k < Math.min(3, (basicsBy[x.n] || 0) - 1)) for (let q = 0; q < 1; q++) cuts.push(x); } else cuts.push(x); });
     // a basic can be cut more than once: each pairing takes one copy
-    const used = new Map(), out = []; for (const a of adds){ if (out.length >= n) break; const cu = cuts.find(x => (used.get(x.n) || 0) < (isBasic(x.n) ? Math.min(3, (basicsBy[x.n] || 0) - 1) : 1)); if (!cu) break;
+    const used = new Map(), out = []; for (const a of adds){ if (out.length >= n) break; const cu = cuts.find(x => (used.get(x.n) || 0) < (isBasic(x.n) ? Math.min(3, (basicsBy[x.n] || 0) - 1) : 1) && (!UP.lfix || landCovers(find(x.n), a.c, ctx.ident))); if (!cu) continue;
       used.set(cu.n, (used.get(cu.n) || 0) + 1); const v = o.landScore ? o.landScore(cu.n, a.c.n) : undefined; out.push({cut:cu.n, add:a.c.n, q:1, kind, why:landSpeed(find(cu.n)) === 'tapped' ? 'Replaces a land that enters tapped' : 'Replaces a basic with a land making more of your colours', dScore:v}); }
     return out.filter(x => x.dScore == null || x.dScore >= -0.05).sort((a, b) => (b.dScore || 0) - (a.dScore || 0)); }
   if (kind === 'curve'){ const hi = spells.filter(x => (x.c.cmc || 0) >= 5 && !short([...x.roles].find(r => JOBS.includes(r)) || 'x')).sort((a, b) => (a.v - (a.c.cmc || 0)) - (b.v - (b.c.cmc || 0)));
