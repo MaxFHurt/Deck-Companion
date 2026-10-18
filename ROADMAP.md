@@ -158,6 +158,16 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   set a little (@10 0.199 -> 0.197, sum 6.69 -> 6.58, weighted 0.219 -> 0.215 / 7.59 -> 7.49) and takes back the rankN sum gain
   (tuneall 9.30 -> 9.12); the owner ruled the correct reading wins. Generated decks improve (beat the median strong deck 10 ->
   11 of 13; tournament match 55% -> 56%, core 53% -> 54%). A check of ramp, removal and board-wipe readings found no misreads.
+- **Game Changers at Apex** (owner: "if we need them to move up in bracket shouldn't they be included?"; replaces Build 115's
+  trim to the room under Bracket 3's three): the Apex list now offers up to 3 Game Changer rows (UP.gcN 3) whatever the deck
+  already holds (UP.gc3 0), lets a Game Changer that beats the card it replaces by less than usual in play value still be
+  offered (UP.gcB 4 -> 10), and keeps those rows from being left out because the precon's casual owners rarely add the card
+  or replaced by a more-played card (UP.gcT). Every one still has to raise the deck score. Why they were missing: Game
+  Changers that raised the score (Notion Thief +1.72, Farewell +0.83, Smothering Tithe +0.77, Enlightened Tutor +0.62) were all
+  removed after scoring by those two steps; the three-card limit itself changed nothing. Apex upgrade lists on the tuning set:
+  2 Game Changers in 197 picks -> 25 in 222, 6 of them ones strong (bracket 4+) players commonly add. They sort after the other
+  rows, so the benchmark is unchanged. Each row already says when it moves the deck up a bracket. Generated Apex decks already
+  hold Game Changers (2.9 on average; strong real decks 1.7). `gcwhy.js` shows how the score judges each Game Changer row.
 - **Tests:** UI suite 103/103 (new: UI-B141-01 thinking not shifting, -02 Build by theme, -03 obscure commanders and one-colour
   lands). UI-B118-01 (Tivit with no play data loaded) now tests the stage-1 bonus with the obscure-commander multipliers at 1.
   New tools: `genstrong.js` takes NOEDH=1 (no play data), `landsof.js` (a generated deck's lands).

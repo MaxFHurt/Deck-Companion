@@ -1184,7 +1184,7 @@ function scoreCheck(d, R, o){
         // UP.candL times the share of this commander's players who run it (UP.candL 0: the score alone decides)
         const incOf = x => ((ctx0.edh && edhOf(ctx0.edh.map, x.c)) || {inc:0}).inc, est = x => (x.we != null ? x.we : x.w) + (UP.candL || 0) * incOf(x);
         const CR = C.filter(x => cred(x) && !x.rx && !x.oc && (x.we != null ? x.we : x.w) >= UP.candMin).sort((a, b) => est(b) - est(a)), taken = new Set(), pop = {};   // a new pick clears practice-game noise
-        for (const t of ['apex', 'mid', 'budget']){ let cur = O[t]; if (cur && cur.held){ taken.add(norm(cur.add)); continue; }   // a pick the player chose holds its place
+        for (const t of ['apex', 'mid', 'budget']){ let cur = O[t]; if (cur && (cur.held || (UP.gcT && t === 'apex' && cur.gcPick && L.gcPick))){ taken.add(norm(cur.add)); continue; }   // a pick the player chose holds its place, and so does an Apex Game Changer row's (UP.gcT)
           if (cur && taken.has(norm(cur.add))){ cur = null; delete O[t]; }
           const b = (t === 'apex' ? CR : CR.filter(x => x.c.p != null && underCap(x.c.p, t))).find(x => !taken.has(x.c._n));
           const curEst = cur ? (cur.dScore != null ? cur.dScore : -1e9) + (UP.candL || 0) * ((ctx0.edh && edhOf(ctx0.edh.map, find(cur.add))) || {inc:0}).inc : -1e9;
@@ -1264,7 +1264,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {nmh:1, thA:1, thP:0.3, thT:0.3, thS:1.5, reF:1, rcap:2, rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, kw:1, kwB:0, kwS:0, unc:0.25, uncK:'', uncPick:0, uncTail:1, uncR:0, altCut:2, pool2:1, poolN:250, bs:1, bsF:0.5, bsP:9, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:18, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {gcT:1, gc3:0, nmh:1, thA:1, thP:0.3, thT:0.3, thS:1.5, reF:1, rcap:2, rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, kw:1, kwB:0, kwS:0, unc:0.25, uncK:'', uncPick:0, uncTail:1, uncR:0, altCut:2, pool2:1, poolN:250, bs:1, bsF:0.5, bsP:9, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:18, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:10, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){
@@ -1444,7 +1444,7 @@ function upgradePaths(d, opt){
   // those already in the deck and among the picks above; a deck at or past three gets none (a Game Changer can still win a
   // normal row on its own merits).
   if (gcV0 && UP.gcN){ const usedA = new Set([...apexPick.values()].map(x => x.a.c._k)); let n = 0;
-    const room = Math.min(UP.gcN, Math.max(0, 3 - (ctxOf(d).gcIn || 0) - [...apexPick.values()].filter(x => x.a.c.gc).length));
+    const room = UP.gc3 ? Math.min(UP.gcN, Math.max(0, 3 - (ctxOf(d).gcIn || 0) - [...apexPick.values()].filter(x => x.a.c.gc).length)) : UP.gcN;
     const G = C.filter(x => x.c.gc && !taken.has(x.c._k) && !usedA.has(x.c._k) && ev(x)).sort((a, b) => b.v - a.v);
     for (const a of G){ if (n >= room) break; let best = null;
       cuts.forEach((cu, i) => { if (apexPick.has(i) || held.has(cu.n) || cu.c.gc) return; const lost = cu.jobs.filter(j => !a.jobs.includes(j)); if (lost.some(j => JOBS.includes(j) && (after[j] || 0) - 1 < flo(j))) return;
@@ -1529,7 +1529,7 @@ function upgradePaths(d, opt){
   // benchmark decks). It is left out. Only the precon's own cards count (players' keep rates are about them); held swaps, your
   // own cards and lands are never left out.
   // The rows are left out at the end of scoreCheck, once every pick is final, so leaving them out changes no other row.
-  out.trimOf = !(UP.trim && preOn) ? null : L => { const p = L.opts.apex; if (!p || p.held || L.opts.free || Object.values(L.opts).some(x => x && x.held)) return false;
+  out.trimOf = !(UP.trim && preOn) ? null : L => { const p = L.opts.apex; if (!p || p.held || (UP.gcT && L.gcPick && p.gcPick) || L.opts.free || Object.values(L.opts).some(x => x && x.held)) return false;
     const cc = find(L.cut), ca = find(p.add); if (!cc || !ca || tags(cc).land || tags(ca).land || !preAll.has(cc._k)) return false; const pa = PA(ca), ci = PC(cc);
     return (pa ? pa.inc : 0) < UP.trimPa && (ci == null || ci >= UP.trimCi); };
   recount(out);
