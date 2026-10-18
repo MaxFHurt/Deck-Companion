@@ -1,100 +1,157 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 17 October 2026, Build 136 live.
+Last updated: 18 October 2026, Build 139 live.
+
+## 0. Open questions for the owner (ask these first, numbered)
+
+1. **Synergy ceiling.** 10 of 26 benchmark precons (and the owner's Symbiote Spider-Man deck) sit at the synergy part's
+   maximum, so a better-fitting card can't raise the score (The Soul Stone and Aetherize both scored 0.00). The fix
+   (`UP.unc` 0.25: compare swaps past the maximum, shown score unchanged) helps most sets but dips the tuning set:
+   agreement@5 0.238 → 0.236, @10 0.124 → 0.120. Accept the dip as an exception, or keep searching for a version with
+   no dip?
+2. **Commander engine reasons.** Build 139 shows why a card fits the commander ("Doubles the tokens your commander
+   makes", "Uses the cards your commander puts in your graveyard"). Does it read the owner's commanders correctly? Misreads
+   reported here are what will let it count in the score.
+3. **Over-budget warning.** Should the card window say clearly "Over your Budget limit ($3)" / "Over your Mid limit
+   ($12)" when the open card is too expensive for the deck's tier? (The Soul Stone, $80, was offered in a Budget deck
+   with only an "Apex only" price note.)
+4. **Next engine fixes (owner said yes to the plan, then the keyword work came first).** Go ahead with:
+   - reading cards like The Soul Stone properly (Harness/∞ recursion engines as recursion and a way to win);
+   - capping ramp in generated decks at about target + 2, so tournament fast mana (Lotus Petal, Chrome Mox, Cabal
+     Ritual) doesn't push out on-theme cards a quarter of the commander's players run (Soul Stone 31%, Living Death 35%);
+   - then the whole-pool search (below)?
+5. **Highest score in the background.** The whole-pool search would keep updating the "Highest score" cards for a few
+   minutes on a phone after the list appears. Is that OK?
+6. **Mana fix speed.** Fix: Mana now plays fresh practice games for every land swap it weighs: about 3 s on a desktop,
+   maybe 6–8 s on an iPad (the window opens at once with "Checking land swaps…"). Acceptable, or weigh fewer swaps?
+7. **Alternatives matched to the card going out?** Remaining guide blind spots (Swords to Plowshares for Turtle Power,
+   Brightglass Gearhulk for Wakanda) beat our pick only in a slot whose pick is a different kind of card, because
+   alternatives must do the same job as the pick. Match them to the card going out instead? (Benchmark first.)
+8. **Real-device check.** Screenshots from the owner's phone and iPad of anything that looks wrong: decks list,
+   Upgrades (List and Sheets), Build stats with Practice games open, Buy list, Library.
 
 ## 1. What this is
 
 **Deck Companion** is a Magic: The Gathering deck builder for Commander and Standard.
 - **Live:** https://maxfhurt.github.io/Deck-Companion/ (GitHub Pages, served from `main`).
-- **Repository:** `MaxFHurt/Deck-Companion`.
-- **App files:** `index.html` (CSS, boot and build number), `ui.js` (screens and buttons), `engine.js` (all deck logic: scoring, upgrades, generation, evaluator), `data.js` and `lists.js` (static data), and `version.json`.
-- **No build step and no runtime AI.** It's plain browser JavaScript.
-- **Card data:** Scryfall, downloaded in the browser.
-- **Play data:** EDHREC pages, fetched live.
-- **Combos:** Commander Spellbook, from the `card-data` branch.
+- **Repository:** `MaxFHurt/Deck-Companion`. Work branch this session: `claude/smarter-deck-score-stage-1-3q4oyx`.
+- **App files:** `index.html` (CSS, boot and build number), `ui.js` (screens and buttons), `engine.js` (all deck logic:
+  scoring, upgrades, generation, evaluator, practice games), `data.js` and `lists.js` (static data), `version.json`.
+- **No build step and no runtime AI.** Plain browser JavaScript. Card data from Scryfall, play data from EDHREC (fetched
+  live), combos from Commander Spellbook (`card-data` branch).
 
 **Other files:**
-- `ROADMAP.md`: the queue, the owner's decisions, standing rules and the Done list.
+- `ROADMAP.md`: the queue, the owner's decisions, standing rules, tried-and-rejected experiments with numbers.
 - `CHAT_TO_WORK_HANDOFF.md`: the message board with the planning chat.
+- `tools/rules/`: the Comprehensive Rules (2026-09-25), `keywords.json` (264 keyword actions/abilities with rules text,
+  61 ability words, 741 glossary terms) and `MECHANICS_NOTES.md` (how to read a commander, tokens, triggers and
+  doublers, counters, graveyard, combo patterns, rules that change deck building). The owner asked for this: the engine
+  must understand Magic and each commander.
 - `tools/tests/suite/`: every test and benchmark script, plus `setup.sh`.
 
 ## 2. The owner and how to work with them
 
-- **Replies:** plain English, short. Number questions whenever there are several. Every long reply ends with a **Summary** (✅ done / ⏳ needs the owner). Every question asked in a reply is repeated, reworded, as ❓ lines at the end of the summary. The owner multitasks and often reads only the summary.
-- **Builds:** one feature per build. For each one, build it, run the full test suite, check for regressions, and go live only if everything passes. The owner has given standing permission to push bug-free builds live one at a time. Save work in progress often by pushing to the working branch, but never merge a half-built feature.
-- **Usage:** the owner is often low on usage. Stay concise, don't re-explain, and when asked to just talk, don't build.
-- **Standing rules:** these are in `ROADMAP.md` under "Standing rules from the owner". Key ones:
-  - Don't change the upgrades engine without discussing it first. Once the owner approves, benchmark before and after.
-  - Brackets are a label, not a cap. Budget means under $3 and Mid under $12; Apex has no price limit.
-  - Popular picks lead, and the deck score must confirm every suggestion (no swap may lower it). On-theme cards win when about equal.
-  - Every remove, delete, swap, add, or button that changes many cards asks first (`CONFIRM` map in `ui.js`).
-  - Extra lands may only come out for other cards when the deck is over its land target, and never more than the surplus.
-  - The MTG Commander Deck Manager spreadsheet must never supply benchmark inputs.
-  - Phone layout changes must never affect the iPad.
+- **Replies:** plain English, short. **Number questions** whenever there are several. Every long reply ends with a
+  **Summary** (✅ done / ⏳ needs the owner) that repeats the questions, numbered. The owner often reads only the summary.
+- **Builds:** batch builds are fine; no confirmation needed per live push, but every live build must be complete and
+  tested (full UI suite, benchmark for engine changes). Do the work, then stop. Push builds periodically so a live
+  build exists if usage runs out.
+- **"Regression is not an option."** Every engine build must match or beat the last benchmark on every set
+  (agreement@5, row@5, @10; unweighted and `WEIGHT=3,6`). If a change regresses, keep it switched off and report the
+  numbers.
+- **Standing rules** (also in `ROADMAP.md`):
+  - Brackets are labels. Budget < $3, Mid < $12, Apex has no price limit. Apex is the best version of the deck; no tier
+    above it. Mid outscoring Apex means the recommendations are wrong; decks scoring below Budget are fine.
+  - Never lose popular-vote cards, but the best card should be the Apex card. The app's purpose is to find the best
+    cards, not just what others play.
+  - On-theme cards win when about equal. Every swap, add, remove or many-card change asks first.
+  - Understand the commander: build around what it makes and what sets it off (e.g. a token maker wants cards that use
+    or double that token).
+  - A spell may be cut for a land when the deck is short of mana (owner, 18 Oct).
+  - The MTG Commander Deck Manager spreadsheet never supplies benchmark inputs. Phone layout changes must not affect
+    the iPad. Never overwrite the backup (`backup/build-118`). The practice-game simulation may change only with the
+    owner's OK (given for Build 137's land-colour fix).
 
-## 3. How to ship a build (exact steps)
+## 3. How to ship a build
 
-1. **Set up the test layout:** `sh tools/tests/suite/setup.sh /tmp/dc` builds `/tmp/dc/proto/{candidate,tests,snapshot,data2,...}` from this repo and the `test-data` branch. Edit the app in `proto/candidate`, then copy it back to the repo root when shipping.
-2. **Bump the build number in three places:**
-   - `index.html`: `window.BUILD = N;` and every `?v=N` on the script tags. The footer's `build-no` is filled from `window.BUILD` at boot.
-   - `version.json`: `{"build": N}`. The live page reloads itself when this is newer.
-3. **Test from `proto/tests`** (commands in `tools/tests/suite/README.md`):
-   - **UI suite:** start the server with `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)`. It sometimes dies; if a run prints nothing, restart it. Then run `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. It must pass every test (94 at Build 136). The test setup switches Upgrades to List view (`S.upView = 'list'`); Sheets is the app's default.
-   - **Engine checks:** `node accept.js` (39 passed), `node claims.js ../candidate every` (FALSE 0), `node semantics.js ../candidate` (44 passed) and `node edge.js ../candidate` (no THROW).
-   - **Engine changes also need the benchmark,** run in the background: `TIER=apex SCORECHECK=1 node bench.js ../candidate bN tuneall|test|holdout --quiet`. Current agreement@5 is tuneall 0.238, test 0.303, holdout 0.292 (Build 130), row@5 0.240 / 0.303 / 0.292. The owner's rule: no regression, ever; each build must gain.
-   - **Deck-score changes also need the tournament comparison:** `node tourney.js ../candidate` (Build 118: match 57%, core 55%, raise 43/80, mid 50%). Its data is frozen in `tourney-data.json.gz`.
-   - **Add one new UI test per build** in `ui-test.mjs`, inserted after the previous build's test.
-4. **Ship:**
-   1. `git fetch origin main && git checkout -B claude/deck-companion-upgrade-compare-46c7aa origin/main`
-   2. Copy `engine.js ui.js index.html version.json` and `tools/tests/suite/ui-test.mjs`.
-   3. Update `ROADMAP.md`: set "Live: Build N" and add a Done line.
-   4. Commit, ending the message with the session's attribution lines.
-   5. `git push -f -u origin <branch>`.
-   6. Create the PR with the GitHub MCP tool `create_pull_request`, ending the body with "🤖 Generated with [Claude Code](https://claude.com/claude-code)".
-   7. Merge it with `merge_pull_request`, `merge_method: rebase` and the full `expectedHeadSha`.
-   8. Poll `https://maxfhurt.github.io/Deck-Companion/version.json` until it shows N.
-5. **Gotchas:**
-   - A `// comment` added at the end of a one-line function comments out the rest of that line. Always run `node -e "new Function(require('fs').readFileSync('ui.js','utf8'))"` after edits.
-   - The tests use switches: `S.syncRecs` (run the score check synchronously), `S.autoYes` (auto-confirm swap-type actions in older tests), `S.noAsk` and `recsReady(d)`.
-   - Screenshots: `dbg-ipad.mjs` (`PHONE=1` for a 390×844 portrait phone, `PORTRAIT=1` for an 820×1180 iPad, nothing for a 1366×1024 iPad) and `dbg-land.mjs` (`LAND=1` for an 844×390 sideways phone). Run them with `shot-home.js` or `shot-deck.js` and `OUT=<png>`.
-   - The test container has no internet, so card pictures are blank and a "Scryfall dropped" banner shows. That's normal.
+1. **Test layout:** `sh tools/tests/suite/setup.sh /tmp/dc3`. Edit in `/tmp/dc3/proto/candidate`; tests run from
+   `/tmp/dc3/proto/tests`. EDHREC pages for extra commanders can be fetched into `proto/data2/edhrec/<slug>.json` and
+   themes into `proto/data2/themes/<slug>__<theme>.json` (`json.edhrec.com/pages/commanders/<slug>[/<theme>].json`).
+2. **Bump the build** in `index.html` (`window.BUILD = N`) and `version.json` (`{"build": N}`).
+3. **Test:**
+   - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
+     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (97 at Build 139). If it
+     prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
+   - Benchmark (engine changes), all six must not drop:
+     `SCORECHECK=1 [WEIGHT=3,6] node bench.js ../candidate x tuneall|test|holdout --quiet`.
+     **Always set `SCORECHECK=1`**, otherwise the Apex pick rule is skipped and the numbers are wrong.
+   - Add one UI test per build, inserted before the iPad reload test near the end of `ui-test.mjs`.
+4. **Ship:** copy `engine.js ui.js index.html version.json` and `tools/tests/suite/ui-test.mjs` (plus new tools) into the
+   repo, update `ROADMAP.md` and this file, commit with the session's attribution lines, then
+   `git push origin <work branch>` and `git push origin HEAD:main` (fast-forward). Poll
+   `https://maxfhurt.github.io/Deck-Companion/version.json` until it shows N, then load the live page in Playwright and
+   check `window.BUILD` and zero page errors.
+5. **Gotchas:** a `// comment` at the end of a one-line function comments out the rest of the line (syntax-check with
+   `node -e "new (require('vm').Script)(require('fs').readFileSync('engine.js','utf8'))"`). The remote was renamed to
+   `Deck-Companion`; if git says "unpushed commits", refresh the tracking ref
+   (`git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && git fetch origin`).
 
-## 4. Engine map (where things live)
+## 4. Benchmark baseline (Build 139, SCORECHECK=1)
 
-- **Upgrade list:**
-  - `upgradePaths(d)` picks the rows. `scoreCheck(d, R, o)` then confirms every swap with `swapScore`, and does the ranking, alternatives (`L.alts`, Unpopular pick), the Highest score card (`L.top`) and the spare-land rows (`L.spare`, `UP.spare`).
-  - Settings live in the `UP` object at the top of the scoring section: `rankPick:0` (popular picks lead), `gcN/gcB` (Game Changer rows, trimmed to Bracket 3 room in Build 115), `lf` (land formula in the generator) and `spare`.
-- **Deck score:** `evaluateDeck(d, {games, apex, sim})` has 5 parts: synergy, balance, quality, routes and mana (practice games).
-  - `swapScore` reuses the stored practice games, so for land changes use fresh games: `freshDelta` in ui.js, or the `landScore` closures.
-- **Land target:**
-  - `landTarget(A, d)` = 31.5 + 1.6×average MV − 0.32×cheap ramp + 0.72×landfall, from 30 to 42, applied in `analyze` for full decks. It was fitted by `tools/tests/suite/landfit.js`.
-  - `spareLands(d)` lists the lands that can come out.
-- **Fix menus (Show buttons):** `fixSwaps(d, kind, o)` in the engine and `fixList` / `openFix` in ui.js. They handle Mana (colour swaps plus adding lands only when under target), Lands (over target means spare lands for jobs), and ramp, draw, removal and wipes (spare lands allowed).
-- **Generator:** `buildPlan(d, seeds, ownOnly, ownAll)`. Its mana base v2 sets the land count from `landTarget`.
-- **Fit tip:** `evalFit(d, c)`. Plans are weighted 2 / 1.75 / 1.5, plus 1.25 per extra plan a card hits.
-- **Main UI functions:** `viewHome`, `viewDecks`, `upPanel`, `wantHtml` (card window weighed against every cut), `openJobs` (Best by job), `openLands` (Lands helper), `openShare`/`checkShareLink`, `openDycb` (Decks you can build), `libStatsHtml`, `phHtml` (price history) and `continueHtml` (phones only).
+| Set | agreement@5 | row@5 | @10 | whole-list sum | weighted @5 / @10 / sum |
+|---|---|---|---|---|---|
+| tuneall | 0.238 | 0.240 | 0.124 | 9.01 | 0.268 / 0.151 / 13.68 |
+| test | 0.303 | 0.303 | 0.198 | 6.84 | 0.322 / 0.217 / 7.73 |
+| holdout | 0.292 | 0.292 | 0.205 | 15.00 | 0.318 / 0.241 / 18.55 |
 
-## 5. Where things stand
+Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`, `rowfeat.js` (per-row evidence),
+`fullsearch.js` (scores every legal same-job card per slot), `wcheck.js` (weighted yardstick validity).
 
-- **Live:** Build 136 (visible practice games on the Build stats tab). **Build 135:** (fewer swaps where players keep the precon; jobless and weak slots get better alternatives). **Build 134:** (Unpopular pick chip only for a big gap; guide spot-check tools). **Build 133:** (customised Build panel folds to one-line headers and fits; upgrade list keeps its order). **Build 132:** (upgrade paths as folder tabs). **Build 131:** (Upgrades layout: one row of filter drop-downs, EDHREC chip in the stats module, colour-coded Budget/Mid/Apex marks with scores). **Build 130:** (deck score stage 2; Apex = best credible card, popular card kept as Most played; buy-list printings).
-- **Before:** Build 129. The full history is the "Done" list in `ROADMAP.md`. Backup of Build 118: branch `backup/build-118`.
-- **Builds 119-129 (17 Oct)** worked through the owner's Oct 17 master handoff: printed names, score/tip agreement, scroll sizing, source-aware mana check, deck power, Buy list page, Flip, Build stats tab, upgrade sheets, compact Build panel, Apex strongest. Owner's rules from that session: batch builds, quick bug checks per build, full test before each live push, no need to confirm each push; decks scoring below Budget are fine, Mid outscoring Apex is a bug.
-- **Still open from that handoff:** the custom Build panel now fits (Build 133); the scroll lock after reload is fixed (owner confirmed on iPad, 17 Oct); the independent expert benchmark and Tramplesaurus cut accuracy (section 14); Buy list printing (done in 130); Apex as the outright highest-scoring card was measured and rejected (agreement 0.018).
-- **Done in Build 118:** smarter deck score, stage 1 (tournament staples for Apex): `TOURNEY` lists and `tourneyOf` in engine.js, `UP.ts/tsk/tl/tr`. Still missed: tutors and win cards (Demonic Consultation, Tainted Pact, Thassa's Oracle), and Lumra/Vivi gain least.
-- **Next:** not yet chosen by the owner (options: stage 2 of the deck score, the open decisions below).
-- **Waiting on the owner:**
-  - whether alternatives should be matched to the card going out rather than the pick (the remaining guide blind spots);
-  - real-device check (phone and iPad screenshots).
-- **No fourth tier:** the owner ruled that Apex is the best version of a deck; the "Tournament build" idea is dropped. Closing the tournament gap is Apex work.
-- **Tried and rejected after Build 133 (see ROADMAP):** deck score stage 3 (test 0.303 -> 0.298) and closer plan weighting (test 0.303 -> 0.281 / 0.298). Engine unchanged.
-- **Benchmark baseline (Build 135, SCORECHECK=1):** agreement@5 tuneall 0.238, test 0.303, holdout 0.292 (row@5 0.240 / 0.303 / 0.292; @10 0.124 / 0.198 / 0.205); with `WEIGHT=3,6` 0.268 / 0.322 / 0.318. Both must not drop. Note: without `SCORECHECK=1` the bench skips the Apex pick rule and reads 0.249 with gain 0 — wrong baseline.
-- **Roadmap:** every buildable item is done. Left: the real-device check (needs the owner's phone and iPad) and the open question on matching alternatives to the card going out.
-- **Known limits:**
-  - Decks over their land target take a few seconds more to check upgrades.
-  - The card window takes about half a second to open.
-  - Price history starts at Build 110 and grows as card data refreshes.
+## 5. Engine map (where things live)
 
-## 6. Prompt for a new Claude Code session
+- **Upgrade list:** `upgradePaths(d)` picks rows; `scoreCheck(d, R, o)` confirms every swap with `swapScore`, ranks,
+  builds alternatives (`L.alts`, Unpopular pick only for a big gap: `UP.unpopX/G/S/R`), `L.top`, spare-land rows, and at
+  the end leaves out swaps players mostly disagree with (`R.trimOf`, `UP.trim/trimPa/trimCi`, precon cards only).
+  Settings: the `UP` object.
+- **Deck score:** `evaluateDeck(d, {games, apex, sim})`: synergy, balance, quality, routes, mana. Returns `exact` and
+  `cmp` (past-the-maximum compare value, used only when `UP.unc` > 0; `cmpOf(e)`). Synergy maxes at raw 0.72
+  (`EV_SUFF`), balance at 1, quality at the Apex reference.
+- **Practice games:** `simulate(d, games, seed)`; `practiceGames` is a step-by-step copy for the Practice panel (a test
+  checks they agree). Lands: `fetchReach`/`simLandCols` (`UP.lfix`): fetch lands make only what they can find;
+  "choose a colour" lands make their colour plus the needed one.
+- **Mana fixes:** `fixList`/`openFixSoon` (ui.js). Lands use `landRank` (shared with the card window): lands that keep
+  every colour (`landCovers`) plus, when `manaStarved` (out of lands by turn 5 in `UP.starve` 8%+ of games or under
+  target), weak spells; measured with `freshDelta` (fresh practice games, remembered).
+- **Rules knowledge:** `KW_THEMES`/`KW_RE` (keywords → themes, `UP.kw`), `commanderEngine(cmds)` (token kinds, creature
+  tokens and type, counters, fills graveyard, sacrifices, triggers), `engineFit(c, E)` (doubler 1 / payoff 0.8 / enabler
+  0.6, with a reason). Shown on cards via `baseScore` reasons; scoring weight `UP.kwB`/`UP.kwS` = 0 (didn't pass yet).
+- **Experiments left switched off:** `UP.unc` (synergy ceiling), `UP.kwB`/`kwS` (engine fit in score), `UP.stN`
+  (Commander-wide staples per slot), `UP.rs3`, `UP.aw/aiw/amb` (plan weighting). Numbers in `ROADMAP.md`.
+- **Generator:** `buildPlan(d, seeds, ownOnly, ownAll)`.
+- **UI:** `viewDecks`, `upPanel` (Upgrades + Build stats, `practiceHtml`), `wantHtml` (card window), `openFix`,
+  `openShare`/`checkShareLink` (share links decode with base64url + raw deflate; `shareRead`).
 
-> You're continuing work on Deck Companion (repo MaxFHurt/Deck-Companion, live at maxfhurt.github.io/Deck-Companion). Read `WORK_SESSION_HANDOFF.md`, then `ROADMAP.md` and `CHAT_TO_WORK_HANDOFF.md`, in the repo. Follow the owner's rules there exactly: plain English, a short summary at the end of every reply with questions repeated, one feature per build, the full test suite before going live, and no upgrades-engine change without the owner's approval and a benchmark. Set up the tests with `sh tools/tests/suite/setup.sh /tmp/dc`. Live is Build 118; ask the owner what's next. Confirm you've read the handoff, then ask me what to do first.
+## 6. Where things stand
+
+- **Live: Build 139** (rules knowledge base; keyword-aware themes; the commander's engine read and shown on cards).
+  138: Mana fix and card window agree; a spell may go for a land when short of mana. 137: fetch and "choose a colour"
+  lands count colours correctly; a mana fix never drops a colour. 136: visible practice games. 135: fewer swaps where
+  players keep the precon; better alternatives in jobless/weak slots. 134: Unpopular pick only for big gaps.
+- **Whole-pool finding (18 Oct):** scoring every legal same-job card finds a higher-scoring card than the app measured in
+  62 of 80 slots (mean gap 0.4), nearly all run by under 10% of players. Many "winners" are wrong (Kozilek in Avengers,
+  Quilled Greatwurm in Turtles, Nissa, Vital Force in 5 of 8 Ghalta slots) because the score credits any big creature
+  as a way to win and stacks multi-job credit. Agreed plan: fix those score blind spots, then a background whole-pool
+  search whose best find is always shown (Highest score / alternative); the Apex pick keeps score + popularity.
+- **Owner's test deck:** Symbiote Spider-Man (generated), Budget tier, Marvel/Spider-Man sets only, themes reanimator,
+  self-mill, graveyard. Share link in the chat of 18 Oct; decoded copy used for tests (synergy 30/30, balance 25/25,
+  quality 20/20: at every ceiling).
+- **Known limits:** Fix: Mana takes ~3 s on desktop; decks over their land target take a few seconds more for upgrades.
+
+## 7. Prompt for a new Claude Code session
+
+> You're continuing work on Deck Companion (repo MaxFHurt/Deck-Companion, live at maxfhurt.github.io/Deck-Companion).
+> Read `WORK_SESSION_HANDOFF.md` (start with section 0, the open questions), then `ROADMAP.md`, `tools/rules/MECHANICS_NOTES.md`
+> and `CHAT_TO_WORK_HANDOFF.md`. Follow the owner's rules exactly: plain English, numbered questions, a Summary at the end of
+> every reply, complete and tested builds, and no engine change that regresses any benchmark number. Set up tests with
+> `sh tools/tests/suite/setup.sh /tmp/dc3`. Live is Build 139. Ask the owner the open questions in section 0 first.
