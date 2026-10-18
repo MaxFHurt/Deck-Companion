@@ -413,7 +413,7 @@ T('UI-B81-02', 'Build 81: Duplicate makes an identical copy; Delete and Don’t 
 // half its gain; the alternatives are named and pictured and Swap on one puts it in.
 const b81c = await page.evaluate(async () => { const out = {rows:0, apexBest:true, tiersOk:true, dupes:0, alt3:0, altOk:true}; S.syncRecs = true;
   for (const nm of [/Wakanda/i, /Doom/i, /Avengers/i, /Family/i]){ const d = S.profile.decks.find(x => nm.test(x.name)); if (!d) continue; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; d.tier = 'apex';
-    await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); recsFor.k = null; render(); const R = await recsReady(d);
+    await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); recsFor.k = null; render(); const R = await recsReady(d); render(); out.alt3Seen = (out.alt3Seen || 0) + document.querySelectorAll('.paths .alt3 .a3 img').length;   // Build 140: counted on every deck visited
     R.paths.forEach(L => { if (!L.ranked) return; out.rows++; const O = L.opts, names = ['apex', 'mid', 'budget'].map(t => O[t] && O[t].add).filter(Boolean); if (new Set(names).size !== names.length) out.dupes++;
       const all = ['apex', 'mid', 'budget'].map(t => O[t]).filter(Boolean).concat(Object.values(L.alts || {}).flat());
       ['apex', 'mid', 'budget'].forEach(t => ((L.alts || {})[t] || []).forEach(a => { out.alts = (out.alts || 0) + 1; if (a.unpop){ out.unpop = (out.unpop || 0) + 1; if (!(a.dScore > a.vsScore && a.inc < 0.1)) out.unpopBad = true; /* Build 134: only a big gap */ if (!(a.dScore - a.vsScore >= 0.2 - 1e-9 && a.dScore >= 1.5 * a.vsScore - 1e-9 && a.vsInc >= 3 * a.inc - 1e-9 && a.vsInc - a.inc >= 0.1 - 1e-9)) out.unpopBad = true; } else if (a.dScore > a.vsScore && a.inc < 0.1 && a.dScore - a.vsScore < 0.2) out.unpopQuiet = (out.unpopQuiet || 0) + 1; }));
@@ -421,7 +421,7 @@ const b81c = await page.evaluate(async () => { const out = {rows:0, apexBest:tru
       ['mid', 'budget'].forEach(t => { if (O[t] && !(find(O[t].add).p != null && underCap(find(O[t].add).p, t))) out.tiersOk = false; });
       ['apex', 'mid', 'budget'].forEach(t => { const A = (L.alts || {})[t] || [], tp = O[t] || O.mid || O.apex; out.alt3 += A.length; if (A.length > 3 || A.some(a => !a.most && (names.includes(a.n) || (tp && a.dScore < 0.5 * tp.dScore - 1e-9)))) out.altOk = false;   /* Build 130: the Most played card is kept on purpose */ }); });
     if (!out.swapped){ const b = document.querySelector('.paths [data-act="swap-a3"]'); if (b){ const n = b.dataset.n, save = JSON.stringify(d.cards); b.click(); out.swapped = !!entryOf(d, n); d.cards = JSON.parse(save); recsFor.k = null; } } }
-  render(); out.alt3Shown = document.querySelectorAll('.paths .alt3 .a3 img').length; return out; });
+  render(); out.alt3Shown = out.alt3Seen + document.querySelectorAll('.paths .alt3 .a3 img').length; return out; });
 T('UI-B81-03', 'Upgrade table: popular picks lead; Mid and Budget are under their prices; no card shows twice; alternatives keep at least half the tier pick’s gain, show named and pictured with their score, an alternative that beats the pick but few players run is marked Unpopular pick, and Swap puts one in', b81c.rows > 10 && !b81c.unpopBad && b81c.tiersOk && !b81c.dupes && b81c.alt3 > 0 && b81c.altOk && b81c.swapped && b81c.alt3Shown > 0, JSON.stringify(b81c));
 // 35. Build 84: decklist sort (A–Z, mana value, price) inside each type group, and a role filter that shows only that job.
 const b84 = await page.evaluate(async () => { const out = {}; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; S.deckQ = ''; render();
@@ -944,6 +944,43 @@ const b139 = await page.evaluate(() => { const f = n => find(n), out = {};
   out.dredge = tags(f('Life from the Loam')).th.graveyard === 1; out.landfall = tags(f('Lotus Cobra')).th.lands === 1;
   const d = {format:'commander', commander:'Symbiote Spider-Man', partner:'', aims:[], cards:[], tier:'apex'}; const ctx = ctxOf(d); out.why = (baseScore(f('The Soul Stone'), d, ctx).why || [])[0] || ''; return out; });
 T('UI-B139-01', 'The engine reads keywords (Dredge → graveyard, Landfall → lands) and the commander’s engine: Chatterfang makes Squirrel tokens, Doubling Season doubles them, Squirrel Wrangler pays them off; The Soul Stone uses what Symbiote Spider-Man puts in the graveyard (Aetherize doesn’t), and the card says so', b139.chat && b139.ds && b139.wrangler && b139.elves && b139.soul && b139.dredge && b139.landfall && /graveyard/.test(b139.why), JSON.stringify(b139));
+// 89. Build 140 (owner: The Soul Stone, $80, was offered in a Budget deck with only an "Apex only" note): the card window says
+// plainly when a card is over the deck's price limit, once, at the top where the swap is offered; never in an Apex deck.
+const b140 = await page.evaluate(() => { const out = {}, d = S.profile.decks.find(x => x.format === 'commander' && find(x.commander)), t0 = d.tier;
+  const dear = LIB.find(c => c.p != null && c.p > 40 && c.cmd && c.ci.every(x => ctxOf(d).ident.includes(x)) && !d.cards.some(e => norm(e.n) === c._n) && !tags(c).land);
+  const cheap = LIB.find(c => c.p != null && c.p < 1 && c.cmd && c.ci.every(x => ctxOf(d).ident.includes(x)) && !d.cards.some(e => norm(e.n) === c._n) && !tags(c).land);
+  const chips = () => [...document.querySelectorAll('#modal .over-cap')].map(e => e.textContent);
+  S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list';
+  d.tier = 'budget'; render(); openCard(dear.n); out.budget = chips(); out.atTop = !!document.querySelector('#modal .grp .lab .over-cap');
+  d.tier = 'mid'; render(); openCard(dear.n); out.mid = chips();
+  d.tier = 'apex'; render(); openCard(dear.n); out.apex = chips();
+  d.tier = 'budget'; render(); openCard(cheap.n); out.cheap = chips();
+  d.tier = t0; $('#modal').hidden = true; render(); out.dear = dear.n + ' $' + dear.p; return out; });
+T('UI-B140-01', 'Over the price limit: a $40+ card opened from a Budget deck says "Over your Budget limit ($3)" (Mid: "$12") once, at the top of the card window; nothing in an Apex deck or for a cheap card', b140.budget.length === 1 && b140.budget[0] === 'Over your Budget limit ($3)' && b140.atTop && b140.mid.length === 1 && b140.mid[0] === 'Over your Mid limit ($12)' && !b140.apex.length && !b140.cheap.length, JSON.stringify(b140));
+// 90. Build 140 (owner's iPhone screenshots): on an upright phone, also with large text (320 wide), the deck tabs stay inside the
+// panel (a second row when needed), the page scrolls instead of a fixed-height box, and nothing spills past the panel's frame;
+// the card count stays on one line. iPad portrait and landscape keep the fixed working area.
+const b140p = {}; { for (const [k, vw, vh] of [['phone', 390, 844], ['big', 320, 693], ['ipadP', 820, 1180], ['ipadL', 1180, 820]]){ await page.setViewportSize({width:vw, height:vh}); await page.waitForTimeout(150);
+    b140p[k] = {}; for (const tab of ['list', 'up']) b140p[k][tab] = await page.evaluate(t => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = t; $('#modal').hidden = true; render(); fitWork();
+      const w = document.querySelector('.work'), tabs = document.querySelector('.tabs'), tr = tabs.getBoundingClientRect(), pr = tabs.closest('.panel').getBoundingClientRect();
+      const kids = [...tabs.closest('.panel').querySelectorAll('button, input, .tab')].filter(e => e.offsetParent), out = kids.filter(e => { const r = e.getBoundingClientRect(); return r.bottom > pr.bottom + 2 || r.right > pr.right + 2; }).length;
+      const lab = document.querySelector('.panel .row > .lab'); return {fixed:!!w.style.height, tabsFit:tabs.scrollWidth <= tabs.clientWidth + 1 && tr.right <= pr.right + 1, out, oneLine:t !== 'list' || !lab || lab.getBoundingClientRect().height < 30}; }, tab); }
+  await page.setViewportSize({width:1300, height:900}); await page.evaluate(() => { render(); }); }
+T('UI-B140-02', 'Upright phones (also 320 wide, as with large text): deck tabs fit inside the panel, the page scrolls instead of a fixed box, nothing spills past the frame, the card count is one line; iPad keeps its fixed working area', ['phone', 'big'].every(k => ['list', 'up'].every(t => !b140p[k][t].fixed && b140p[k][t].tabsFit && !b140p[k][t].out && b140p[k][t].oneLine)) && ['ipadP', 'ipadL'].every(k => b140p[k].list.fixed && b140p[k].up.fixed && b140p[k].list.tabsFit), JSON.stringify(b140p));
+// 91. Build 140 engine: reanimation engines (The Soul Stone, Living Death) are recursion and a way to win; a creature that wins only
+// by its size counts half, a 10-mana card is not protection and a planeswalker's ultimate is not one of its jobs (Kozilek, Nissa);
+// after the list is checked, every card that does a row's job is measured in the background and Highest score keeps the best.
+const b140e = await page.evaluate(async () => { const f = n => find(n), out = {};
+  out.reanim = isReanimEngine(f('The Soul Stone')) && isReanimEngine(f('Living Death')) && isFinisher(f('Living Death')) && !isReanimEngine(f('Eternal Witness'));
+  out.blind = !finByText(f('Kozilek, the Great Distortion')) && isFinisher(f('Kozilek, the Great Distortion')) && !tags(f('Nissa, Vital Force')).roles.has('draw') && tags(f('Nissa, Vital Force')).roles.has('ramp');
+  const sync0 = S.syncRecs, n0 = UP.poolN; S.syncRecs = false; UP.poolN = 40; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; recsFor.k = null; render(); const R = await recsReady(d);
+  out.note = false; let Rn = R;   // the list is worked out again once its picks are held; the search follows the current list
+  for (let i = 0; i < 1200 && !(Rn.poolDone && Rn === recsFor(d)); i++){ await new Promise(r => setTimeout(r, 100)); Rn = recsFor(d); if (document.querySelector('#pool-note')) out.note = true; }
+  out.done = !!Rn.poolDone; out.total = Rn.pool ? Rn.pool.total : 0; out.rows = Rn.pool ? Rn.pool.rows.length : 0;
+  out.never = Rn.paths.every(L => !L.top || !L.top.pool || L.top.dScore >= Math.max(scoreFloor(), UP.rankMin));   // a find always raises the score by a real margin
+  out.found = Rn.paths.filter(L => L.top && L.top.pool).map(L => L.cut + ' -> ' + L.top.n + ' ' + L.top.dScore);
+  out.slots = document.querySelectorAll('.topslot[data-i]').length > 0; S.syncRecs = sync0; UP.poolN = n0; return out; });
+T('UI-B140-03', 'Engine: The Soul Stone and Living Death read as reanimation (Living Death a way to win); Kozilek wins only by size and Nissa, Vital Force is not card draw; the background search measures every card for each row, says so while it runs, and keeps only finds that raise the score', b140e.reanim && b140e.blind && b140e.done && b140e.total > 0 && b140e.never && b140e.slots, JSON.stringify(b140e).slice(0, 900));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

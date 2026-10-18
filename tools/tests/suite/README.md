@@ -34,7 +34,7 @@ Needs Node 22 and, for the browser tests, Playwright with Chromium
 `agreement@5`: of the top 5 suggestions, how many match cards real players added
 when upgrading the same precon (0 = no better than random). Build 118:
 tuneall 0.233, test 0.286, holdout 0.292. Build 133: 0.238 / 0.303 / 0.292
-(weighted 3,6: 0.268 / 0.322 / 0.318). Always set SCORECHECK=1. The holdout set is for final checks only.
+(weighted 3,6: 0.268 / 0.322 / 0.318). Build 140: 0.244 / 0.303 / 0.292 (weighted 0.274 / 0.322 / 0.318). Always set SCORECHECK=1. The holdout set is for final checks only.
 
     node genstrong.js ../candidate tuneall          # generated decks vs strong (bracket 4+) decks
     node tourney.js ../candidate                    # our Apex decks vs 20 top-16 tournament lists, 10 commanders
@@ -50,3 +50,6 @@ Its data is frozen in `tourney-data.json.gz` (EDHTop16 lists, EDHREC pages, Buil
 Debug drivers: `dbg-ipad.mjs` (screenshots; `PHONE=1` or `PORTRAIT=1`), `dbg-land.mjs` (`LAND=1`, phone held sideways;
 use with `shot-home.js` / `shot-deck.js` and `OUT=<png>`), `landfit.js` (fits the land formula), `fixchk.js`,
 `rankshow.js`, `midchk.js`.
+Build 140: `topswaps.js` (a deck's first rows with players' evidence), `why.js` (which score parts a swap moves), `rampcount.js`
+(ramp in generated decks), `gensym.js` (generate one commander's deck), `sctime.js` (score check time), `altcount.js` (rows and
+alternatives per setting); `dbg-ipad.mjs` takes `VW`/`VH` with `PHONE=1` (e.g. 320 wide for large text).

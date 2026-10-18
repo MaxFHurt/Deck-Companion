@@ -1,41 +1,28 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 18 October 2026, Build 139 live.
+Last updated: 18 October 2026, Build 140 live.
 
 ## 0. Open questions for the owner (ask these first, numbered)
 
-1. **Synergy ceiling.** 10 of 26 benchmark precons (and the owner's Symbiote Spider-Man deck) sit at the synergy part's
-   maximum, so a better-fitting card can't raise the score (The Soul Stone and Aetherize both scored 0.00). The fix
-   (`UP.unc` 0.25: compare swaps past the maximum, shown score unchanged) helps most sets but dips the tuning set:
-   agreement@5 0.238 → 0.236, @10 0.124 → 0.120. Accept the dip as an exception, or keep searching for a version with
-   no dip?
-2. **Commander engine reasons.** Build 139 shows why a card fits the commander ("Doubles the tokens your commander
-   makes", "Uses the cards your commander puts in your graveyard"). Does it read the owner's commanders correctly? Misreads
-   reported here are what will let it count in the score.
-3. **Over-budget warning.** Should the card window say clearly "Over your Budget limit ($3)" / "Over your Mid limit
-   ($12)" when the open card is too expensive for the deck's tier? (The Soul Stone, $80, was offered in a Budget deck
-   with only an "Apex only" price note.)
-4. **Next engine fixes (owner said yes to the plan, then the keyword work came first).** Go ahead with:
-   - reading cards like The Soul Stone properly (Harness/∞ recursion engines as recursion and a way to win);
-   - capping ramp in generated decks at about target + 2, so tournament fast mana (Lotus Petal, Chrome Mox, Cabal
-     Ritual) doesn't push out on-theme cards a quarter of the commander's players run (Soul Stone 31%, Living Death 35%);
-   - then the whole-pool search (below)?
-5. **Highest score in the background.** The whole-pool search would keep updating the "Highest score" cards for a few
-   minutes on a phone after the list appears. Is that OK?
-6. **Mana fix speed.** Fix: Mana now plays fresh practice games for every land swap it weighs: about 3 s on a desktop,
-   maybe 6–8 s on an iPad (the window opens at once with "Checking land swaps…"). Acceptable, or weigh fewer swaps?
-7. **Alternatives matched to the card going out?** Remaining guide blind spots (Swords to Plowshares for Turtle Power,
-   Brightglass Gearhulk for Wakanda) beat our pick only in a slot whose pick is a different kind of card, because
-   alternatives must do the same job as the pick. Match them to the card going out instead? (Benchmark first.)
-8. **Real-device check.** Screenshots from the owner's phone and iPad of anything that looks wrong: decks list,
-   Upgrades (List and Sheets), Build stats with Practice games open, Buy list, Library.
+1. **Commander engine reasons** (not answered yet). Cards say why they fit the commander ("Doubles the tokens your commander
+   makes", "Uses the cards your commander puts in your graveyard"). Do they read the owner's commanders correctly? Misreads
+   reported here are what will let it count in the score (UP.kwB/kwS still 0).
+2. **Mana fix speed.** Fix: Mana weighs up to 5 lands, each against up to 9 cards it could replace (6 lands, plus 3 weak spells
+   when the deck is short of lands), each with 200 fresh practice games: up to 45 checks, about 3 s on a desktop, 6-8 s on an
+   iPad. Options put to the owner: (a) keep; (b) weigh fewer swaps (3 lands x 6: about 1 s, may miss the best swap); (c) show
+   each land's best swap as soon as it is measured (same total time, first answer in under a second); (d) 100 games per check
+   (twice as fast, noisier numbers). Recommended: (c).
+3. **Whole-pool search on a phone.** Build 140 searches up to 250 cards per row in the background (about 30 s on a desktop,
+   perhaps 1-2 minutes on a phone). Does it feel right on the owner's iPhone, and are the Highest score finds sensible?
+4. **Real-device check after Build 140.** iPhone upright (deck tabs on two rows, the page scrolls), and the iPad (should be
+   unchanged): screenshots of anything that looks wrong.
 
 ## 1. What this is
 
 **Deck Companion** is a Magic: The Gathering deck builder for Commander and Standard.
 - **Live:** https://maxfhurt.github.io/Deck-Companion/ (GitHub Pages, served from `main`).
-- **Repository:** `MaxFHurt/Deck-Companion`. Work branch this session: `claude/smarter-deck-score-stage-1-3q4oyx`.
+- **Repository:** `MaxFHurt/Deck-Companion`. Work branch (Build 140): `claude/build-140`.
 - **App files:** `index.html` (CSS, boot and build number), `ui.js` (screens and buttons), `engine.js` (all deck logic:
   scoring, upgrades, generation, evaluator, practice games), `data.js` and `lists.js` (static data), `version.json`.
 - **No build step and no runtime AI.** Plain browser JavaScript. Card data from Scryfall, play data from EDHREC (fetched
@@ -81,7 +68,7 @@ Last updated: 18 October 2026, Build 139 live.
 2. **Bump the build** in `index.html` (`window.BUILD = N`) and `version.json` (`{"build": N}`).
 3. **Test:**
    - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
-     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (97 at Build 139). If it
+     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (100 at Build 140). If it
      prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
    - Benchmark (engine changes), all six must not drop:
      `SCORECHECK=1 [WEIGHT=3,6] node bench.js ../candidate x tuneall|test|holdout --quiet`.
@@ -97,13 +84,15 @@ Last updated: 18 October 2026, Build 139 live.
    `Deck-Companion`; if git says "unpushed commits", refresh the tracking ref
    (`git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && git fetch origin`).
 
-## 4. Benchmark baseline (Build 139, SCORECHECK=1)
+## 4. Benchmark baseline (Build 140, SCORECHECK=1)
 
 | Set | agreement@5 | row@5 | @10 | whole-list sum | weighted @5 / @10 / sum |
 |---|---|---|---|---|---|
-| tuneall | 0.238 | 0.240 | 0.124 | 9.01 | 0.268 / 0.151 / 13.68 |
-| test | 0.303 | 0.303 | 0.198 | 6.84 | 0.322 / 0.217 / 7.73 |
-| holdout | 0.292 | 0.292 | 0.205 | 15.00 | 0.318 / 0.241 / 18.55 |
+| tuneall | 0.244 | 0.245 | 0.126 | 9.12 | 0.274 / 0.153 / 14.06 |
+| test | 0.303 | 0.303 | 0.199 | 6.69 | 0.322 / 0.219 / 7.59 |
+| holdout | 0.292 | 0.292 | 0.205 | 15.74 | 0.318 / 0.241 / 19.37 |
+
+(test's whole-list sum is below Build 139's 6.84 / 7.73: the synergy ceiling exception the owner accepted.)
 
 Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`, `rowfeat.js` (per-row evidence),
 `fullsearch.js` (scores every legal same-job card per slot), `wcheck.js` (weighted yardstick validity).
@@ -126,7 +115,12 @@ Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`,
 - **Rules knowledge:** `KW_THEMES`/`KW_RE` (keywords → themes, `UP.kw`), `commanderEngine(cmds)` (token kinds, creature
   tokens and type, counters, fills graveyard, sacrifices, triggers), `engineFit(c, E)` (doubler 1 / payoff 0.8 / enabler
   0.6, with a reason). Shown on cards via `baseScore` reasons; scoring weight `UP.kwB`/`UP.kwS` = 0 (didn't pass yet).
-- **Experiments left switched off:** `UP.unc` (synergy ceiling), `UP.kwB`/`kwS` (engine fit in score), `UP.stN`
+- **Build 140 settings (on):** `UP.unc` 0.25 + `uncTail` (synergy ceiling; rows whose gain is only past the maximum go last),
+  `UP.reF` (reanimation engines, `isReanimEngine`), `UP.bs` (`finByText`: size-only finishers count `bsF` 0.5, cards costing
+  `bsP` 9+ aren't protection, planeswalker ultimates aren't jobs), `UP.altCut` 2 (alternatives may match the card going out;
+  `x.oc` keeps them out of the pick choice), `UP.rcap` 2 (generator ramp cap, in `buildPlan` after the mana base), `UP.pool2`
+  (`poolQueue`/`poolStep` in engine.js, `poolRun` in ui.js; `UP.poolN` 250 per row).
+- **Experiments left switched off:** `UP.uncR`, `UP.uncPick`, `UP.kwB`/`kwS` (engine fit in score), `UP.stN`
   (Commander-wide staples per slot), `UP.rs3`, `UP.aw/aiw/amb` (plan weighting). Numbers in `ROADMAP.md`.
 - **Generator:** `buildPlan(d, seeds, ownOnly, ownAll)`.
 - **UI:** `viewDecks`, `upPanel` (Upgrades + Build stats, `practiceHtml`), `wantHtml` (card window), `openFix`,
@@ -134,19 +128,21 @@ Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`,
 
 ## 6. Where things stand
 
-- **Live: Build 139** (rules knowledge base; keyword-aware themes; the commander's engine read and shown on cards).
-  138: Mana fix and card window agree; a spell may go for a land when short of mana. 137: fetch and "choose a colour"
-  lands count colours correctly; a mana fix never drops a colour. 136: visible practice games. 135: fewer swaps where
-  players keep the precon; better alternatives in jobless/weak slots. 134: Unpopular pick only for big gaps.
-- **Whole-pool finding (18 Oct):** scoring every legal same-job card finds a higher-scoring card than the app measured in
-  62 of 80 slots (mean gap 0.4), nearly all run by under 10% of players. Many "winners" are wrong (Kozilek in Avengers,
-  Quilled Greatwurm in Turtles, Nissa, Vital Force in 5 of 8 Ghalta slots) because the score credits any big creature
-  as a way to win and stacks multi-job credit. Agreed plan: fix those score blind spots, then a background whole-pool
-  search whose best find is always shown (Highest score / alternative); the Apex pick keeps score + popularity.
+- **Live: Build 140** (synergy ceiling, over-budget warning, reanimation engines, score blind spots, alternatives matched to the
+  card going out, generator ramp cap, whole-pool search in the background, iPhone upright layout). Details and every version
+  tried, with numbers, in `ROADMAP.md` (Build 140). 139: rules knowledge base; keyword-aware themes; the commander's engine read
+  and shown. 138: Mana fix and card window agree. 137: fetch and "choose a colour" lands count colours correctly.
+- **Whole-pool finding (18 Oct):** on the test set, scoring every same-job card found a higher-scoring card in 17 of 20 rows,
+  mean gap 0.45, nearly all run by under 10% of players. Build 140 fixed the clearly wrong winners (Kozilek and Krang in Avengers:
+  size and 9+-mana protection). Some finds are plausible (Liliana, Dreadhorde General for Doom; Nissa, Vital Force for Ghalta as
+  ramp). Still worth a look: The Seriema (Wakanda: tutor + protection for tapped legends), Gravebreaker Lamia (Turtles: counted
+  as a tutor), Quilled Greatwurm (Turtles, a 2-finisher deck).
 - **Owner's test deck:** Symbiote Spider-Man (generated), Budget tier, Marvel/Spider-Man sets only, themes reanimator,
-  self-mill, graveyard. Share link in the chat of 18 Oct; decoded copy used for tests (synergy 30/30, balance 25/25,
-  quality 20/20: at every ceiling).
-- **Known limits:** Fix: Mana takes ~3 s on desktop; decks over their land target take a few seconds more for upgrades.
+  self-mill, graveyard. Share link in the chat of 18 Oct. Its EDHREC page and three theme pages are in the test data folder
+  (`proto/data2/edhrec`, `proto/data2/themes`) of this session only; `gensym.js` generates a deck for any commander and shows
+  ramp, reanimation engines and fast mana.
+- **Known limits:** Fix: Mana takes ~3 s on desktop; decks over their land target take a few seconds more for upgrades; the
+  whole-pool search runs for a while after the list appears (the note says how far it is).
 
 ## 7. Prompt for a new Claude Code session
 
@@ -154,4 +150,4 @@ Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`,
 > Read `WORK_SESSION_HANDOFF.md` (start with section 0, the open questions), then `ROADMAP.md`, `tools/rules/MECHANICS_NOTES.md`
 > and `CHAT_TO_WORK_HANDOFF.md`. Follow the owner's rules exactly: plain English, numbered questions, a Summary at the end of
 > every reply, complete and tested builds, and no engine change that regresses any benchmark number. Set up tests with
-> `sh tools/tests/suite/setup.sh /tmp/dc3`. Live is Build 139. Ask the owner the open questions in section 0 first.
+> `sh tools/tests/suite/setup.sh /tmp/dc3`. Live is Build 140. Ask the owner the open questions in section 0 first.

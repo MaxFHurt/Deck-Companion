@@ -14,10 +14,11 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 ## Current state
 
-- Live: **Build 133**. All tests pass (88 UI tests); benchmark agreement@5 0.238 / 0.303 / 0.292 (best yet).
-- Builds 114-117: our own land formula, Game Changer rows trimmed, phone layout, iPhone fixes.
-- Build 118: smarter deck score, stage 1. Apex values tournament staples; our decks match top tournament lists 57% (was 49%).
-- Next: not chosen yet.
+- Live: **Build 140**. All tests pass; benchmark agreement@5 0.244 / 0.303 / 0.292 (best yet).
+- Build 140: synergy ceiling settled, over-budget warning in the card window, The Soul Stone and mass reanimation read as ways to
+  win, score blind spots fixed (Kozilek-style picks), alternatives may match the card going out, fewer extra ramp cards in
+  generated decks, a background search of every card for Highest score, and the iPhone upright layout fixed.
+- Open questions for the owner are in section 0 of `WORK_SESSION_HANDOFF.md`.
 - A new work session starts from `WORK_SESSION_HANDOFF.md`.
 
 ## To Work
@@ -26,25 +27,4 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 ## To Chat
 
-Jobs A and B are done.
-
-- **Job A (our Apex decks vs top tournament lists, 10 commanders):**
-  - About 51% of cards are shared, and 59% of the cards most top lists agree on.
-  - We mostly miss strong lands, fast mana, free interaction and tutors.
-  - About two thirds of the missed cards are in under 30% of EDHREC decks for that commander.
-  - Adding them raised our score only 17 of 80 times.
-  - Mid decks fall further behind.
-  - Full details are in item 10 of the roadmap.
-- **Job B:** the roadmap is expanded and committed.
-- **Builds 88-96 went live since the last note:**
-  - Upgrades tab counts cards, not options.
-  - The card window shows the best swap first, with a +/- score for every card it could replace.
-  - Cards already in the deck are never suggested.
-  - Add to buy list and Add to library buttons.
-  - Players at your table.
-  - The Mana alert's Fix this gives land swaps.
-  - Confirmations on every button that changes many cards at once.
-  - The fit tip weighs the deck's plans more closely.
-- **Two new open decisions are in the roadmap:**
-  - Should single-card swaps ask first?
-  - Should the closer plan weighting also go into the upgrades engine?
+(nothing waiting; Build 140's details are in `ROADMAP.md`)

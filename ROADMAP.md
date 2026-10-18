@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 139. Each item ships as its own build: build, run the full test suite
+Live: Build 140. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -89,8 +89,46 @@ Items marked "discuss first" need the owner's decision before they are built; th
   benchmarked and does not pass yet (in the deck score: tuneall 0.238 -> 0.234; as a candidate bonus UP.kwB 0.5: @10 0.124 ->
   0.123, holdout sum 15.0 -> 14.5), so it stays a shown reason (UP.kwB 0, UP.kwS 0) until a version passes.
 - Synergy ceiling (owner's Symbiote Spider-Man deck): 10 of 26 precons sit at the synergy part's maximum, where better-fitting
-  cards cannot raise the score. UP.unc (compare past the maximum) helps most sets but tuneall agreement@5 0.238 -> 0.236; held
-  off (UP.unc 0) pending the owner's decision.
+  cards cannot raise the score. Settled in Build 140 (owner: "find the best option; if this is it, so be it").
+
+## Build 140 (18 October 2026)
+
+Owner's answers to the open questions: 1 find the best ceiling version; 3 yes; 4 yes; 5 yes; 7 yes; 8 iPhone screenshots sent.
+- **Synergy ceiling** (UP.unc 0.25, UP.uncTail 1): swaps are compared past the parts' maximum at a quarter of the rate, and a row
+  whose gain shows only past the maximum goes after every row with a real gain on the shown score. Versions tried (benchmark,
+  each alone): unc 0.1 / 0.25 / 0.5 / 1, uncPick, synergy part only, tail order, repairs on the shown score (uncR). The tail order
+  removed the @5 dip (0.236 -> 0.238); unc 0.25 + tail was best: tuneall @10 0.124 -> 0.121, test sum 6.84 -> 6.69, holdout sum
+  15.0 -> 15.75. Combined with the blind-spot fix below, every agreement number matches or beats Build 139; only test's whole-list
+  sum stays lower (6.84 -> 6.69, weighted 7.73 -> 7.59), the exception the owner accepted.
+- **Over-budget warning:** the card window says "Over your Budget limit ($3)" / "Over your Mid limit ($12)" once, at the top where
+  the swap is offered (in the Price line when there is no swap box); never in an Apex deck. Price bands now use the owner's
+  strict limits there too (Budget under $3, Mid under $12; it said "fits Budget" at exactly $3).
+- **Reanimation engines** (UP.reF): The Soul Stone (once harnessed), Sheoldred, Whispering One and other every-turn reanimators,
+  and mass reanimation (Living Death, Rise of the Dark Realms) count as recursion and a way to win. Benchmark equal or better
+  (holdout sum 15.0 -> 15.05).
+- **Score blind spots** (UP.bs, bsF 0.5, bsP 9; from the whole-pool measurement): a creature that is a finisher only for its size
+  counts half of one that wins by what it does; a card costing 9 or more is not counted as protection (Kozilek's counter, Krang's
+  indestructible); a planeswalker's ultimate (minus 5 or more) is not one of its jobs (Nissa, Vital Force is ramp, not card draw).
+  Kozilek in Avengers: +0.89 -> +0.20 (Rhystic Study +0.34). Tuneall @5 0.238 -> 0.244, @10 0.124 -> 0.127; holdout sum 15.0 ->
+  14.95. Versions tried: bsF 0.5 / 0.75, bsP 6 / 7 / 8 / 9 / off.
+- **Alternatives matched to the card going out** (UP.altCut 2): a row's alternatives may do the pick's job or the job of the card
+  coming out (Path to Exile for Palace Jailer); the pick itself is still chosen from cards doing the pick's job (letting the wider
+  pool choose the pick cost test @5 0.303 -> 0.301). Guide check: guide cards offered 52 -> 55, popular guide cards missed 21 -> 16.
+- **Ramp cap in generated decks** (UP.rcap 2): after the mana base, ramp over target + 2 gives way, weakest pure mana card first
+  (not on theme, not a seed or owned), to the best spell that makes no mana. Generated decks: ramp over target 3.3 -> 1.7 on
+  average; tournament comparison match 55% -> 55%, core 54% -> 53%, mid 50% -> 49%; strong-deck typicality 0.398 -> 0.396 (the
+  owner asked for fewer fast-mana cards, which tournament lists run).
+- **Whole-pool search** (UP.pool2, UP.poolN 250): after the list is checked, every legal card that does a row's job (up to 250
+  per row, most-played first) is measured in the background, a few milliseconds at a time; Highest score updates in place and a
+  note shows progress. It stops when the list changes. About 30 s on a desktop for a typical deck.
+- **Speed:** comparing past the maximum measured every candidate twice (Build 139 code, switched off until now): the check took
+  3.9 s instead of 2.6 s per deck. One evaluation now gives both numbers (swapScore2); benchmark identical, 2.5 s.
+- **Tests:** UI-B81-03 now counts inline alternatives on every deck it visits, not only the last one (in the suite's altered
+  Avengers deck the one row with alternatives, Hero's Blade -> Spectacular Spider-Man, no longer passes the score floor once a
+  size-only finisher counts half; its other rows are spare lands, which have no alternatives).
+- **iPhone (owner's screenshots):** upright phones scroll the page instead of a fixed-height deck box (with large text the box
+  left the card list no room and buttons spilled past the frame); deck tabs take a second row instead of running off the panel;
+  the card count stays on one line. iPad and desktop unchanged.
 
 ## Open decisions
 

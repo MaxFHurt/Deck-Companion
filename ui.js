@@ -658,13 +658,23 @@ function recsKey(d){ return JSON.stringify([JSON.stringify(d, (k, v) => RECS_SKI
 function recsFor(d){ const key = recsKey(d); if (recsFor.k !== key){ recsFor.k = key; upgradePaths.own = ownSet(); recsFor.v = upgradePaths(d);
     // Every swap is checked against the deck score before it is shown. The check runs just after the screen is drawn, so the
     // app stays responsive; until it finishes the list says so and nothing is held or offered.
-    if (d.format === 'commander' && DBINFO.complete && analyze(d).size >= 90){ const R = recsFor.v, k = key, run1 = () => { try { const b = evalFor(d); if (b) scoreCheck(d, R, {apex:apexFor(d), base:b}); } catch (e) { console.error(e); } R.pending = false; };
+    if (d.format === 'commander' && DBINFO.complete && analyze(d).size >= 90){ const R = recsFor.v, k = key, run1 = () => { try { const b = evalFor(d); if (b) scoreCheck(d, R, {apex:apexFor(d), base:b}); } catch (e) { console.error(e); } R.pending = false; if (UP.pool2 && !S.syncRecs) poolRun(d, R, k); };
       if (S.syncRecs) run1(); else { R.pending = true; clearTimeout(recsFor.t); recsFor.t = setTimeout(() => { if (recsFor.k !== k || !R.pending) return; run1(); recsFor.done(d); render(); }, 30); } }
     if (!recsFor.v.pending) recsFor.done(d); }
   return recsFor.v; }
 // The card-search upgrade index reuses the checked result, so a deck the player has looked at costs nothing to index.
 recsFor.done = d => { try { const c = find(d.commander); if (d.format === 'commander' && c && EDH.key === c.n && EDH.state === 'ok' && !(d.plan && d.plan.length) && S.profile.decks.some(x => x.id === d.id)){
   lsSet('dc.upx.' + d.id, {sig:deckSig(d), rows:recsFor.v.paths.flatMap(L => Object.entries(L.opts).filter(([, p]) => p && p.add).map(([t, p]) => [p.add, p.cut, t]))}); UPX.sig = ''; } } catch (e) {} };
+// Whole-pool search (owner, 18 Oct): once the list is checked, every card that does the same job is measured in the background,
+// a few milliseconds at a time, and a row's Highest score updates in place when a stronger card turns up. It stops when the list
+// changes (another deck, a swap, a new list).
+function poolRun(d, R, k){ let Q = null; try { Q = poolQueue(d, R); } catch (e) { return; } if (!Q || !Q.total) return; R.pool = Q;
+  const tick = () => { if (recsFor.k !== k || recsFor.v !== R) return; let ch; try { ch = poolStep(Q, 12); } catch (e) { Q.r = Q.rows.length; }
+    if (ch) ch.forEach(i => { const el = document.querySelector('.topslot[data-i="' + i + '"]'); if (el) el.innerHTML = topInner(d, R, R.paths[i], i); });
+    const n = document.querySelector('#pool-note'), done = Q.r >= Q.rows.length; if (n) n.textContent = done ? '' : poolNote(Q);
+    if (!done) setTimeout(tick, 8); else R.poolDone = true; };
+  setTimeout(tick, 400); }
+function poolNote(Q){ return 'Still checking every card that could fill these slots for a higher score: ' + Math.floor(100 * Q.done / Math.max(1, Q.total)) + '%'; }
 // Waits for the score check of the current list (Regenerate and the tests use it).
 async function recsReady(d){ for (let i = 0; i < 200 && recsFor(d).pending; i++) await new Promise(r => setTimeout(r, 50)); return recsFor(d); }
 
@@ -881,7 +891,7 @@ function openCompare(otherId){ const d = cur(); if (!d) return; const others = S
 function hasCard(d, n){ if (!d || !n) return false; const k = keyOf(n), c = find(n), k2 = c ? keyOf(c.n) : k; return d.cards.some(e => { const x = keyOf(e.n); if (x === k || x === k2) return true; const ec = find(e.n); return !!ec && !!c && ec._k === c._k; }) || [d.commander, d.partner].some(x => x && (keyOf(x) === k || keyOf(x) === k2)); }
 function upCardCount(R){ const s = new Set(); R.paths.forEach(L => { if (['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])) s.add(keyOf(L.cut)); }); (R.fixes || []).forEach(p => s.add(keyOf(p.cut))); (R.drops || []).forEach(p => s.add(keyOf(p.n))); return s.size; }
 function listPanel(d, A){
-  return '<div class="row"><span class="lab" style="flex:1">' + deckStat(d, A) + '</span><button class="btn sm" data-act="buy-addall">Add all to buy list</button><button class="btn sm" data-act="list-all">View all</button></div>' +
+  return '<div class="row"><span class="lab" style="flex:1;white-space:nowrap">' + deckStat(d, A) + '</span><button class="btn sm" data-act="buy-addall">Add all to buy list</button><button class="btn sm" data-act="list-all">View all</button></div>' +
     '<div class="row"><input type="search" id="deck-q" placeholder="Search this deck by name, type or rules text" autocomplete="off" value="' + esc(S.deckQ || '') + '" style="flex:1 1 190px;min-width:0;width:auto"><button class="btn pri" data-act="export-open">Export</button></div>' +
     listBar(d) + '<div class="scroll rows" id="rows" data-keep>' + listRows(d, S.deckQ) + considerHtml(d) + '</div>';
 }
@@ -1324,7 +1334,7 @@ function altSrc(d, v){ const [k, a, b] = String(v || '').split('|');
   return null; }
 // Highest score: the card that raises the deck score most for this slot, of the cards measured, shown under the tier picks
 // (popular picks still lead). Shown when it is not already one of the picks and beats the Apex pick by a real margin.
-function topHtml(d, R, L, i){ return '<div class="topslot">' + topInner(d, R, L, i) + '</div>'; }   // always one block, so every row keeps the same rows and lines up
+function topHtml(d, R, L, i){ return '<div class="topslot" data-i="' + i + '">' + topInner(d, R, L, i) + '</div>'; }   // always one block, so every row keeps the same rows and lines up
 function topInner(d, R, L, i){ const tp = L.top; if (!tp || tp.dScore < SCORE_MIN || hasCard(d, tp.n)) return '';
   const cols = rowCols(d, R, L, i), picks = TIER_KEYS.map(t => cols[t] && cols[t].p).filter(Boolean), same = picks.find(p => keyOf(p.add) === keyOf(tp.n)), ap = cols.apex && cols.apex.p;
   if (same) return '<p class="note" style="margin:0"><span class="chip good">Highest score</span> ' + esc(tp.n) + ' (shown above) raises the deck score the most of the cards measured for this slot.</p>';
@@ -1663,6 +1673,7 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
   const out0 = (d.dismissed || []).filter(n => !entryOf(d, n));
   const outHtml = out0.length ? '<div class="grp"><span class="lab">Excluded cards for this deck · ' + out0.length + '</span><p class="note" style="margin:0">These are not suggested for this deck: cards you swapped out or removed, and cards you chose “Don’t suggest for this deck” for. Your deck itself is unchanged. The list keeps the latest 80. Tap a card to allow it in recommendations again.</p><div class="row">' + out0.map(n => '<button class="chip" data-act="undismiss" data-n="' + esc(n) + '" aria-label="Allow ' + esc(n) + ' in recommendations">Allow ' + esc(n) + '</button>').join('') + '</div></div>' : '';
   h += '<div class="grp"><span class="lab">Upgrade paths' + (any && !R.pending ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
+  if (!R.pending && R.pool && !R.poolDone) h += '<p class="note" style="margin:0" id="pool-note">' + poolNote(R.pool) + '</p>';   // shown above the list while the search runs
   if (R.pending) h += '<p class="note" style="margin:0" role="status">Checking each upgrade against your deck score…</p>';
   else if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
   else {
@@ -1998,7 +2009,10 @@ function viewProfile(){
 function isNarrow(){ const w = innerWidth, h = innerHeight; return w < 700 || (h > w && w < 900) || (w > h && h < 560); }   // phones held sideways too
 // sideways phones: the page scrolls (fitWork leaves the work area its natural height), not boxes inside it
 const phoneLand = () => innerWidth > innerHeight && innerHeight < 560;
-function fitWork(){ const w = document.querySelector('.work'); if (!w) return; if (phoneLand()){ w.style.height = ''; return; } const vh = Math.min(innerHeight, (window.visualViewport && visualViewport.height) || innerHeight); w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
+// A phone held upright (owner's iPhone, 18 Oct): the deck panel's buttons left the card list little or no room in a fixed-height
+// box (none at all with large text), so the page scrolls instead, as on a phone held sideways. iPad and desktop keep the box.
+const phoneTall = () => innerWidth < 500 && innerHeight > innerWidth;
+function fitWork(){ const w = document.querySelector('.work'), app = document.querySelector('.app'); if (!w) return; if (phoneLand()){ w.style.height = ''; return; } if (app) app.classList.toggle('flow', phoneTall()); if (phoneTall()){ w.style.height = ''; return; } const vh = Math.min(innerHeight, (window.visualViewport && visualViewport.height) || innerHeight); w.style.height = Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px'; }
 function render(){
   // Scroll positions survive a redraw. If the list is briefly shorter (still being worked out), the wanted position is
   // carried for a few redraws until the full list is back.
@@ -2062,7 +2076,7 @@ function wantHtml(d, c){
   const A = analyze(d), open = A.T.size - A.size, warn = !legalIn(c, d.format) ? 'Not legal in ' + d.format : (A.ctx.ident.length || A.ctx.cmd) && !c.ci.every(x => A.ctx.ident.includes(x)) ? 'Outside this deck’s colors' : '';
   // Order (owner's layout): the best swap first, the card coming out on the left and this card on the right; then how well
   // it fits; the other cards it could replace come last, after the card's details (wantMore, added at the bottom).
-  S.wantMore = ''; const lab = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + '</span>';
+  S.wantMore = ''; const lab = '<div class="grp"><span class="lab">Put this card in ' + esc(d.name) + overCap(d, c) + '</span>';
   if (open > 0) return lab + '<div class="row"><button class="btn pri" data-act="add-to-deck" data-n="' + esc(c.n) + '">Add it · ' + open + ' open slot' + (open === 1 ? '' : 's') + '</button></div>' + tipHtml(d, c) + '</div>';
   // Weigh this card against every card it could plausibly replace: the deck score with each swap made, best first. Both cards
   // can be weak for the deck and the swap still be a gain, so the player sees the +/- on each one.
@@ -2163,14 +2177,16 @@ function myWantHtml(){ const W = myWant(); if (!W.length) return '';
   return '<section class="panel" id="mywant"><div class="ph"><h2>My buy list</h2><small>' + W.length + ' card' + (W.length === 1 ? '' : 's') + ' · ' + (DBINFO.source === 'starter' ? '~' : '') + '$' + tot.toFixed(2) + '</small></div><p class="note" style="margin:0">Cards you want that are not tied to a deck. Add more from any card’s details.</p><div class="rows">' +
     W.map((x, i) => '<div class="row" style="flex-wrap:nowrap;gap:6px"><div style="flex:1;min-width:0"><button class="dl buy" data-act="card" data-n="' + esc(x.n) + '"><span class="q">' + x.q + '×</span><span class="nm">' + esc(x.n) + '</span><span></span><span class="pr">' + money(find(x.n)) + '</span></button></div><button class="ico" data-act="mywant-rm" data-v="' + i + '" aria-label="Remove ' + esc(x.n) + ' from my buy list" title="Remove from my buy list">×</button></div>').join('') +
     '</div><div class="row"><button class="btn pri sm" data-act="mywant-copy">Copy as text</button></div></section>'; }
+// Over the open deck's price limit (owner, 18 Oct): said plainly in the card window, e.g. "Over your Budget limit ($3)".
+function overCap(d, c){ const t = d && TIERS[d.tier]; return t && isFinite(t.cap) && c.p != null && c.p >= t.cap ? ' <span class="chip warn over-cap">Over your ' + t.label + ' limit ($' + t.cap + ')</span>' : ''; }
 function openCard(name, pid){
   S.wantMore = '';
   const c = find(name); if (!c){ if (cur() && cur().cards.some(e => e.n === name)) openEntry(name); return; } phSeen(c); const d = cur(), tg = tags(c), th = Object.keys(THEMES).filter(k => tg.th[k] === 1).map(k => THEMES[k].label), inDeck = d && d.cards.find(e => norm(e.n) === c._n);
-  const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n);
+  const legend = canLead(c), isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n), wantOn = !inDeck && d && !isCmd && S.view === 'decks' && S.open;
   S.modalCard = c.n; S.prints = null; S.face = 0; S.pick = c.id ? {n:c.n, id:pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null; const pnm = inDeck ? printedName(d, inDeck, c) : '';
-  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(pnm || c.n) + (pnm ? ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(c.n) + '</span>' : '') + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" id="pic-note" style="margin:0 0 6px">' + picNote(c) + '</p>' + (c.df && c.fc ? '<p class="note" id="face-note" style="margin:0 0 6px">' + faceNote(c) + '</p>' : '') + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : d && !isCmd && (S.view === 'decks' && S.open) ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
+  $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="' + esc(c.n) + '"><div class="ph"><h2>' + esc(pnm || c.n) + (pnm ? ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(c.n) + '</span>' : '') + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" id="pic-note" style="margin:0 0 6px">' + picNote(c) + '</p>' + (c.df && c.fc ? '<p class="note" id="face-note" style="margin:0 0 6px">' + faceNote(c) + '</p>' : '') + (inDeck ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>' : wantOn ? wantHtml(d, c) : '') + '<div class="detail">' + cardHtml(c, false, S.pick) + '<div class="grp"><dl class="kv">' +
     '<dt>Mana value</dt><dd>' + c.cmc + ' &nbsp;' + pips(c.m) + '</dd><dt>Color identity</dt><dd>' + (c.ci.length ? c.ci.map(x => symImg(x)).join('') : 'Colorless') + '</dd>' +
-    '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p <= 3 ? 'fits Budget, Mid and Apex' : c.p <= 12 ? 'fits Mid and Apex' : 'Apex only') + '</dd>' + phHtml(c) +
+    '<dt>Price</dt><dd>' + money(c) + (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') + ' · ' + (c.p == null ? 'no tier data' : c.p < TIERS.budget.cap ? 'fits Budget, Mid and Apex' : c.p < TIERS.mid.cap ? 'fits Mid and Apex' : 'Apex only') + (wantOn && !offColor(d, c) ? '' : overCap(d, c)) + '</dd>' + phHtml(c) +
     '<dt>Legal in</dt><dd>' + [c.cmd ? 'Commander' : '', c.std ? 'Standard' : ''].filter(Boolean).join(', ') + '</dd>' +
     (c.gc || BTAGS.mld.has(c._n) || BTAGS.turns.has(c._n) ? '<dt>Brackets</dt><dd>' + [c.gc ? '<span class="chip gc">Game Changer</span> Bracket 3 allows up to three; 4 and 5 any' : '', BTAGS.mld.has(c._n) ? 'Mass land denial (Bracket 4 and up)' : '', BTAGS.turns.has(c._n) ? 'Extra turn (a few at most below Bracket 4)' : ''].filter(Boolean).join('; ') + '</dd>' : '') +
     (c.pt ? '<dt>' + (/Loyalty/.test(c.pt) ? 'Loyalty' : 'Power / toughness') + '</dt><dd>' + esc(c.pt.replace('Loyalty ', '')) + '</dd>' : '') + (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') + (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +

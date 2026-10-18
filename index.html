@@ -403,6 +403,12 @@ a{color:var(--glow)}
   .continue{display:flex;flex-direction:column;gap:6px}
   .continue .tile{width:100%;display:flex;flex-direction:row;align-items:center;text-align:left} .continue .tile img{width:92px;height:64px;flex:0 0 92px;object-fit:cover;border-radius:6px;margin:6px} .continue .tb{padding:6px 10px 6px 4px} .continue .tb h3{font-size:16px;margin:2px 0} .continue .tb p{font-size:12.5px;margin:0}
 }
+/* upright phones (owner's iPhone, 18 Oct): the deck tabs take a second row rather than run off the panel, and the deck panel
+   lets the page scroll (.app.flow, set by fitWork) instead of squeezing the card list into a small box. iPad unchanged. */
+@media (max-width:499px) and (orientation:portrait){
+  .app.narrow .tabs{flex-wrap:wrap;row-gap:4px} .app.narrow .tab{flex:1 1 auto;letter-spacing:0}
+  .app.flow .work{height:auto!important} .app.flow.editing .work .scroll{overflow:visible;flex:none;min-height:0;max-height:none}
+}
 @media (orientation:landscape) and (max-height:560px){
   /* the full name in the slim landscape header, on one line */
   .brand span,.top.home .brand span{display:inline;font:900 15px/1 var(--display);letter-spacing:.08em;margin:0 0 0 .3em;color:transparent;background:linear-gradient(180deg,#fff,#cfc6ee 45%,#8f86b8);-webkit-background-clip:text;background-clip:text}
@@ -448,7 +454,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 139;
+window.BUILD = 140;
 (function(){
   var last = 0;
   function check(){
