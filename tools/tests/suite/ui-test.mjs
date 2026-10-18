@@ -721,15 +721,18 @@ const b114 = await page.evaluate(async () => { const out = {}, w = S.profile.dec
   const part = JSON.parse(JSON.stringify(w)); part.id = 'part'; part.cards = part.cards.slice(0, 20); out.partial = analyze(part).T.lands; out.partialStarts = out.partial === targetsOf(part, ctxOf(part)).lands;
   const g = startPlan('Don & Leo, Problem Solvers', [], null, null, {fill:'apex'}); const G = analyze(g); out.gen = {size:G.size, lands:G.lands, target:G.T.lands}; out.genOk = G.size === 100 && Math.abs(G.lands - G.T.lands) <= 1; S.draft = null; return out; });
 T('UI-B114-01', 'Land formula: a full deck’s land target comes from its spells (average mana value, cheap ramp, landfall); a deck still being built keeps the starting target; a generated deck gets the formula’s land count (within one)', b114.formula && b114.partialStarts && b114.genOk, JSON.stringify(b114));
-// 65. Build 115: Game Changer rows trimmed: the extra Game Changer rows only fill the room left under Bracket 3's three
-// (Game Changers in the deck and among the picks count); a deck already holding three gets none; Apex only.
+// 65. Build 115, revised in Build 141 (owner: Game Changers follow the rule of every other mechanic, and Apex has no Bracket 3
+// cap): the extra Game Changer rows are offered whatever the deck already holds, each only when the card window rates it a Good
+// or Great fit, up to three (more only for a Strong upgrade, +1 deck score); none below Apex.
 const b115 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name));
   const mk = (id, gcs, tier) => { const d = JSON.parse(JSON.stringify(w)); d.id = id; d.tier = tier || 'apex'; const sp = d.cards.filter(e => !e.l && find(e.n) && !tags(find(e.n)).land && !find(e.n).gc).slice(-gcs.length); sp.forEach(e => cutCard(d, e.n, e.q)); gcs.forEach(n => addCard(d, n, 1)); return d; };
-  const count = d => { const R = upgradePaths(d); return {extra:R.paths.filter(L => L.gcPick).length, gcPicks:R.paths.filter(L => !L.gcPick && L.opts.apex && L.opts.apex.gc).length, gcIn:ctxOf(d).gcIn}; };
+  const count = d => { const R = upgradePaths(d); try { scoreCheck(d, R, {apex:apexFor(d) || apexRef(d)}); } catch (e) {} const X = R.paths.filter(L => L.gcPick && L.opts.apex && L.opts.apex.gcPick);
+    return {extra:X.length, fits:X.map(L => evalFit(d, find(L.opts.apex.add), null).fit), strong:X.filter(L => (L.opts.apex.dScore || 0) >= UP.gcS).length, gcIn:ctxOf(d).gcIn}; };
   const GC = LIB.filter(c => c.gc && legalIn(c, 'commander') && c.ci.every(k => ctxOf(w).ident.includes(k)) && !hasCard(w, c.n)).slice(0, 3).map(c => c.n);
   out.none = count(mk('g0', [])); out.three = count(mk('g3', GC)); out.mid = count(mk('gm', [], 'mid')); out.gcs = GC;
-  out.okNone = out.none.extra <= Math.max(0, 3 - out.none.gcIn - out.none.gcPicks); out.okThree = out.three.gcIn >= 3 && out.three.extra === 0; out.okMid = out.mid.extra === 0; return out; });
-T('UI-B115-01', 'Game Changer rows trimmed: extra rows only fill the room under Bracket 3’s three (deck and picks counted); none once the deck holds three; none below Apex', b115.okNone && b115.okThree && b115.okMid, JSON.stringify(b115));
+  const ok = x => x.fits.every(f => f === 'good' || f === 'great') && x.extra <= Math.max(UP.gcK, Math.min(UP.gcN, UP.gcK + x.strong));
+  out.okNone = ok(out.none); out.okThree = out.three.gcIn >= 3 && ok(out.three); out.okMid = out.mid.extra === 0; return out; });
+T('UI-B115-01', 'Game Changer rows (Build 141 rule): offered whatever the deck holds, each a Good or Great fit, up to three (more only for a Strong upgrade); none below Apex', b115.okNone && b115.okThree && b115.okMid, JSON.stringify(b115));
 // 66. Build 116: phone layout. On phones (portrait and landscape) the home tagline is hidden and a Continue card for the last
 // deck shows above the tiles; the header reads the full name; iPad (portrait and landscape) and desktop are unchanged.
 const b116 = {}; { const w = await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); recentAdd(d.id); return d.name; });

@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 140 (Build 141 built and tested, waiting for the owner's OK to push). Each item ships as its own build: build, run the full test suite
+Live: Build 141. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -130,7 +130,7 @@ Owner's answers to the open questions: 1 find the best ceiling version; 3 yes; 4
   left the card list no room and buttons spilled past the frame); deck tabs take a second row instead of running off the panel;
   the card count stays on one line. iPad and desktop unchanged.
 
-## Build 141 (18 October 2026; not pushed: the owner confirms every push from now on)
+## Build 141 (18 October 2026; pushed with the owner's OK. The owner confirms every push)
 
 Owner: "Let them wait if that's what it takes... a loading style message with a small animation rather than shifting results";
 "optimize every recommendation"; "a build by theme option in the deck builder"; tweak settings, no major system changes.
@@ -176,7 +176,7 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   the same job (the alternatives' rule) under the deck's price limit (cards you own at any price), each measured in the deck in
   the missing card's place, best first; owned cards are listed first ("In your library"). Swap in asks first, swaps, and rules
   the missing card out of later suggestions. Wakanda (Budget), Beast Within: Collective Resistance +0.2, Path to Exile +0.1, ...
-- **Tests:** UI suite 103/103 (new: UI-B141-01 thinking not shifting, -02 Build by theme, -03 obscure commanders and one-colour
+- **Tests:** UI suite 104/104 (UI-B115-01 updated to the Build 141 Game Changer rule; new: UI-B141-01 thinking not shifting, -02 Build by theme, -03 obscure commanders and one-colour
   lands). UI-B118-01 (Tivit with no play data loaded) now tests the stage-1 bonus with the obscure-commander multipliers at 1.
   New tools: `genstrong.js` takes NOEDH=1 (no play data), `landsof.js` (a generated deck's lands).
 - **Benchmark (Build 141):** tuneall 0.244 / 0.245 / 0.126 / 9.12 (weighted 0.274 / 0.275 / 0.153 / 14.06); test 0.303 / 0.303
