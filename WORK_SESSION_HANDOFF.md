@@ -44,7 +44,7 @@ Last updated: 18 October 2026, Build 141 live; Build 142 built and tested on `cl
 
 ## 2. The owner and how to work with them
 
-- **Replies:** plain English, short. **Number questions** whenever there are several. Every long reply ends with a
+- **Replies:** plain English, short. **Number questions** whenever there are several; when a question has parts, number them 1a, 1b, 1c (then 2a, 2b...) so answers can't be confused (owner, 18 Oct). Every long reply ends with a
   **Summary** (✅ done / ⏳ needs the owner) that repeats the questions, numbered. The owner often reads only the summary.
 - **Builds:** batch builds are fine; no confirmation needed per live push, but every live build must be complete and
   tested (full UI suite, benchmark for engine changes). Do the work, then stop. Push builds periodically so a live

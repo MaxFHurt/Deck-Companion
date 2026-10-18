@@ -489,7 +489,12 @@ function refScores(d, AR){ if (!AR || !AR.cards) return null; const out = {};
     try { out[t] = +evaluateDeck(u, {apex:AR, games:100}).exact.toFixed(2); } catch (e) { return null; } }
   return out; }
 // The reference means for a deck, with a value function (the deck's own upgrade values when given).
-function apexMeans(AR, d, ctx, vf){ const m = L => spellMean(L, d, ctx, vf); return {apex:m(AR.cards.apex), mid:m(AR.cards.mid), budget:m(AR.cards.budget), floor:m(AR.cards.floor)}; }
+// The reference builds' card values depend only on the deck's settings and the card values used, never on the deck's own cards,
+// so they are kept per reference build and settings (Build 142, speed): a swap being measured reuses them. Same numbers, less work.
+function apexMeans(AR, d, ctx, vf){ const C = apexMeans.C || (apexMeans.C = new WeakMap()); let M = C.get(AR); if (!M){ M = new Map(); C.set(AR, M); }
+  const vid = vf ? (vf.__id || (vf.__id = ++apexMeans.n)) : 0, k = JSON.stringify([vid, d.format, d.tier, d.aims, d.types, d.keys, d.typesMust, d.keysMust, d.sets, d.setsMust, d.themeFirst, d.prevCmd, d.commander, d.partner, ctx.tribe, ctx.cmdTribe, ctx.focus, ctx.ident, ctx.cmdThemes, ctx.edh ? [ctx.edh.key, ctx.edh.decks, ctx.edh.map && ctx.edh.map.size, Object.keys(ctx.edh.tmap || {})] : 0, UP, W_INC, W_SYN, POP_K, AIM_K, STAPLE_K, QPOW]);
+  if (M.has(k)) return M.get(k); const m = L => spellMean(L, d, ctx, vf), out = {apex:m(AR.cards.apex), mid:m(AR.cards.mid), budget:m(AR.cards.budget), floor:m(AR.cards.floor)}; if (M.size > 50) M.clear(); M.set(k, out); return out; }
+apexMeans.n = 0;
 // Share of the way from the floor (random playable cards) to a reference build, 0–100.
 function qualityPct(mean, ref, floor){ return ref > floor ? Math.max(0, Math.min(100, Math.round(100 * (mean - floor) / (ref - floor)))) : 0; }
 function evaluateDeck(d, opt){

@@ -216,6 +216,9 @@ no more leaving room for better."
   play the new card) and fresh ones disagree (Sultai: Muldrotha +0.05 stored, -0.40 fresh), while players add those cards. One
   borderline swap in the score check (Doom: Endless Ranks of HYDRA -> Taskmaster, +0.07 stored, -0.07 on 300 fresh games,
   -0.01 on 600) remains: scheck bad 1.
+- **Speed (exact, same results):** the reference builds' card values are now kept per deck settings (apexMeans) instead of
+  being worked out again for every swap measured: generation Apex 13.1 s -> 8.2 s, Budget 27.7 s -> 14.6 s on a desktop
+  (identical decks and benchmark); upgrade lists are faster too. `genprof.js` shows where the time goes.
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
