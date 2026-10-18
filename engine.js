@@ -467,7 +467,8 @@ function isFinisher(c){ if (c._fin !== undefined) return c._fin; const o = c.o |
 // lands are judged under mana and curve. Also the best build with every card under $12 and under $3 (Mid and Budget), so
 // a budget deck is measured against what its price limit allows. The reference depends on the build settings, not on the
 // deck's cards, so it is worked out once per settings (apexKey) and reused while cards change.
-function apexKey(d){ return JSON.stringify([d.commander, d.partner || '', d.aims, d.tribe || '', d.colors, d.types || [], d.keys || [], d.typesMust, d.keysMust, d.sets || [], d.setsMust, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, LIB.length]); }
+// (LIB.full: a helper core holds only a slice of the library and is told the whole library's size, so its keys match; Build 144)
+function apexKey(d){ return JSON.stringify([d.commander, d.partner || '', d.aims, d.tribe || '', d.colors, d.types || [], d.keys || [], d.typesMust, d.keysMust, d.sets || [], d.setsMust, EDH.key, EDH.state, Object.keys(EDH.tmap || {}).length, LIB.full || LIB.length]); }
 // A spell's value for card quality: baseScore, with the commander's play rates counted among players who changed the deck
 // (untouched precon copies taken out, preDeflate), so a precon card is not "great" merely because the precon ships with it.
 // How much raw card power (how widely played across all of Commander) adds to a card's quality value. 40 orders real decks
@@ -1129,10 +1130,22 @@ function swapScore2(d, base, apex, cut, add, q){ const u = JSON.parse(JSON.strin
 function swapScore(d, base, apex, cut, add, q, exactOnly){ const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, q || 1); addCard(u, add, q || 1); try { const a = evaluateDeck(u, {apex, sim:base.sim}); return +(!exactOnly && UP.unc && a.cmp != null && base.cmp != null ? a.cmp - base.cmp : a.exact - base.exact).toFixed(2); } catch (e) { return null; } }
 function recount(out){ out.count = {free:0, budget:0, mid:0, apex:0}; out.cost = {free:0, budget:0, mid:0, apex:0};
   for (const t of ['free'].concat(TIER_KEYS_UP)) out.paths.forEach(L => { const p = t === 'free' ? L.opts.free : tierPick(L, t); if (!p) return; out.count[t] += p.q; const a = find(p.add), c = find(p.cut); out.cost[t] += ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }); }
-function scoreCheck(d, R, o){
+// The score check is a generator (Build 144): where it has a batch of swaps to measure, it hands the batch out (yield) and gets
+// the measurements back, so a batch can be spread across helper cores (work.js). scoreCheck runs it here, measuring each batch
+// itself with measureBatch, the same function the helpers run, so the result is the same either way.
+function scoreCheck(d, R, o){ return runSync(scoreCheckG(d, R, o)); }
+function runSync(g){ let r = g.next(); while (!r.done){ let v, err = null; try { v = measureBatch(r.value); } catch (e) { err = e; } r = err ? g.throw(err) : g.next(v); } return r.value; }   // a measurement that fails fails where it was asked for
+// A batch: kind 'swap' gives swapScore2 for each [cut, add, q] on the deck's stored practice games; kind 'fresh' gives the
+// value compared (cmpOf) of each swapped deck on its own fresh practice games.
+function measureBatch(b){ return b.keys.map(([cut, add, q]) => { if (b.kind === 'swap') return swapScore2(b.d, b.base, b.apex, cut, add, q);
+  const u = JSON.parse(JSON.stringify(b.d)); delete u.plan; if (cut){ cutCard(u, cut, q || 1); addCard(u, add, q || 1); } return cmpOf(evaluateDeck(u, {apex:b.apex, games:b.games})); }); }
+function* scoreCheckG(d, R, o){
   o = o || {}; if (!R || d.format !== 'commander' || !find(d.commander)) return R;
   let base; try { base = o.base || evaluateDeck(d, {apex:o.apex, games:300}); } catch (e) { return R; } if (!base || base.exact == null) return R;
-  const memo = new Map(), both = p => { const k = p.cut + '>' + p.add + '>' + (p.q || 1); if (!memo.has(k)) memo.set(k, swapScore2(d, base, o.apex, p.cut, p.add, p.q)); return memo.get(k); }, dOf = p => both(p)[0];
+  const memo = new Map(), mk = p => p.cut + '>' + p.add + '>' + (p.q || 1), both = p => { const k = mk(p); if (!memo.has(k)) memo.set(k, swapScore2(d, base, o.apex, p.cut, p.add, p.q)); return memo.get(k); },
+    // the swaps of a batch not measured yet (each once), as a batch to hand out
+    batch = ps => { const seen = new Set(), keys = []; ps.forEach(p => { const k = mk(p); if (memo.has(k) || seen.has(k)) return; seen.add(k); keys.push([p.cut, p.add, p.q || 1]); }); return keys.length ? {kind:'swap', d, base, apex:o.apex, keys} : null; },
+    took = (b, v) => b.keys.forEach((k, i) => memo.set(k[0] + '>' + k[1] + '>' + k[2], v[i])), dOf = p => both(p)[0];
   // the main pick keeps the shown score's own measure (Build 139): lifting the parts' maximum changes the numbers shown and the
   // alternatives, not which card is picked
   const dOfE = p => !UP.unc || UP.uncPick ? dOf(p) : both(p)[1];
@@ -1151,6 +1164,7 @@ function scoreCheck(d, R, o){
   const LAB = {apex:'Apex', mid:'Mid', budget:'Budget'}; let dropped = 0, refilled = 0, themed = 0, repaired = 0; const extra = [];
   const T = themeCtx(d), VM = new Map(), ctx0 = ctxOf(d), dis0 = new Set((d.dismissed || []).map(norm)); let TP = null; const own = upgradePaths.own, inUse = () => new Set(R.paths.flatMap(L => Object.values(L.opts).map(p => p.add)));
   const swapTo = (p, n, v, why) => { const c = find(n); return Object.assign({}, p, {add:c.n, dScore:v, held:false, own:!!(own && own.has(c._n)), gc:!!c.gc, why:(why ? [why] : []).concat((p.why || []).filter(w => !/^From |theme$/.test(w))).slice(0, 2), alt:p.add}); };
+  { const b = batch(R.paths.flatMap(L => ['apex', 'mid', 'budget', 'free'].map(t => L.opts[t]).filter(Boolean))); if (b) took(b, yield b); }
   for (const L of R.paths) for (const t of ['apex', 'mid', 'budget', 'free']){ const p = L.opts[t]; if (!p) continue; const v = dOf(p); p.dScore = v;
     if (v != null && v < scoreFloor()){
       // the pick would not raise the score: the strongest close card for the same job and price band that does takes its place
@@ -1158,6 +1172,7 @@ function scoreCheck(d, R, o){
       // first: the same card against another weak card in the deck (the cut, not the card, was the problem)
       if (t !== 'free' && o.repair !== false && R.valOf){ const cutsInUse = new Set(R.paths.map(x => x.cut).concat(extra.map(x => x.cut))), addC = find(p.add), addLand = addC && !!tags(addC).land;
         const pool = d.cards.filter(e => !e.l && !cutsInUse.has(e.n) && !isBasic(e.n) && e.n !== p.cut).map(e => ({e, c:find(e.n)})).filter(x => x.c && !!tags(x.c).land === addLand && !x.c.gc === !p.gcOut).map(x => ({n:x.e.n, v:R.valOf(x.c)})).sort((a, b) => a.v - b.v).slice(0, 6);
+        { const b = batch(pool.map(x => ({cut:x.n, add:p.add, q:1}))); if (b) took(b, yield b); }
         let best = null; for (const x of pool){ const w = dOfR({cut:x.n, add:p.add, q:1}); if (w != null && w >= SCORE_MIN && (!best || w > best.w)) best = {n:x.n, w}; }
         if (best){ delete L.opts[t]; extra.push({after:L, cut:best.n, opts:{[t]:Object.assign({}, p, {cut:best.n, q:1, dScore:best.w, cutWhy:['Weakest fit for the build'], repaired:p.cut})}, none:{}, gain:p.gain}); repaired++; if (LAB[t]) (L.none = L.none || {})[t] = p.add.split(' // ')[0] + ' is suggested in place of ' + best.n.split(' // ')[0] + ' instead, where it raises the deck score'; continue; } }
       if (t !== 'free' && o.refill !== false){ const used = inUse(); for (const a of altsFor(d, p.add, {cut:p.cut, val:R.valOf, skip:[...used], n:3, vmemo:VM})){ const w = dOfR({cut:p.cut, add:a.n, q:p.q}); if (w != null && w >= SCORE_MIN){ rep = swapTo(p, a.n, w, a.theme); break; } } }
@@ -1184,7 +1199,8 @@ function scoreCheck(d, R, o){
     // to choose which cards are measured; the deck score then decides
     const U = LIB.filter(x => !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx0.ident.includes(k)) && mustOk(x, d) && !inDeck.has(x._n) && !dis0.has(x._n))
       .map(x => { const e = ctx0.edh && edhOf(ctx0.edh.map, x); return {c:x, g:(e ? 10 * e.inc + 4 * Math.max(0, e.syn) : 0) + (x.r ? Math.max(0, 1 - Math.log(x.r + 1) / Math.log(40000)) : 0)}; }).sort((a, b) => b.g - a.g);
-    for (const L of rows){ const O = L.opts, ref = O.apex || O.mid || O.budget; if (!ref) continue; const rc = find(ref.add); if (!rc) continue;
+    // the cards measured for a row: its picks and the strongest cards that do the same job, as of the cards already used on the list
+    const sel = L => { const O = L.opts, ref = O.apex || O.mid || O.budget; if (!ref) return null; const rc = find(ref.add); if (!rc) return null;
       const mine = new Set(['apex', 'mid', 'budget'].map(t => O[t] && norm(O[t].add)).filter(Boolean)), weak = !!(UP.weakD && ref.dScore != null && ref.dScore < UP.weakD), sameP = sameJobAs(rc, d, ctx0, weak ? 2 : undefined), cc = UP.altCut && find(L.cut), sameC = cc && !!tags(cc).land === !!tags(rc).land ? sameJobAs(cc, d, ctx0, weak ? 2 : undefined) : null, same = !sameC ? sameP : x => sameP(x) || sameC(x), strict = weak && UP.weakA ? sameJobAs(rc, d, ctx0) : null, land = !!tags(rc).land;   // a slot whose pick barely helps may take an off-theme card (owner: on-theme wins when about equal)
       const pool = [], nb = {budget:0, mid:0}; for (const y of U){ const x = y.c; if (!!tags(x).land !== land || (used.has(x._n) && !mine.has(x._n)) || x.p == null || (R.cap && !(x.p < R.cap) && !(own && own.has(x._n))) || !same(x)) continue;
         const b = underCap(x.p, 'budget'), m = underCap(x.p, 'mid'); if (pool.length >= UP.rankP && !(b && nb.budget < UP.rankB * 2) && !(m && nb.mid < UP.rankB * 2)) { if (nb.budget >= UP.rankB * 2 && nb.mid >= UP.rankB * 2) break; continue; }
@@ -1197,6 +1213,12 @@ function scoreCheck(d, R, o){
       const byV = pool.slice().sort((a, b) => vv(b) - vv(a)), pick = new Map();
       byV.slice(0, UP.rankN).forEach(x => pick.set(x._n, x)); if (UP.stN && UP.stM) pool.filter(x => x.r && x.r < UP.stR && !pick.has(x._n)).sort((a, b) => a.r - b.r).slice(0, UP.stN).forEach(x => pick.set(x._n, x)); ['budget', 'mid'].forEach(t => byV.filter(x => underCap(x.p, t)).slice(0, UP.rankB).forEach(x => pick.set(x._n, x)));
       mine.forEach(k => { const c = pool.find(x => x._n === k) || LIB.find(x => x._n === k); if (c) pick.set(k, c); });
+      return {O, ref, rc, mine, weak, sameP, cc, sameC, same, strict, land, pool, vv, byV, pick}; };
+    // With helper cores (Build 144: measureBatch.par), every row's candidates are measured up front in one batch they share,
+    // instead of a small batch per row; each row then finds its measurements already made (any it lacks are measured as before).
+    if ((measureBatch.par || 0) > 1){ const ps = []; for (const L of rows){ const s = sel(L); if (s) s.pick.forEach(c => ps.push({cut:L.cut, add:c.n, q:s.ref.q})); } const b = batch(ps); if (b) took(b, yield b); }
+    for (const L of rows){ const s = sel(L); if (!s) continue; const {O, ref, rc, mine, weak, sameP, cc, sameC, same, strict, land, pool, vv, byV, pick} = s;
+      { const b = batch([...pick.values()].map(c => ({cut:L.cut, add:c.n, q:ref.q}))); if (b) took(b, yield b); }
       const C0 = [...pick.values()].map(c => ({c, w:dOf({cut:L.cut, add:c.n, q:ref.q}), we:dOfE({cut:L.cut, add:c.n, q:ref.q}), th:themeOf(c, T), rx:!!(strict && !strict(c)), oc:!!(sameC && !sameP(c))})), C = C0.filter(x => x.w != null && x.w >= Math.max(scoreFloor(), UP.rankMin)).sort((a, b) => b.w - a.w || vv(b.c) - vv(a.c));
       { const b = C[0], e = b && ctx0.edh && edhOf(ctx0.edh.map, b.c); L.top = b ? {n:b.c.n, p:b.c.p, dScore:b.w, inc:e ? +e.inc.toFixed(3) : 0} : null; }   // the highest score measured for this slot
       const take = (list, t) => { if (!list.length) return null; const top = list[0], th = list.find(x => x.th && x.w >= top.w - Math.abs(top.w) * RANK_THEME); return th || top; };
@@ -1263,12 +1285,14 @@ function scoreCheck(d, R, o){
   if (o.spare !== false && UP.spare){ const rows0 = R.paths.concat(extra), cutting = new Set(rows0.map(L => norm(L.cut))), already = rows0.filter(L => { const c = find(L.cut); return c && tags(c).land && Object.values(L.opts).some(p => { const a = find(p.add); return a && !tags(a).land; }); }).length;
     // never more land-for-spell swaps than the surplus, counting any the list already has; a land already being cut is skipped
     const sp = spareLands(d).filter((n, i, a) => isBasic(n) || !cutting.has(norm(n))).slice(0, Math.max(0, spareLands(d).length - already)); if (sp.length){ try {
-    const A = analyze(d), b0 = cmpOf(evaluateDeck(d, {apex:o.apex, games:200})), fresh = (cut, add) => { const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(cmpOf(evaluateDeck(u, {apex:o.apex, games:200})) - b0).toFixed(2); };
+    const A = analyze(d);
     const used = new Set(R.paths.concat(extra).flatMap(L => Object.values(L.opts).map(p => norm(p.add)))), inDeck = new Set(d.cards.map(e => norm(e.n)).concat([norm(d.commander)], d.partner ? [norm(d.partner)] : []));
     const vv = x => { if (!VM.has(x._k)) VM.set(x._k, R.valOf ? R.valOf(x) : 0); return VM.get(x._k); };
     const P = LIB.filter(x => !tags(x).land && !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx0.ident.includes(k)) && mustOk(x, d) && !inDeck.has(x._n) && !dis0.has(x._n) && !used.has(x._n) && x.p != null && !(R.cap && !(x.p < R.cap) && !(own && own.has(x._n))))
       .sort((a, b) => vv(b) - vv(a)), pick = new Map(); P.slice(0, UP.spareN).forEach(x => pick.set(x._n, x)); ['budget', 'mid'].forEach(t => P.filter(x => underCap(x.p, t)).slice(0, 2).forEach(x => pick.set(x._n, x)));
-    const M = [...pick.values()].map(c => ({c, w:fresh(sp[0], c.n)})).filter(x => x.w != null && x.w >= Math.max(scoreFloor(), UP.rankMin)).sort((a, b) => b.w - a.w), taken = new Set();
+    // measured on fresh practice games, as one batch: the deck itself first, then each spare land swapped for a candidate
+    const PK = [...pick.values()], fv = yield {kind:'fresh', d, apex:o.apex, games:200, keys:[['', '', 0]].concat(PK.map(c => [sp[0], c.n, 1]))}, b0 = fv[0];
+    const M = PK.map((c, i) => ({c, w:+(fv[i + 1] - b0).toFixed(2)})).filter(x => x.w != null && x.w >= Math.max(scoreFloor(), UP.rankMin)).sort((a, b) => b.w - a.w), taken = new Set();
     const why = 'Uses a spare land: the deck runs ' + A.lands + ' lands, about ' + A.T.lands + ' needed';
     const mk = (cut, x, t) => ({cut, add:x.c.n, q:1, t, why:[why], cutWhy:['Spare land (' + A.lands + ' lands, about ' + A.T.lands + ' needed)'], gc:!!x.c.gc, gcOut:false, own:!!(own && own.has(x.c._n)), dScore:x.w, spare:true});
     sp.forEach(cut => { const O = {}, nx = f => M.find(x => !taken.has(x.c._n) && f(x)); const a = nx(() => true); if (!a) return; taken.add(a.c._n); O.apex = mk(cut, a, 'apex');
@@ -1900,7 +1924,8 @@ function manaBase(d, n, keep){
 // A generated deck starts as a plan, not a decklist. The plan is the strongest (Apex) build, one slot per card; each
 // expensive slot also gets a Mid (up to $12) and Budget (up to $3) stand-in that does the same job. Nothing is in the
 // deck until the player installs it. Owned cards are marked so they cost nothing.
-function buildPlan(d, seeds, ownOnly, ownAll){
+function buildPlan(d, seeds, ownOnly, ownAll){ return runSync(buildPlanG(d, seeds, ownOnly, ownAll)); }
+function* buildPlanG(d, seeds, ownOnly, ownAll){
   const tmp = JSON.parse(JSON.stringify(d)); tmp.tier = 'apex'; tmp.cards = []; delete tmp.plan;
   const cmd = find(d.commander), id0 = ctxOf(d).ident, okC = c => !cmd || c.ci.every(k => id0.includes(k));
   (seeds || []).forEach(c => { if (c.n !== d.commander && c.n !== d.partner && okC(c)) addCard(tmp, c.n, 1); });
@@ -1948,7 +1973,7 @@ function buildPlan(d, seeds, ownOnly, ownAll){
   // finds that raises the deck score is made, strongest first, until it finds none (or UP.polish rounds), so a generated deck
   // leaves no Apex upgrade on the table. The player's own seeds and owned cards stay. Not inside the Apex reference build.
   if (UP.polish && d.format === 'commander' && !buildPlan.inRef && tmp.cards.reduce((a, e) => a + e.q, 0) >= 90){ const ar = apexRef(tmp);
-    for (let r = 0; r < UP.polish; r++){ let R; try { const e = evaluateDeck(tmp, {apex:ar, games:300}); R = upgradePaths(tmp); scoreCheck(tmp, R, {apex:ar, base:e}); } catch (err) { break; }
+    for (let r = 0; r < UP.polish; r++){ let R; try { const e = evaluateDeck(tmp, {apex:ar, games:300}); R = upgradePaths(tmp); yield* scoreCheckG(tmp, R, {apex:ar, base:e}); } catch (err) { break; }
       const P = R.paths.map(L => L.opts.apex).filter(p => p && p.dScore != null && p.dScore >= Math.max(scoreFloor(), UP.polishMin) && !seedSet.has(norm(p.cut)) && !(ownOnly && ownOnly.has(norm(p.cut)))).sort((a, b) => b.dScore - a.dScore);
       const cutU = new Set(), addU = new Set(); let k = 0;
       for (const p of P){ if (k >= UP.polishK || cutU.has(norm(p.cut)) || addU.has(norm(p.add)) || !entryOf(tmp, p.cut) || tmp.cards.some(e => keyOf(e.n) === keyOf(p.add))) continue; cutCard(tmp, p.cut, p.q || 1); addCard(tmp, p.add, p.q || 1); cutU.add(norm(p.cut)); addU.add(norm(p.add)); k++; }
@@ -1988,8 +2013,9 @@ function buildPlan(d, seeds, ownOnly, ownAll){
 // Polish a finished deck at its own price level (Build 141): the upgrade engine is run on it and every swap it finds for that
 // level that raises the deck score is made, strongest first, round after round until none is left (UP.polish rounds). Locked
 // cards stay. Used after a Mid or Budget build is filled (the Apex build is polished inside buildPlan).
-function polishDeck(d, rounds){ if (!UP.polish || d.format !== 'commander' || !find(d.commander)) return 0; const t = d.tier || 'apex', ar = apexRef(d); let n = 0;
-  for (let r = 0; r < (rounds || UP.polish); r++){ let R; try { const e = evaluateDeck(d, {apex:ar, games:300}); R = upgradePaths(d); scoreCheck(d, R, {apex:ar, base:e}); } catch (err) { break; }
+function polishDeck(d, rounds){ return runSync(polishDeckG(d, rounds)); }
+function* polishDeckG(d, rounds){ if (!UP.polish || d.format !== 'commander' || !find(d.commander)) return 0; const t = d.tier || 'apex', ar = apexRef(d); let n = 0;
+  for (let r = 0; r < (rounds || UP.polish); r++){ let R; try { const e = evaluateDeck(d, {apex:ar, games:300}); R = upgradePaths(d); yield* scoreCheckG(d, R, {apex:ar, base:e}); } catch (err) { break; }
     const keep = new Set(d.cards.filter(x => x.l).map(x => norm(x.n))), P = R.paths.map(L => tierPick(L, t)).filter(p => p && p.dScore != null && p.dScore >= Math.max(scoreFloor(), UP.polishMin) && !keep.has(norm(p.cut))).sort((a, b) => b.dScore - a.dScore);
     const cutU = new Set(), addU = new Set(); let k = 0;
     for (const p of P){ if (k >= UP.polishK || cutU.has(norm(p.cut)) || addU.has(norm(p.add)) || !entryOf(d, p.cut) || d.cards.some(x => keyOf(x.n) === keyOf(p.add))) continue; cutCard(d, p.cut, p.q || 1); addCard(d, p.add, p.q || 1); cutU.add(norm(p.cut)); addU.add(norm(p.add)); k++; }
@@ -2065,9 +2091,10 @@ function planInstall(d, x, key){
 // Fill a new deck from its generated plan (Build 143): the plan is designed, then, when a price level is chosen, the deck is built
 // straight from it and polished at that level. The same function runs in the background worker (work.js) and on the page, so
 // a deck comes out the same wherever it was built. ownAll: the player's owned cards; ownOnly: build from them first.
-function genDeck(nd, seeds, ownOnly, ownAll, fill){ const own0 = upgradePaths.own; upgradePaths.own = ownAll || new Set();
-  try { nd.plan = buildPlan(nd, seeds || [], ownOnly, ownAll || new Set()); const n = nd.plan.reduce((s, x) => s + x.q, 0); let k = 0;
-    if (fill){ k = planAll(nd, fill); delete nd.plan; nd.tier = fill; if (fill !== 'apex') polishDeck(nd); }
+function genDeck(nd, seeds, ownOnly, ownAll, fill){ return runSync(genDeckG(nd, seeds, ownOnly, ownAll, fill)); }
+function* genDeckG(nd, seeds, ownOnly, ownAll, fill){ const own0 = upgradePaths.own; upgradePaths.own = ownAll || new Set();
+  try { nd.plan = yield* buildPlanG(nd, seeds || [], ownOnly, ownAll || new Set()); const n = nd.plan.reduce((s, x) => s + x.q, 0); let k = 0;
+    if (fill){ k = planAll(nd, fill); delete nd.plan; nd.tier = fill; if (fill !== 'apex') yield* polishDeckG(nd); }
     return {n, k}; } finally { upgradePaths.own = own0; } }
 function planPick(s, t){ return t === 'apex' ? s.a : t === 'mid' ? (s.m || s.a) : (s.b || s.m || s.a); }
 function fillDeck(d){ const r = recommend(d, 0, true); r.adds.forEach(a => addCard(d, a.n, a.q)); return r.adds.reduce((s, a) => s + a.q, 0); }

@@ -372,30 +372,53 @@ async function thinkThen(msg, fn){ if (thinkThen.busy){ toast('Still building th
 // data the page has, so the page stays responsive and the thinking animation keeps moving. Without a worker, or if the
 // worker fails, the page builds the deck itself (genDeck), as before. The deck comes out the same either way.
 const WK = {w:null, ok:true, seq:0, cb:new Map(), sig:{}};
+// Helper cores (Build 144): as many as the device reports beyond the page's own, up to 5. Each takes a share of every batch of
+// swaps the score check measures, holding only the cards it needs (about 12 MB each). Past 5 they would sit idle: a batch is
+// rarely big enough to give more cores a useful share. S.cores sets the number (tests).
+function wkCores(){ const n = S.cores != null ? S.cores : (navigator.hardwareConcurrency || 4) - 1; return Math.max(0, Math.min(5, n | 0)); }
 function wkGet(){ if (!WK.ok || S.noWorker || typeof Worker === 'undefined') return null; if (WK.w) return WK.w;
-  try { const w = new Worker('work.js?v=' + (window.BUILD || '')); w.onmessage = ev => { const m = ev.data || {}, f = WK.cb.get(m.id); if (f){ WK.cb.delete(m.id); f(m); } };
-    w.onerror = () => { WK.ok = false; WK.w = null; WK.cb.forEach(f => f({err:'worker failed'})); WK.cb.clear(); try { w.terminate(); } catch (e) {} }; WK.w = w; WK.sig = {}; return w; } catch (e) { WK.ok = false; return null; } }
+  try { const v = 'work.js?v=' + (window.BUILD || ''), w = new Worker(v); w.onmessage = ev => { const m = ev.data || {}, f = WK.cb.get(m.id); if (f){ WK.cb.delete(m.id); f(m); } };
+    w.onerror = () => { WK.ok = false; WK.w = null; WK.cb.forEach(f => f({err:'worker failed'})); WK.cb.clear(); try { w.terminate(); } catch (e) {} wkHelpersStop(); }; WK.w = w; WK.sig = {};
+    // the helpers talk to the builder directly, each over its own channel
+    try { const ports = []; WK.helpers = []; for (let i = 0; i < wkCores(); i++){ const h = new Worker(v + '&role=help'), ch = new MessageChannel(); h.postMessage({kind:'port'}, [ch.port2]); ports.push(ch.port1); WK.helpers.push(h); }
+      if (ports.length) w.postMessage({kind:'helpers', id:0}, ports); } catch (e) { wkHelpersStop(); }
+    return w; } catch (e) { WK.ok = false; return null; } }
+function wkHelpersStop(){ (WK.helpers || []).forEach(h => { try { h.terminate(); } catch (e) {} }); WK.helpers = []; }
+// Start over with a different number of helper cores (tests and the speed check).
+function wkRestart(){ if (WK.w) try { WK.w.terminate(); } catch (e) {} wkHelpersStop(); WK.w = null; WK.ok = true; WK.cb.forEach(f => f({err:'restarted'})); WK.cb.clear(); WK.sig = {}; wkWarm.done = false; genPrefetch.k = null; }
 // The page's own state, sent only when it changed since the worker last had it.
 function wkState(){ const m = {}, s = WK.sig, clean = c => { const x = {}; for (const k in c) if (k[0] !== '_') x[k] = c[k]; return x; };
   const lib = [DBINFO.source, DBINFO.count, DBINFO.when, LIB.length].join('|'); if (s.lib !== lib){ m.lib = {sig:lib, rows:LIB.map(clean)}; s.lib = lib; s.combos = null; }
   const co = COMBOS.list.length ? COMBOS.at + '|' + COMBOS.list.length : 'none'; if (s.combos !== co){ m.combos = {sig:co, j:COMBOS.list.length && COMBO_RAW ? COMBO_RAW.j : null}; s.combos = co; }
-  const ed = [EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort().join(','), EDH.pre ? 1 : 0, EDH.lands || 0].join('|'); if (s.edh !== ed){ const v = {}; for (const k in EDH) if (k !== 'wait' && typeof EDH[k] !== 'function') v[k] = EDH[k]; m.edh = {sig:ed, v}; s.edh = ed; }
+  const ed = [EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort().join(','), EDH.pre ? 1 : 0, EDH.lands || 0].join('|'); if (s.edh !== ed){ const v = {}; for (const k in EDH) if (k !== 'wait' && k[0] !== '_' && typeof EDH[k] !== 'function') v[k] = EDH[k]; m.edh = {sig:ed, v}; s.edh = ed; }
   if (s.bt !== BTAGS.v){ m.btags = BTAGS; s.bt = BTAGS.v; }
   const st = [...SETCARDS].map(([k, v]) => k + ':' + v.size).join(); if (s.sets !== st){ m.sets = SETCARDS; s.sets = st; }
   m.up = UP; return m; }
 function wkSend(m, ms){ const w = wkGet(); if (!w) return Promise.resolve({err:'no worker'}); const id = ++WK.seq;
-  return new Promise(res => { const t = setTimeout(() => { if (WK.cb.has(id)){ WK.cb.delete(id); res({err:'timeout'}); } }, ms || 300000); WK.cb.set(id, r => { clearTimeout(t); res(r); });
-    try { w.postMessage(Object.assign(wkState(), m, {id})); } catch (e) { WK.cb.delete(id); clearTimeout(t); WK.sig = {}; res({err:String(e)}); } }); }
+  const p = new Promise(res => { const t = setTimeout(() => { if (WK.cb.has(id)){ WK.cb.delete(id); res({err:'timeout'}); } }, ms || 300000); WK.cb.set(id, r => { clearTimeout(t); res(r); });
+    try { w.postMessage(Object.assign(wkState(), m, {id})); } catch (e) { WK.cb.delete(id); clearTimeout(t); WK.sig = {}; res({err:String(e)}); } }); p.id = id; return p; }
 // Build a deck from its plan (engine genDeck), in the worker when there is one. The reference build it made is kept here too,
 // so opening the deck doesn't have to design it again.
+// A build job, and the key that says two jobs build the same deck: the deck's settings (not its id, name or player), the cards
+// and options it starts from, and the data the worker builds with.
+const ND_SKIP = new Set(['id', 'name', 'player']);
+function genJob(nd, seeds, ownOnly, ownAll, fill){ return {nd:JSON.parse(JSON.stringify(nd)), seeds:(seeds || []).map(c => c.n), ownOnly:ownOnly ? [...ownOnly] : null, ownAll:[...(ownAll || [])], fill:fill || null}; }
+function genKey(j){ return JSON.stringify([JSON.stringify(j.nd, (k, v) => ND_SKIP.has(k) ? undefined : v), j.seeds, j.ownOnly, j.ownAll, j.fill, DBINFO.source, DBINFO.count, DBINFO.when, LIB.length, EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort(), COMBOS.list.length, COMBOS.at, BTAGS.v, [...SETCARDS].map(([k, v]) => k + ':' + v.size), UP]); }
 async function genRun(nd, seeds, ownOnly, ownAll, fill){
   const local = () => genDeck(nd, seeds, ownOnly, ownAll, fill);
   if (!wkGet()) return local();
-  const t0 = Date.now(), r = await wkSend({kind:'gen', job:{nd:JSON.parse(JSON.stringify(nd)), seeds:(seeds || []).map(c => c.n), ownOnly:ownOnly ? [...ownOnly] : null, ownAll:[...(ownAll || [])], fill:fill || null, refs:apexRef.cache ? [...apexRef.cache] : []}});
+  const job = genJob(nd, seeds, ownOnly, ownAll, fill), key = genKey(job), t0 = Date.now(); let r = null, early = false;
+  // the same deck already built (or being built) while the player was choosing: use it
+  if (WK.spec && WK.spec.key === key){ r = await WK.spec.p; early = !!(r && r.nd); if (!early) r = null; }
+  else genCancel();
+  if (!r) r = await wkSend({kind:'gen', job:Object.assign(job, {refs:apexRef.cache ? [...apexRef.cache] : []})});
   if (!r || r.err || !r.nd){ if (r && r.err && r.err !== 'no worker') console.warn('Background build failed, building here instead:', r.err); return local(); }
+  r.nd = Object.assign({}, r.nd); ND_SKIP.forEach(k => { if (k in nd) r.nd[k] = nd[k]; else delete r.nd[k]; });
   Object.keys(nd).forEach(k => { if (!(k in r.nd)) delete nd[k]; }); Object.assign(nd, r.nd);
   if (r.refs){ apexRef.cache = apexRef.cache || new Map(); r.refs.forEach(([k, v]) => { if (!apexRef.cache.has(k)) apexRef.cache.set(k, v); }); while (apexRef.cache.size > 4) apexRef.cache.delete(apexRef.cache.keys().next().value); }
-  genRun.last = {ms:Date.now() - t0, work:r.ms, worker:true}; return {n:r.n, k:r.k}; }
+  genRun.last = {ms:Date.now() - t0, work:r.ms, worker:true, early, helpers:r.helpers || 0, stat:r.stat || null}; return {n:r.n, k:r.k}; }
+// Stop a build made ahead that is no longer wanted (the worker stops it at its next step).
+function genCancel(){ const s = WK.spec; WK.spec = null; if (s && s.p.id && WK.w) try { WK.w.postMessage({kind:'cancel', job:s.p.id}); } catch (e) {} }
 // While the player is still choosing in Generate (Build 143), the background core designs the reference build for the settings
 // shown, so pressing Build skips that step. Nothing from it is shown; settings changed afterwards simply design a new one.
 function genPrefetchSoon(){ clearTimeout(genPrefetch.t); genPrefetch.t = setTimeout(() => genPrefetch().catch(() => {}), 700); }
@@ -403,7 +426,11 @@ async function genPrefetch(){ const g = S.gen, c = find(g.cmd); if (!c || !DBINF
   let aims = []; if (g.mech.length){ if (EDH.key !== c.n || EDH.state !== 'ok') return; aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]); } else aims = await edhAimsFor(c);
   if (S.gen.cmd !== c.n || $('#modal').hidden || EDH.key !== c.n || thinkThen.busy) return; const p = find(g.partner);
   const nd = planDeck(c.n, null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length}, aims.length ? {aims} : {}));
-  if (!nd || !nd.aims.length) return; const k = apexKey(nd); if (genPrefetch.k === k) return; genPrefetch.k = k; wkSend({kind:'ref', nd:JSON.parse(JSON.stringify(nd))}); }
+  if (!nd || !nd.aims.length) return; const k = apexKey(nd); if (genPrefetch.k !== k){ genPrefetch.k = k; wkSend({kind:'ref', nd:JSON.parse(JSON.stringify(nd))}); }
+  // Build 144: the whole deck for the settings shown is built ahead too, exactly as pressing Build would ask for it, so pressing
+  // Build with these settings opens it at once. Nothing is shown from it until then; changed settings build again.
+  const job = genJob(nd, [], S.gen.own ? ownSet() : null, ownSet(), g.tier || 'apex'), key = genKey(job); if (WK.spec && WK.spec.key === key) return;
+  genCancel(); WK.spec = {key, p:wkSend({kind:'gen', job:Object.assign(job, {refs:apexRef.cache ? [...apexRef.cache] : []})})}; }
 // Warm the worker while the app is idle: it gets the card data and reads every card once, so the first deck is not slower.
 function wkWarm(){ if (wkWarm.done || !DBINFO.complete || !wkGet()) return; wkWarm.done = true; wkSend({kind:'warm'}).then(r => { if (r && r.err) wkWarm.done = false; }); }
 async function ingest(stream, size, when){

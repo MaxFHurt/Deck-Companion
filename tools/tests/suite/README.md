@@ -30,6 +30,9 @@ suite below still runs once before every live build (not alongside the benchmark
     node blind.js ../candidate all ADD=0.25         # score blind spots: popular player adds the score rates below the floor
     PW=... node dbg143.mjs <port> x                 # background core: same deck as on the page, timings, memory per core
 
+    node helpcheck.js ../candidate <slug>           # Build 144: a helper core's slice of the cards measures every swap exactly like the full engine
+    PW=... node dbg144.mjs <port> x                 # 0-N helper cores (CORES=0,1,2,3): same decks, times, memory; dbg144b.mjs: built ahead
+
 Run the Node checks one after another: started together, several stopped with an error (seen in Build 143; cause not traced).
 
 ## Before every build goes live (all must pass)

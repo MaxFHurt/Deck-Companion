@@ -183,7 +183,7 @@ Owner: "Let them wait if that's what it takes... a loading style message with a 
   / 0.197 / 6.58 (weighted 0.322 / 0.322 / 0.215 / 7.49); holdout 0.292 / 0.292 / 0.205 / 15.74 (weighted 19.37). Equal to Build
   140 except test @10 and sums, lowered by the hand-size reading (owner's ruling).
 
-## Build 142 (18 October 2026; not pushed: waits for the owner's OK)
+## Build 142 (18 October 2026; pushed with the owner's OK, together with Build 143)
 
 Owner: "do the rules audit, then push the deck builder to its max potential. Every generation should be the best it can be,
 no more leaving room for better."
@@ -222,7 +222,38 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
-## Build 143 (18 October 2026; not pushed: waits for the owner's OK)
+## Build 144 (18 October 2026; not pushed: waits for the owner's OK)
+
+Owner: "Add as many [cores] as we can to lighten this up. If we run 6 or 8 and it takes no time that's best."
+- **Helper cores (work.js, role=help):** as many as the device reports beyond the page's own, up to 5 (wkCores). The score
+  check is now a generator (scoreCheckG; buildPlanG, polishDeckG and genDeckG above it): where it has a batch of swaps to
+  measure it hands the batch out, and the builder worker splits it across the helpers and itself. On the page, and with no
+  helpers, runSync measures each batch in place (measureBatch, the same function), so results are identical (benchmark and
+  every generated list unchanged).
+  - A helper holds only the cards its measurements look up (the deck, the cards measured, the reference build, the commander's
+    play data and precon, and the combos those touch): about 1,200 cards and 12 MB, instead of 32,000 cards and about 190 MB.
+    The reference build's key now counts the whole library's size (LIB.full), since a helper's slice is smaller.
+  - Exactness guards: a helper reports any card it looked up and was not given (the builder measures that part itself and sends
+    the card next time), and its first answer and every 16th after are measured by the builder too; a helper that differs
+    is not used again. Checked: helpcheck.js (9 decks, every swap identical), UI-B144-01.
+  - With helper cores, every row's candidates are measured up front in one batch (measureBatch.par), not a batch per row.
+  - Measured (desktop Chrome, this 4-core machine): Budget build 4.0 s -> 3.5 s with 3 helpers (about 12%); Apex and Mid builds
+    unchanged (their swap measurements are only 0.1 s of 1.4-2.5 s). Only the swap measurements can be shared: the rest of a
+    build reads the whole card library and would need a full copy of it per core (about 190 MB each, too much for an iPhone).
+    More than 5 helpers would sit idle: a batch is rarely big enough to give more cores a share.
+- **Built ahead (what makes it feel instant):** with Generate open and a commander picked, the background cores build the whole
+  deck for the settings shown, exactly as pressing Build asks for it (genPrefetch -> WK.spec; genKey decides that two builds
+  are the same: the deck's settings, the cards and options, and the data). Pressing Build with those settings opens it at once:
+  Captain America (Budget) 6.5 s -> 1.0 s, Kenrith (Mid) 3.0 s -> 0.4 s after 8 s on the dialog; the same deck as building it
+  then (UI-B144-02). Nothing from it is shown until Build is pressed; changed settings build again, and a build no longer
+  wanted is called off at its next step (genCancel; the worker lets waiting messages in every few batches).
+- **Tests:** UI suite 111/111 (new UI-B144-01 helpers, UI-B144-02 built ahead; two tests that started a build and moved on
+  after 0.3 s now wait for it to finish, since a finished build opens its deck). Benchmark identical to Build 143 on all six
+  sets; generated lists identical (genlist.js); accept 39. Tools: `helpcheck.js` (a helper's slice measures exactly like the
+  full engine), `libuse.js` (which library reads a swap measurement makes: none), `dbg144.mjs` (0-N helpers: same decks,
+  times, memory), `dbg144b.mjs` (built ahead), `prof4.js` (a warm build's profile).
+
+## Build 143 (18 October 2026; pushed with the owner's OK, together with Build 142)
 
 Owner: "1a. Yes. Increase cores 1 at a time until we find the best settings. 2a. yes. 2b. Yes fix this so the app is more
 like players choices."

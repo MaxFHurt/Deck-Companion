@@ -136,6 +136,7 @@ T('UI-GEN-01', 'Generate from a commander: a Partner commander offers its second
 // 14. Customize → Generate: a new deck with the same mechanics in the same order; the original deck is unchanged.
 const g2 = await page.evaluate(async () => { S.draft = null; const d = S.profile.decks.find(x => /Doom/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'build'; d.custom = true; render();
   const before = JSON.stringify({cards:d.cards, aims:d.aims}), btn = document.querySelector('[data-act="build-gen"]'); if (!btn) return {btn:false}; btn.click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } await new Promise(r => setTimeout(r, 300));
+  for (let i = 0; i < 300 && (thinkThen.busy || !(S.draft && S.draft.cards.length)); i++) await new Promise(r => setTimeout(r, 100));   // the build runs in the background (Build 143-144)
   const nd = S.draft; return {btn:true, newDeck:!!nd && nd.id !== d.id, aims:nd && JSON.stringify(nd.aims) === JSON.stringify(d.aims), cards:nd ? nd.cards.reduce((a, x) => a + x.q, 0) : 0, untouched:JSON.stringify({cards:d.cards, aims:d.aims}) === before}; });
 T('UI-GEN-02', 'Customize panel has Generate: it designs a new build with the same mechanics in order; the original deck is untouched', g2.btn && g2.newDeck && g2.aims && g2.cards === 99 && g2.untouched, JSON.stringify(g2));
 // 15. Card sets as a generation filter (rule): every non-basic card of the build is printed in the chosen sets.
@@ -182,7 +183,7 @@ const fx = await page.evaluate(async () => { const d = S.profile.decks.find(x =>
   d.sets = []; d.colors = [d.colors[0]]; d.custom = true; const dr = newDeck({name:'Unsaved test draft', format:'commander'}); S.deckId = d.id;
   const nd = await regenBuild(d); const keptDraft = S.profile.decks.some(x => x.id === dr.id) || S.draft === dr;
   return {loopRenders, failed:SETFAIL.has('err'), colours:nd && JSON.stringify(nd.colors) === JSON.stringify(d.colors), draftKept:keptDraft}; });
-const fx2 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Doom/i.test(x.name)); S.deckId = d.id; const dr = newDeck({name:'Unsaved test draft 2', format:'commander'}); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'build'; render(); const b = document.querySelector('[data-act="build-gen"]'); if (b) b.click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } await new Promise(r => setTimeout(r, 300)); return {saved:S.profile.decks.some(x => x.id === dr.id)}; });
+const fx2 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Doom/i.test(x.name)); S.deckId = d.id; const dr = newDeck({name:'Unsaved test draft 2', format:'commander'}); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'build'; render(); const b = document.querySelector('[data-act="build-gen"]'); if (b) b.click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } await new Promise(r => setTimeout(r, 300)); for (let i = 0; i < 300 && thinkThen.busy; i++) await new Promise(r => setTimeout(r, 100)); return {saved:S.profile.decks.some(x => x.id === dr.id)}; });
 T('UI-FIX-01', 'An unreadable card set is tried once, not in a loop; Generate in Customize keeps the deck’s colours; an unsaved draft is saved, not lost, when Generate opens a new deck', fx.loopRenders < 6 && fx.failed && fx.colours && fx2.saved, JSON.stringify({fx, fx2}));
 // 19. Card search → add a card to a chosen deck's buy list; the deck it upgrades is chosen first; decks it can't go in are disabled.
 const w1 = await page.evaluate(async () => { S.draft = null; S.view = 'search'; render(); for (let i = 0; i < 100 && (UPX.busy || !UPX.map.size); i++) await new Promise(r => setTimeout(r, 200));
@@ -1065,6 +1066,21 @@ const b143c = await page.evaluate(() => { const r = n => [...tags(find(n)).roles
   const d = {id:'t143', name:'t', format:'commander', commander:'', tier:'apex', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}; setCommander(d, 'Teval, the Balanced Scale'); ['Lost Monarch of Ifnir', 'Gravecrawler', 'Diregraf Ghoul'].forEach(n => addCard(d, n, 1));
   out.tokens = supportOf(d, 'tribe:Zombie').have >= 5; return out; });
 T('UI-B143-03', 'Score blind spots: Ruby Medallion and Goblin Warchief are ramp (Ghalta’s own discount is not); Altar of Dementia needs no big creatures, Fling still does; Teval’s Zombie tokens count as Zombie support', Object.values(b143c).every(Boolean), JSON.stringify(b143c));
+// 101. Build 144: helper cores share the swap measurements, holding only the cards they need; the deck is the same as one built
+// on one core, and their answers are spot-checked.
+const b144a = await page.evaluate(async () => { const out = {}, name = 'Captain America, Team Leader', aims = await edhAimsFor(find(name));
+  const one = async n => { S.cores = n; wkRestart(); wkGet(); genRun.last = null; const g = await startPlan(name, [], null, null, {fill:'budget', aims}); S.draft = null; return {list:g.cards.map(e => e.n + 'x' + e.q).sort().join('|'), last:genRun.last}; };
+  const a = await one(0), b = await one(2); S.cores = null; wkRestart();
+  Object.assign(out, {same:a.list === b.list, helpers:b.last && b.last.helpers, shared:!!(b.last && b.last.stat && b.last.stat.keys > b.last.stat.local), checked:b.last && b.last.stat && b.last.stat.checked, wrong:b.last && b.last.stat ? b.last.stat.wrong : -1}); return out; });
+T('UI-B144-01', 'Helper cores: two helpers share the measurements (spot-checked, none wrong) and the Budget deck is the same card for card as on one core', b144a.same && b144a.helpers === 2 && b144a.shared && b144a.checked > 0 && b144a.wrong === 0, JSON.stringify(b144a));
+// 102. Build 144: with Generate open, the deck for the settings shown is built ahead; pressing Build then opens it at once, and it is
+// the deck pressing Build would have built.
+const b144b = await page.evaluate(async () => { const out = {}, name = 'Kenrith, the Returned King'; wkGet(); S.draft = null; Object.assign(S.gen, {cmd:name, tier:'mid', mech:[], best:true, sets:[], partner:'', theme:false}); await loadEdh(name); openGenerate();
+  for (let i = 0; i < 300 && !(WK.spec && WK.cb.size === 0); i++) await new Promise(r => setTimeout(r, 100)); await WK.spec.p;
+  const t0 = Date.now(); document.querySelector('[data-act="gen-go"]').click(); for (let i = 0; i < 300 && !(S.draft && S.draft.cards.length && !thinkThen.busy); i++) await new Promise(r => setTimeout(r, 20)); out.ms = Date.now() - t0; out.early = !!(genRun.last && genRun.last.early);
+  const ahead = S.draft.cards.map(e => e.n + 'x' + e.q).sort().join('|'); S.draft = null; S.noWorker = true; const aims = await edhAimsFor(find(name)); const g = await startPlan(name, [], null, null, {fill:'mid', aims}); S.noWorker = false; S.draft = null;
+  out.same = ahead === g.cards.map(e => e.n + 'x' + e.q).sort().join('|'); $('#modal').hidden = true; return out; });
+T('UI-B144-02', 'Built ahead: with Generate open, pressing Build opens the deck already built for those settings (under 2 s), the same deck as building it then', b144b.early && b144b.same && b144b.ms < 2000, JSON.stringify(b144b));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
