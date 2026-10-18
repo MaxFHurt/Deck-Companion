@@ -219,6 +219,8 @@ Owner's answers to the open questions: 1 find the best ceiling version; 3 yes; 4
   repeated, reworded, at the end of that summary. Several questions or inputs are
   always numbered so the owner can answer by number.
 - No regression: every engine build must match or beat the last benchmark.
+- Tests: run only the checks the change can affect, and always its regression check before going live (the table in
+  `WORK_SESSION_HANDOFF.md`, section 3). No tests for changes that can't affect them.
 - The MTG Commander Deck Manager spreadsheet never supplies benchmark inputs.
 
 ## Done (recent builds)

@@ -79,6 +79,21 @@ Last updated: 18 October 2026, Build 140 live.
      `SCORECHECK=1 [WEIGHT=3,6] node bench.js ../candidate x tuneall|test|holdout --quiet`.
      **Always set `SCORECHECK=1`**, otherwise the Apex pick rule is skipped and the numbers are wrong.
    - Add one UI test per build, inserted before the iPad reload test near the end of `ui-test.mjs`.
+   - **Run only what the change can affect; always run its regression check (owner, 18 Oct).**
+
+     | What changed | While working | Before going live (regression) |
+     |---|---|---|
+     | Screens only (ui.js, CSS in index.html) | quick check | full UI suite |
+     | Upgrade or score logic (scoreCheck, evaluateDeck, upgradePaths, UP settings) | quick check; benchmark tuneall only | benchmark, all six; scheck, claims, cisweep, edge |
+     | Card reading (tags, roles, keywords, isFinisher) | semantics | benchmark, all six; semantics, claims, accept |
+     | Deck generator (buildPlan, fillDeck, manaBase) | quick check (it generates a deck) | accept (both), genstrong, tourney |
+     | Practice games (simulate, lands) | quick check | benchmark, all six; full UI suite (practice panel tests) |
+     | Screens and engine together | quick check | everything both rows list |
+     | Docs, roadmap, test tools only | nothing | nothing |
+
+     Economies: screen an experiment on tuneall first and run test and holdout only for versions that pass it; never run the
+     benchmark and the UI suite at the same time (each slows the other); fix every failure found before re-running the full
+     suite, so it runs once more, not once per fix.
 4. **Ship:** copy `engine.js ui.js index.html version.json` and `tools/tests/suite/ui-test.mjs` (plus new tools) into the
    repo, update `ROADMAP.md` and this file, commit with the session's attribution lines, then
    `git push origin <work branch>` and `git push origin HEAD:main` (fast-forward). Poll
