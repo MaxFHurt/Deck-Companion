@@ -12,6 +12,15 @@ Needs Node 22 and, for the browser tests, Playwright with Chromium
 (`PW=<path to the playwright package>`). Re-run `setup.sh` after app changes
 (it copies the app from the repository root into `proto/candidate`).
 
+## While working (owner, 18 Oct)
+
+    PW=... node ui-quick.mjs 8765 <label>           # quick browser check, about 25 s: 10 checks of the main screens
+
+Run it after each change. It loads a precon, checks Upgrades (checking note, rows, Swap, alternatives, Highest score,
+within 15 s), a swap, the card window and price warning, the Decklist / Build stats / Buy list tabs, Fix: Mana, phone and
+iPad layouts, the background search and deck generation, with no page errors. It caught Build 140's hidden-list bug. The full
+suite below still runs once before every live build (not alongside the benchmark: sharing the machine slows both).
+
 ## Before every build goes live (all must pass)
 
     node accept.js ../candidate | tail -1           # acceptance: 39 passed, 0 failed

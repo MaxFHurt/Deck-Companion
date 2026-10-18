@@ -18,6 +18,9 @@ Last updated: 18 October 2026, Build 140 live.
 4. **Real-device check after Build 140.** iPhone upright (deck tabs on two rows, the page scrolls), and the iPad (should be
    unchanged): screenshots of anything that looks wrong.
 
+5. **Version names (owner, 18 Oct):** after this weekend's build, numbering changes from Build 14X to Version 0.9. The open
+   questions above stay open until then.
+
 ## 1. What this is
 
 **Deck Companion** is a Magic: The Gathering deck builder for Commander and Standard.
@@ -67,6 +70,8 @@ Last updated: 18 October 2026, Build 140 live.
    themes into `proto/data2/themes/<slug>__<theme>.json` (`json.edhrec.com/pages/commanders/<slug>[/<theme>].json`).
 2. **Bump the build** in `index.html` (`window.BUILD = N`) and `version.json` (`{"build": N}`).
 3. **Test:**
+   - While working, after each change: the quick check `PW=/opt/node22/lib/node_modules/playwright node ui-quick.mjs 8765 q`
+     (about 25 s, 10 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
    - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
      `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (100 at Build 140). If it
      prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
