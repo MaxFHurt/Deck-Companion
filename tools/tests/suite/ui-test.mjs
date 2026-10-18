@@ -935,6 +935,15 @@ const b138b = await page.evaluate(async () => { const d = S.profile.decks.find(x
   for (let i = 0; i < 100 && /Checking land swaps/.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100)); const done = /practice games/.test($('#modal').textContent) && !/Checking land swaps/.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });
 b138.soon = b138b.first && b138b.done;
 T('UI-B138-01', 'Mana fix and card window agree: each land the fix offers goes where the card window puts it, with the same score; when the deck runs short of lands a weak spell may make room', b138.decks > 0 && !b138.mismatch.length && b138.starvedSpell && b138.window !== false && b138.soon, JSON.stringify(b138).slice(0, 900));
+// 88. Build 139: the engine knows the rules' keywords (graveyard, token, counter… mechanics) and reads the commander's engine: what
+// it makes, what sets it off; a card that doubles or pays it off says so.
+const b139 = await page.evaluate(() => { const f = n => find(n), out = {};
+  const ch = commanderEngine([f('Chatterfang, Squirrel General')]), ss = commanderEngine([f('Symbiote Spider-Man')]);
+  out.chat = ch.creatureTokens && ch.types.has('Squirrel'); out.ds = engineFit(f('Doubling Season'), ch).v === 1; out.wrangler = engineFit(f('Squirrel Wrangler'), ch).v === 0.8; out.elves = engineFit(f('Llanowar Elves'), ch).v === 0;
+  out.soul = /graveyard/.test(engineFit(f('The Soul Stone'), ss).why || '') && engineFit(f('Aetherize'), ss).v === 0;
+  out.dredge = tags(f('Life from the Loam')).th.graveyard === 1; out.landfall = tags(f('Lotus Cobra')).th.lands === 1;
+  const d = {format:'commander', commander:'Symbiote Spider-Man', partner:'', aims:[], cards:[], tier:'apex'}; const ctx = ctxOf(d); out.why = (baseScore(f('The Soul Stone'), d, ctx).why || [])[0] || ''; return out; });
+T('UI-B139-01', 'The engine reads keywords (Dredge → graveyard, Landfall → lands) and the commander’s engine: Chatterfang makes Squirrel tokens, Doubling Season doubles them, Squirrel Wrangler pays them off; The Soul Stone uses what Symbiote Spider-Man puts in the graveyard (Aetherize doesn’t), and the card says so', b139.chat && b139.ds && b139.wrangler && b139.elves && b139.soul && b139.dredge && b139.landfall && /graveyard/.test(b139.why), JSON.stringify(b139));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

@@ -36,6 +36,60 @@ const THEMES = {
   draw:        {label:'Card advantage engine', re:/draws? (a|an|two|three|four|seven|x|that many|up to two) (additional )?cards?|draw cards equal|draw a card for each|draw x cards|no maximum hand size/i},
   tribal:      {label:'Creature type (tribal)', re:null}
 };
+// Keywords and ability words (Comprehensive Rules 701, 702, 207.2c; tools/rules/keywords.json) mapped to the themes they
+// belong to (Build 139, UP.kw). A card with the word in its text counts for the theme even when its wording differs.
+const KW_THEMES = {graveyard:['from their graveyard','from each graveyard','dredge','flashback','unearth','escape','embalm','eternalize','disturb','retrace','jump-start','aftermath','delve','scavenge','encore','recover','threshold','delirium','fathomless descent','descend 4','descend 8','undergrowth','harness','∞','collect evidence','gravestorm'],
+  tokens:['populate','amass','incubate','fabricate','myriad','mobilize'],
+  counters:['proliferate','adapt','bolster','support','evolve','graft','modular','outlast','mentor','reinforce','increment'],
+  sacrifice:['exploit','casualty','emerge','devour','morbid','revolt'],
+  spells:['prowess','magecraft','storm','cascade','splice','replicate','rebound','spell mastery','paradox'],
+  artifacts:['affinity','improvise','metalcraft','living metal','craft'],
+  enchantments:['constellation','bestow','eerie'],
+  lifegain:['extort'],
+  lands:['landfall','domain','awaken'],
+  voltron:['reconfigure','for mirrodin!','living weapon','job select'],
+  blink:['encore'],
+  aggro:['battle cry','exalted','melee','raid','dash','annihilator','myriad','afflict','enlist','mobilize','pack tactics'],
+  burn:['spectacle'],
+  draw:['connive','hideaway']};
+const KW_RE = (() => { const m = {}; for (const k in KW_THEMES) m[k] = new RegExp('(^|[^a-z])(' + KW_THEMES[k].map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')($|[^a-z])', 'i'); return m; })();
+// A commander's engine (Build 139, UP.kw): what it makes (token kinds, counters), what sets it off (its triggers) and what it
+// counts. Cards are then judged by how they feed it (see MECHANICS_NOTES.md, section 1): doublers, payoffs for what it makes,
+// enablers of its triggers.
+const TOKEN_KINDS = ['Treasure', 'Food', 'Clue', 'Blood', 'Map', 'Gold', 'Powerstone', 'Incubator', 'Junk', 'Shard', 'Walker', 'Role', 'Lander', 'Mutagen', 'Vibranium'];
+function commanderEngine(cmds){ const E = {tokens:new Set(), creatureTokens:false, counters:false, fillsGY:false, trig:new Set(), types:new Set()};
+  cmds.filter(Boolean).forEach(cmd => { const o = (cmd.o || '').replace(new RegExp(cmd.n.split(',')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), 'CARDNAME');
+    (o.match(/\bcreates? [^.]*?tokens?\b|[^.]*\btokens?\b[^.]*\bcreated\b[^.]*/gi) || []).forEach(m => { TOKEN_KINDS.forEach(k => { if (new RegExp('\\b' + k + '\\b').test(m)) E.tokens.add(k); }); if (/creature tokens?/i.test(m)){ E.creatureTokens = true; (m.match(/\b[A-Z][a-z]+(?= (creature )?tokens?| [A-Z][a-z]+ creature token)/g) || []).filter(w => TRIBES.includes(w)).forEach(w => E.types.add(w)); } });
+    if (/put (a|an|one|two|three|x|that many) \+1\/\+1 counters?|proliferate/i.test(o)) E.counters = true;
+    if (/sacrifice (x|a|an|another|one or more|two|three)( other)? (creatures?|permanents?|artifacts?|tokens?)/i.test(o)) E.sacs = true;
+    if (/\bmills?\b|into your graveyard|surveil|discard (a|two|that many) cards?/i.test(o) && !/from your graveyard to (your hand|the battlefield)/i.test(o.split(/\n/).find(l => /into your graveyard|\bmills?\b/i.test(l)) || '')) E.fillsGY = true;
+    const T = [['cast-spell', /whenever you cast (an|a) (instant|sorcery)|whenever you cast (an|a) noncreature|magecraft|prowess/i], ['cast-creature', /whenever you cast a creature/i],
+      ['etb', /whenever (a|another|one or more) [^.]{0,40}\benters\b/i], ['dies', /whenever (a|another|one or more)[^.]{0,40}\b(dies|die)\b|whenever you sacrifice|\bdying\b/i],
+      ['attack', /whenever CARDNAME attacks|whenever (a|one or more) creatures? you control attack|deals combat damage to a player/i], ['life', /whenever you gain life/i],
+      ['land', /landfall|whenever a land (you control )?enters/i], ['draw', /whenever you draw/i], ['discard', /whenever you discard/i], ['mill', /whenever [^.]{0,40}(put into your graveyard|mill)/i],
+      ['token', /whenever you create a token|whenever one or more tokens/i], ['counter', /whenever (one or more )?\+1\/\+1 counters? (is|are) put/i]];
+    T.forEach(([k, re]) => { if (re.test(o)) E.trig.add(k); }); });
+  return E; }
+// How a card fits the commander's engine: 1 a doubler of what it makes or of its triggers, 0.8 a payoff for what it makes,
+// 0.6 an enabler of one of its triggers; with the reason shown.
+function engineFit(c, E){ if (!E || !c) return {v:0}; const o = c.o || '', t = frontType(c), tg = tags(c);
+  if (tags(c).land) return {v:0};
+  const tokDouble = /(twice that many|that many plus one|create (twice|an additional|one additional))[^.]*tokens?|tokens? [^.]{0,40}(instead|twice that many)/i, cntDouble = /(twice that many|that many plus one|an additional)[^.]*counters?/i, trigDouble = /triggers? an additional time/i;
+  if ((E.creatureTokens || E.tokens.size) && tokDouble.test(o)) return {v:1, why:'Doubles the tokens your commander makes'};
+  if (E.counters && cntDouble.test(o)) return {v:1, why:'Doubles the counters your commander puts'};
+  if (E.trig.size && trigDouble.test(o)) return {v:1, why:'Makes your commander’s abilities trigger twice'};
+  for (const k of E.tokens) if (new RegExp('\\b' + k + '\\b').test(o)) return {v:0.8, why:'Uses the ' + k + ' tokens your commander makes'};
+  if (E.creatureTokens && (/tokens? you control|whenever one or more (creature )?tokens|populate|creatures you control get \+|for each creature you control|sacrifice (a|another) creature[^.]*:/i.test(o))) return {v:0.8, why:'Pays off the creature tokens your commander makes'};
+  for (const ty of E.types) if (new RegExp('\\b' + ty + 's?\\b').test(o) || new RegExp('\\b' + ty + '\\b').test(t)) return {v:0.8, why:'Works with your commander’s ' + ty + ' tokens'};
+  if (E.counters && /\+1\/\+1 counters? on|for each \+1\/\+1 counter|proliferate|with a \+1\/\+1 counter/i.test(o)) return {v:0.8, why:'Uses the +1/+1 counters your commander puts'};
+  if ((E.sacs || E.creatureTokens) && /whenever [^.]{0,30}\b(a|another|one or more)( other)?( nontoken)? creatures?( you control)?( die| dies)|whenever you sacrifice/i.test(o)) return {v:0.8, why:E.sacs ? 'Pays off the creatures your commander sacrifices' : 'Pays off the creature tokens your commander makes'};
+  if (E.fillsGY && (tg.th.graveyard === 1 || /from (your|their|a|any|each) graveyards?|graveyard to the battlefield|cards? in your graveyard/i.test(o)) && !/exile (all|each|target player's) graveyards?|exile all cards from/i.test(o)) return {v:0.8, why:'Uses the cards your commander puts in your graveyard'};
+  const en = {'cast-spell':() => /Instant|Sorcery/.test(t) && (c.cmc || 0) <= 3, 'cast-creature':() => /Creature/.test(t) && (c.cmc || 0) <= 3, etb:() => /Creature/.test(t) && (c.cmc || 0) <= 3 || /\bcreates? [^.]*creature tokens?/i.test(o) || ROLE_RE.blink.test(o),
+    dies:() => /sacrifice (a|another|one or more) (creatures?|permanents?|artifacts?)[^.:]*:|each (opponent|player) sacrifices/i.test(o) || /\bcreates? [^.]*creature tokens?/i.test(o), attack:() => /\b(flying|menace|trample|can't be blocked|haste|additional combat|untap all creatures)\b/i.test(o),
+    life:() => /gain [^.]{0,20}life|lifelink/i.test(o), land:() => /search your library for [^.]*land|play an additional land|additional land|lands? from your graveyard/i.test(o), draw:() => tg.roles.has('draw'),
+    discard:() => /discard (a|one|two|that) cards?|connive/i.test(o), mill:() => /\bmills?\b|surveil|put the top [^.]* into your graveyard/i.test(o), token:() => /\bcreates?\b[^.]*\btokens?\b/i.test(o), counter:() => /\+1\/\+1 counters?|proliferate/i.test(o)};
+  for (const k of E.trig) if (en[k] && en[k]()) return {v:0.6, why:'Sets off your commander (' + {'cast-spell':'casting spells', 'cast-creature':'casting creatures', etb:'creatures entering', dies:'creatures dying', attack:'attacking', life:'gaining life', land:'lands entering', draw:'drawing', discard:'discarding', mill:'cards going to your graveyard', token:'making tokens', counter:'+1/+1 counters'}[k] + ')'};
+  return {v:0}; }
 const ROLE_LABEL = {ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes'};
 const LAND_WORDS = '(basic land|land|plains|island|swamp|mountain|forest)';
 const ROLE_RE = {
@@ -441,7 +495,7 @@ function evaluateDeck(d, opt){
   // (b) EDHREC synergy, how much more this commander's players run it than other decks of its colours. Popularity alone
   // is not synergy: a precon card is "popular" because the precon ships with it.
   const AWv = [1, 0.85, 0.7, 0.6, 0.5], aimL = (d.aims || []).slice(0, 5), hasE = !!(E && E.map && E.map.size >= 40);
-  const fitOf = c => { let f = 0; aimL.forEach((a, i) => { if (matchAim(c, a, ctx.tribe) >= 0.7) f = Math.max(f, AWv[i]); }); if (!f && ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)) f = 0.7; return f; };
+  const fitOf = c => { let f = 0; aimL.forEach((a, i) => { if (matchAim(c, a, ctx.tribe) >= 0.7) f = Math.max(f, AWv[i]); }); if (!f && ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)) f = 0.7; if (ctx.engine) f = Math.max(f, UP.kwS * engineFit(c, ctx.engine).v); return f; };
   const synOf = c => { const x = hasE ? incOf(c) : null, l = x ? Math.max(0, Math.min(1, 3 * x.syn + 0.25 * x.inc)) : 0; let t = 0;
     if (aims.length){ let tw = 0, tv = 0; aims.forEach(a => { const y = edhOf(a.m, c); tw += a.w; tv += a.w * (y ? Math.min(1, y.inc * 1.5) : 0); }); t = tv / tw; }
     return Math.max(fitOf(c), l, t); };
@@ -464,10 +518,10 @@ function evaluateDeck(d, opt){
   const bal = Math.max(0, 1 - pen / 2.5); why.balance = (short.length ? 'Short against what players who changed the deck run: ' + short.join(', ') : 'Every job covered') + (over.length ? '; heavy: ' + over.join(', ') : '') + '; lands ' + A.lands + '/' + T.lands + (dead.length ? '; ' + dead.length + ' card' + (dead.length > 1 ? 's' : '') + ' the deck barely supports' : '');
   // Card quality: how widely each spell is played across all of Commander (EDHREC rank), staples counting fully.
   const q = c => CORE.has(c._n) ? 1 : c.r ? Math.max(0, 1 - Math.log(c.r + 1) / Math.log(40000)) : 0.35;
-  let qual = spells.reduce((a, c) => a + q(c), 0) / n, qPct = null, qExact = null, qTier = null; why.quality = spells.filter(c => c.r && c.r < 400).length + ' proven staples (top 400 cards in Commander)';
+  let qual = spells.reduce((a, c) => a + q(c), 0) / n, qPct = null, qExact = null, qTier = null, qOver = 0; why.quality = spells.filter(c => c.r && c.r < 400).length + ' proven staples (top 400 cards in Commander)';
   // With the Apex reference: card quality is how far the spells are from random playable cards (0%) to the Apex build (100%).
   const AR = opt.apex && opt.apex.key === apexKey(d) ? opt.apex : null;
-  if (AR){ const vf = opt.valOf || null, M = apexMeans(AR, d, ctx, vf), m = spellMean(d.cards, d, ctx, vf); Object.assign(AR, {apex:M.apex, mid:M.mid, budget:M.budget, floor:M.floor}); qPct = qualityPct(m, AR.apex, AR.floor); qExact = AR.apex > AR.floor ? Math.max(0, Math.min(100, 100 * (m - AR.floor) / (AR.apex - AR.floor))) : 0;
+  if (AR){ const vf = opt.valOf || null, M = apexMeans(AR, d, ctx, vf), m = spellMean(d.cards, d, ctx, vf); Object.assign(AR, {apex:M.apex, mid:M.mid, budget:M.budget, floor:M.floor}); qPct = qualityPct(m, AR.apex, AR.floor); qExact = AR.apex > AR.floor ? Math.max(0, Math.min(100, 100 * (m - AR.floor) / (AR.apex - AR.floor))) : 0; qOver = AR.apex > AR.floor ? Math.max(0, 100 * (m - AR.floor) / (AR.apex - AR.floor) - 100) : 0;
     why.quality = qPct + '% of the way from random playable cards to the Apex build (the best cards for this deck at any price)';
     if (d.tier === 'budget' || d.tier === 'mid'){ const ref = d.tier === 'budget' ? AR.budget : AR.mid; qTier = {tier:d.tier, pct:qualityPct(m, ref, AR.floor)}; why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12); } }
   // Win routes and resilience: complete combos that win, cards that close a game, ways to protect or rebuild, card flow.
@@ -488,14 +542,18 @@ function evaluateDeck(d, opt){
   else why.mana = 'available once the deck has its full 100 cards';
   const raw = {synergy:syn, balance:bal, quality:qual, routes, mana}, parts = {}; let total = 0;
   // parts are shown as whole numbers; exact keeps the unrounded parts, so a small real gain (a better card) is not lost to rounding
-  let wsum = 0, exact = 0; const contrib = {}; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } const pe = k === 'quality' && qExact != null ? qExact : EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]);   // stage 2: the smoother ways-to-win, shifted so a typical deck keeps its score
+  // Comparing swaps (Build 139, UP.unc): the shown parts stop at their maximum, but a deck already at the maximum can still get
+  // better; cmp lets each part keep rising past its maximum at UP.unc of the rate, so a stronger, on-theme card still scores
+  // above a weak one in a strong deck. Only differences in cmp are used (swap gains); the score shown is unchanged.
+  let cmp = 0; const pastMax = k => { if (!UP.unc || (UP.uncK && UP.uncK !== k)) return 0; if (k === 'quality') return qOver; if (EV_SUFF[k]) return Math.max(0, raw[k] / EV_SUFF[k] - 1) * 100; const a = k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k], top = a[1] > a[0] ? 60 + 25 * (raw[k] - a[0]) / (a[1] - a[0]) : 0; return Math.max(0, top - 100); };
+  let wsum = 0, exact = 0; const contrib = {}; for (const k in EV_W){ if (k === 'mana' && !S){ parts[k] = null; continue; } const pe = k === 'quality' && qExact != null ? qExact : EV_SUFF[k] ? 100 * Math.min(1, raw[k] / EV_SUFF[k]) : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]); cmp += (pe + UP.unc * pastMax(k)) * EV_W[k] / 100;   // stage 2: the smoother ways-to-win, shifted so a typical deck keeps its score
     parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(pe); total += parts[k] * EV_W[k] / 100; exact += pe * EV_W[k] / 100; contrib[k] = pe * EV_W[k] / 100; wsum += EV_W[k]; }
-  if (wsum && wsum < 100){ total = total * 100 / wsum; exact = exact * 100 / wsum; for (const k in contrib) contrib[k] *= 100 / wsum; }   // the parts that could be judged, weighted as usual
+  if (wsum && wsum < 100){ total = total * 100 / wsum; exact = exact * 100 / wsum; cmp = cmp * 100 / wsum; for (const k in contrib) contrib[k] *= 100 / wsum; }   // the parts that could be judged, weighted as usual
   const onPlan = spells.filter(c => (d.aims || []).some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)).length;
   const feat = {lands:A.lands, tLands:T.lands, avg:+A.avg.toFixed(2), ramp:A.roles.ramp, draw:A.roles.draw, removal:A.roles.removal, wipe:A.roles.wipe, tRamp:T.ramp, tDraw:T.draw, tRem:T.removal, tWipe:T.wipe, inter, fin:fin.length, prot, rec, tut, wins:wins.length, combos:cb.full.length,
     onPlan:onPlan / n, synPos:E && E.map ? spells.filter(c => { const x = incOf(c); return x && x.syn >= 0.1; }).length / n : 0, cheap:spells.filter(c => c.cmc <= 2).length, big:spells.filter(c => c.cmc >= 6).length, gc:A.gc.length, weak:dead.length};
   const prof = profileOf(ctx.cmd), needs = prof ? prof.needs.map(k => Object.assign({key:k, label:k.startsWith('tribe:') ? k.slice(6) + ' creatures' : NEEDS[k].label}, supportOf(d, k))) : [];
-  return {total:Math.round(total), exact:+exact.toFixed(3), parts, contrib, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null, marks:AR && AR.apex != null ? {budget:qualityPct(AR.budget, AR.apex, AR.floor), mid:qualityPct(AR.mid, AR.apex, AR.floor)} : null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
+  return {total:Math.round(total), exact:+exact.toFixed(3), cmp:+cmp.toFixed(3), parts, contrib, raw, why, sim:S, u, feat, weak, profile:prof, needs, quality:{vsApex:qPct, tier:qTier, pending:qPct == null, marks:AR && AR.apex != null ? {budget:qualityPct(AR.budget, AR.apex, AR.floor), mid:qualityPct(AR.mid, AR.apex, AR.floor)} : null}, combos:{win:wins, all:cb.full, near:cb.near.slice(0, 5)}, finishers:fin.map(c => c.n)};
 }
 function parsePrecon(j){
   const jd = (j && j.container && j.container.json_dict) || {}, dk = (j && j.deck) || {}, L = t => ((jd.cardlists || []).find(x => x.tag === t) || {}).cardviews || [];
@@ -572,6 +630,7 @@ function tags(c){
   // a spell with a land on its back face is judged for jobs by its front face only
   const ro = / \/\/ [^/]*\bLand\b/.test(c.t || '') ? o.split(' // ')[0] : o;
   for (const k in THEMES){ const T = THEMES[k]; if (!T.re) continue; th[k] = T.re.test(o) ? 1 : (T.type && T.type.test(t) ? 0.5 : 0); }
+  if (UP.kw) for (const k in KW_RE) if (th[k] !== 1 && KW_RE[k].test(o) && !(k === 'tokens' && !/\btokens?\b|populate|amass|incubate|fabricate|investigate|treasure|food|clue/i.test(o))) th[k] = 1;   // keywords (Build 139)
   if (!land){
     if (ROLE_RE.ramp.test(ro)) roles.add('ramp');
     // Card draw is drawing more cards than you discard, for you: looting and conniving (draw one, discard one) only filter,
@@ -683,7 +742,7 @@ function ctxOf(d){
   // what the deck may hold or what is recommended; gcCap stays unlimited so no gate downstream ever closes.
   let gcIn = (cmd && cmd.gc ? 1 : 0) + (par && par.gc ? 1 : 0); let mldIn = 0; if (d.format === 'commander') (d.cards || []).forEach(e => { const c = find(e.n); if (c && c.gc) gcIn += e.q; if (c && BTAGS.mld.has(c._n)) mldIn += e.q; });
   const bracket = d.format !== 'commander' ? 0 : bracketOf(gcIn, mldIn);
-  return {cmd, par, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe,
+  return {engine:UP.kw ? commanderEngine([cmd, par]) : null, cmd, par, ident, focus, edh:cmd && EDH.map && EDH.key === cmd.n ? EDH : null, cap:TIERS[d.tier || 'budget'].cap, cmdThemes:strat.themes, cmdTribe:strat.tribe, tribe:d.tribe || strat.tribe,
     bracket, gcIn, mldIn, gcCap:Infinity, uni:universeOf(cmd) || universeOf(par)};
 }
 function isAimed(d){
@@ -836,6 +895,8 @@ function baseScore(c, d, ctx){
   let s = 0, hit = false, a0 = 0; const why = [];
   (d.aims || []).forEach((a, i) => { const m = matchAim(c, a, ctx.tribe); if (m){ s += AIM_K * (AIM_W[i] || 1) * m; if (m >= 0.7){ hit = true; why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe)); } } });
   ctx.cmdThemes.forEach(a => { if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1){ s += 2; hit = true; why.push('Commander strategy'); } });
+  // the commander's engine (Build 139): shown as the reason; it adds to the value only with UP.kwB (benchmark: not yet)
+  if (ctx.engine){ const f = engineFit(c, ctx.engine); if (f.v){ s += UP.kwB * f.v; if (UP.kwB) hit = true; if (f.v >= 0.8) why.unshift(f.why); else why.push(f.why); } }
   if (ctx.edh){ const x = edhOf(ctx.edh.map, c); if (x){ s += W_INC * x.inc + W_SYN * Math.max(0, x.syn); hit = true; why.unshift('In ' + Math.round(x.inc * 100) + '% of ' + ctx.cmd.n.split(',')[0] + ' decks'); }
     // When there is plenty of data for this commander, a card none of its players run needs a better reason to be here.
     else if (ctx.edh.map.size >= 100 && !(c.r && c.r < 400) && !CORE.has(c._n)) s -= EDH_MISS; }
@@ -1017,13 +1078,18 @@ const underCap = (p, t) => t === 'apex' || (p != null && p < TIERS[t].cap);
 // tier says why. Each kept pick carries dScore, the score change it makes, which the app shows instead of a value guess.
 const SCORE_MIN = 0.05;   // a swap counts as raising the score from here
 function scoreFloor(){ return UP.smin != null ? UP.smin : SCORE_MIN; }   // every suggestion must raise the deck score by a margin the practice games cannot undo
-function swapScore(d, base, apex, cut, add, q){ const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, q || 1); addCard(u, add, q || 1); try { return +(evaluateDeck(u, {apex, sim:base.sim}).exact - base.exact).toFixed(2); } catch (e) { return null; } }
+// The value swaps are compared on: past the parts' maximum when UP.unc is on (Build 139).
+function cmpOf(e){ return UP.unc && e && e.cmp != null ? e.cmp : e.exact; }
+function swapScore(d, base, apex, cut, add, q, exactOnly){ const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, q || 1); addCard(u, add, q || 1); try { const a = evaluateDeck(u, {apex, sim:base.sim}); return +(!exactOnly && UP.unc && a.cmp != null && base.cmp != null ? a.cmp - base.cmp : a.exact - base.exact).toFixed(2); } catch (e) { return null; } }
 function recount(out){ out.count = {free:0, budget:0, mid:0, apex:0}; out.cost = {free:0, budget:0, mid:0, apex:0};
   for (const t of ['free'].concat(TIER_KEYS_UP)) out.paths.forEach(L => { const p = t === 'free' ? L.opts.free : tierPick(L, t); if (!p) return; out.count[t] += p.q; const a = find(p.add), c = find(p.cut); out.cost[t] += ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }); }
 function scoreCheck(d, R, o){
   o = o || {}; if (!R || d.format !== 'commander' || !find(d.commander)) return R;
   let base; try { base = o.base || evaluateDeck(d, {apex:o.apex, games:300}); } catch (e) { return R; } if (!base || base.exact == null) return R;
   const memo = new Map(), dOf = p => { const k = p.cut + '>' + p.add + '>' + (p.q || 1); if (!memo.has(k)) memo.set(k, swapScore(d, base, o.apex, p.cut, p.add, p.q)); return memo.get(k); };
+  // the main pick keeps the shown score's own measure (Build 139): lifting the parts' maximum changes the numbers shown and the
+  // alternatives, not which card is picked
+  const memoE = new Map(), dOfE = p => { if (!UP.unc || UP.uncPick) return dOf(p); const k = p.cut + '>' + p.add + '>' + (p.q || 1); if (!memoE.has(k)) memoE.set(k, swapScore(d, base, o.apex, p.cut, p.add, p.q, true)); return memoE.get(k); };
   // Unpopular pick (owner, option B): only when the gap is big: the alternative raises the score more, few players run it, and
   // the suggested card is run by at least UP.unpopX times as many (and UP.unpopG more of all decks), and the alternative clearly
   // scores more (by UP.unpopS, and UP.unpopR times the pick's gain), so the chip is rare and means something.
@@ -1077,7 +1143,7 @@ function scoreCheck(d, R, o){
       const byV = pool.slice().sort((a, b) => vv(b) - vv(a)), pick = new Map();
       byV.slice(0, UP.rankN).forEach(x => pick.set(x._n, x)); if (UP.stN && UP.stM) pool.filter(x => x.r && x.r < UP.stR && !pick.has(x._n)).sort((a, b) => a.r - b.r).slice(0, UP.stN).forEach(x => pick.set(x._n, x)); ['budget', 'mid'].forEach(t => byV.filter(x => underCap(x.p, t)).slice(0, UP.rankB).forEach(x => pick.set(x._n, x)));
       mine.forEach(k => { const c = pool.find(x => x._n === k) || LIB.find(x => x._n === k); if (c) pick.set(k, c); });
-      const C = [...pick.values()].map(c => ({c, w:dOf({cut:L.cut, add:c.n, q:ref.q}), th:themeOf(c, T), rx:!!(strict && !strict(c))})).filter(x => x.w != null && x.w >= Math.max(scoreFloor(), UP.rankMin)).sort((a, b) => b.w - a.w || vv(b.c) - vv(a.c));
+      const C = [...pick.values()].map(c => ({c, w:dOf({cut:L.cut, add:c.n, q:ref.q}), we:dOfE({cut:L.cut, add:c.n, q:ref.q}), th:themeOf(c, T), rx:!!(strict && !strict(c))})).filter(x => x.w != null && x.w >= Math.max(scoreFloor(), UP.rankMin)).sort((a, b) => b.w - a.w || vv(b.c) - vv(a.c));
       { const b = C[0], e = b && ctx0.edh && edhOf(ctx0.edh.map, b.c); L.top = b ? {n:b.c.n, p:b.c.p, dScore:b.w, inc:e ? +e.inc.toFixed(3) : 0} : null; }   // the highest score measured for this slot
       const take = (list, t) => { if (!list.length) return null; const top = list[0], th = list.find(x => x.th && x.w >= top.w - Math.abs(top.w) * RANK_THEME); return th || top; };
       // a held pick (the player has seen it and it holds its place until swapped, ruled out or regenerated) keeps its tier
@@ -1100,8 +1166,8 @@ function scoreCheck(d, R, o){
       if (UP.cand > 0){ const thin = !ctx0.edh || !ctx0.edh.map || ctx0.edh.map.size < 100, cred = x => thin || CORE.has(x.c._n) || (x.c.r && x.c.r < (UP.stC || 400)) || !!tourneyOf(x.c, d) || ((ctx0.edh && edhOf(ctx0.edh.map, x.c)) || {inc:0}).inc >= UP.cand;
         // the players' vote counts as evidence of strength the score can't see: each candidate's value is its score gain plus
         // UP.candL times the share of this commander's players who run it (UP.candL 0: the score alone decides)
-        const incOf = x => ((ctx0.edh && edhOf(ctx0.edh.map, x.c)) || {inc:0}).inc, est = x => x.w + (UP.candL || 0) * incOf(x);
-        const CR = C.filter(x => cred(x) && !x.rx && x.w >= UP.candMin).sort((a, b) => est(b) - est(a)), taken = new Set(), pop = {};   // a new pick clears practice-game noise
+        const incOf = x => ((ctx0.edh && edhOf(ctx0.edh.map, x.c)) || {inc:0}).inc, est = x => (x.we != null ? x.we : x.w) + (UP.candL || 0) * incOf(x);
+        const CR = C.filter(x => cred(x) && !x.rx && (x.we != null ? x.we : x.w) >= UP.candMin).sort((a, b) => est(b) - est(a)), taken = new Set(), pop = {};   // a new pick clears practice-game noise
         for (const t of ['apex', 'mid', 'budget']){ let cur = O[t]; if (cur && cur.held){ taken.add(norm(cur.add)); continue; }   // a pick the player chose holds its place
           if (cur && taken.has(norm(cur.add))){ cur = null; delete O[t]; }
           const b = (t === 'apex' ? CR : CR.filter(x => x.c.p != null && underCap(x.c.p, t))).find(x => !taken.has(x.c._n));
@@ -1135,7 +1201,7 @@ function scoreCheck(d, R, o){
   if (o.spare !== false && UP.spare){ const rows0 = R.paths.concat(extra), cutting = new Set(rows0.map(L => norm(L.cut))), already = rows0.filter(L => { const c = find(L.cut); return c && tags(c).land && Object.values(L.opts).some(p => { const a = find(p.add); return a && !tags(a).land; }); }).length;
     // never more land-for-spell swaps than the surplus, counting any the list already has; a land already being cut is skipped
     const sp = spareLands(d).filter((n, i, a) => isBasic(n) || !cutting.has(norm(n))).slice(0, Math.max(0, spareLands(d).length - already)); if (sp.length){ try {
-    const A = analyze(d), b0 = evaluateDeck(d, {apex:o.apex, games:200}).exact, fresh = (cut, add) => { const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:o.apex, games:200}).exact - b0).toFixed(2); };
+    const A = analyze(d), b0 = cmpOf(evaluateDeck(d, {apex:o.apex, games:200})), fresh = (cut, add) => { const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(cmpOf(evaluateDeck(u, {apex:o.apex, games:200})) - b0).toFixed(2); };
     const used = new Set(R.paths.concat(extra).flatMap(L => Object.values(L.opts).map(p => norm(p.add)))), inDeck = new Set(d.cards.map(e => norm(e.n)).concat([norm(d.commander)], d.partner ? [norm(d.partner)] : []));
     const vv = x => { if (!VM.has(x._k)) VM.set(x._k, R.valOf ? R.valOf(x) : 0); return VM.get(x._k); };
     const P = LIB.filter(x => !tags(x).land && !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx0.ident.includes(k)) && mustOk(x, d) && !inDeck.has(x._n) && !dis0.has(x._n) && !used.has(x._n) && x.p != null && !(R.cap && !(x.p < R.cap) && !(own && own.has(x._n))))
@@ -1162,7 +1228,7 @@ function tierPick(L, t){
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
-const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
+const UP = {rs:1, rf:0.2, rfn:6, rc:0.05, ra:[0.399, 0.604], cand:0.10, candL:6, candMin:0.3, apexMax:0, planMax:1, msrc:1, ts:6, tsk:0.1, tl:1, tr:6, lf:1, spare:1, spareN:5, rank:1, rankPick:0, kw:1, kwB:0, kwS:0, unc:0, uncK:'', uncPick:0, starve:0.08, lfix:1, sjx:1, weakD:0.2, weakA:1, stW:1, stN:0, stR:1000, stM:1, stC:0, trim:1, trimPa:0.15, trimCi:10, unpop:0.1, unpopX:3, unpopG:0.1, unpopS:0.2, unpopR:1.5, rankN:12, rankB:4, rankP:30, rankMin:0.15, gv:0, gcN:3, gcB:4, tf:6, tfDrop:0.25, tfEval:2, dom:0.4, pw:1.5, pt:1.5, theme:1, jmu:0, jn:10, jk:8, weak:1, fx:1, rdef:0, mb:1, fin:2, cb:0.5, ck:3, roleT:1, over:2, lt:0.5, wa:0, wo:0, pbDyn:0, pk:7.5, lslack:1, lfast:1, inflate:0, pb:0.25, pc:3, preMin:0.4, wi:15, ws:4, wf:0.1, wd:1, wk:0.75, T:8, m:2, fn:0.3, pool:300, extra:120, prior:0.15, fitMin:5, wfThin:1, mThin:5, fitMinThin:6, extraThin:400, curve:0.25};
 // opt.cap: the "best deck with every new card under $cap" package (per card; a card you own counts as free). The same engine,
 // with dearer additions left out from the start instead of being replaced afterwards; held picks belong to the tier rows, not here.
 function upgradePaths(d, opt){

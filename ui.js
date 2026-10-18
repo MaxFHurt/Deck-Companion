@@ -1556,7 +1556,7 @@ function healthFixHtml(H, ign, fixable){
 function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind === 'mana' && ctxOf(d).ident.length < 2) kind = 'landsUp'; { const A0 = analyze(d); if (key === 'Lands' && A0.lands > A0.T.lands) kind = 'landsDown'; } const e = evalFor(d), ar = apexFor(d), R = recsFor(d);
   const score = e && e.exact != null ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
   // land swaps change the mana, so they are measured with fresh practice games (same seed for the deck before and after)
-  const landScore = FIX_OF[key] === 'mana' || key === 'Lands' || ['ramp', 'draw', 'removal', 'wipe'].includes(kind) ? (() => { let b0 = null; return (cut, add) => { try { if (b0 == null) b0 = evaluateDeck(d, {apex:ar, games:200}).exact; const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); } catch (e) { return null; } }; })() : null;
+  const landScore = FIX_OF[key] === 'mana' || key === 'Lands' || ['ramp', 'draw', 'removal', 'wipe'].includes(kind) ? (() => { let b0 = null; return (cut, add) => { try { if (b0 == null) b0 = cmpOf(evaluateDeck(d, {apex:ar, games:200})); const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); return +(cmpOf(evaluateDeck(u, {apex:ar, games:200})) - b0).toFixed(2); } catch (e) { return null; } }; })() : null;
   // The Mana alert covers two problems: games stuck without a colour, and games short of lands by turn 5. So it offers both
   // kinds of swap (better lands for worse ones, and a land for the spell the deck can best spare), each measured with fresh
   // practice games, and keeps only the ones that raise the deck score, best first.
@@ -2043,7 +2043,8 @@ function tipHtml(d, c, sw){
 const FRESH = new Map();
 function freshDelta(d, ar){ const k = d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|') + '#' + !!ar; let b0 = FRESH.get(k);
   // each measured swap is kept (Build 138), so the Mana fix list and the card window show the same number for the same swap
-  return (cut, add) => { const mk = k + '|' + cut + '>' + add; if (FRESH.has(mk)) return FRESH.get(mk); try { if (b0 == null){ b0 = evaluateDeck(d, {apex:ar, games:200}).exact; FRESH.clear(); FRESH.set(k, b0); } const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); const v = +(evaluateDeck(u, {apex:ar, games:200}).exact - b0).toFixed(2); FRESH.set(mk, v); return v; } catch (err) { return null; } }; }
+  const cv = cmpOf;   // swaps compare past the parts' maximum (Build 139)
+  return (cut, add) => { const mk = k + '|' + cut + '>' + add; if (FRESH.has(mk)) return FRESH.get(mk); try { if (b0 == null){ b0 = cv(evaluateDeck(d, {apex:ar, games:200})); FRESH.clear(); FRESH.set(k, b0); } const u = JSON.parse(JSON.stringify(d)); delete u.plan; cutCard(u, cut, 1); addCard(u, add, 1); const v = +(cv(evaluateDeck(u, {apex:ar, games:200})) - b0).toFixed(2); FRESH.set(mk, v); return v; } catch (err) { return null; } }; }
 // Where a land should go in (Build 138): one method for the card window and the Mana fix list, so both always agree. The lands it
 // could replace that keep every colour they made (best few by the quick guess), plus, when the deck runs short of mana, the
 // weakest spells; each measured with fresh practice games (lands change the mana), best first.

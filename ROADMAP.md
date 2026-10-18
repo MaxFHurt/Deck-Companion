@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 136. Each item ships as its own build: build, run the full test suite
+Live: Build 139. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -59,7 +59,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
   Previous. It uses `practiceGames`, a step-by-step copy of `simulate`; `simulate` is unchanged and a test checks the
   two agree game for game.
 
-## Builds 137-138 (on the work branch, waiting for the owner's OK to touch the practice games)
+## Builds 137-139
 
 - Owner's iPad report: Fix Mana offered Thriving Isle -> Wooded Foothills (+0.3) in the five-colour Turtle deck. Three bugs:
   in the practice games every fetch land made all the deck's colours (Wooded Foothills can only find Mountains and Forests);
@@ -78,6 +78,19 @@ Items marked "discuss first" need the owner's decision before they are built; th
   Greatwurm in Turtles, Nissa, Vital Force in 5 of 8 Ghalta slots) because the deck score credits any big creature as a way
   to win and stacks multi-job credit. Plan agreed with the owner: fix those score blind spots first, then a background full search
   whose best find is always shown (Highest score / alternative); the Apex pick keeps score + popularity.
+
+- Build 139 (owner: "the engine must know every keyword and understand the commander"): `tools/rules/` holds the
+  Comprehensive Rules (2026-09-25), `keywords.json` (all 264 keyword actions and abilities with their rules text, 61 ability
+  words, 741 glossary terms) and `MECHANICS_NOTES.md` (how to read a commander; tokens; triggers and doublers; counters;
+  graveyard; combo patterns; rules that change deck building). Engine: KW_THEMES maps theme-defining keywords to the app's
+  themes (UP.kw, on: benchmark equal or better, tuneall sum 8.69 -> 9.01); commanderEngine reads what a commander makes (token
+  kinds, creature tokens and their type, counters, cards into the graveyard), what sets it off and whether it sacrifices;
+  engineFit judges a card as doubler / payoff / enabler and the reason is shown on the card. Using the fit in the score was
+  benchmarked and does not pass yet (in the deck score: tuneall 0.238 -> 0.234; as a candidate bonus UP.kwB 0.5: @10 0.124 ->
+  0.123, holdout sum 15.0 -> 14.5), so it stays a shown reason (UP.kwB 0, UP.kwS 0) until a version passes.
+- Synergy ceiling (owner's Symbiote Spider-Man deck): 10 of 26 precons sit at the synergy part's maximum, where better-fitting
+  cards cannot raise the score. UP.unc (compare past the maximum) helps most sets but tuneall agreement@5 0.238 -> 0.236; held
+  off (UP.unc 0) pending the owner's decision.
 
 ## Open decisions
 
