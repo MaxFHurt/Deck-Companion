@@ -21,6 +21,17 @@ within 15 s), a swap, the card window and price warning, the Decklist / Build st
 iPad layouts, the background search and deck generation, with no page errors. It caught Build 140's hidden-list bug. The full
 suite below still runs once before every live build (not alongside the benchmark: sharing the machine slows both).
 
+## Build 143 tools
+
+    node genlist.js ../candidate [set]              # generated lists, one hash per commander and tier: a speed change must leave them identical
+    node prof3.js ../candidate <slug> [tier]        # one generation (prof2.js: with timers per engine step); node --cpu-prof for a full profile
+    node keyrec.js ../candidate <slug> [tier]       # how many swap measurements could be known ahead (for spreading work across cores)
+    node pccount.js ../candidate [set]              # Players' choice: picks per deck and how many real players add
+    node blind.js ../candidate all ADD=0.25         # score blind spots: popular player adds the score rates below the floor
+    PW=... node dbg143.mjs <port> x                 # background core: same deck as on the page, timings, memory per core
+
+Run the Node checks one after another: started together, several stopped with an error (seen in Build 143; cause not traced).
+
 ## Before every build goes live (all must pass)
 
     node accept.js ../candidate | tail -1           # acceptance: 39 passed, 0 failed

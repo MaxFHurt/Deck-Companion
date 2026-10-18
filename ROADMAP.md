@@ -222,6 +222,68 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Build 143 (18 October 2026; not pushed: waits for the owner's OK)
+
+Owner: "1a. Yes. Increase cores 1 at a time until we find the best settings. 2a. yes. 2b. Yes fix this so the app is more
+like players choices."
+- **Speed, exact (same decks, same benchmark):** card names are normalised once and kept (norm), the commander's play data is
+  looked up without re-reading split-card names (edhOf), creature-type matches are kept on the card (matchAim), and two small
+  helpers no longer build throwaway strings. Generation about 25% faster: the test set's Apex and Budget builds 110 s -> 80 s
+  on a desktop; a Budget build 20 s -> 15 s, Apex 12 s -> 9 s. Checked: every generated list identical (genlist.js), and
+  the benchmark identical to Build 142 on all six sets.
+- **One background core (work.js):** a generated deck (Generate, Build by theme, From your cards, Build a new deck, Regenerate
+  the open slots) is built by a Web Worker running the same engine files, with the page's own card library, play data,
+  combos, bracket lists, set lists, owned cards and settings sent to it. The page stays responsive and the Thinking spinner
+  keeps moving (during a build the page ran 85 timer ticks in the background vs 0 before). Without a worker, or if it
+  fails, the page builds the deck itself (genDeck, the same function). The decks are the same card for card (UI-B143-01).
+  A half-built deck is never shown: the new deck opens once it is built. A second build pressed meanwhile waits with a note.
+  The plan helpers (planAll, planInstall, syncPlan, planNeed) moved from ui.js to engine.js so both sides share them.
+- **Designed ahead while choosing:** with Generate open and a commander picked, the background core designs the reference build
+  for the settings shown (it depends on the commander, mechanics, colours and sets, not the price level), so pressing Build
+  skips that step: the wait after pressing Build 2.9 s -> 2.0 s (Kenrith, desktop). Settings changed afterwards just design a
+  new one; nothing from it is shown. The worker reads every card once when the card data arrives (warm-up).
+- **More cores: measured, not added yet.** Memory per core: about 140-220 MB (the worker's heap in Chrome; the page itself is
+  about 190-240 MB). What more cores could speed up: the swap measurements are about 28% of a Budget build, and they can only
+  be spread across cores if they are known before the build asks for them; only about 41% are (keyrec.js: the list's own
+  picks plus the swaps the previous round measured). Estimate: 5-10% faster per extra core for about 200 MB each. Next step
+  per the owner's plan: check the one background core on the iPhone (Safari reloads a tab that uses too much memory), then
+  decide on a second.
+- **Players' choice (owner's option C, limits 2a):** a card at least 25% of this commander's decks run (and at least 10 points
+  more than run the card going out), that the deck score sees as about even (no worse than -0.1), is listed among a row's
+  alternatives as "Players' choice · in N% of decks" with "Score about even" (or its real gain when it raises the score a
+  little but loses to the cards above it). One per price column; never a land (the stored practice games can't measure a land
+  swap, so its 0 is not "about even"); only cards the engine already found legal, in colour and in price; only with 100+ decks
+  of play data. "Make every swap" leaves them out. A pick the score check would otherwise drop, with nothing raising the score
+  for that slot, stays as a Players' choice pick (rare). Settings UP.plc 0.25, plcS -0.1, plcG 0.1, plcD 100.
+  Count after the score fixes below: 27 across the three sets (tuneall 17 in 13 decks, holdout 8, test 2), and real players
+  add all 27 (100%), against 93-95% for the picks that raise the score (pccount.js).
+- **Score blind spots (owner's option B, 2b):** blind.js lists cards real players add (25%+ of upgraded copies) that the score
+  rates below the floor, with the parts that go down. Before: 9 of 472 (15%+: 30 of 920). Fixes, by the rules:
+  - **Cost reducers are ramp (UP.costR):** a permanent that makes the spells you cast cheaper (Ruby and Jet Medallion, Goblin
+    Warchief, Dragonspeaker Shaman, Herald's Horn) gives that mana every turn. One-time reductions ("this spell costs") and
+    instants or sorceries are not.
+  - **Ramp is not counted as flood (UP.rld 2):** extra ramp still makes up for missing lands, but whether it floods the deck is
+    left to the mana part's practice games; the balance check counted it a second time and marked down the cheap ramp players
+    add (Farseek, Rampant Growth, Nature's Lore: -0.16 to -0.19 stored, +0.04 to +0.07 on fresh games).
+  - **Creature tokens count as creature-type support (UP.ttok):** a card that keeps making tokens of the type counts as three of
+    it, a one-time maker as one. Teval makes a Zombie Druid whenever cards leave the graveyard, so a Zombie lord is supported.
+  - **Altar of Dementia is a sacrifice outlet that mills (UP.altar):** it works with any creature; payoffs that need power
+    (Fling, Greater Good) still need big creatures.
+  After: 5 of 472 (15%+: 24 of 920). Most of what is left is a real trade-off (Farseek on top of a deck already over its land
+  count means a land should go too; the spare-land swaps say so) or within the practice games' noise.
+  Benchmark (Build 142 -> 143): holdout @5 0.295 -> 0.300, @10 0.209 -> 0.211, sum 15.73 -> 16.39 (weighted 0.322 -> 0.326,
+  0.244 -> 0.245, 19.24 -> 19.94); test @5 0.303 -> 0.298, @10 0.196 -> 0.191, sum 5.98 -> 5.70 (weighted 0.321 -> 0.317,
+  0.215 -> 0.210); tuneall @5 0.244 -> 0.246, @10 0.127 -> 0.132, sum 9.24 -> 10.02 (weighted 0.274 -> 0.276, 0.154 -> 0.160,
+  14.16 -> 14.66). Generator: strong-deck typicality 0.409 (same), beats the median strong deck 11 -> 12 of 13; tournament
+  match 59%, core 57% (same), Mid match 53% -> 52%.
+- **Checks:** accept 39 x 2, semantics 44, claims unchanged (20 unrecognised), cisweep 0, edge clean, scheck bad 1 (the known
+  Doom swap). UI suite 109/109 (a first run failed only the new Players' choice test, which used a card the test deck already has;
+  fixed). New tests UI-B143-01 background core, UI-B143-02 Players' choice, UI-B143-03
+  blind-spot fixes. The UI tests now wait for generation (startPlan, regenBuild and regenPlan return promises).
+- **Tools:** `genlist.js` (generated lists, to prove a speed change changes nothing), `prof2.js`/`prof3.js` (where generation
+  time goes), `keyrec.js` (how predictable the swap measurements are), `pccount.js` (Players' choice count and hit rate),
+  `blind.js` (score blind spots), `dbg143.mjs` (background core: same deck, timings, memory per core).
+
 ## Open decisions
 
 - ~~EDHREC land count in the app~~: decided, our own land formula (see above). Found in Build 104's cleanup: the tests and

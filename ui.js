@@ -341,7 +341,7 @@ async function bracketTags(){
     if (t.mld.length || t.turns.length){ lsSet('dc.btags', t); useTags(t); render(); }
   } catch (e) {}
 }
-function useFull(rows, when, complete){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when, complete:!!complete}; ART.clear(); if (complete) recordPrices(when); }
+function useFull(rows, when, complete){ buildIndex(mergeLibrary(STARTER, rows)); DBINFO = {source:'full', count:LIB.length, when, complete:!!complete}; ART.clear(); if (complete){ recordPrices(when); clearTimeout(wkWarm.t); wkWarm.done = false; wkWarm.t = setTimeout(wkWarm, 5000); } }
 // Price history: each time complete card data arrives, the prices of the cards you care about (your decks, library, buy
 // lists and cards you have opened) are kept by the data's date, so history starts when this shipped and grows over time.
 // Kept small for phones: a new point only when a price changes, up to 60 per card and 3,000 cards, oldest dropped first.
@@ -366,7 +366,46 @@ function setStatus(t){ const el = $('#status'); if (el){ const was = el.hidden; 
 // Building a deck takes a few seconds (longer on a phone: the build is polished until no upgrade is left). The status line says
 // the app is thinking, with the spinner, and is drawn before the work starts so the screen never looks frozen (owner: wait
 // rather than shift; "it's okay to tell the user the app is thinking").
-async function thinkThen(msg, fn){ const el = $('#status'); setStatus(msg); if (el) el.classList.add('think'); await new Promise(r => setTimeout(r, 60)); try { return fn(); } finally { if (el) el.classList.remove('think'); setStatus(''); } }
+async function thinkThen(msg, fn){ if (thinkThen.busy){ toast('Still building the last deck. It will open when it is ready.'); return; } thinkThen.busy = true; const el = $('#status'); setStatus(msg); if (el) el.classList.add('think'); await new Promise(r => setTimeout(r, 60));
+  try { return await fn(); } finally { thinkThen.busy = false; if (el) el.classList.remove('think'); setStatus(''); } }
+// Background building (Build 143): a generated deck is built by work.js on another core, with the same engine and the same
+// data the page has, so the page stays responsive and the thinking animation keeps moving. Without a worker, or if the
+// worker fails, the page builds the deck itself (genDeck), as before. The deck comes out the same either way.
+const WK = {w:null, ok:true, seq:0, cb:new Map(), sig:{}};
+function wkGet(){ if (!WK.ok || S.noWorker || typeof Worker === 'undefined') return null; if (WK.w) return WK.w;
+  try { const w = new Worker('work.js?v=' + (window.BUILD || '')); w.onmessage = ev => { const m = ev.data || {}, f = WK.cb.get(m.id); if (f){ WK.cb.delete(m.id); f(m); } };
+    w.onerror = () => { WK.ok = false; WK.w = null; WK.cb.forEach(f => f({err:'worker failed'})); WK.cb.clear(); try { w.terminate(); } catch (e) {} }; WK.w = w; WK.sig = {}; return w; } catch (e) { WK.ok = false; return null; } }
+// The page's own state, sent only when it changed since the worker last had it.
+function wkState(){ const m = {}, s = WK.sig, clean = c => { const x = {}; for (const k in c) if (k[0] !== '_') x[k] = c[k]; return x; };
+  const lib = [DBINFO.source, DBINFO.count, DBINFO.when, LIB.length].join('|'); if (s.lib !== lib){ m.lib = {sig:lib, rows:LIB.map(clean)}; s.lib = lib; s.combos = null; }
+  const co = COMBOS.list.length ? COMBOS.at + '|' + COMBOS.list.length : 'none'; if (s.combos !== co){ m.combos = {sig:co, j:COMBOS.list.length && COMBO_RAW ? COMBO_RAW.j : null}; s.combos = co; }
+  const ed = [EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort().join(','), EDH.pre ? 1 : 0, EDH.lands || 0].join('|'); if (s.edh !== ed){ const v = {}; for (const k in EDH) if (k !== 'wait' && typeof EDH[k] !== 'function') v[k] = EDH[k]; m.edh = {sig:ed, v}; s.edh = ed; }
+  if (s.bt !== BTAGS.v){ m.btags = BTAGS; s.bt = BTAGS.v; }
+  const st = [...SETCARDS].map(([k, v]) => k + ':' + v.size).join(); if (s.sets !== st){ m.sets = SETCARDS; s.sets = st; }
+  m.up = UP; return m; }
+function wkSend(m, ms){ const w = wkGet(); if (!w) return Promise.resolve({err:'no worker'}); const id = ++WK.seq;
+  return new Promise(res => { const t = setTimeout(() => { if (WK.cb.has(id)){ WK.cb.delete(id); res({err:'timeout'}); } }, ms || 300000); WK.cb.set(id, r => { clearTimeout(t); res(r); });
+    try { w.postMessage(Object.assign(wkState(), m, {id})); } catch (e) { WK.cb.delete(id); clearTimeout(t); WK.sig = {}; res({err:String(e)}); } }); }
+// Build a deck from its plan (engine genDeck), in the worker when there is one. The reference build it made is kept here too,
+// so opening the deck doesn't have to design it again.
+async function genRun(nd, seeds, ownOnly, ownAll, fill){
+  const local = () => genDeck(nd, seeds, ownOnly, ownAll, fill);
+  if (!wkGet()) return local();
+  const t0 = Date.now(), r = await wkSend({kind:'gen', job:{nd:JSON.parse(JSON.stringify(nd)), seeds:(seeds || []).map(c => c.n), ownOnly:ownOnly ? [...ownOnly] : null, ownAll:[...(ownAll || [])], fill:fill || null, refs:apexRef.cache ? [...apexRef.cache] : []}});
+  if (!r || r.err || !r.nd){ if (r && r.err && r.err !== 'no worker') console.warn('Background build failed, building here instead:', r.err); return local(); }
+  Object.keys(nd).forEach(k => { if (!(k in r.nd)) delete nd[k]; }); Object.assign(nd, r.nd);
+  if (r.refs){ apexRef.cache = apexRef.cache || new Map(); r.refs.forEach(([k, v]) => { if (!apexRef.cache.has(k)) apexRef.cache.set(k, v); }); while (apexRef.cache.size > 4) apexRef.cache.delete(apexRef.cache.keys().next().value); }
+  genRun.last = {ms:Date.now() - t0, work:r.ms, worker:true}; return {n:r.n, k:r.k}; }
+// While the player is still choosing in Generate (Build 143), the background core designs the reference build for the settings
+// shown, so pressing Build skips that step. Nothing from it is shown; settings changed afterwards simply design a new one.
+function genPrefetchSoon(){ clearTimeout(genPrefetch.t); genPrefetch.t = setTimeout(() => genPrefetch().catch(() => {}), 700); }
+async function genPrefetch(){ const g = S.gen, c = find(g.cmd); if (!c || !DBINFO.complete || (g.sets || []).length || thinkThen.busy || !wkGet()) return;
+  let aims = []; if (g.mech.length){ if (EDH.key !== c.n || EDH.state !== 'ok') return; aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]); } else aims = await edhAimsFor(c);
+  if (S.gen.cmd !== c.n || $('#modal').hidden || EDH.key !== c.n || thinkThen.busy) return; const p = find(g.partner);
+  const nd = planDeck(c.n, null, p && canPair(c, p) ? p.n : null, Object.assign({fill:g.tier || 'apex', themeFirst:!!g.theme && !g.best, mechChosen:!!g.mech.length}, aims.length ? {aims} : {}));
+  if (!nd || !nd.aims.length) return; const k = apexKey(nd); if (genPrefetch.k === k) return; genPrefetch.k = k; wkSend({kind:'ref', nd:JSON.parse(JSON.stringify(nd))}); }
+// Warm the worker while the app is idle: it gets the card data and reads every card once, so the first deck is not slower.
+function wkWarm(){ if (wkWarm.done || !DBINFO.complete || !wkGet()) return; wkWarm.done = true; wkSend({kind:'warm'}).then(r => { if (r && r.err) wkWarm.done = false; }); }
 async function ingest(stream, size, when){
   const rows = []; let buf = '', read = 0, lines = 0;
   const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
@@ -509,7 +548,9 @@ function backupPanel(){
 }
 
 // ---------- deck helpers ----------
-function newDeck(o){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; return d; }
+// later: the deck is not opened yet (a generated deck opens once it is built, so a half-built deck is never shown)
+function newDeck(o, later){ const d = Object.assign({id:uid(), name:'New deck', format:'commander', commander:'', tier:'budget', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}, o); if (!later) openDraft(d); return d; }
+function openDraft(d){ S.draft = d; S.deckId = d.id; S.view = 'decks'; S.open = true; S.pathShow = 0; S.tab = null; S.deckQ = ''; }
 function makeShell(p){ const d = newDeck({name:p.name + ' starter', format:'commander', aims:p.aims.slice(), tribe:p.tribe || '', src:'generated'}); setCommander(d, p.cmd); if (p.tribe) d.tribe = p.tribe; fillDeck(d); return d; }
 function exampleDeck(){ const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire')); d.name = 'Example deck: Lathril Elves (auto-built)'; d.example = true; d.tier = 'mid'; S.draft = null; S.profile.decks.unshift(d); return d; }
 // Every swap remembers what it replaced: the new card carries the slot's history, so nothing is lost and any swap can be undone.
@@ -1245,14 +1286,12 @@ function planCost(d, t){ let s = 0; planFill(d).forEach(x => { if (x.own || x.ba
 // A card that reaches the deck by any route (the Add a card box, a card's own Add to deck button, the Library) fills the plan
 // slot that suggested it, so the slot is not counted twice. Basic lands are left to their own box.
 function planSlotFor(d, n){ const k = keyOf(n); return (d.plan || []).find(x => !x.basic && [x.a, x.m, x.b].some(y => y && keyOf(y) === k)); }
-function syncPlan(d){ if (!d.plan) return false; const inDeck = new Set(d.cards.filter(e => !isBasic(e.n)).map(e => keyOf(e.n))), n0 = d.plan.length;
-  d.plan = d.plan.filter(x => x.basic || ![x.a, x.m, x.b].some(y => y && inDeck.has(keyOf(y)))); if (!d.plan.length) delete d.plan; return (d.plan ? d.plan.length : 0) !== n0; }
-function planNeed(d){ return analyze(d).T.size - (d.format === 'commander' && d.commander ? 1 : 0) - (d.partner ? 1 : 0); }
 // Regenerate a generated build around the cards already in the deck: they all stay, and the open slots are designed again
 // for them (the same generator, with your cards as fixed picks). Cards you added yourself shape the rest of the plan.
-function regenPlan(d){
+async function regenPlan(d){
   const seeds = d.cards.filter(e => !isBasic(e.n)).map(e => find(e.n)).filter(Boolean), have = new Map(d.cards.map(e => [keyOf(e.n), e.q]));
-  let P = buildPlan(d, seeds, S.gen.own ? ownSet() : null, ownSet()).filter(x => !have.has(keyOf(x.a)) || x.basic)
+  const tmp = JSON.parse(JSON.stringify(d)); await genRun(tmp, seeds, S.gen.own ? ownSet() : null, ownSet(), null);
+  let P = tmp.plan.filter(x => !have.has(keyOf(x.a)) || x.basic)
     .map(x => x.basic && have.get(keyOf(x.a)) ? Object.assign({}, x, {q:x.q - have.get(keyOf(x.a))}) : x).filter(x => x.q > 0);
   // never more than the open slots: basics give way first, then the lowest-ranked picks
   let over = P.reduce((a, x) => a + x.q, 0) - Math.max(0, planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0));
@@ -1308,7 +1347,7 @@ function rowCols(d, R, L, i){
 function alt3Html(d, R, rowShown, p, i, t){ const L = R.paths[i], A = (L && L.alts && L.alts[t] || []).filter(a => !(d.format === 'commander' && hasCard(d, a.n))); if (!p || p.own || !A.length) return '';
   return '<div class="alt3"><small class="lab" style="margin:0">Alternatives</small>' + A.map(a => { const c = find(a.n);
     return '<div class="a3"><button class="sw in" data-act="card" data-n="' + esc(a.n) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span>' + esc(a.n) + (a.theme ? ' <span class="chip gold">' + esc(a.theme) + '</span>' : '') + (c && c.gc ? ' <span class="chip gc">GC</span>' : '') + '</span><em>' + money(c) + '</em></button>' +
-      '<div class="row">' + (a.most ? '<span class="chip gold" title="The card most of this commander’s players choose here; the pick above raises the deck score more">Most played' + (a.inc ? ' · in ' + Math.round(a.inc * 100) + '% of decks' : '') + '</span>' : '') + scoreChip(a.dScore) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
+      '<div class="row">' + (a.most ? '<span class="chip gold" title="The card most of this commander’s players choose here; the pick above raises the deck score more">Most played' + (a.inc ? ' · in ' + Math.round(a.inc * 100) + '% of decks' : '') + '</span>' : '') + (a.pc ? pcChip(a) : scoreChip(a.dScore)) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
 function capBox(d, t){ const cap = TIERS[t].cap; if (!(S.capOpen && S.capOpen[d.id + t])) return '<div class="capbox" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><button class="btn sm" data-act="cap-show" data-v="' + t + '">Best deck with every card under $' + cap + '</button></div>';
   const L = capList(d, t); if (!L.length) return '<p class="note" style="margin:6px 0 0">Best deck with every new card under $' + cap + ': no worthwhile swaps.</p>';
   const cost = L.reduce((s, p) => { const a = find(p.add), c = find(p.cut); return s + ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }, 0);
@@ -1320,6 +1359,8 @@ function tierSum(d, R, t){ let n = 0, cost = 0; R.paths.forEach(L => { const p =
 // current card scores near zero, so a percentage would mislead.
 // The size of an upgrade is what it does to the deck score (scoreCheck), measured on the whole deck; a swap that would not
 // raise the score is never shown. Before the deck can be scored (fewer than 90 cards) no size is claimed.
+// Players' choice (Build 143): many of this commander's players run the card, and the deck score sees the swap as about even.
+function pcChip(p){ const inc = p.pcInc != null ? p.pcInc : p.inc; return '<span class="chip gold" title="' + Math.round((inc || 0) * 100) + '% of this commander’s decks run this card. ' + (p.dScore != null && p.dScore >= SCORE_MIN ? 'The deck score rates it below the cards above it' : 'The deck score sees this swap as about even (' + (p.dScore > 0 ? '+' : '') + (p.dScore || 0).toFixed(2) + ', within the practice games’ margin)') + ', so it is listed on the players’ word.">Players’ choice · in ' + Math.round((inc || 0) * 100) + '% of decks</span>' + (p.dScore != null && p.dScore >= SCORE_MIN ? scoreChip(p.dScore) : '<span class="chip" title="Change to the deck score if you make this swap: about even, within the practice games’ margin">Score about even</span>'); }
 function scoreChip(v){ return v == null ? '' : v >= 0 && v < SCORE_MIN ? '<span class="chip" title="This swap keeps the deck score the same; it can still suit your plan or budget better">Score unchanged</span>' : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="Change to the deck score if you make this swap">' + (v >= 2 ? 'Major upgrade · ' : v >= 1 ? 'Strong upgrade · ' : v > 0 ? 'Small upgrade · ' : '') + (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + ' score</span>'; }
 function upChip(L, t){ const p = L.opts[t]; return p ? scoreChip(p.dScore) : ''; }
 // What applying a whole tier does to the deck's jobs and curve (from the engine's package check).
@@ -1379,25 +1420,13 @@ function useAlt(d, v, n){ const s = altSrc(d, v), c = find(n); if (!s || !c) ret
   if (!d.recP) d.recP = {}; delete d.recP[norm(s.n)];
   d.recP[norm(c.n)] = {t:s.t, p:c.p, at:new Date().toISOString().slice(0, 10), pair:{cut:s.cut, add:c.n, q:s.q, t:s.t}, chosen:true};
   toast(c.n + ' is now the ' + TIERS[s.t].label + ' pick for ' + s.cut + '.'); return true; }
-// Add every plan slot at one price level (or only the cards you own), best picks first, as many as there is room for.
-function planAll(d, v){ let k = 0, room = planNeed(d) - d.cards.reduce((a, e) => a + e.q, 0); const rk = x => x.seed ? 0 : x.own ? 1 : x.basic ? 4 : x.land ? 3 : 2;
-  // Mid and Budget are strict price levels: a slot whose only pick is over the price (no same-job stand-in) is left open,
-  // and the open slots are filled by the generator at that price level instead.
-  const over = n => { const c = find(n); return (v === 'mid' || v === 'budget') && c && c.p != null && !underCap(c.p, v); };
-  (d.plan || []).slice().sort((a, b) => rk(a) - rk(b) || a.id - b.id).forEach(x => { if (room <= 0 || (v === 'own' && !x.own)) return; if (x.q > room){ if (x.basic){ addCard(d, x.a, room); x.q -= room; k += room; room = 0; } return; } if (v === 'own'){ room -= x.q; if (planInstall(d, x, 'a')) k += x.q; return; } const n = x.own || x.seed || x.basic ? x.a : planPick(x, v); if (!x.own && !x.seed && over(n)) return; room -= x.q; if (planInstall(d, x, n === x.b ? 'b' : n === x.m ? 'm' : 'a')) k += x.q; });
-  if ((v === 'mid' || v === 'budget') && room > 0){ const t0 = d.tier, n0 = d.cards.reduce((a, e) => a + e.q, 0); d.tier = v; try { fillDeck(d); } finally { d.tier = t0; } k += d.cards.reduce((a, e) => a + e.q, 0) - n0; syncPlan(d); }
-  return k; }
-function planInstall(d, x, key){
-  const n = key === 'b' ? x.b : key === 'm' ? x.m : x.a; if (!n) return false;
-  addCard(d, n, x.q); const en = d.cards.find(y => y.n === n); if (en && !x.basic){ en.step = key === 'b' ? 1 : key === 'm' ? 2 : 3; if (x.seed) en.l = true; }
-  d.plan = d.plan.filter(y => y !== x); if (!d.plan.length) delete d.plan; return true;
-}
 // The commander's top EDHREC themes as build aims, with their theme pages loaded (none when the data can't be read).
 async function edhAimsFor(c){ try { await loadEdh(c.n); if (EDH.key !== c.n || EDH.state !== 'ok' || !(EDH.tags || []).length) return []; const aims = EDH.tags.slice(0, 3).map(t => 'edh:' + t.slug); await loadThemes(c.n, aims); return aims.filter(a => EDH.tmap[a.slice(4)]); } catch (e) { return []; } }
 // Start a generated deck as a build plan.
-function startPlan(cmdName, seeds, extraAims, partner, opts){
+// The new deck a generation starts from: commander, partner, mechanics and options, not yet opened or built.
+function planDeck(cmdName, extraAims, partner, opts){
   const c = find(cmdName); if (!c) return null;
-  const nd = newDeck(Object.assign({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander', src:'generated'}, opts && opts.sets && opts.sets.length ? {sets:opts.sets.slice(), setsMust:!!opts.setsMust} : {})); setCommander(nd, c.n);
+  const nd = newDeck(Object.assign({name:c.n.split(',')[0] + ' (generated)', format:'commander', tier:'apex', auto:'commander', src:'generated'}, opts && opts.sets && opts.sets.length ? {sets:opts.sets.slice(), setsMust:!!opts.setsMust} : {}), true); setCommander(nd, c.n);
   { const p = partner && find(partner); if (p && canPair(c, p)){ nd.partner = p.n; nd.name = c.n.split(',')[0] + ' & ' + p.n.split(',')[0] + ' (generated)'; nd.colors = ctxOf(nd).ident.slice(); ctxOf(nd).cmdThemes.forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); }); } }
   // Apex generation builds around what players build this commander around (EDHREC's top themes, with their theme pages
   // loaded): measured against the strongest real decks (bracket 4–5) it matches them more closely than the detected mechanics.
@@ -1406,11 +1435,15 @@ function startPlan(cmdName, seeds, extraAims, partner, opts){
   if (opts && opts.tribe){ nd.tribe = opts.tribe; nd.aimLocked = true; }   // Build by theme: the chosen creature type
   if (opts && opts.player) nd.player = opts.player;
   (extraAims || []).forEach(a => { if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a); });
-  if (!nd.aims.length){ (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
-  nd.plan = buildPlan(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet()); S.tab = 'up'; S.planShow = 0;
-  { const n = nd.plan.reduce((s, x) => s + x.q, 0), want = 100 - 1 - (nd.partner ? 1 : 0), short = n < want ? ' Only ' + n + ' of ' + want + ' slots could be filled' + ((nd.sets || []).length && nd.setsMust ? ' from the chosen sets' : '') + '; the rest stay open.' : '';
+  return nd;
+}
+async function startPlan(cmdName, seeds, extraAims, partner, opts){
+  const c = find(cmdName), nd = planDeck(cmdName, extraAims, partner, opts); if (!nd) return null;
+  if (!nd.aims.length){ openDraft(nd); (seeds || []).forEach(x => { if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))){ addCard(nd, x.n, 1); nd.cards[nd.cards.length - 1].l = true; } }); toast('Pick your mechanics in the Build panel, then press Fill.'); return nd; }
+  const G = await genRun(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet(), opts && opts.fill); openDraft(nd); S.tab = 'up'; S.planShow = 0;
+  { const n = G.n, want = 100 - 1 - (nd.partner ? 1 : 0), short = n < want ? ' Only ' + n + ' of ' + want + ' slots could be filled' + ((nd.sets || []).length && nd.setsMust ? ' from the chosen sets' : '') + '; the rest stay open.' : '';
     // The deck is built straight into the decklist at the chosen price level; the stronger picks stay as its upgrades.
-    if (opts && opts.fill){ const k = planAll(nd, opts.fill); delete nd.plan; nd.tier = opts.fill; if (opts.fill !== 'apex') polishDeck(nd); S.tab = 'list'; toast('Built ' + k + ' cards for ' + c.n.split(',')[0] + ' at ' + TIERS[opts.fill].label + '.' + short + (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.')); }
+    if (opts && opts.fill){ const k = G.k; S.tab = 'list'; toast('Built ' + k + ' cards for ' + c.n.split(',')[0] + ' at ' + TIERS[opts.fill].label + '.' + short + (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.')); }
     else toast('Designed a ' + n + '-card build for ' + c.n + '.' + short + ' Add the cards you want from the Upgrades tab.'); }
   return nd;
 }
@@ -1714,7 +1747,7 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
         (fp ? '<div class="tip good free"><b><small>Tip</small>Free swap · you already own this</b>' + side('in', fp.add, fp.q) + '<div class="row">' + scoreChip(fp.dScore) + gcChip(fp, R) + (fp.cross ? '<span class="chip warn">' + fp.from + ' → ' + fp.to + '</span>' : '') + fp.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div><div class="row"><button class="btn sm" data-act="lib-not-own" data-n="' + esc(fp.add) + '">Add to buy list</button><button class="btn pri sm" data-act="swap" data-v="' + i + '|free" style="margin-left:auto">Swap</button></div></div>' : '<div></div>') +
         TIER_KEYS.map(t => { const RC = rowCols(d, R, L, i), col = RC[t], src = col && col.src, p = col && col.p; if (!p) return '<div class="opt none" data-t="' + t + '"><span class="chip">' + TIERS[t].label + '</span><p>' + esc((col && col.note) || (L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') + '</p></div>';
           const inh = col.kind === 'moved' ? '<span class="chip gold" title="No stronger card was found for this slot, so this is its Apex card.">Best card for this slot</span>' : '';
-          return '<div class="opt" data-t="' + t + '"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + inh + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + (col.kind === 'alt' ? scoreChip(p.dScore) : upChip(L, src) + driftChip(d, p.add, src)) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
+          return '<div class="opt" data-t="' + t + '"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + inh + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + (p.pc ? pcChip(p) : col.kind === 'alt' ? scoreChip(p.dScore) : upChip(L, src) + driftChip(d, p.add, src)) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
             '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Remove suggestion: ' + esc(p.add) + '">Remove suggestion</button>' + (col.kind === 'alt' ? '' : altBtn('up|' + i + '|' + src).replace('>See alternatives<', '>Alternate Options<')) + (p.own ? '' : upBuyBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + (col.kind === 'alt' ? t + '|alt' : src) + '" style="margin-left:auto">Swap</button></div>' + alt3Html(d, R, RC.shown, p, i, t) + '</div>';
 }).join('') + topHtml(d, R, L, i) + '</div>'; }).join('') + '</div>' + (sheet ? '</div>' : '');
     if (!sheet && PV.length > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, PV.length - show) + ' more</button>';
@@ -1884,15 +1917,15 @@ function genPartnerBox(c){
 }
 // Customize menu: design a new build for this deck's commander(s) with the current mechanics (in order), filters and colors.
 // It opens as a new, unsaved deck; this deck is not changed. Cards held in this deck are kept in the new build.
-function regenBuild(d){
+async function regenBuild(d){
   const c = find(d.commander); if (!c || d.format !== 'commander') return null;
   const seeds = d.cards.filter(e => e.l).map(e => find(e.n)).filter(Boolean);
-  const nd = newDeck({name:d.name.replace(/ \(generated\)$/, '') + ' (generated)', format:'commander', tier:'apex', src:'generated', aims:d.aims.slice(), tribe:d.tribe || '', colors:(d.colors || []).slice(), types:(d.types || []).slice(), keys:(d.keys || []).slice(), typesMust:!!d.typesMust, keysMust:!!d.keysMust, sets:(d.sets || []).slice(), setsMust:!!d.setsMust, custom:true, aimAuto:d.aimAuto});
+  const nd = newDeck({name:d.name.replace(/ \(generated\)$/, '') + ' (generated)', format:'commander', tier:'apex', src:'generated', aims:d.aims.slice(), tribe:d.tribe || '', colors:(d.colors || []).slice(), types:(d.types || []).slice(), keys:(d.keys || []).slice(), typesMust:!!d.typesMust, keysMust:!!d.keysMust, sets:(d.sets || []).slice(), setsMust:!!d.setsMust, custom:true, aimAuto:d.aimAuto}, true);
   setCommander(nd, c.n); if (d.partner){ const p = find(d.partner); if (p && canPair(c, p)) nd.partner = p.n; }
   nd.colors = (d.colors || []).length ? d.colors.slice() : ctxOf(nd).ident.slice(); nd.tribe = d.tribe || nd.tribe;   // setCommander resets them; keep the player's
   if (d.themeFirst) nd.themeFirst = true;
-  nd.plan = buildPlan(nd, seeds, S.gen.own ? ownSet() : null, ownSet()); S.planShow = 0; const k = planAll(nd, S.gen.tier || 'apex'); delete nd.plan; nd.tier = S.gen.tier || 'apex'; if (nd.tier !== 'apex') polishDeck(nd); S.tab = 'list';
-  toast('Built a new ' + k + '-card deck with your mechanics at ' + TIERS[S.gen.tier || 'apex'].label + '. Your original deck is unchanged.'); return nd;
+  const tier = S.gen.tier || 'apex', k = (await genRun(nd, seeds, S.gen.own ? ownSet() : null, ownSet(), tier)).k; openDraft(nd); S.planShow = 0; S.tab = 'list';
+  toast('Built a new ' + k + '-card deck with your mechanics at ' + TIERS[tier].label + '. Your original deck is unchanged.'); return nd;
 }
 // Build by theme (owner, 18 Oct): pick what the deck should do (and, if you like, its colours or creature type); the app ranks the
 // commanders that build around it, by how much the commander itself cares about the theme, how many strong cards for it exist in
@@ -1920,7 +1953,7 @@ function themeBuildBox(){ const g = S.gen, k = g.tk || '', cols = g.tcol || [], 
     + (L.length >= 8 ? '<div class="row"><button class="btn sm" data-act="gen-tmore">' + (g.tmore ? 'Fewer commanders' : 'More commanders, including less-known ones') + '</button></div>' : '')
     : '<p class="note" style="margin:0">No commander builds around ' + esc(lab) + (cols.length ? ' in these colours' : '') + '. Try fewer colours.</p>';
   return h + '<span class="lab">Price level</span><div class="row" role="group" aria-label="Price level">' + TIER_KEYS.slice().reverse().map(t => '<button class="btn sm' + ((g.tier || 'apex') === t ? ' pri' : '') + '" data-act="gen-tier" data-v="' + t + '" aria-pressed="' + ((g.tier || 'apex') === t) + '">' + TIERS[t].label + '</button>').join('') + '</div><p class="note" style="margin:0">' + GEN_PRICE[g.tier || 'apex'] + '</p></div>'; }
-function openGenerate(){
+function openGenerate(){ genPrefetchSoon();
   S.gen = Object.assign({tier:'apex', best:true, theme:false, mech:[], warn:''}, S.gen); if (!TIERS[S.gen.tier]) S.gen.tier = 'apex';
   if (!S.setList && !S.setErr) ensureSets().then(() => { if (S.setList && !$('#modal').hidden && $('#gen-q')) openGenerate(); });
   const g = S.gen, c = find(g.cmd), st = detectStrategy(c);
@@ -2001,8 +2034,8 @@ function openSeed(){
   }
   $('#modal').innerHTML = h + '</div>'; $('#modal').hidden = false;
 }
-function seedBuild(n, partner){
-  const I = seedInfo(); if (!startPlan(n, I.cards, I.aims, partner)) return;
+async function seedBuild(n, partner){
+  const I = seedInfo(); if (!(await startPlan(n, I.cards, I.aims, partner))) return;
   S.seed = {cards:[], paste:false}; touch(); render();
 }
 // Players: up to 5 tablemates besides you. Each deck can belong to one of them, so a whole playgroup's decks live in one
@@ -2329,7 +2362,7 @@ const CONFIRM = {
   'dset-rm':() => ['Remove this card set?', 'The build stops using this set. You can add it back from the Build panel.', 'Remove'],
   // buttons that change many cards at once, or make a new deck, ask first too
   'build-gen':() => { const d = cur(); return ['Generate a new build?', 'A new 100-card deck' + (d ? ' named “' + d.name.replace(/ \(generated\)$/, '') + ' (generated)”' : '') + ' is designed from these settings and opened. ' + (d ? '“' + d.name + '” itself' : 'This deck') + ' is not changed.', 'Generate']; },
-  'swap-all':v => { const d = cur(), R = d && recsFor(d), k = R ? R.paths.filter(L => v === 'free' ? L.opts.free : tierPick(L, v)).length : 0; return ['Make every ' + ((TIERS[v] || {label:'free'}).label || v) + ' swap?', (k ? k + ' card' + (k === 1 ? '' : 's') : 'Every suggested card') + ' in the deck will be swapped at once. Undo can put them back.', 'Make the swaps']; },
+  'swap-all':v => { const d = cur(), R = d && recsFor(d), k = R ? R.paths.filter(L => { const p = v === 'free' ? L.opts.free : tierPick(L, v); return p && !p.pc; }).length : 0; return ['Make every ' + ((TIERS[v] || {label:'free'}).label || v) + ' swap?', (k ? k + ' card' + (k === 1 ? '' : 's') : 'Every suggested card') + ' in the deck will be swapped at once. Undo can put them back.', 'Make the swaps']; },
   'fix-top':v => ['Make the top swaps for ' + v + '?', 'The best swaps in this list are made at once. Undo can put them back.', 'Make the swaps'],
   'mana-apply':() => ['Adjust the lands?', 'The deck’s lands are changed to match the colours your spells need. Undo can put them back.', 'Adjust lands'],
   'cmd-switch':(v, n) => ['Make ' + n + ' the commander?', 'The deck’s commander changes, which changes its colours and every suggestion. Undo can switch it back.', 'Switch commander'],
@@ -2380,7 +2413,7 @@ function handleAct(act, v, n, pArg){
       $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Regenerate around my cards"><div class="ph"><h2>Regenerate around my cards?</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
         '<p class="note" style="margin:0">Every card in your deck stays, as the starting point. The ' + room + ' open slot' + (room === 1 ? '' : 's') + ' are filled with the cheapest card that suits each one, designed around your cards. From then on every suggestion in Upgrades is an upgrade from where your deck is (Budget, then Mid, then Apex), and each one must raise the deck score. You can undo this.</p>' +
         '<div class="row"><button class="btn pri" data-act="plan-regen-go">Regenerate</button><button class="btn" data-act="close">Cancel</button></div></div>'; $('#modal').hidden = false; return; }
-    case 'plan-regen-go': { if (!d || !d.plan) return; $('#modal').hidden = true; setStatus('Thinking… designing the open slots around your ' + d.cards.reduce((a, e) => a + e.q, 0) + ' cards'); { const el = $('#status'); if (el) el.classList.add('think'); } setTimeout(() => { { const el = $('#status'); if (el) el.classList.remove('think'); } setStatus(''); if (cur() !== d) return; const n = regenPlan(d); S.tab = 'up'; touch(); render(); toast('Filled ' + n + ' slot' + (n === 1 ? '' : 's') + ' around your cards. Every suggestion is now an upgrade from here.'); }, 30); return; }
+    case 'plan-regen-go': { if (!d || !d.plan) return; $('#modal').hidden = true; setStatus('Thinking… designing the open slots around your ' + d.cards.reduce((a, e) => a + e.q, 0) + ' cards'); { const el = $('#status'); if (el) el.classList.add('think'); } setTimeout(async () => { let n; try { n = await regenPlan(d); } finally { { const el = $('#status'); if (el) el.classList.remove('think'); } setStatus(''); } if (cur() !== d) return; S.tab = 'up'; touch(); render(); toast('Filled ' + n + ' slot' + (n === 1 ? '' : 's') + ' around your cards. Every suggestion is now an upgrade from here.'); }, 30); return; }
     case 'plan-regen-undo': if (d && d.regenUndo){ d.cards = d.regenUndo.cards; if (d.regenUndo.plan) d.plan = d.regenUndo.plan; d.recP = d.regenUndo.recP || {}; delete d.regenUndo; S.planShow = 0; toast('Put your deck and the previous plan back.'); } break;
     case 'regen-go': doRegen(); return;
     case 'hold-release': if (d.recP) delete d.recP[norm(n)]; toast(n + ' is no longer held for this deck.'); break;
@@ -2454,7 +2487,7 @@ function handleAct(act, v, n, pArg){
       if (bad.length){ toast('Nothing applied: ' + bad.length + ' problem' + (bad.length === 1 ? '' : 's') + ' found (' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ': ' + bad[0].card : '') + ').'); return; }
       list.forEach(p => doSwap(d, Object.assign({}, p, {t:v}), Math.max(0, TIER_KEYS.indexOf(v) + 1)));
       toast('Made ' + list.length + ' swap' + (list.length === 1 ? '' : 's') + ' using cards under $' + TIERS[v].cap + ' each.'); break; }
-    case 'swap-all': { const R = recsFor(d), list = R.paths.map(L => ({L, p:v === 'free' ? L.opts.free : tierPick(L, v)})).filter(x => x.p && entryOf(d, x.p.cut) && !entryOf(d, x.p.add));
+    case 'swap-all': { const R = recsFor(d), list = R.paths.map(L => ({L, p:v === 'free' ? L.opts.free : tierPick(L, v)})).filter(x => x.p && !x.p.pc && entryOf(d, x.p.cut) && !entryOf(d, x.p.add));   // Players' choice picks are made one at a time
       const bad = validatePackage(d, list.map(x => ({cut:x.p.cut, add:x.p.add, q:x.p.q, t:x.p.t})));
       if (bad.length){ toast('Nothing applied: ' + bad.length + ' problem' + (bad.length === 1 ? '' : 's') + ' found (' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ': ' + bad[0].card : '') + ').'); return; }
       list.forEach(x => doSwap(d, x.p, x.L.opts.apex && x.L.opts.apex.add === x.p.add ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(x.p.t) + 1)));
@@ -2549,7 +2582,7 @@ function handleAct(act, v, n, pArg){
     case 'dset-rm': (d.sets || []).splice(+v, 1); if (!d.sets.length) d.setsMust = false; aimsChanged(d); break;
     case 'dset-must': d.setsMust = !d.setsMust; aimsChanged(d); break;
     case 'gen-partner': S.gen.partner = n || ''; openGenerate(); return;
-    case 'build-gen': { if (S.draft){ const dr = S.draft; S.profile.decks.unshift(dr); S.draft = null; toast('Saved ' + dr.name + ' to your decks first.'); } thinkThen('Thinking… building the strongest deck', () => { if (regenBuild(d)){ touch(); render(); } }); return; }
+    case 'build-gen': { if (S.draft){ const dr = S.draft; S.profile.decks.unshift(dr); S.draft = null; toast('Saved ' + dr.name + ' to your decks first.'); } thinkThen('Thinking… building the strongest deck', async () => { if (await regenBuild(d)){ touch(); render(); } }); return; }
     case 'gen-pick': S.gen.cmd = n; S.gen.partner = ''; openGenerate(); loadEdh(n).then(() => { if (!$('#modal').hidden && $('#gen-q') && S.gen.cmd === n) openGenerate(); }); return;
     case 'gen-tpick': S.gen.tk = S.gen.tk === v ? '' : v; S.gen.tmore = false; openGenerate(); { const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); } return;
     case 'gen-tmore': S.gen.tmore = !S.gen.tmore; openGenerate(); { const el = $('#themebuild'); if (el) el.scrollIntoView({block:'nearest'}); } return;
