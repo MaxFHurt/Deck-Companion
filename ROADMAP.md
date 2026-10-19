@@ -222,7 +222,7 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
-## Version 0.9.1 (build 146, 19 October 2026; not pushed: waits for the owner's OK)
+## Version 0.9.1 (build 146, 19 October 2026; pushed with the owner's OK)
 
 Owner's report from the iPhone: Undo wastes space, the upgrade arrows are tiny, the decklist should group by colour, the
 thinking stuck at 2%, and an upgrade suggested twice (shared Avengers Assemble deck).

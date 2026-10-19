@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 19 October 2026, Version 0.9 (build 145) live; 0.9.1 (build 146) built and tested, NOT pushed.
+Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
 
 ## 0. Open questions for the owner (ask these first, numbered)
 
