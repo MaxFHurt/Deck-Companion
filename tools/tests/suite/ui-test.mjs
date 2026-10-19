@@ -1091,6 +1091,25 @@ const b145a = await page.evaluate(async () => { const out = {}, name = 'Ghoulcal
   out.tribe = ctx.tribe; out.zombies = g.cards.filter(e => { const c = find(e.n); return c && hasCType(c, 'Zombie'); }).length; out.size = analyze(g).size;
   const db = baseScore(find('Death Baron'), g, ctx); out.why = db.why.find(w => /Zombie decks/.test(w)) || ''; EDH = keep; return out; });
 T('UI-B145-01', 'No play data: Gisa (who keeps making Zombies) leads a Zombie deck built from the Zombie and theme pages in black; cards say why ("In N% of Zombie decks")', b145a.pages.length >= 1 && /zombies\/mono-black/.test(b145a.pages.join()) && b145a.tribe === 'Zombie' && b145a.zombies >= 12 && b145a.size === 100 && /Zombie decks/.test(b145a.why), JSON.stringify(b145a));
+// 104. Build 146 (owner, 19 Oct): Undo sits in the deck's bar (no floating button in a deck), the decklist can be grouped by
+// colour, and the upgrade sheets have Previous and Next buttons.
+const b146a = await page.evaluate(async () => { const out = {}, d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+  handleAct('listgroup', 'color'); out.groups = [...document.querySelectorAll('#rows .gh span:first-child')].map(x => x.textContent).filter(x => !/Commander/.test(x));
+  out.colourOk = out.groups.every(g => ['White', 'Blue', 'Black', 'Red', 'Green', 'Multicolor', 'Colorless', 'Lands'].includes(g)) && out.groups.length >= 3; handleAct('listgroup', 'type');
+  S.tab = 'up'; S.upView = 'sheet'; render(); await recsReady(d); render(); out.nav = [...document.querySelectorAll('.sheethead button')].map(b => b.textContent);
+  S.tab = 'list'; const e = d.cards.find(x => !isBasic(x.n)); cutCard(d, e.n, 1); touch(); render();
+  out.inBar = !!document.querySelector('.bar [data-act="undo"]'); out.fab = !$('#undo-fab').hidden; const n0 = UNDO.stack.length; document.querySelector('.bar [data-act="undo"]').click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } await new Promise(r => setTimeout(r, 100)); out.undone = UNDO.stack.length === n0 - 1;
+  S.view = 'home'; render(); return out; });
+T('UI-B146-01', 'Undo is in the deck bar next to Save deck/Saved (no floating button in a deck) and works; the decklist groups by colour; upgrade sheets have Previous and Next buttons', b146a.inBar && !b146a.fab && b146a.undone && b146a.colourOk && /Previous/.test(b146a.nav[0] || '') && /Next/.test(b146a.nav[1] || ''), JSON.stringify(b146a));
+// 105. Build 146: the background search keeps going when the picks on screen are held (it stopped at 2% on the owner's deck),
+// and no card is suggested on two rows (the owner's shared Avengers deck had Captain America, Wings of Freedom twice).
+const code146 = fs.readFileSync(path.join(here, 'share146.txt'), 'utf8').trim();
+const b146b = await page.evaluate(async code => { const out = {}; location.hash = '#share=' + code; await checkShareLink(); await new Promise(r => setTimeout(r, 300)); const sv = document.querySelector('#modal [data-act="share-save"]'); if (sv) sv.click(); await new Promise(r => setTimeout(r, 300));
+  const d = S.profile.decks.find(x => x.name === 'Avengers Assemble' && x.commander === 'Captain America, Team Leader'); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; const sy = S.syncRecs; S.syncRecs = false; recsFor.k = null; render();
+  for (let i = 0; i < 1200 && !(recsFor.v && recsFor.v.poolDone); i++){ await new Promise(r => setTimeout(r, 100)); if (i % 20 === 0) render(); }
+  const R = recsFor.v; out.done = !!R.poolDone; out.note = !!document.querySelector('#pool-note'); const seen = new Map(), dup = []; R.paths.forEach((L, i) => new Set(['apex', 'mid', 'budget'].map(t => L.opts[t] && L.opts[t].add).filter(Boolean)).forEach(a => { if (seen.has(a) && seen.get(a) !== i) dup.push(a); seen.set(a, i); }));
+  out.dup = dup; S.syncRecs = sy; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; location.hash = ''; render(); return out; }, code146);
+T('UI-B146-02', 'The owner’s shared deck: the background search finishes (not stuck at 2%) and no card is suggested on two rows', b146b.done && !b146b.note && !b146b.dup.length, JSON.stringify(b146b));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

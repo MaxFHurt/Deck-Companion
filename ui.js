@@ -751,7 +751,8 @@ recsFor.done = d => { try { const c = find(d.commander); if (d.format === 'comma
 // a few milliseconds at a time. Each row's Highest score says the app is thinking until the search is done, then all of them
 // appear at once (owner: wait rather than shift). It stops when the list changes (another deck, a swap, a new list).
 function poolRun(d, R, k){ let Q = null; try { Q = poolQueue(d, R); } catch (e) { return; } if (!Q || !Q.total) return; R.pool = Q;
-  const tick = () => { if (recsFor.k !== k || recsFor.v !== R) return; let ch; try { ch = poolStep(Q, 12); } catch (e) { Q.r = Q.rows.length; }
+  // the search belongs to this list: holding the picks on screen re-keys the same list (recsFor.k), which must not stop it (Build 146)
+  const tick = () => { if (recsFor.v !== R) return; let ch; try { ch = poolStep(Q, 12); } catch (e) { Q.r = Q.rows.length; }
     const n = document.querySelector('#pool-note'), done = Q.r >= Q.rows.length; if (n){ n.textContent = done ? '' : poolNote(Q); if (done) n.remove(); }
     if (!done){ setTimeout(tick, 8); return; }
     // every row's Highest score appears at once, when the search is done: nothing shifts while it runs
@@ -761,13 +762,17 @@ function poolNote(Q){ return 'Thinking… checking every card that could fill th
 // Waits for the score check of the current list (Regenerate and the tests use it).
 async function recsReady(d){ for (let i = 0; i < 200 && recsFor(d).pending; i++) await new Promise(r => setTimeout(r, 50)); return recsFor(d); }
 
+// The Undo button for the deck bar (shown once there is something to undo).
+function undoBtn(){ const last = UNDO.stack[UNDO.stack.length - 1]; if (!last) return ''; const t = 'Undo: ' + (last.label || 'last change');
+  return '<button class="btn undo-in" data-act="undo" title="' + esc(t) + '" aria-label="' + esc(t) + '">' + SVG.undo + '<span>Undo</span></button>'; }
 // ---------- views ----------
 function navHtml(){
   const b = (v, label) => '<button data-act="nav" data-v="' + v + '"' + (S.view === v ? ' aria-current="page"' : '') + '>' + SVG[v] + label + '</button>';
   $('#nav-l').innerHTML = b('decks', 'Decks') + b('deck', 'Builder') + b('search', '<span><span class="xs-hide">Card&nbsp;</span>Search</span>') + b('buy', '<span>Buy<span class="xs-hide">&nbsp;list</span></span>') + b('library', 'Library');
   $('#nav-r').innerHTML = b('profile', 'Profile');
   let u = $('#undo-fab'); if (!u){ u = document.createElement('button'); u.id = 'undo-fab'; u.dataset.act = 'undo'; document.body.appendChild(u); }
-  const last = UNDO.stack[UNDO.stack.length - 1]; u.hidden = !last; u.innerHTML = SVG.undo + '<span>Undo</span>'; u.setAttribute('aria-label', last ? 'Undo: ' + (last.label || 'last change') : 'Undo'); u.title = last ? 'Undo: ' + (last.label || 'last change') : '';
+  // in a deck the Undo button sits in the deck's bar, next to Save deck (owner, 19 Oct): the floating one is for the other screens
+  const last = UNDO.stack[UNDO.stack.length - 1], inDeck = S.view === 'decks' && S.open && !!cur(); u.hidden = !last || inDeck; document.body.classList.toggle('has-fab', !u.hidden); u.innerHTML = SVG.undo + '<span>Undo</span>'; u.setAttribute('aria-label', last ? 'Undo: ' + (last.label || 'last change') : 'Undo'); u.title = last ? 'Undo: ' + (last.label || 'last change') : '';
 }
 // Phones only (shown by the phone layout rules in index.html; hidden on iPad and desktop): one Continue card for the deck
 // you last opened, under the home tiles and above Profile.
@@ -799,8 +804,8 @@ function viewDecks(){
     const build = aimPanel(od, A.ctx).replace('<section class="panel aimp">', '<section class="panel aimp"><div class="scroll" id="bscroll" data-keep>').replace(/<\/section>$/, '</div>' + buildFoot(od) + '</section>');
     const tb = (k, label, cls) => '<button class="tab' + (tab === k ? ' on' : '') + (cls || '') + '" data-act="tab" data-v="' + k + '" role="tab" aria-selected="' + (tab === k) + '">' + label + '</button>';
     return '<div class="row bar"><button class="btn" data-act="deck-back">← All decks</button>' + (isDraft
-      ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button><button class="btn danger" data-act="draft-discard">Discard</button>'
-      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span><button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="share-open">Share link</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn" data-act="hist-open">History</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
+      ? '<span class="chip warn">Not saved yet</span><button class="btn pri" data-act="draft-save" style="margin-left:auto">Save deck</button>' + undoBtn() + '<button class="btn danger" data-act="draft-discard">Discard</button>'
+      : '<span class="note" style="flex:1">Saved · changes to this deck save as you make them</span>' + undoBtn() + '<button class="btn" data-act="dup-deck" data-v="' + od.id + '">Duplicate</button><button class="btn" data-act="share-open">Share link</button><button class="btn" data-act="cmp-open">Compare</button><button class="btn" data-act="hist-open">History</button><button class="btn danger" data-act="del-deck" data-v="' + od.id + '">' + (S.confirmDel === od.id ? 'Confirm delete' : 'Delete deck') + '</button>') + '</div>' +
       '<div class="work">' + (narrow ? '' : build) + '<section class="panel pane"><div class="tabs" role="tablist">' + (narrow ? tb('build', 'Build') : '') + tb('list', 'Decklist <em>' + A.size + '</em>') + tb('stats', 'Build stats') + tb('up', 'Upgrades' + (nUp ? ' <em title="' + nUp + (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? ' has' : 's have') + ' an upgrade') + '">' + nUp + (hasPlan ? '' : ' card' + (nUp === 1 ? '' : 's')) + '</em>' : '')) + tb('buy', 'Buy list') + tb('lib', 'Library' + (libCount() ? ' <em>' + libCount().toLocaleString() + '</em>' : '')) + '</div>' +
       (tab === 'build' ? build.replace('<section class="panel aimp">', '<div class="inpane">').replace(/<\/section>$/, '</div>') : tab === 'up' ? upPanel(od, A) : tab === 'stats' ? upPanel(od, A, 'stats') : tab === 'buy' ? buyPanel(od) : tab === 'lib' ? libPanel(od) : listPanel(od, A)) + '</section></div>'; }
   const owners = [...new Set(players().concat(P.decks.map(playerOf).filter(Boolean)))];
@@ -925,8 +930,8 @@ function printedName(d, e, c){ if (e.pn) return e.pn; if (!c || d.src !== 'preco
   if (printedName.pre !== EDH.pre){ printedName.pre = EDH.pre; printedName.m = new Map(); EDH.pre.list.forEach(x => { const r = find(x); if (r && norm(x) !== r._n && altName(x)) printedName.m.set(r._k, x); }); }
   return printedName.m.get(c._k) || ''; }
 function listRows(d, q){
-  const buckets = {}, unknown = [], lq = String(q || '').toLowerCase().trim(); let shown = 0;
-  const lr = S.listRole || ''; for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || printedName(d, e, c).toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; if (lr && !(c && (lr === 'gc' ? c.gc : jobsOf(c.n).includes(lr)))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
+  const buckets = {}, unknown = [], lq = String(q || '').toLowerCase().trim(), byCol = listGroupOf() === 'color'; let shown = 0;
+  const lr = S.listRole || ''; for (const e of d.cards){ const c = find(e.n); if (lq && !(e.n.toLowerCase().includes(lq) || printedName(d, e, c).toLowerCase().includes(lq) || (c && ((c.t || '').toLowerCase().includes(lq) || (c.o || '').toLowerCase().includes(lq))))) continue; if (lr && !(c && (lr === 'gc' ? c.gc : jobsOf(c.n).includes(lr)))) continue; shown++; if (!c){ unknown.push(e); continue; } const t = frontType(c), g = byCol ? colGroup(c) : /\bLand\b/.test(t) ? 'Land' : (GROUPS.find(x => new RegExp(x[0]).test(t)) || ['Artifact'])[0]; (buckets[g] = buckets[g] || []).push([e, c]); }
   const rowH = (e, c) => '<button class="dl" data-act="card" data-n="' + esc(e.n) + '">' + (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span></span>') + '<span class="q">' + e.q + '×</span>' +
     '<span class="nm' + (c ? '' : ' unk') + '">' + (printedName(d, e, c) ? esc(printedName(d, e, c)) + ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(e.n) + '</span>' : esc(e.n)) + (lacks(d, e.n) ? ' <span class="chip warn" title="You added this card to the buy list">On buy list</span>' : '') + (c && c.gc && d.format === 'commander' ? ' <span class="chip gc" title="On Wizards’ Game Changer list">GC</span>' : '') + '</span><span class="cost">' + (c ? pips(c.m) : '') + '</span><span class="lk">' + (e.l ? SVG.lock : '') + '</span>' +
     '<span class="pr">' + (e.pp != null ? '$' + e.pp.toFixed(2) : money(c)) + '</span></button>';
@@ -936,17 +941,22 @@ function listRows(d, q){
     if (cm.length) h += '<div class="cmdgrp"><div class="gh"><span>Commander' + (cm.length > 1 ? 's' : '') + '</span><span>' + cm.length + '</span></div>' + cm.map(c => '<button class="dl cmdrow" data-act="card" data-n="' + esc(c.n) + '">' + (c.id ? '<img alt="" src="' + artFor(c, {}) + '">' : '<span></span>') + '<span class="q">1×</span><span class="nm">' + esc(c.n) + ' <span class="chip gold">Commander</span></span><span class="cost">' + (c.m ? pips(c.m) : '') + '</span><span class="lk"></span><span class="pr">' + money(c.id ? c : null) + '</span></button>').join('') + '</div>'; }
   if (!d.cards.length) h += '<p class="note">This deck is empty. Add cards from the Upgrades tab, or set the build and fill the open slots there.</p>';
   else if ((lq || lr) && !shown) h += '<p class="note">No card in this deck matches' + (lq ? ' “' + esc(q) + '”' : '') + (lr ? (lq ? ' and' : '') + ' the ' + esc(LIST_ROLE[lr].toLowerCase()) + ' filter' : '') + '.</p>';
-  for (const [k, label] of GROUPS){ const b = buckets[k]; if (!b) continue; const so = S.listSort || 'name', pr = x => x[0].pp != null ? x[0].pp : x[1].p != null ? x[1].p : -1; b.sort((x, y) => (so === 'mv' ? x[1].cmc - y[1].cmc : so === 'price' ? pr(y) - pr(x) : 0) || (printedName(d, x[0], x[1]) || x[1].n).localeCompare(printedName(d, y[0], y[1]) || y[1].n));
+  for (const [k, label] of (byCol ? BUY_GROUPS.map(([g, l]) => [g, l === 'Land' ? 'Lands' : l]) : GROUPS)){ const b = buckets[k]; if (!b) continue; const so = S.listSort || 'name', pr = x => x[0].pp != null ? x[0].pp : x[1].p != null ? x[1].p : -1; b.sort((x, y) => (so === 'mv' ? x[1].cmc - y[1].cmc : so === 'price' ? pr(y) - pr(x) : 0) || (printedName(d, x[0], x[1]) || x[1].n).localeCompare(printedName(d, y[0], y[1]) || y[1].n));
     h += '<div><div class="gh"><span>' + label + '</span><span>' + b.reduce((s, x) => s + x[0].q, 0) + '</span></div>' + b.map(x => rowH(x[0], x[1])).join('') + '</div>'; }
   if (unknown.length) h += '<div><div class="gh"><span class="unk">Not in the card data yet</span><span>' + unknown.reduce((s, e) => s + e.q, 0) + '</span></div><p class="note" style="margin:6px 0">These stay in your list but can’t be analyzed until the full card data has loaded.</p>' + unknown.map(e => rowH(e, null)).join('') + '</div>';
   return h;
 }
+// A card's colour group (the buy list's rule): its colour identity, one colour or Multicolor; colourless; lands on their own.
+const listGroupOf = () => { if (S.listGroup == null){ let v = null; try { v = localStorage.getItem('dc.listGroup'); } catch (e) {} S.listGroup = v === 'color' ? 'color' : 'type'; } return S.listGroup; };
+const colGroup = c => !c ? 'C' : tags(c).land ? 'L' : c.ci.length > 1 ? 'M' : c.ci[0] || 'C';
 const deckStat = (d, A) => A.size + ' / ' + A.T.size + ' cards · ' + (A.price ? (DBINFO.source === 'starter' ? '~' : '') + '$' + A.price.toFixed(0) : '$0');
 // Decklist sort and role filter: cards stay grouped by type; inside each group they sort A–Z (default), by mana value or by
 // price, and the role filter shows only the cards doing that job.
 const LIST_SORT = {name:'A–Z', mv:'Mana value', price:'Price'}, LIST_ROLE = {'':'All', ramp:'Ramp', draw:'Card draw', removal:'Removal', wipe:'Board wipes', protect:'Protection', counter:'Counterspells', tutor:'Tutors', gc:'Game Changers'};
 function listBar(d){ const so = S.listSort || 'name', lr = S.listRole || '', cnt = k => d.cards.reduce((a, e) => { const c = find(e.n); return a + (c && (k === 'gc' ? c.gc : jobsOf(c.n).includes(k)) ? e.q : 0); }, 0);
-  return '<div class="row typebar" role="group" aria-label="Sort the decklist"><span class="lab" style="margin:0">Sort</span>' + Object.keys(LIST_SORT).map(k => '<button class="btn sm' + (so === k ? ' pri' : '') + '" data-act="listsort" data-v="' + k + '" aria-pressed="' + (so === k) + '">' + LIST_SORT[k] + '</button>').join('') + '</div>' +
+  const gb = listGroupOf();
+  return '<div class="row typebar" role="group" aria-label="Group the decklist"><span class="lab" style="margin:0">Group</span>' + [['type', 'Card type'], ['color', 'Color']].map(([k, l]) => '<button class="btn sm' + (gb === k ? ' pri' : '') + '" data-act="listgroup" data-v="' + k + '" aria-pressed="' + (gb === k) + '">' + l + '</button>').join('') + '</div>' +
+    '<div class="row typebar" role="group" aria-label="Sort the decklist"><span class="lab" style="margin:0">Sort</span>' + Object.keys(LIST_SORT).map(k => '<button class="btn sm' + (so === k ? ' pri' : '') + '" data-act="listsort" data-v="' + k + '" aria-pressed="' + (so === k) + '">' + LIST_SORT[k] + '</button>').join('') + '</div>' +
     '<div class="row typebar" role="group" aria-label="Show only one role"><span class="lab" style="margin:0">Role</span>' + Object.keys(LIST_ROLE).filter(k => !k || cnt(k)).map(k => '<button class="btn sm' + (lr === k ? ' pri' : '') + '" data-act="listrole" data-v="' + k + '" aria-pressed="' + (lr === k) + '">' + LIST_ROLE[k] + (k ? ' · ' + cnt(k) : '') + '</button>').join('') + '</div>'; }
 // Considering: cards the player is thinking about for this deck. They are kept with the deck but are not in it: they don't
 // count toward its 100 cards, its score or its upgrades. Each can be moved into the deck or taken off the list.
@@ -1298,7 +1308,7 @@ function sheetSel(d, R, L, i){ const RC = rowCols(d, R, L, i), ok = t => t === '
 function sheetHead(d, R, L, i, si, n, sel){ const RC = rowCols(d, R, L, i), en = d.cards.find(x => x.n === L.cut);
   const slot = (k, lab, name, chip, price) => { const c = name && find(name); return '<button class="s4' + (sel === k ? ' on' : '') + (name ? '' : ' empty') + '" data-act="sheet-pick" data-v="' + k + '" aria-pressed="' + (sel === k) + '"><small>' + lab + '</small>' + (c ? '<img alt="" src="' + artFor(c) + '">' : '<span class="noimg"></span>') + '<b>' + esc(name || 'No pick') + '</b><span class="r">' + chip + '</span><span class="p">' + price + '</span></button>'; };
   const sc = p => p.dScore == null ? 'Not measured' : Math.abs(p.dScore) < SCORE_MIN ? 'Score unchanged' : (p.dScore > 0 ? '+' : '−') + Math.abs(p.dScore).toFixed(1) + ' score';
-  return '<div class="row sheethead"><button class="btn sm" data-act="sheet-go" data-v="' + (si - 1) + '"' + (si ? '' : ' disabled') + ' aria-label="Previous upgrade">‹</button><span class="lab" style="flex:1;text-align:center;margin:0">Upgrade ' + (si + 1) + ' of ' + n + '</span><button class="btn sm" data-act="sheet-go" data-v="' + (si + 1) + '"' + (si + 1 < n ? '' : ' disabled') + ' aria-label="Next upgrade">›</button></div>' +
+  return '<div class="row sheethead"><button class="btn shnav" data-act="sheet-go" data-v="' + (si - 1) + '"' + (si ? '' : ' disabled') + ' aria-label="Previous upgrade">‹ Prev<span class="xs-hide">ious</span></button><span class="lab" style="flex:1;text-align:center;margin:0">Upgrade ' + (si + 1) + ' of ' + n + '</span><button class="btn pri shnav" data-act="sheet-go" data-v="' + (si + 1) + '"' + (si + 1 < n ? '' : ' disabled') + ' aria-label="Next upgrade">Next ›</button></div>' +
     '<div class="sheet4">' + slot('cut', 'Your card', L.cut, 'In the deck', en && en.pp != null ? '$' + en.pp.toFixed(2) : money(find(L.cut))) + ['budget', 'mid', 'apex'].map(t => { const p = RC[t] && RC[t].p; return slot(t, TIERS[t].label, p ? p.add : '', p ? sc(p) : 'None for this slot', p ? money(find(p.add)) : ''); }).join('') + '</div>'; }
 // The upgrade filters as one row of drop-downs: view, sort, card type and kind (owner's layout, Build 131).
 function filterBar(PT, shown, PK){ const sel = (act, lab, opts, v) => '<label class="fsel"><span class="lab">' + lab + '</span><select data-act="' + act + '" aria-label="' + lab + '">' + opts.map(([k, t]) => '<option value="' + esc(k) + '"' + (k === v ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>';
@@ -2684,6 +2694,7 @@ function handleAct(act, v, n, pArg){
     case 'player-add': { const i = $('#player-add'), nm = (i && i.value || '').trim().slice(0, 30); if (!nm){ toast('Type a name first.'); return; } const P = players(); if (P.length >= MAX_PLAYERS){ toast('Up to ' + MAX_PLAYERS + ' players.'); return; } if (P.some(x => x.toLowerCase() === nm.toLowerCase()) || nm.toLowerCase() === (S.profile.name || '').toLowerCase()){ toast(nm + ' is already on your profile.'); return; } P.push(nm); toast('Added ' + nm + '. Pick them as the player when you create or generate a deck.'); break; }
     case 'player-rm': { const P = players(), i = +v; if (P[i] == null) return; const nm = P.splice(i, 1)[0]; toast('Removed ' + nm + '. Their decks stay, marked with their name.'); break; }
     case 'listsort': S.listSort = LIST_SORT[v] ? v : 'name'; changed = false; break;
+    case 'listgroup': S.listGroup = v === 'color' ? 'color' : 'type'; try { localStorage.setItem('dc.listGroup', S.listGroup); } catch (e) {} changed = false; break;
     case 'listrole': S.listRole = LIST_ROLE[v] != null ? v : ''; changed = false; break;
     case 'upsort': S.upSort = SORT_LAB[v] ? v : 'impact'; changed = false; break;
     case 'theme-first': if (!d) return; d.themeFirst = !d.themeFirst; toast(d.themeFirst ? 'Theme first is on: on-theme cards are preferred in this deck’s upgrades and builds.' : 'Theme first is off: upgrades come from any set.'); break;

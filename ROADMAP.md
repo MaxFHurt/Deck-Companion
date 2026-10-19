@@ -222,6 +222,25 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.1 (build 146, 19 October 2026; not pushed: waits for the owner's OK)
+
+Owner's report from the iPhone: Undo wastes space, the upgrade arrows are tiny, the decklist should group by colour, the
+thinking stuck at 2%, and an upgrade suggested twice (shared Avengers Assemble deck).
+- **Undo in the deck bar:** right of Save deck on an unsaved deck, right of the "Saved" note on a saved one (undoBtn); the
+  floating button is now only on screens without a deck bar, and the space kept under the page for it only when it shows.
+- **Previous and Next:** the upgrade sheets' arrows are now "‹ Previous" (Prev on a phone) and a highlighted "Next ›".
+- **Decklist by colour:** a Group choice (Card type / Color) above Sort; colour follows the buy list's rule (colour identity:
+  one colour, Multicolor, Colorless; lands on their own), remembered in this browser.
+- **Stuck at 2%:** holding the picks on screen re-keys the same list, and the background search took the new key for a new
+  list and stopped, leaving its note behind. It now checks only that the list is the same (poolRun).
+- **A card on two rows:** a repaired row (a pick moved onto another card going out) was not counted as in use when another
+  row's dropped pick was refilled, so the refill could pick the same card (Captain America, Wings of Freedom for both Rescue,
+  Pepper Potts and Jocasta). inUse now counts every row. Benchmark decks with a card on two rows: 2 of 26 -> 0 (dupall.js).
+  Benchmark: holdout and test identical; tuneall @10 0.131 -> 0.128 (weighted 0.159 -> 0.156): the duplicates were counted
+  as hits.
+- **Checks:** UI suite 114/114 (new UI-B146-01 layout, UI-B146-02 the owner's shared deck: search finishes, no duplicates;
+  share146.txt), accept 39, scheck bad 1 (unchanged).
+
 ## Version 0.9 (build 145, 19 October 2026; pushed with the owner's OK: "Finish those 2 improvements. When you are done we are complete for the day and you can push the new build as v.9")
 
 The footer now reads "Version 0.9 (build 145)"; window.BUILD stays the number the self-update check compares (version.json

@@ -1186,7 +1186,7 @@ function* scoreCheckG(d, R, o){
   // only cards the engine already found legal, in colour and in price are kept this way.
   const pcOk = (p, v) => { const ac = find(p.add); return !!UP.plc && !!ac && !tags(ac).land && v != null && v >= UP.plcS && !!ctx0.edh && (ctx0.edh.decks || 0) >= UP.plcD && incN(p.add) >= UP.plc && incN(p.add) - incN(p.cut) >= UP.plcG; };   // not a land: the stored practice games can't measure a land swap, so its 0 is not "about even"
   const LAB = {apex:'Apex', mid:'Mid', budget:'Budget'}; let dropped = 0, refilled = 0, themed = 0, repaired = 0; const extra = [];
-  const T = themeCtx(d), VM = new Map(), ctx0 = ctxOf(d), dis0 = new Set((d.dismissed || []).map(norm)); let TP = null; const own = upgradePaths.own, inUse = () => new Set(R.paths.flatMap(L => Object.values(L.opts).map(p => p.add)));
+  const T = themeCtx(d), VM = new Map(), ctx0 = ctxOf(d), dis0 = new Set((d.dismissed || []).map(norm)); let TP = null; const own = upgradePaths.own, inUse = () => new Set(R.paths.concat(extra).flatMap(L => Object.values(L.opts).map(p => p.add)));   // the rows the repairs made too (Build 146: a card was suggested on two rows)
   const swapTo = (p, n, v, why) => { const c = find(n); return Object.assign({}, p, {add:c.n, dScore:v, held:false, own:!!(own && own.has(c._n)), gc:!!c.gc, why:(why ? [why] : []).concat((p.why || []).filter(w => !/^From |theme$/.test(w))).slice(0, 2), alt:p.add}); };
   { const b = batch(R.paths.flatMap(L => ['apex', 'mid', 'budget', 'free'].map(t => L.opts[t]).filter(Boolean))); if (b) took(b, yield b); }
   for (const L of R.paths) for (const t of ['apex', 'mid', 'budget', 'free']){ const p = L.opts[t]; if (!p) continue; const v = dOf(p); p.dScore = v;
