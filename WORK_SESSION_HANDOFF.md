@@ -7,33 +7,37 @@ Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
 
 **Owner's rule (18 Oct): do not push anything without the owner's confirmation.**
 
-0a. **iPhone check of Version 0.9:** does Safari stay up while a deck is generated (background core plus helper cores, about
-   12 MB each), does the page stay responsive, and does pressing Build with Generate open give the deck at once?
-0b. **From now on versions count from 0.9** (owner, 18 Oct): the next release is named by the owner (0.9.1, 0.10...).
-
-1. **Commander engine reasons** (not answered yet). Cards say why they fit the commander ("Doubles the tokens your commander
+1. **iPhone check of Version 0.9.1.**
+   1a. Does Safari stay up while a deck is generated? That uses a background core plus up to 5 helper cores, about 12 MB each.
+   1b. Does the Upgrades list now show one "Thinking..." and then the complete list (4-7 s on a desktop)?
+   1c. Do the iPhone changes look right: Undo next to Save deck, the bigger "Previous" / "Next" buttons, and the decklist grouped by colour?
+   1d. Is the duplicate upgrade in the shared Avengers deck gone?
+2. **Background search (owner's 1c, "may be implemented later").** Keep the whole-card search on the cores, with the list
+   waiting until it is done, or drop it so the list appears sooner without its extra finds? The owner said the current times
+   "are short enough to not matter", so don't raise it unless the owner does.
+3. **Commander engine reasons** (not answered yet). Cards say why they fit the commander ("Doubles the tokens your commander
    makes", "Uses the cards your commander puts in your graveyard"). Do they read the owner's commanders correctly? Misreads
    reported here are what will let it count in the score (UP.kwB/kwS still 0).
-2. **Mana fix speed.** Fix: Mana weighs up to 5 lands, each against up to 9 cards it could replace (6 lands, plus 3 weak spells
-   when the deck is short of lands), each with 200 fresh practice games: up to 45 checks, about 3 s on a desktop, 6-8 s on an
-   iPad. Options put to the owner: (a) keep; (b) weigh fewer swaps (3 lands x 6: about 1 s, may miss the best swap); (c) show
-   each land's best swap as soon as it is measured (same total time, first answer in under a second); (d) 100 games per check
-   (twice as fast, noisier numbers). Recommended: (c).
-3. **Whole-pool search on a phone.** Build 140 searches up to 250 cards per row in the background (about 30 s on a desktop,
-   perhaps 1-2 minutes on a phone). Does it feel right on the owner's iPhone, and are the Highest score finds sensible?
-4. **Real-device check after Build 140.** iPhone upright (deck tabs on two rows, the page scrolls), and the iPad (should be
-   unchanged): screenshots of anything that looks wrong.
+4. **Mana fix speed.** Fix: Mana weighs up to 5 lands, each against up to 9 cards it could replace, with 200 practice games
+   per check: up to 45 checks, about 3 s on a desktop and 6-8 s on an iPad.
+   4a. Keep it as it is.
+   4b. Weigh fewer swaps: 3 lands x 6, about 1 s, but it may miss the best swap.
+   4c. Show each land's best swap as soon as it is measured: same total time, first answer in under a second.
+   4d. Use 100 games per check: twice as fast, noisier numbers.
+   Recommended: 4c.
+5. **Real-device screenshots** (iPhone upright, iPad unchanged) of anything that looks wrong.
 
-5. **Version names (owner, 18 Oct):** after this weekend's build, numbering changes from Build 14X to Version 0.9. The open
-   questions above stay open until then.
+Versions now count from 0.9; the owner names each next release (0.9.2, 0.10...). Cores: the owner asked for as many as
+possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; see ROADMAP, Build 144).
 
 ## 1. What this is
 
 **Deck Companion** is a Magic: The Gathering deck builder for Commander and Standard.
 - **Live:** https://maxfhurt.github.io/Deck-Companion/ (GitHub Pages, served from `main`).
-- **Repository:** `MaxFHurt/Deck-Companion`. Work branch (Build 140): `claude/build-140`.
+- **Repository:** `MaxFHurt/Deck-Companion`. Work branch: `claude/build-140` (still the name; live is Version 0.9.1, build 146).
 - **App files:** `index.html` (CSS, boot and build number), `ui.js` (screens and buttons), `engine.js` (all deck logic:
-  scoring, upgrades, generation, evaluator, practice games), `data.js` and `lists.js` (static data), `version.json`.
+  scoring, upgrades, generation, evaluator, practice games), `work.js` (background worker: builder and helper cores),
+  `data.js` and `lists.js` (static data), `version.json`.
 - **No build step and no runtime AI.** Plain browser JavaScript. Card data from Scryfall, play data from EDHREC (fetched
   live), combos from Commander Spellbook (`card-data` branch).
 
@@ -50,9 +54,10 @@ Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
 
 - **Replies:** plain English, short. **Number questions** whenever there are several; when a question has parts, number them 1a, 1b, 1c (then 2a, 2b...) so answers can't be confused (owner, 18 Oct). Every long reply ends with a
   **Summary** (✅ done / ⏳ needs the owner) that repeats the questions, numbered. The owner often reads only the summary.
-- **Builds:** batch builds are fine; no confirmation needed per live push, but every live build must be complete and
-  tested (full UI suite, benchmark for engine changes). Do the work, then stop. Push builds periodically so a live
-  build exists if usage runs out.
+- **Builds:** batch builds are fine, but **never push anything (work branch or main) without the owner's explicit OK**
+  (owner, 18 Oct: "DO NOT PUSH ANYTHING FROM THAT POINT ON WITHOUT CONFIRMATION"). Stop hooks asking to push are declined
+  until the owner says yes. Every live build must be complete and tested (full UI suite, benchmark for engine changes).
+  Do the work, commit locally, then ask.
 - **"Regression is not an option."** Every engine build must match or beat the last benchmark on every set
   (agreement@5, row@5, @10; unweighted and `WEIGHT=3,6`). If a change regresses, keep it switched off and report the
   numbers.
@@ -73,9 +78,11 @@ Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
 ## 3. How to ship a build
 
 1. **Test layout:** `sh tools/tests/suite/setup.sh /tmp/dc3`. Edit in `/tmp/dc3/proto/candidate`; tests run from
-   `/tmp/dc3/proto/tests`. EDHREC pages for extra commanders can be fetched into `proto/data2/edhrec/<slug>.json` and
+   `/tmp/dc3/proto/tests`. Then run `sh tools/tests/suite/fetchtags.sh /tmp/dc3` once: it downloads the EDHREC theme pages
+   (`proto/data2/tags`, not in the test-data branch) that UI-B145-01 and `genstrong.js FALL=1` need. EDHREC pages for extra commanders can be fetched into `proto/data2/edhrec/<slug>.json` and
    themes into `proto/data2/themes/<slug>__<theme>.json` (`json.edhrec.com/pages/commanders/<slug>[/<theme>].json`).
-2. **Bump the build** in `index.html` (`window.BUILD = N`) and `version.json` (`{"build": N}`).
+2. **Bump the build** in `index.html` (`window.BUILD = N`, numeric, used for self-update; `window.VERSION = '0.9.x'`, shown in
+   the footer) and `version.json` (`{"build": N, "version": "0.9.x"}`). The owner names the version.
 3. **Test:**
    - While working, after each change: the quick check `PW=/opt/node22/lib/node_modules/playwright node ui-quick.mjs 8765 q`
      (about 25 s, 10 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
@@ -101,7 +108,7 @@ Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
      Economies: screen an experiment on tuneall first and run test and holdout only for versions that pass it; never run the
      benchmark and the UI suite at the same time (each slows the other); fix every failure found before re-running the full
      suite, so it runs once more, not once per fix.
-4. **Ship:** copy `engine.js ui.js index.html version.json` and `tools/tests/suite/ui-test.mjs` (plus new tools) into the
+4. **Ship:** after the owner's OK, copy `engine.js ui.js work.js index.html version.json` and `tools/tests/suite/ui-test.mjs` (plus new tools) into the
    repo, update `ROADMAP.md` and this file, commit with the session's attribution lines, then
    `git push origin <work branch>` and `git push origin HEAD:main` (fast-forward). Poll
    `https://maxfhurt.github.io/Deck-Companion/version.json` until it shows N, then load the live page in Playwright and
@@ -111,15 +118,17 @@ Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
    `Deck-Companion`; if git says "unpushed commits", refresh the tracking ref
    (`git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && git fetch origin`).
 
-## 4. Benchmark baseline (Build 140, SCORECHECK=1)
+## 4. Benchmark baseline (Version 0.9.1, build 146, SCORECHECK=1)
 
-| Set | agreement@5 | row@5 | @10 | whole-list sum | weighted @5 / @10 / sum |
-|---|---|---|---|---|---|
-| tuneall | 0.244 | 0.245 | 0.126 | 9.12 | 0.274 / 0.153 / 14.06 |
-| test | 0.303 | 0.303 | 0.199 | 6.69 | 0.322 / 0.219 / 7.59 |
-| holdout | 0.292 | 0.292 | 0.205 | 15.74 | 0.318 / 0.241 / 19.37 |
+| Set | agreement@5 | @10 | weighted @5 / @10 |
+|---|---|---|---|
+| tuneall | 0.246 | 0.128 | 0.276 / 0.156 |
+| test | 0.298 | 0.191 | 0.317 / 0.210 |
+| holdout | 0.300 | 0.211 | 0.326 / 0.245 |
 
-(test's whole-list sum is below Build 139's 6.84 / 7.73: the synergy ceiling exception the owner accepted.)
+Other checks at 0.9.1: accept 39 (both modes), semantics 44, claims 20 unrecognised, cisweep 0, edge clean, scheck bad 1
+(Doom HYDRA, known). No-play-data commanders: typicality 0.184 -> 0.293 (genstrong FALL=1 NOEDH=1). Score blind spots 9 -> 5
+of 472 (`blind.js`). Generator: tourney MID2 (a real Mid build) 39% match.
 
 Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`, `rowfeat.js` (per-row evidence),
 `fullsearch.js` (scores every legal same-job card per slot), `wcheck.js` (weighted yardstick validity).
@@ -165,26 +174,32 @@ Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`,
 
 ## 6. Where things stand
 
-- **Live: Build 140** (synergy ceiling, over-budget warning, reanimation engines, score blind spots, alternatives matched to the
-  card going out, generator ramp cap, whole-pool search in the background, iPhone upright layout). Details and every version
-  tried, with numbers, in `ROADMAP.md` (Build 140). 139: rules knowledge base; keyword-aware themes; the commander's engine read
-  and shown. 138: Mana fix and card window agree. 137: fetch and "choose a colour" lands count colours correctly.
-- **Whole-pool finding (18 Oct):** on the test set, scoring every same-job card found a higher-scoring card in 17 of 20 rows,
-  mean gap 0.45, nearly all run by under 10% of players. Build 140 fixed the clearly wrong winners (Kozilek and Krang in Avengers:
-  size and 9+-mana protection). Some finds are plausible (Liliana, Dreadhorde General for Doom; Nissa, Vital Force for Ghalta as
-  ramp). Still worth a look: The Seriema (Wakanda: tutor + protection for tapped legends), Gravebreaker Lamia (Turtles: counted
-  as a tutor), Quilled Greatwurm (Turtles, a 2-finisher deck).
+- **Live: Version 0.9.1 (build 146).** What 143-146 added (details and numbers in `ROADMAP.md`):
+  - 143: decks are built on a background core (`work.js`), so the page stays responsive; Players' choice alternatives
+    (cards real players add); score blind-spot fixes (cost reducers count as ramp, tokens support their type); about 25%
+    faster through memoisation.
+  - 144: helper cores (up to 5) and the next deck built ahead while Generate is open (Captain America Budget 6.5 s -> 1.0 s).
+  - 0.9 (145): commanders without EDHREC play data use EDHREC theme pages for their tribe and colours.
+  - 0.9.1 (146): Undo next to Save deck; "Previous" / "Next" buttons in the card window; decklist grouped by colour; the
+    background search no longer stops at 2%; no card suggested on two rows; the whole-card search runs on the cores and the
+    Upgrades list appears once, complete (10-19 s -> 4-7 s on a desktop).
+- **Timings (desktop):** a deck generates in 1.5-9 s (worst case Budget with many owned cards); the complete Upgrades list
+  takes 4-7 s. The owner said these times are fine.
+- **Still worth a look (whole-pool finds, 18 Oct):** The Seriema (Wakanda), Gravebreaker Lamia (Turtles, counted as a tutor),
+  Quilled Greatwurm (Turtles, a 2-finisher deck).
 - **Owner's test deck:** Symbiote Spider-Man (generated), Budget tier, Marvel/Spider-Man sets only, themes reanimator,
   self-mill, graveyard. Share link in the chat of 18 Oct. Its EDHREC page and three theme pages are in the test data folder
   (`proto/data2/edhrec`, `proto/data2/themes`) of this session only; `gensym.js` generates a deck for any commander and shows
   ramp, reanimation engines and fast mana.
-- **Known limits:** Fix: Mana takes ~3 s on desktop; decks over their land target take a few seconds more for upgrades; the
-  whole-pool search runs for a while after the list appears (the note says how far it is).
+- **Known limits:** Fix: Mana takes ~3 s on desktop (question 4); Node test runs must go one at a time (running them in
+  parallel crashed, cause not traced); local test servers die now and then: restart them.
 
 ## 7. Prompt for a new Claude Code session
 
 > You're continuing work on Deck Companion (repo MaxFHurt/Deck-Companion, live at maxfhurt.github.io/Deck-Companion).
 > Read `WORK_SESSION_HANDOFF.md` (start with section 0, the open questions), then `ROADMAP.md`, `tools/rules/MECHANICS_NOTES.md`
 > and `CHAT_TO_WORK_HANDOFF.md`. Follow the owner's rules exactly: plain English, numbered questions, a Summary at the end of
-> every reply, complete and tested builds, and no engine change that regresses any benchmark number. Set up tests with
-> `sh tools/tests/suite/setup.sh /tmp/dc3`. Live is Build 140. Ask the owner the open questions in section 0 first.
+> every reply, questions numbered 1a/1b/1c, complete and tested builds, no engine change that regresses any benchmark number,
+> and never push anything without the owner's explicit OK. Set up tests with `sh tools/tests/suite/setup.sh /tmp/dc3` and
+> `sh tools/tests/suite/fetchtags.sh /tmp/dc3`. Live is Version 0.9.1 (build 146). Ask the owner the open questions in
+> section 0 first.
