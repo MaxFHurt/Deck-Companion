@@ -751,12 +751,20 @@ recsFor.done = d => { try { const c = find(d.commander); if (d.format === 'comma
 // a few milliseconds at a time. Each row's Highest score says the app is thinking until the search is done, then all of them
 // appear at once (owner: wait rather than shift). It stops when the list changes (another deck, a swap, a new list).
 function poolRun(d, R, k){ let Q = null; try { Q = poolQueue(d, R); } catch (e) { return; } if (!Q || !Q.total) return; R.pool = Q;
+  // Build 146 (owner: wait until it's done, on the extra cores): the whole search goes to the background cores as one batch, and
+  // the list appears once it is back. Without them (or if they fail), the page searches in slices as before.
+  if (wkGet() && R.base){ if (poolRun.job) try { WK.w.postMessage({kind:'cancel', job:poolRun.job}); } catch (e) {}
+    const p = wkSend({kind:'measure', b:{kind:'swap', d:JSON.parse(JSON.stringify(d)), base:R.base, apex:R.apexR || null, keys:poolKeys(Q)}}, 600000); poolRun.job = p.id;
+    p.then(r => { if (recsFor.v !== R) return; if (r && r.vals && r.vals.length === Q.total){ poolApply(Q, r.vals); R.poolDone = true; R.poolMs = r.ms; render(); } else poolSlices(d, R, Q); });
+    return; }
+  poolSlices(d, R, Q); }
+function poolSlices(d, R, Q){
   // the search belongs to this list: holding the picks on screen re-keys the same list (recsFor.k), which must not stop it (Build 146)
   const tick = () => { if (recsFor.v !== R) return; let ch; try { ch = poolStep(Q, 12); } catch (e) { Q.r = Q.rows.length; }
     const n = document.querySelector('#pool-note'), done = Q.r >= Q.rows.length; if (n){ n.textContent = done ? '' : poolNote(Q); if (done) n.remove(); }
     if (!done){ setTimeout(tick, 8); return; }
     // every row's Highest score appears at once, when the search is done: nothing shifts while it runs
-    R.poolDone = true; document.querySelectorAll('.topslot[data-i]').forEach(el => { const i = +el.dataset.i; if (R.paths[i]) el.innerHTML = topInner(d, R, R.paths[i], i); }); };
+    R.poolDone = true; render(); };   // the whole list appears now
   setTimeout(tick, 400); }
 function poolNote(Q){ return 'Thinking… checking every card that could fill these slots for a higher score: ' + Math.floor(100 * Q.done / Math.max(1, Q.total)) + '%'; }
 // Waits for the score check of the current list (Regenerate and the tests use it).
@@ -1761,8 +1769,10 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
   const out0 = (d.dismissed || []).filter(n => !entryOf(d, n));
   const outHtml = out0.length ? '<div class="grp"><span class="lab">Excluded cards for this deck · ' + out0.length + '</span><p class="note" style="margin:0">These are not suggested for this deck: cards you swapped out or removed, and cards you chose “Don’t suggest for this deck” for. Your deck itself is unchanged. The list keeps the latest 80. Tap a card to allow it in recommendations again.</p><div class="row">' + out0.map(n => '<button class="chip" data-act="undismiss" data-n="' + esc(n) + '" aria-label="Allow ' + esc(n) + ' in recommendations">Allow ' + esc(n) + '</button>').join('') + '</div></div>' : '';
   h += '<div class="grp"><span class="lab">Upgrade paths' + (any && !R.pending ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
-  if (!R.pending && R.pool && !R.poolDone) h += '<p class="note think" style="margin:0" id="pool-note" role="status">' + poolNote(R.pool) + '</p>';   // shown above the list while the search runs
-  if (R.pending) h += '<p class="note think" style="margin:0" role="status">Thinking… checking each upgrade against your deck score</p>';
+  // the list appears once it is complete (owner, 19 Oct): the score check and the whole-card search both done
+  const wait = R.pending || !!(R.pool && !R.poolDone);
+  if (wait) h += '<p class="note think" style="margin:0" id="pool-note" role="status">' + (R.pending ? 'Thinking… checking each upgrade against your deck score' : 'Thinking… checking every card that could fill these slots for a higher score' + (WK.w ? '' : ': ' + Math.floor(100 * R.pool.done / Math.max(1, R.pool.total)) + '%')) + '</p>';
+  if (wait){}
   else if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
   else {
     if (R.count.free) h += '<div class="tip good"><b><small>Tip</small>' + R.count.free + ' free swap' + (R.count.free === 1 ? '' : 's') + ' from your library</b><ul><li class="pro"><i>+</i>You already own ' + (R.count.free === 1 ? 'a card' : 'cards') + ' that would improve this deck, so there is nothing to buy. They are listed first below.</li></ul><div class="row" style="margin-top:8px"><button class="btn sm" data-act="swap-all" data-v="free">Make all free swaps</button></div></div>';

@@ -356,7 +356,7 @@ T('UI-B78-01', 'Build 78: loading a precon asks how to upgrade (plan, tier, sets
 const asy = await page.evaluate(async () => { const out = {}; S.syncRecs = false; await loadPreconLive('family-matters', 'Family Matters'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up';
   await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); d.recP = {}; recsFor.k = null; render();
   out.placeholder = /checking each upgrade against your deck score/i.test(document.body.textContent); out.heldWhilePending = Object.keys(d.recP || {}).length; out.noSwapsWhilePending = !document.querySelector('.paths [data-act="swap"]');
-  await recsReady(d); await new Promise(r => setTimeout(r, 100)); out.listed = document.querySelectorAll('.paths [data-act="swap"]').length; out.allOk = recsFor(d).paths.every(L => Object.values(L.opts).every(p => p.dScore != null && p.dScore >= 0)); S.syncRecs = true; return out; });
+  await recsReady(d); for (let i = 0; i < 600 && recsFor(d).pool && !recsFor(d).poolDone; i++) await new Promise(r => setTimeout(r, 100)); render(); await new Promise(r => setTimeout(r, 100)); out.listed = document.querySelectorAll('.paths [data-act="swap"]').length; out.allOk = recsFor(d).paths.every(L => Object.values(L.opts).every(p => p.dScore != null && p.dScore >= 0)); S.syncRecs = true; return out; });
 T('UI-ASYNC-01', 'Background score check: Upgrades draws at once and says it is checking, holds nothing and offers no swap until the check is done, then lists only checked upgrades', asy.placeholder && asy.heldWhilePending === 0 && asy.noSwapsWhilePending && asy.listed > 0 && asy.allOk, JSON.stringify(asy));
 // 32. Build 81: decklist A–Z inside each type; a card goes on the player's own buy list with no deck; Upgrades sort by impact;
 // Game Changer chip; health alerts open a Fix menu of direct swaps (with score effect) and can be ignored; Path to Apex tips.
@@ -370,7 +370,7 @@ const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true;
   $('#modal').hidden = true; S.open = false; S.view = 'decks'; render(); out.mineShown = !!document.querySelector('#mywant') && document.querySelector('#mywant').textContent.includes(c.n);
   S.view = 'decks'; S.open = true; S.deckId = d.id;
   // upgrades: impact order, GC chip
-  S.tab = 'up'; S.upSort = 'impact'; recsFor.k = null; render(); await recsReady(d); render(); const R = recsFor(d), imp = L => Math.max(...Object.values(L.opts).map(p => p.dScore != null ? p.dScore : -1e9));
+  S.tab = 'up'; S.upOrd = null; S.upSort = 'impact'; recsFor.k = null; render(); await recsReady(d); render(); const R = recsFor(d), imp = L => Math.max(...Object.values(L.opts).map(p => p.dScore != null ? p.dScore : -1e9));
   const shown = [...document.querySelectorAll('.paths [data-act="swap"]')].map(b => +b.dataset.v.split('|')[0]).filter((x, i, A) => A.indexOf(x) === i), vals = shown.map(i => imp(R.paths[i]));
   out.impactSorted = vals.length > 2 && vals.every((v, i) => !i || vals[i - 1] >= v - 1e-9); out.sortBar = (document.querySelector('select[data-act="upsort"]') || {}).value === 'impact';
   out.gcRows = R.paths.filter(L => Object.values(L.opts).some(p => p.gc)).length; out.gcChip = R.paths.some(L => Object.values(L.opts).some(p => p.gc)) ? !!document.querySelector('.paths .chip.gc') : 'none';
@@ -1000,10 +1000,10 @@ const b141 = await page.evaluate(async () => { const out = {}, d = S.profile.dec
   out.landDone = !document.querySelector('#want-think') && /Put this card in/.test($('#modal').textContent); $('#modal').hidden = true;
   const n0 = UP.poolN; UP.poolN = 30; S.syncRecs = false; S.tab = 'up'; recsFor.k = null; render(); await recsReady(d); await new Promise(r => setTimeout(r, 600)); let R = recsFor(d);
   const snap = () => [...document.querySelectorAll('.topslot[data-i]')].map(e => e.textContent).join('|');
-  out.thinking = document.querySelectorAll('.topslot .think').length > 0; const mid = snap(); await new Promise(r => setTimeout(r, 400)); out.steady = R.poolDone || snap() === mid;
+  out.thinking = R.poolDone || !!document.querySelector('#pool-note.think') && !document.querySelector('.topslot'); const mid = snap(); await new Promise(r => setTimeout(r, 400)); out.steady = R.poolDone || snap() === mid;
   for (let i = 0; i < 600 && !(R.poolDone && R === recsFor(d)); i++){ await new Promise(r => setTimeout(r, 100)); R = recsFor(d); }
-  await new Promise(r => setTimeout(r, 100)); out.after = document.querySelectorAll('.topslot .think').length === 0 && R.poolDone; UP.poolN = n0; S.syncRecs = true; return out; });
-T('UI-B141-01', 'Thinking, not shifting: Fix: Mana and a land’s card window open with a spinner and fill in once; Highest score says it is thinking until the search is done, nothing changes meanwhile, then every row fills at once', b141.fixSpin && b141.fixDone && b141.landSpin && b141.landDone && b141.thinking && b141.steady && b141.after, JSON.stringify(b141));
+  render(); await new Promise(r => setTimeout(r, 100)); out.after = document.querySelectorAll('.topslot .think').length === 0 && R.poolDone && !document.querySelector('#pool-note') && document.querySelectorAll('.paths [data-act="swap"]').length > 0; UP.poolN = n0; S.syncRecs = true; return out; });
+T('UI-B141-01', 'Thinking, not shifting: Fix: Mana and a land’s card window open with a spinner and fill in once; the upgrade list says it is thinking until the whole-card search is done (no rows meanwhile), then appears complete', b141.fixSpin && b141.fixDone && b141.landSpin && b141.landDone && b141.thinking && b141.steady && b141.after, JSON.stringify(b141));
 // 93. Build 141: Build by theme. Pick a theme (and a creature type, colours) and the builder lists the commanders that build around
 // it; Build makes the deck with that theme as its first mechanic.
 const b141t = await page.evaluate(async () => { const out = {}; S.gen = {}; openGenerate(); out.box = !!document.querySelector('#themebuild');
@@ -1107,9 +1107,9 @@ const code146 = fs.readFileSync(path.join(here, 'share146.txt'), 'utf8').trim();
 const b146b = await page.evaluate(async code => { const out = {}; location.hash = '#share=' + code; await checkShareLink(); await new Promise(r => setTimeout(r, 300)); const sv = document.querySelector('#modal [data-act="share-save"]'); if (sv) sv.click(); await new Promise(r => setTimeout(r, 300));
   const d = S.profile.decks.find(x => x.name === 'Avengers Assemble' && x.commander === 'Captain America, Team Leader'); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; const sy = S.syncRecs; S.syncRecs = false; recsFor.k = null; render();
   for (let i = 0; i < 1200 && !(recsFor.v && recsFor.v.poolDone); i++){ await new Promise(r => setTimeout(r, 100)); if (i % 20 === 0) render(); }
-  const R = recsFor.v; out.done = !!R.poolDone; out.note = !!document.querySelector('#pool-note'); const seen = new Map(), dup = []; R.paths.forEach((L, i) => new Set(['apex', 'mid', 'budget'].map(t => L.opts[t] && L.opts[t].add).filter(Boolean)).forEach(a => { if (seen.has(a) && seen.get(a) !== i) dup.push(a); seen.set(a, i); }));
+  const R = recsFor.v; out.done = !!R.poolDone; out.onCores = R.poolMs != null; out.note = !!document.querySelector('#pool-note'); const seen = new Map(), dup = []; R.paths.forEach((L, i) => new Set(['apex', 'mid', 'budget'].map(t => L.opts[t] && L.opts[t].add).filter(Boolean)).forEach(a => { if (seen.has(a) && seen.get(a) !== i) dup.push(a); seen.set(a, i); }));
   out.dup = dup; S.syncRecs = sy; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; location.hash = ''; render(); return out; }, code146);
-T('UI-B146-02', 'The owner’s shared deck: the background search finishes (not stuck at 2%) and no card is suggested on two rows', b146b.done && !b146b.note && !b146b.dup.length, JSON.stringify(b146b));
+T('UI-B146-02', 'The owner’s shared deck: the whole-card search runs on the background cores and finishes (not stuck at 2%), and no card is suggested on two rows', b146b.done && b146b.onCores && !b146b.note && !b146b.dup.length, JSON.stringify(b146b));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

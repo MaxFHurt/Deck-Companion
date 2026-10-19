@@ -238,8 +238,16 @@ thinking stuck at 2%, and an upgrade suggested twice (shared Avengers Assemble d
   Pepper Potts and Jocasta). inUse now counts every row. Benchmark decks with a card on two rows: 2 of 26 -> 0 (dupall.js).
   Benchmark: holdout and test identical; tuneall @10 0.131 -> 0.128 (weighted 0.159 -> 0.156): the duplicates were counted
   as hits.
-- **Checks:** UI suite 114/114 (new UI-B146-01 layout, UI-B146-02 the owner's shared deck: search finishes, no duplicates;
-  share146.txt), accept 39, scheck bad 1 (unchanged).
+- **The upgrade list appears complete (owner: "wait until it's done", on the extra cores):** the whole-card search is now one batch
+  on the background cores (poolKeys -> worker 'measure' -> poolApply, applied in poolStep's own order), and Upgrades shows one
+  "Thinking..." line until both the score check and the search are done, then the full list at once. Without a worker the page
+  searches in slices as before (poolSlices). Every swap value checked identical to the page's own (10,262 swaps on 4 decks).
+  Time until the complete list (desktop Chrome, this machine): Turtle Power 13.0 s -> 4.2 s, Doom 18.8 s -> 6.6 s, Wakanda
+  10.0 s -> 4.9 s, Avengers 12.6 s -> 6.3 s. On an iPhone expect roughly 2-3x (not measured). The owner suggested a core per card
+  type; equal shares keep every core busy (creatures alone are about half the cards), so the batch is split evenly instead.
+- **Checks:** UI suite 114/114 (new UI-B146-01 layout, UI-B146-02 the owner's shared deck: the search runs on the cores and
+  finishes, no duplicates; share146.txt; UI-ASYNC-01, UI-B141-01 and UI-B81-01 updated for the list that appears complete),
+  accept 39, scheck bad 1 (unchanged).
 
 ## Version 0.9 (build 145, 19 October 2026; pushed with the owner's OK: "Finish those 2 improvements. When you are done we are complete for the day and you can push the new build as v.9")
 

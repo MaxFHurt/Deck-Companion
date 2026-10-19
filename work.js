@@ -108,6 +108,10 @@ async function handle(m, ev){
     if (m.kind === 'warm'){ const t0 = Date.now(); for (const c of LIB) tags(c); postMessage({id:m.id, ok:true, ms:Date.now() - t0}); return; }
     // The reference build for a deck's settings, designed ahead while the player is still choosing (kept for the build).
     if (m.kind === 'ref'){ const t0 = Date.now(); apexRef(m.nd); postMessage({id:m.id, ok:true, ms:Date.now() - t0}); return; }
+    // A batch of swaps measured for the page (Build 146: the upgrade list's whole-card search), shared across the helper cores.
+    if (m.kind === 'measure'){ if (CANCEL.has(m.id)){ CANCEL.delete(m.id); postMessage({id:m.id, err:'cancelled'}); return; } const t0 = Date.now();
+      measureBatch.par = HELP.filter(h => !h.dead).length + 1; let vals; try { vals = await spread(m.b); } finally { measureBatch.par = 0; }
+      postMessage({id:m.id, ok:true, vals, ms:Date.now() - t0, helpers:HELP.filter(h => !h.dead).length}); return; }
     if (m.kind === 'gen'){ const t0 = Date.now(), J = m.job, nd = J.nd, seeds = (J.seeds || []).map(n => find(n)).filter(Boolean);
       if (J.refs && J.refs.length){ apexRef.cache = apexRef.cache || new Map(); J.refs.forEach(([k, v]) => { if (!apexRef.cache.has(k)) apexRef.cache.set(k, v); }); while (apexRef.cache.size > 4) apexRef.cache.delete(apexRef.cache.keys().next().value); }
       Object.assign(STAT, {batches:0, keys:0, local:0, redo:0, sent:0, gaps:0, checked:0, wrong:0, tPack:0, tMine:0, tWait:0, tHelp:0, tAll:0});

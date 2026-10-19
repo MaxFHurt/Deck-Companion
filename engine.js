@@ -1345,7 +1345,8 @@ function* scoreCheckG(d, R, o){
   if (UP.unc && UP.uncTail){ const ex = L => { const p = tierPick(L, 'apex') || L.opts.apex || Object.values(L.opts)[0]; if (!p || L.spare) return 1; const c = find(p.cut), a = find(p.add); if ((c && tags(c).land) || (a && tags(a).land)) return 1; const v = both(p)[1]; return v == null ? 1 : v; };
     const pcRow = L => { const p = tierPick(L, 'apex') || L.opts.apex || Object.values(L.opts)[0]; return !!(p && p.pc); };
     const lo = [], pcs = []; R.paths = R.paths.filter(L => { const v = ex(L); if (v >= scoreFloor()) return true; if (pcRow(L)){ L.pcRow = true; pcs.push(L); return false; } if (v >= 0){ L.pastMax = true; lo.push(L); } return false; }).concat(lo, pcs); }   // never a swap that lowers the shown score (owner's rule)   // scoreCheck can run twice on one list recount(R);   // picks changed above (and rows left out): the tier counts follow
-  R.scored = {base:base.exact, dropped, refilled, themed, repaired, trimmed}; R.dOf = (cut, add, q) => swapScore(d, base, o.apex, cut, add, q); return R;
+  R.scored = {base:base.exact, dropped, refilled, themed, repaired, trimmed}; R.dOf = (cut, add, q) => swapScore(d, base, o.apex, cut, add, q);
+  R.base = {sim:base.sim, exact:base.exact, cmp:base.cmp}; R.apexR = o.apex; return R;   // so the search can be measured on other cores (Build 146)
 }
 // Whole-pool search (owner, 18 Oct; UP.pool2): after the list is checked, every legal card that does the same job as a row's pick
 // (the alternatives' rule) is measured as well, a few at a time while the app is idle, so a row's Highest score is the best of
@@ -1363,6 +1364,13 @@ function poolStep(Q, ms){ const t0 = Date.now(), changed = new Set(); if (!Q) re
     const L = x.L, v = Q.dOf(L.cut, c.n, x.q); if (v == null || v < Math.max(scoreFloor(), UP.rankMin) || (L.top && v <= L.top.dScore)) continue;
     const e = Q.edh && edhOf(Q.edh.map, c); L.top = {n:c.n, p:c.p, dScore:v, inc:e ? +e.inc.toFixed(3) : 0, pool:true}; changed.add(x.i); }
   return changed; }
+// The whole search at once (Build 146): every swap it measures, in order, as one batch for the background cores (measureBatch
+// 'swap': its first value is R.dOf's), then the results applied exactly as poolStep would, so the outcome is the same.
+function poolKeys(Q){ return Q.rows.flatMap(x => x.pool.map(c => [x.L.cut, c.n, x.q])); }
+function poolApply(Q, vals){ let i = 0; for (const x of Q.rows){ for (const c of x.pool){ const r = vals[i++], v = r && r[0] != null ? r[0] : null; const L = x.L;
+    if (v == null || v < Math.max(scoreFloor(), UP.rankMin) || (L.top && v <= L.top.dScore)) continue;
+    const e = Q.edh && edhOf(Q.edh.map, c); L.top = {n:c.n, p:c.p, dScore:v, inc:e ? +e.inc.toFixed(3) : 0, pool:true}; } x.k = x.pool.length; }
+  Q.r = Q.rows.length; Q.done = Q.total; }
 const RANK_THEME = 0.1;
 function tierPick(L, t){
   const a = L.opts.apex; if (!a) return t === 'budget' ? (L.opts.budget || null) : (L.opts.mid || L.opts.budget || null);   // the Apex pick was dropped by the score check
