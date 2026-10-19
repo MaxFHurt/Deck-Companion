@@ -126,11 +126,20 @@ async function fetchEdh(name){
       const pn = j.container && j.container.json_dict && j.container.json_dict.card && j.container.json_dict.card.precon;
       if (pn){ try { const pr = await fetch('https://json.edhrec.com/pages/precon/' + edhSlug(pn) + '.json'); if (pr.ok) E.pre = parsePrecon(await pr.json()); } catch (e) { E.pre = null; } }
       apply([...seen.values()]); lsSet('dc.edh.' + slug, {ts:Date.now(), decks, rows:[...seen.values()], pre:E.pre, tags:E.tags});
-    } catch (e) { E.state = 'fail'; return E; } }
+    } catch (e) { E.state = 'fail'; await addFall(E, name); return E; } }
   // theme pages already saved in this browser
   E.tags.forEach(t => { const c = lsGet('dc.edht.' + slug + '__' + t.slug); if (c && c.rows && Date.now() - c.ts < 7 * 864e5) E.tmap[t.slug] = new Map(c.rows.map(r => [r[0], {inc:r[1], syn:r[2]}])); });
+  if (!E.map || E.map.size < 60) await addFall(E, name);
   return E;
 }
+// Fallback play data (Build 145): a commander with no EDHREC page of its own, or very little data, gets the pages of its
+// creature type and its first theme in its colours (engine fallTags: "In 41% of Zombie decks"), saved for a week. A page that
+// can't be read is simply left out.
+async function addFall(E, name){ const T = fallTags(name); if (!T.length) return; const got = [];
+  await Promise.all(T.map(async (t, i) => { const k = 'dc.edhtag.' + t.path.replace(/\//g, '_'), c = lsGet(k); let rows = c && c.rows && Date.now() - c.ts < 7 * 864e5 ? c.rows : null;
+    if (!rows) try { const r = await fetch('https://json.edhrec.com/pages/tags/' + t.path + '.json'); if (r.ok){ rows = [...parseTag(await r.json()).entries()].map(([n, x]) => [n, x.inc, x.syn]); if (rows.length) lsSet(k, {ts:Date.now(), rows}); } } catch (e) {}
+    if (rows && rows.length) got.push({i, label:t.label, slug:t.path, map:new Map(rows.map(r => [r[0], {inc:r[1], syn:r[2]}]))}); }));
+  E.fall = got.sort((a, b) => a.i - b.i).map(({label, slug, map}) => ({label, slug, map})); }
 // Which of the player's decks each card is a suggested upgrade for: each saved Commander deck's upgrade paths, worked out
 // one deck at a time in the background with that deck's own commander data, and kept until the deck changes.
 const UPX = {map:new Map(), busy:false, sig:''};
@@ -141,7 +150,7 @@ async function buildUpgradeIndex(){
   const sig = decks.map(d => d.id + ':' + deckSig(d)).join('|'); if (sig === UPX.sig) return; UPX.busy = true;
   const map = new Map();
   for (const d of decks){ const key = 'dc.upx.' + d.id, ds = deckSig(d), c0 = lsGet(key); let rows = c0 && c0.sig === ds ? c0.rows : null;
-    if (!rows){ const E = await fetchEdh(find(d.commander).n); const saved = EDH; EDH = E.state === 'ok' ? E : {key:'', map:null, decks:0, state:'fail', pre:null, tags:[], tmap:{}};
+    if (!rows){ const E = await fetchEdh(find(d.commander).n); const saved = EDH; EDH = E.state === 'ok' || (E.fall || []).length ? E : {key:'', map:null, decks:0, state:'fail', pre:null, tags:[], tmap:{}};
       try { upgradePaths.own = ownSet(); const R = upgradePaths(d); try { const ar = APX.get(apexKey(d)) || null; scoreCheck(d, R, {apex:ar}); } catch (e2) {} rows = R.paths.flatMap(L => Object.entries(L.opts).filter(([, p]) => p && p.add).map(([t, p]) => [p.add, p.cut, t])); } catch (e) { rows = []; } finally { EDH = saved; }
       if (E.state === 'ok') lsSet(key, {sig:ds, rows}); await new Promise(r => setTimeout(r, 0)); }   // without play data the rows are kept for this visit only
     rows.forEach(([add, cut, t]) => { const k = norm(add); if (!map.has(k)) map.set(k, []); const L = map.get(k); if (!L.some(x => x.id === d.id && x.t === t)) L.push({id:d.id, name:d.name, cut, t}); }); }
@@ -152,7 +161,7 @@ function upBadge(c){ const L = upFor(c); if (!L.length) return ''; const n = new
 async function loadEdh(name){
   if (!name) return; if (EDH.key === name && EDH.state) return EDH.wait;
   EDH = {key:name, map:null, decks:0, state:'loading', pre:null, tags:[], tmap:{}}; const mine = EDH;
-  mine.wait = fetchEdh(name).then(E => { Object.assign(mine, {map:E.map, decks:E.decks, pre:E.pre, tags:E.tags, tmap:Object.assign(E.tmap, mine.tmap), state:E.state}); });
+  mine.wait = fetchEdh(name).then(E => { Object.assign(mine, {map:E.map, decks:E.decks, pre:E.pre, tags:E.tags, tmap:Object.assign(E.tmap, mine.tmap), state:E.state, fall:E.fall || null}); });
   return mine.wait;
 }
 // Play data inside each chosen commander theme (EDHREC theme pages), cached for a week like the commander page.
@@ -388,9 +397,10 @@ function wkHelpersStop(){ (WK.helpers || []).forEach(h => { try { h.terminate();
 function wkRestart(){ if (WK.w) try { WK.w.terminate(); } catch (e) {} wkHelpersStop(); WK.w = null; WK.ok = true; WK.cb.forEach(f => f({err:'restarted'})); WK.cb.clear(); WK.sig = {}; wkWarm.done = false; genPrefetch.k = null; }
 // The page's own state, sent only when it changed since the worker last had it.
 function wkState(){ const m = {}, s = WK.sig, clean = c => { const x = {}; for (const k in c) if (k[0] !== '_') x[k] = c[k]; return x; };
-  const lib = [DBINFO.source, DBINFO.count, DBINFO.when, LIB.length].join('|'); if (s.lib !== lib){ m.lib = {sig:lib, rows:LIB.map(clean)}; s.lib = lib; s.combos = null; }
-  const co = COMBOS.list.length ? COMBOS.at + '|' + COMBOS.list.length : 'none'; if (s.combos !== co){ m.combos = {sig:co, j:COMBOS.list.length && COMBO_RAW ? COMBO_RAW.j : null}; s.combos = co; }
-  const ed = [EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort().join(','), EDH.pre ? 1 : 0, EDH.lands || 0].join('|'); if (s.edh !== ed){ const v = {}; for (const k in EDH) if (k !== 'wait' && k[0] !== '_' && typeof EDH[k] !== 'function') v[k] = EDH[k]; m.edh = {sig:ed, v}; s.edh = ed; }
+  const lib = [DBINFO.source, DBINFO.count, DBINFO.when, LIB.length].join('|'); if (s.lib !== lib){ m.lib = {sig:lib, rows:LIB.map(clean)}; s.lib = lib; s.combosObj = null; }
+  // the page's own combo list as it stands (Build 145), not the raw file: the worker then uses exactly the combos the page does
+  if (s.combosObj !== COMBOS){ m.combos = {sig:COMBOS.at + '|' + COMBOS.list.length, v:COMBOS}; s.combosObj = COMBOS; }
+  const ed = [EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort().join(','), EDH.pre ? 1 : 0, EDH.lands || 0, (EDH.fall || []).map(f => f.slug).join(',')].join('|'); if (s.edh !== ed){ const v = {}; for (const k in EDH) if (k !== 'wait' && k[0] !== '_' && typeof EDH[k] !== 'function') v[k] = EDH[k]; m.edh = {sig:ed, v}; s.edh = ed; }
   if (s.bt !== BTAGS.v){ m.btags = BTAGS; s.bt = BTAGS.v; }
   const st = [...SETCARDS].map(([k, v]) => k + ':' + v.size).join(); if (s.sets !== st){ m.sets = SETCARDS; s.sets = st; }
   m.up = UP; return m; }
@@ -403,7 +413,7 @@ function wkSend(m, ms){ const w = wkGet(); if (!w) return Promise.resolve({err:'
 // and options it starts from, and the data the worker builds with.
 const ND_SKIP = new Set(['id', 'name', 'player']);
 function genJob(nd, seeds, ownOnly, ownAll, fill){ return {nd:JSON.parse(JSON.stringify(nd)), seeds:(seeds || []).map(c => c.n), ownOnly:ownOnly ? [...ownOnly] : null, ownAll:[...(ownAll || [])], fill:fill || null}; }
-function genKey(j){ return JSON.stringify([JSON.stringify(j.nd, (k, v) => ND_SKIP.has(k) ? undefined : v), j.seeds, j.ownOnly, j.ownAll, j.fill, DBINFO.source, DBINFO.count, DBINFO.when, LIB.length, EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort(), COMBOS.list.length, COMBOS.at, BTAGS.v, [...SETCARDS].map(([k, v]) => k + ':' + v.size), UP]); }
+function genKey(j){ return JSON.stringify([JSON.stringify(j.nd, (k, v) => ND_SKIP.has(k) ? undefined : v), j.seeds, j.ownOnly, j.ownAll, j.fill, DBINFO.source, DBINFO.count, DBINFO.when, LIB.length, EDH.key, EDH.state, EDH.decks, EDH.map ? EDH.map.size : 0, Object.keys(EDH.tmap || {}).sort(), (EDH.fall || []).map(f => f.slug), COMBOS.list.length, COMBOS.at, BTAGS.v, [...SETCARDS].map(([k, v]) => k + ':' + v.size), UP]); }
 async function genRun(nd, seeds, ownOnly, ownAll, fill){
   const local = () => genDeck(nd, seeds, ownOnly, ownAll, fill);
   if (!wkGet()) return local();
@@ -2773,4 +2783,4 @@ addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(paintSky, 2
 loadLocal();
 if (!S.profile.decks.length){ exampleDeck(); S.profile.example = true; } else S.deckId = S.profile.decks[0].id;
 S.view = 'home'; S.open = false; restoreSpot();
-{ const bn = $('#build-no'); if (bn) bn.textContent = window.BUILD; } render(); loadSavedLibrary(); initBackup(); checkShareLink(); addEventListener('hashchange', checkShareLink);
+{ const bn = $('#build-no'); if (bn) bn.textContent = (window.VERSION || '') + ' (build ' + window.BUILD + ')'; } render(); loadSavedLibrary(); initBackup(); checkShareLink(); addEventListener('hashchange', checkShareLink);

@@ -1,14 +1,15 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 18 October 2026, Build 143 live; Build 144 built and tested on `claude/build-140`, NOT pushed.
+Last updated: 19 October 2026, Version 0.9 (build 145) live.
 
 ## 0. Open questions for the owner (ask these first, numbered)
 
 **Owner's rule (18 Oct): do not push anything without the owner's confirmation.**
 
-0a. **Push Build 144?** (helper cores, built ahead). Build 143 is live for the owner's iPhone check: does Safari stay up while
-   a deck is generated, and does the page stay responsive?
+0a. **iPhone check of Version 0.9:** does Safari stay up while a deck is generated (background core plus helper cores, about
+   12 MB each), does the page stay responsive, and does pressing Build with Generate open give the deck at once?
+0b. **From now on versions count from 0.9** (owner, 18 Oct): the next release is named by the owner (0.9.1, 0.10...).
 
 1. **Commander engine reasons** (not answered yet). Cards say why they fit the commander ("Doubles the tokens your commander
    makes", "Uses the cards your commander puts in your graveyard"). Do they read the owner's commanders correctly? Misreads
@@ -79,7 +80,7 @@ Last updated: 18 October 2026, Build 143 live; Build 144 built and tested on `cl
    - While working, after each change: the quick check `PW=/opt/node22/lib/node_modules/playwright node ui-quick.mjs 8765 q`
      (about 25 s, 10 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
    - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
-     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (111 at Build 144). If it
+     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (112 at Version 0.9). If it
      prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
    - Benchmark (engine changes), all six must not drop:
      `SCORECHECK=1 [WEIGHT=3,6] node bench.js ../candidate x tuneall|test|holdout --quiet`.
@@ -156,6 +157,8 @@ Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`,
 - **Cores (Build 144):** `scoreCheckG` and the generators above it hand out batches (`measureBatch`, `runSync` on the page);
   work.js role=help holds a slice of the cards (`batchCards`, `packFor`), spot-checked (`spread`); `wkCores` (up to 5),
   `wkRestart`; built ahead: `genPrefetch` -> `WK.spec`, `genKey`, `genCancel`.
+- **No play data (Version 0.9):** `fallTags`, `parseTag`, `TAG_OF`, `COLOR_PAGE`, `tribeSlug` (engine), `addFall` (ui.js);
+  `ctx.fall` in `baseScore` (UP.fbW); `detectStrategy(cmd, d, thin)` (UP.ctok, UP.cbec).
 - **Players' choice:** `pcOk` in `scoreCheck` (UP.plc/plcS/plcG/plcD); `pcChip` in ui.js.
 - **UI:** `viewDecks`, `upPanel` (Upgrades + Build stats, `practiceHtml`), `wantHtml` (card window), `openFix`,
   `openShare`/`checkShareLink` (share links decode with base64url + raw deflate; `shareRead`).

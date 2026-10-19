@@ -222,7 +222,42 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
-## Build 144 (18 October 2026; not pushed: waits for the owner's OK)
+## Version 0.9 (build 145, 19 October 2026; pushed with the owner's OK: "Finish those 2 improvements. When you are done we are complete for the day and you can push the new build as v.9")
+
+The footer now reads "Version 0.9 (build 145)"; window.BUILD stays the number the self-update check compares (version.json
+has both).
+- **Commanders with little or no play data (fallback pages, UP.fbW 4):** when a commander has no EDHREC page of its own, or
+  under 60 cards of data, the app loads EDHREC's theme pages for its creature type and its first theme in its colours
+  (`/pages/tags/<theme>/<colours>.json`, e.g. zombies/mono-black; engine fallTags, parseTag; ui.js addFall, saved a week) and
+  counts them at UP.fbW of the weight its own data would have. Cards say why ("In 41% of Zombie decks"). Pages EDHREC doesn't
+  have (Krakens, Centaurs...) are simply left out. Measured (genstrong.js FALL=1 NOEDH=1, all 26 commanders): strong-deck
+  typicality 0.184 -> 0.293, strong-core coverage 0.30 -> 0.52, beats the median strong deck 0/26 -> 12/26 (weights 0.5-6
+  tried; 3-4 best). Commanders with their own data: typicality 0.405 -> 0.403 and Mid 0.399 -> 0.396 (Build 144 -> 0.9, all
+  26 / tuneall), from the correct Bello reading below; still above the median strong deck for 25 of 26.
+- **Two readings of a commander's text (detectStrategy):** a creature type the commander only turns things into ("are 4/4
+  Elemental creatures", Bello) is not a type it rewards (UP.cbec, every commander: the correct reading); a commander that keeps
+  making creature tokens of one type (Ghoulcaller Gisa's Zombies, Krenko's Goblins; never Humans) leads that type's deck
+  (UP.ctok), used only once its own play data is known to be missing or thin (with data of its own, the benchmark was better
+  without it: tuneall @5 0.246 vs 0.243). Measured without play data: +0.003 (ctok), -0.002 (cbec).
+- **Mid tier, measured properly:** the tournament comparison's "mid match" (52%) built its Mid deck slot by slot from the Apex
+  plan, keeping Apex cards over $12 when a slot had no cheaper pick: not a Mid deck. The app's real Mid build (genDeck: filled
+  and polished at Mid, every card under $12) matches the tournament lists 39% (tourney.js MID2=1; the best any Mid deck could do
+  there is 61%, and their cheap cards are cEDH pieces such as Mental Misstep and Mockingbird). Against strong player decks
+  (genstrong.js MID=1): Mid typicality 0.396-0.400, the Apex build's 0.403-0.409, above the median strong deck's 0.334-0.358,
+  deck score 93.5 with about one swap of room. Tried and not taken (each within +-0.005): tournament staples and Apex power
+  credit at Mid (UP.tsMid, UP.pwMid), leaving over-price slots open for the best Mid card overall (UP.midOpen, UP.budOpen), and
+  keeping popular cards during polishing (UP.polP). All off.
+- **Exact page/worker agreement fixed:** the worker now gets the page's own combo list (it re-read the combo file against its
+  library, and a page that had read combos against a smaller library built different decks; UI-B144-02 caught it), and the
+  reference build's cache key now holds everything the build reads (settings, combos, bracket and set lists, fallback pages).
+- **Checks:** UI suite 112/112 (new UI-B145-01: no play data, Gisa builds Zombies from the Zombie and theme pages and cards say
+  why). Benchmark: holdout and test identical to Build 144; tuneall @10 0.132 -> 0.131 (weighted 0.160 -> 0.159), from the
+  correct Bello reading. accept 39 x 2, semantics 44, claims unchanged (20 unrecognised), cisweep 0, edge clean, scheck bad 1
+  (the known Doom swap). Tools: `fetchtags.sh` (downloads the theme pages the no-data checks use into proto/data2/tags),
+  `fallrep.js`/`fallrep2.js` (no-data builds repeat exactly; page vs a fresh engine), `dbg145c.mjs`/`dbg145f.mjs` (page vs
+  worker, step by step); genstrong.js FALL=1 and MID=1, tourney.js MID2=1.
+
+## Build 144 (18 October 2026; pushed with the owner's OK)
 
 Owner: "Add as many [cores] as we can to lighten this up. If we run 6 or 8 and it takes no time that's best."
 - **Helper cores (work.js, role=help):** as many as the device reports beyond the page's own, up to 5 (wkCores). The score

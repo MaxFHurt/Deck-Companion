@@ -33,11 +33,11 @@ if (ROLE === 'help'){
 
 // ----- builder -----
 if (ROLE === 'build'){
-let SIG = {lib:'', combos:'', edh:''}, COMBO_J = null, HELP = [], CIDX = null, ARID = new WeakMap(), arN = 0, edhN = 0, upN = 0, btN = 0, setN = 0;
+let SIG = {lib:'', combos:'', edh:''}, HELP = [], CIDX = null, ARID = new WeakMap(), arN = 0, edhN = 0, upN = 0, btN = 0, setN = 0;
 function useState(m){
-  if (m.lib){ buildIndex(m.lib.rows); SIG.lib = m.lib.sig; SIG.combos = ''; HELP.forEach(h => h.reset()); }
-  if (m.combos){ COMBO_J = m.combos.j; SIG.combos = ''; SIG.cwant = m.combos.sig; }
-  if (SIG.cwant !== SIG.combos){ if (COMBO_J) useCombos(COMBO_J); else COMBOS = {list:[], by:new Map(), at:'', state:''}; SIG.combos = SIG.cwant; CIDX = null; HELP.forEach(h => h.reset()); }
+  if (m.lib){ buildIndex(m.lib.rows); SIG.lib = m.lib.sig; HELP.forEach(h => h.reset()); }
+  // the page's combo list as it is (Build 145): the same combos the page uses, whatever library it was read against
+  if (m.combos){ COMBOS = m.combos.v; SIG.combos = m.combos.sig; CIDX = null; HELP.forEach(h => h.reset()); }
   if (m.edh){ EDH = m.edh.v; SIG.edh = m.edh.sig; edhN++; }
   if (m.btags){ BTAGS = m.btags; btN++; }
   if (m.sets){ SETCARDS = m.sets; setN++; }
@@ -103,7 +103,7 @@ async function handle(m, ev){
   try {
     if (m.kind === 'helpers'){ HELP = (ev.ports || []).map(helper); postMessage({id:m.id, ok:true, n:HELP.length}); return; }
     useState(m);
-    if (m.kind === 'sync'){ postMessage({id:m.id, ok:true, sig:SIG}); return; }
+    if (m.kind === 'sync'){ postMessage({id:m.id, ok:true, sig:SIG, edh:{key:EDH.key, state:EDH.state, fall:(EDH.fall || []).map(f => f.slug + ':' + (f.map && f.map.size))}}); return; }
     // Warm-up: the card reading every build uses is done once, while the app is idle, so the first deck is not slower here.
     if (m.kind === 'warm'){ const t0 = Date.now(); for (const c of LIB) tags(c); postMessage({id:m.id, ok:true, ms:Date.now() - t0}); return; }
     // The reference build for a deck's settings, designed ahead while the player is still choosing (kept for the build).

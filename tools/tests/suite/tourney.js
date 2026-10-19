@@ -12,7 +12,7 @@ const LIST = require('./tourney-list.js'), TD = path.resolve(__dirname, '../tour
 // first run: unpack the frozen data (tourney-data.json.gz: the lists, the EDHREC pages, Build 117's decks) next to the test data
 if (!fs.existsSync(TD) && fs.existsSync(ZF)){ const Z = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(ZF))), ED = path.resolve(__dirname, '../data2/edhrec'); fs.mkdirSync(TD, {recursive:true}); fs.mkdirSync(ED, {recursive:true});
   for (const f in Z.tourney) fs.writeFileSync(path.join(TD, f), Z.tourney[f]); for (const f in Z.edhrec) if (!fs.existsSync(path.join(ED, f))) fs.writeFileSync(path.join(ED, f), Z.edhrec[f]); }
-const tags = run('tags'), mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+const KM = new Map(run('LIB').map(c => [c._k, c])), tags = run('tags'), mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const key = n => { const c = X.find(n); return c && !run('isBasic')(c.n) ? c._k : null; }, rows = [];
 for (const T of LIST){
   const f = path.join(TD, H.slug(T.commander) + '.json'); if (!fs.existsSync(f)) continue; const J = JSON.parse(fs.readFileSync(f)); H.edh(T.commander);
@@ -27,6 +27,12 @@ for (const T of LIST){
   const ks = d => new Set(d.cards.map(e => key(e.n)).filter(k => k && !skip.has(k)));
   const match = s => mean(lists.map(L => [...s].filter(k => L.has(k)).length / Math.max(1, s.size)));
   const apex = deckOf('apex'), A = ks(apex), M = ks(deckOf('mid'));
+  // MID2=1 (Build 145): the Mid deck the app itself builds (genDeck: filled and polished at Mid), not slot-by-slot from the Apex plan
+  let M2 = null, M3 = null; if (process.env.MID2){ X.__m = JSON.parse(JSON.stringify(nd)); run('genDeck(__m, [], null, new Set(), "mid")'); M2 = ks(run('__m'));
+    { const S = M2.size, cheap = [...rate.entries()].filter(([k]) => { const c = KM.get(k); return c && c.p != null && c.p < 12 && !tags(c).land; }).sort((a, b) => b[1] - a[1]).slice(0, [...M2].filter(k => { const c = KM.get(k); return c && !tags(c).land; }).length).map(([k]) => k);
+      const lands = [...M2].filter(k => { const c = KM.get(k); return c && tags(c).land; }); globalThis.__oracle = (globalThis.__oracle || []).concat([match(new Set(cheap.concat(lands)))]);
+      const miss = cheap.filter(k => !M2.has(k)).slice(0, 8).map(k => KM.get(k).n + ' ' + Math.round(100 * rate.get(k) / lists.length) + '%'); if (process.env.SHOW) console.log(T.commander.split(',')[0], 'mid misses:', miss.join('; ')); }
+    X.__m3 = JSON.parse(JSON.stringify(nd)); run('(() => { const p = UP.polish; UP.polish = 0; try { __m3.plan = buildPlan(__m3, [], null, new Set()); } finally { UP.polish = p; } planAll(__m3, "mid"); delete __m3.plan; __m3.tier = "mid"; })()'); M3 = ks(run('__m3')); }
   // Score check, on Build 117's own Apex deck (saved once with --save-base, so every version is asked about the same swaps):
   // the most-shared core cards it misses, each put in for its weakest spell (lands for its weakest land).
   const BF = path.join(TD, 'base-decks.json'), BD = fs.existsSync(BF) ? JSON.parse(fs.readFileSync(BF)) : {};
@@ -40,10 +46,10 @@ for (const T of LIST){
   const miss = core.filter(k => !PA.has(k)).slice(0, 8); let raise = 0; const missN = [];
   miss.forEach(k => { const c = KN(k); if (!c) return; const w = weakest(!!tags(c).land) || (tags(c).land ? probe.cards.map(e => X.find(e.n)).find(x => x && run('isBasic')(x.n)) : null); if (!w) return;
     X.__c = w.n; X.__x = c.n; const s = tags(c).land ? fresh() : run('swapScore(__q, __b, __ar, __c, __x)'); if (s > 0) raise++; missN.push(c.n + (s > 0 ? ' +' : ' ') + s); });
-  rows.push({cmd:T.commander.split(',')[0], n:lists.length, match:match(A), core:core.length ? core.filter(k => A.has(k)).length / core.length : 0, nCore:core.length, raise, tried:missN.length, mid:match(M), score:run('evaluateDeck(__q0, {apex:__ar})').exact});
+  rows.push({cmd:T.commander.split(',')[0], n:lists.length, match:match(A), core:core.length ? core.filter(k => A.has(k)).length / core.length : 0, nCore:core.length, raise, tried:missN.length, mid:match(M), mid2:M2 ? match(M2) : 0, mid3:M3 ? match(M3) : 0, score:run('evaluateDeck(__q0, {apex:__ar})').exact});
   if (show) console.log(T.commander.split(',')[0] + ' — missed core: ' + missN.join('; '));
 }
 const pc = v => (100 * v).toFixed(0) + '%';
 console.log('commander'.padEnd(14) + 'lists  match  core        raise  mid    score');
 rows.forEach(r => console.log(r.cmd.padEnd(14) + String(r.n).padEnd(7) + pc(r.match).padEnd(7) + (pc(r.core) + ' of ' + r.nCore).padEnd(12) + (r.raise + '/' + r.tried).padEnd(7) + pc(r.mid).padEnd(7) + r.score.toFixed(1)));
-console.log('\nMEAN match ' + pc(mean(rows.map(r => r.match))) + ' | core ' + pc(mean(rows.map(r => r.core))) + ' | score raised by missed core cards (Build 117 decks) ' + rows.reduce((a, r) => a + r.raise, 0) + '/' + rows.reduce((a, r) => a + r.tried, 0) + ' | mid match ' + pc(mean(rows.map(r => r.mid))));
+console.log('\nMEAN match ' + pc(mean(rows.map(r => r.match))) + ' | core ' + pc(mean(rows.map(r => r.core))) + ' | score raised by missed core cards (Build 117 decks) ' + rows.reduce((a, r) => a + r.raise, 0) + '/' + rows.reduce((a, r) => a + r.tried, 0) + ' | app mid ' + pc(mean(rows.map(r => r.mid2))) + ' | best possible Mid ' + pc(mean(globalThis.__oracle || [])) + ' | app mid, no polish ' + pc(mean(rows.map(r => r.mid3))) + ' | mid match ' + pc(mean(rows.map(r => r.mid))));

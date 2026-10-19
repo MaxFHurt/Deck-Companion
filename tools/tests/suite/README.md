@@ -33,6 +33,11 @@ suite below still runs once before every live build (not alongside the benchmark
     node helpcheck.js ../candidate <slug>           # Build 144: a helper core's slice of the cards measures every swap exactly like the full engine
     PW=... node dbg144.mjs <port> x                 # 0-N helper cores (CORES=0,1,2,3): same decks, times, memory; dbg144b.mjs: built ahead
 
+    sh fetchtags.sh /tmp/dc3                         # Version 0.9: theme pages for the no-data checks (proto/data2/tags)
+    FALL=1 NOEDH=1 node genstrong.js ../candidate all  # no play data, built from the theme pages: typicality 0.293 at 0.9
+    MID=1 node genstrong.js ../candidate tuneall      # the app's real Mid build against strong decks (cards under $12)
+    MID2=1 node tourney.js ../candidate               # the app's real Mid build against tournament lists
+
 Run the Node checks one after another: started together, several stopped with an error (seen in Build 143; cause not traced).
 
 ## Before every build goes live (all must pass)
