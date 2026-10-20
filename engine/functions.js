@@ -32,7 +32,11 @@ const FN_OLD = [
   ['tutor', 'tutor'],
   ['protect', 'protection']
 ];
-const fnIsTarget = e => !!((e.target && !/\byou control\b/i.test(e.target.what || '')) || /\btarget\b/i.test(e.what || ''));
+// a target that is not your own permanent ("creature you control"); "you control" further on ("with mana value up to the
+// number of counters among permanents you control") does not make it yours
+const FN_MINE =
+  /^(?:up to \w+ |another |other )*(?:nonland |noncreature |nontoken )?(?:creature|permanent|artifact|enchantment|land|planeswalker)s?(?: or \w+)? you control\b/i;
+const fnIsTarget = e => !!((e.target && !FN_MINE.test(e.target.what || '')) || /\btarget\b/i.test(e.what || ''));
 const fnLandSearch = e => e.do === 'search' && /\bland\b|\b(?:Plains|Island|Swamp|Mountain|Forest)\b/i.test(e.what || '');
 // who keeps a protective keyword: your side, or the creature an Equipment or Aura is on, or a creature you target
 const FN_OURS = /\byou control\b|equipped creature|enchanted (?:creature|permanent)|^target\b|^(?:those creatures|it|you)$/i;
@@ -177,8 +181,9 @@ function fnOf(c, oldRoles) {
         case 'exile':
         case 'bounce':
         case 'tuck':
+          // overload: one target, or (for the overload cost) all of them
+          if (fnIsTarget(e) && r.abilities.some(x => x.kind === 'keyword' && x.name === 'overload')) roles.add('wipe');
           if (e.all && FN_BIG.test(e.all)) roles.add('wipe');
-          else if (fnIsTarget(e) && r.abilities.some(x => x.kind === 'keyword' && x.name === 'overload')) roles.add('wipe');
           else if (theirs && /creature|permanent|artifact|enchantment|planeswalker|land|nonland/i.test(w) && !/card/i.test(w))
             roles.add('removal');
           else if (/^(?:that creature|enchanted (?:creature|permanent))$/i.test(w) && e.do !== 'bounce') roles.add('removal');
@@ -319,7 +324,6 @@ function fnOf(c, oldRoles) {
     const old = oldRoles || tags(c).roles;
     for (const [from, to] of FN_OLD) if (old.has(from)) roles.add(to);
   }
-  // a wipe that leaves your side alone is still a wipe; a wipe is not also counted as spot removal
-  if (roles.has('wipe')) roles.delete('removal');
+  // a card can be both: Vandalblast hits one target or, overloaded, all of them; Swift Demise damages a target first
   return (c._fn = {makes, uses, roles});
 }
