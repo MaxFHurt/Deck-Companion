@@ -5,9 +5,280 @@
 // timing and its effects (verb, target, amount, duration). A sentence it cannot read is kept in `unknown`, never guessed.
 // Format: tools/rules/testset/README.md; checked against tools/rules/testset/cards.json (rrcheck.js).
 // Keyword abilities (rule 702) and ability words (207.2c), longest first so "first strike" wins over "strike".
-const RR_KEYWORDS = ["daybound and nightbound", "more than meets the eye", "start your engines!", "cumulative upkeep", "indestructible", "space sculptor", "double strike", "for mirrodin!", "hidden agenda", "living weapon", "first strike", "horsemanship", "living metal", "split second", "web-slinging", "\u221e (infinity)", "annihilator", "bloodthirst", "demonstrate", "firebending", "freerunning", "reconfigure", "transfigure", "umbra armor", "battle cry", "changeling", "compleated", "deathtouch", "eternalize", "gravestorm", "intimidate", "job select", "jump-start", "protection", "read ahead", "afterlife", "aftermath", "aura swap", "companion", "fabricate", "flashback", "harmonize", "impending", "improvise", "increment", "max speed", "offspring", "poisonous", "prototype", "reinforce", "replicate", "soulshift", "spectacle", "transmute", "undaunted", "vanishing", "vigilance", "affinity", "casualty", "champion", "conspire", "defender", "dethrone", "disguise", "escalate", "flanking", "forecast", "foretell", "hexproof", "hideaway", "landwalk", "level up", "lifelink", "mobilize", "ninjutsu", "offering", "overload", "paradigm", "power-up", "ravenous", "scavenge", "soulbond", "sunburst", "teamwork", "training", "afflict", "amplify", "banding", "bargain", "bushido", "buyback", "cascade", "convoke", "cycling", "decayed", "disturb", "enchant", "entwine", "exalted", "exhaust", "exploit", "fortify", "madness", "miracle", "modular", "outlast", "partner", "persist", "phasing", "provoke", "prowess", "rampage", "rebound", "recover", "retrace", "station", "storied", "suspend", "trample", "tribute", "undying", "unearth", "unleash", "absorb", "ascend", "assist", "awaken", "backup", "bestow", "cipher", "cleave", "devoid", "devour", "dredge", "embalm", "emerge", "encore", "enlist", "escape", "evolve", "extort", "fading", "flying", "frenzy", "infect", "ingest", "kicker", "mayhem", "menace", "mentor", "mutate", "myriad", "renown", "ripple", "saddle", "shadow", "shroud", "solved", "splice", "tiered", "wither", "blitz", "boast", "craft", "delve", "equip", "evoke", "flash", "graft", "haste", "haunt", "melee", "morph", "prowl", "reach", "skulk", "sneak", "spree", "squad", "storm", "surge", "toxic", "visit", "crew", "dash", "echo", "epic", "fear", "fuse", "gift", "plot", "riot", "ward", "warp"];
-const RR_ABILITY_WORDS = new Set(["adamant", "addendum", "alliance", "battalion", "bloodrush", "celebration", "channel", "chroma", "cohort", "constellation", "converge", "council\u2019s dilemma", "coven", "delirium", "descend 4", "descend 8", "disappear", "domain", "eerie", "eminence", "enrage", "fateful hour", "fathomless descent", "ferocious", "flurry", "formidable", "grandeur", "hellbent", "heroic", "imprint", "infusion", "inspired", "join forces", "kinship", "landfall", "lieutenant", "magecraft", "metalcraft", "morbid", "opus", "pack tactics", "paradox", "parley", "radiance", "raid", "rally", "renew", "repartee", "revolt", "secret council", "spell mastery", "strive", "survival", "sweep", "tempting offer", "threshold", "undergrowth", "valiant", "vivid", "void", "will of the council"]);
-const RR_NUM = {a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, another: 1};
+const RR_KEYWORDS = [
+  'daybound and nightbound',
+  'more than meets the eye',
+  'start your engines!',
+  'cumulative upkeep',
+  'indestructible',
+  'space sculptor',
+  'double strike',
+  'for mirrodin!',
+  'hidden agenda',
+  'living weapon',
+  'first strike',
+  'horsemanship',
+  'living metal',
+  'split second',
+  'web-slinging',
+  '\u221e (infinity)',
+  'annihilator',
+  'bloodthirst',
+  'demonstrate',
+  'firebending',
+  'freerunning',
+  'reconfigure',
+  'transfigure',
+  'umbra armor',
+  'battle cry',
+  'changeling',
+  'compleated',
+  'deathtouch',
+  'eternalize',
+  'gravestorm',
+  'intimidate',
+  'job select',
+  'jump-start',
+  'protection',
+  'read ahead',
+  'afterlife',
+  'aftermath',
+  'aura swap',
+  'companion',
+  'fabricate',
+  'flashback',
+  'harmonize',
+  'impending',
+  'improvise',
+  'increment',
+  'max speed',
+  'offspring',
+  'poisonous',
+  'prototype',
+  'reinforce',
+  'replicate',
+  'soulshift',
+  'spectacle',
+  'transmute',
+  'undaunted',
+  'vanishing',
+  'vigilance',
+  'affinity',
+  'casualty',
+  'champion',
+  'conspire',
+  'defender',
+  'dethrone',
+  'disguise',
+  'escalate',
+  'flanking',
+  'forecast',
+  'foretell',
+  'hexproof',
+  'hideaway',
+  'landwalk',
+  'level up',
+  'lifelink',
+  'mobilize',
+  'ninjutsu',
+  'offering',
+  'overload',
+  'paradigm',
+  'power-up',
+  'ravenous',
+  'scavenge',
+  'soulbond',
+  'sunburst',
+  'teamwork',
+  'training',
+  'afflict',
+  'amplify',
+  'banding',
+  'bargain',
+  'bushido',
+  'buyback',
+  'cascade',
+  'convoke',
+  'cycling',
+  'decayed',
+  'disturb',
+  'enchant',
+  'entwine',
+  'exalted',
+  'exhaust',
+  'exploit',
+  'fortify',
+  'madness',
+  'miracle',
+  'modular',
+  'outlast',
+  'partner',
+  'persist',
+  'phasing',
+  'provoke',
+  'prowess',
+  'rampage',
+  'rebound',
+  'recover',
+  'retrace',
+  'station',
+  'storied',
+  'suspend',
+  'trample',
+  'tribute',
+  'undying',
+  'unearth',
+  'unleash',
+  'absorb',
+  'ascend',
+  'assist',
+  'awaken',
+  'backup',
+  'bestow',
+  'cipher',
+  'cleave',
+  'devoid',
+  'devour',
+  'dredge',
+  'embalm',
+  'emerge',
+  'encore',
+  'enlist',
+  'escape',
+  'evolve',
+  'extort',
+  'fading',
+  'flying',
+  'frenzy',
+  'infect',
+  'ingest',
+  'kicker',
+  'mayhem',
+  'menace',
+  'mentor',
+  'mutate',
+  'myriad',
+  'renown',
+  'ripple',
+  'saddle',
+  'shadow',
+  'shroud',
+  'solved',
+  'splice',
+  'tiered',
+  'wither',
+  'blitz',
+  'boast',
+  'craft',
+  'delve',
+  'equip',
+  'evoke',
+  'flash',
+  'graft',
+  'haste',
+  'haunt',
+  'melee',
+  'morph',
+  'prowl',
+  'reach',
+  'skulk',
+  'sneak',
+  'spree',
+  'squad',
+  'storm',
+  'surge',
+  'toxic',
+  'visit',
+  'crew',
+  'dash',
+  'echo',
+  'epic',
+  'fear',
+  'fuse',
+  'gift',
+  'plot',
+  'riot',
+  'ward',
+  'warp'
+];
+const RR_ABILITY_WORDS = new Set([
+  'adamant',
+  'addendum',
+  'alliance',
+  'battalion',
+  'bloodrush',
+  'celebration',
+  'channel',
+  'chroma',
+  'cohort',
+  'constellation',
+  'converge',
+  'council\u2019s dilemma',
+  'coven',
+  'delirium',
+  'descend 4',
+  'descend 8',
+  'disappear',
+  'domain',
+  'eerie',
+  'eminence',
+  'enrage',
+  'fateful hour',
+  'fathomless descent',
+  'ferocious',
+  'flurry',
+  'formidable',
+  'grandeur',
+  'hellbent',
+  'heroic',
+  'imprint',
+  'infusion',
+  'inspired',
+  'join forces',
+  'kinship',
+  'landfall',
+  'lieutenant',
+  'magecraft',
+  'metalcraft',
+  'morbid',
+  'opus',
+  'pack tactics',
+  'paradox',
+  'parley',
+  'radiance',
+  'raid',
+  'rally',
+  'renew',
+  'repartee',
+  'revolt',
+  'secret council',
+  'spell mastery',
+  'strive',
+  'survival',
+  'sweep',
+  'tempting offer',
+  'threshold',
+  'undergrowth',
+  'valiant',
+  'vivid',
+  'void',
+  'will of the council'
+]);
+const RR_NUM = {
+  a: 1,
+  an: 1,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  another: 1
+};
 const rrNum = w => {
   if (w == null) return null;
   const s = String(w).toLowerCase().trim();
@@ -52,13 +323,16 @@ function rrCost(text) {
     else if ((m = /^sacrifice (~|a|an|another|one|two|three|x|\d+|any number of)\s*(.*)$/i.exec(p)))
       out.push({sacrifice: {count: m[1] === '~' ? 1 : rrNum(m[1]), what: m[1] === '~' ? 'self' : m[2] || 'permanent'}});
     else if ((m = /^discard (a|an|one|two|three|x|\d+|your hand|this card|~)\s*(.*)$/i.exec(p)))
-      out.push({discard: {count: /hand/.test(m[1]) ? 'hand' : /~|this card/.test(m[1]) ? 'self' : rrNum(m[1]), what: m[2] || 'card'}});
+      out.push({
+        discard: {count: /hand/.test(m[1]) ? 'hand' : /~|this card/.test(m[1]) ? 'self' : rrNum(m[1]), what: m[2] || 'card'}
+      });
     else if ((m = /^pay (\d+|x) life$/i.exec(p))) out.push({life: rrNum(m[1])});
     else if ((m = /^remove (a|an|one|two|three|x|\d+|all|any number of) (.+?) counters? from (.+)$/i.exec(p)))
       out.push({'remove-counters': {count: rrNum(m[1]), kind: m[2], from: m[3]}});
     else if ((m = /^exile (.+?) from your graveyard$/i.exec(p))) out.push({'exile-from-graveyard': m[1]});
     else if ((m = /^exile ~$/i.exec(p))) out.push({'exile-self': true});
-    else if ((m = /^tap (an|a|one|two|three|x|\d+) untapped (.+?)( you control)?$/i.exec(p))) out.push({'tap-others': {count: rrNum(m[1]), what: m[2]}});
+    else if ((m = /^tap (an|a|one|two|three|x|\d+) untapped (.+?)( you control)?$/i.exec(p)))
+      out.push({'tap-others': {count: rrNum(m[1]), what: m[2]}});
     else if ((m = /^return (.+?) you control to its owner's hand$/i.exec(p))) out.push({'return-own': m[1]});
     else if ((m = /^put (.+?) counters? on (.+)$/i.exec(p))) out.push({'add-counters': m[1]});
     else if ((m = /^mill (\w+) cards?$/i.exec(p))) out.push({mill: rrNum(m[1])});
@@ -90,46 +364,118 @@ const rrDur = s => (RR_DUR.find(([r]) => r.test(s)) || [])[1];
 // Each pattern finds one kind of effect anywhere in the sentence; a sentence is read when its words are covered by what was
 // found (the leftover is only joining words), otherwise it is kept as unknown.
 const RR_EFFECTS = [
-  [/\badd ((?:\{[^}]+\})+(?:,? or (?:\{[^}]+\})+)*|one mana of any (?:one )?color[^.,]*|(?:one|two|three|x|\d+) mana of any (?:one )?color[^.,]*|mana of any color[^.,]*|an amount of \{\w\} equal to [^.,]*)/i, m => ({do: 'add-mana', mana: m[1]})],
-  [/\b(?:you )?draws? (a|an|one|two|three|four|five|six|seven|x|\d+|that many|up to (?:one|two|three|four|x)) cards?/i, m => ({do: 'draw', count: rrNum(m[1])})],
+  [
+    /\badd ((?:\{[^}]+\})+(?:,? or (?:\{[^}]+\})+)*|one mana of any (?:one )?color[^.,]*|(?:one|two|three|x|\d+) mana of any (?:one )?color[^.,]*|mana of any color[^.,]*|an amount of \{\w\} equal to [^.,]*)/i,
+    m => ({do: 'add-mana', mana: m[1]})
+  ],
+  [
+    /\b(?:you )?draws? (a|an|one|two|three|four|five|six|seven|x|\d+|that many|up to (?:one|two|three|four|x)) cards?/i,
+    m => ({do: 'draw', count: rrNum(m[1])})
+  ],
   [/\bdraws? cards equal to ([^.,]+)/i, m => ({do: 'draw', count: m[1]})],
-  [/\bsearch (your|target player's|its owner's|their) library for ([^.,]+?)(?:,|\.|$| and )/i, m => ({do: 'search', from: 'library', what: m[2]})],
-  [/\bput (?:that card|it|them|those cards|one of (?:them|those cards)|the other|that land) (?:onto the battlefield|into your hand)/i, m => ({do: 'put', to: /battlefield/.test(m[0]) ? 'battlefield' : 'hand'})],
-  [/\bdestroy ((?:up to (?:one|two|three|x) |one |two |three |x |\d+ |each |all |any number of )?(?:other )?(?:target )?[^.]+?)(?=\.|,| and |$|\. )/i, m => Object.assign({do: 'destroy'}, rrScope(m[1]))],
-  [/\bexile ((?:up to (?:one|two|three|x) |each |all |another |)target [^.]+?|all [^.]+?|each [^.]+?|~|it|them|that (?:card|creature|permanent|token|spell)[^.,]*|those cards[^.,]*|(?:a|two|three|x) cards? from [^.,]+|(?:target player's|each opponent's|their|your|its owner's) graveyard)(?=\.|,| and |$| until )/i, m => Object.assign({do: 'exile'}, rrScope(m[1]))],
-  [/\bcounter (target (?:spell|activated ability|triggered ability|activated or triggered ability|noncreature spell|creature spell|instant or sorcery spell|artifact or enchantment spell)[^.,]*|that spell|it)/i, m => Object.assign({do: 'counter'}, rrScope(m[1]))],
-  [/\bcreates? (a|an|one|two|three|four|five|x|\d+|that many|a number of) ([^.]*?)tokens?/i, m => ({do: 'create-token', count: rrNum(m[1]), token: m[2].trim()})],
-  [/\breturn ([^.]+?) (?:from (?:your|a|an opponent's|any|their|its owner's) graveyard )?to the battlefield|\bput ([^.]+?) from (?:your|a|an opponent's|any|their) graveyard onto the battlefield/i, m => ({do: 'return-to-battlefield', what: m[1] || m[2]})],
+  [
+    /\bsearch (your|target player's|its owner's|their) library for ([^.,]+?)(?:,|\.|$| and )/i,
+    m => ({do: 'search', from: 'library', what: m[2]})
+  ],
+  [
+    /\bput (?:that card|it|them|those cards|one of (?:them|those cards)|the other|that land) (?:onto the battlefield|into your hand)/i,
+    m => ({do: 'put', to: /battlefield/.test(m[0]) ? 'battlefield' : 'hand'})
+  ],
+  [
+    /\bdestroy ((?:up to (?:one|two|three|x) |one |two |three |x |\d+ |each |all |any number of )?(?:other )?(?:target )?[^.]+?)(?=\.|,| and |$|\. )/i,
+    m => Object.assign({do: 'destroy'}, rrScope(m[1]))
+  ],
+  [
+    /\bexile ((?:up to (?:one|two|three|x) |each |all |another |)target [^.]+?|all [^.]+?|each [^.]+?|~|it|them|that (?:card|creature|permanent|token|spell)[^.,]*|those cards[^.,]*|(?:a|two|three|x) cards? from [^.,]+|(?:target player's|each opponent's|their|your|its owner's) graveyard)(?=\.|,| and |$| until )/i,
+    m => Object.assign({do: 'exile'}, rrScope(m[1]))
+  ],
+  [
+    /\bcounter (target (?:spell|activated ability|triggered ability|activated or triggered ability|noncreature spell|creature spell|instant or sorcery spell|artifact or enchantment spell)[^.,]*|that spell|it)/i,
+    m => Object.assign({do: 'counter'}, rrScope(m[1]))
+  ],
+  [
+    /\bcreates? (a|an|one|two|three|four|five|x|\d+|that many|a number of) ([^.]*?)tokens?/i,
+    m => ({do: 'create-token', count: rrNum(m[1]), token: m[2].trim()})
+  ],
+  [
+    /\breturn ([^.]+?) (?:from (?:your|a|an opponent's|any|their|its owner's) graveyard )?to the battlefield|\bput ([^.]+?) from (?:your|a|an opponent's|any|their) graveyard onto the battlefield/i,
+    m => ({do: 'return-to-battlefield', what: m[1] || m[2]})
+  ],
   [/\breturn ([^.]+?) to (?:its|their) owner(?:'s|s'|s)? hands?/i, m => Object.assign({do: 'bounce'}, rrScope(m[1]))],
   [/\breturn ([^.]+?) from (?:your|a|their) graveyard to (?:your|its owner's|their) hand/i, m => ({do: 'regrow', what: m[1]})],
-  [/\b(?:you |its controller |that player |target player |each player |each opponent )?gains? (\d+|x|that much|twice x) life|\bgains? life equal to ([^.,]+)/i, m => ({do: 'gain-life', amount: m[1] || m[2]})],
-  [/\b(?:you |its controller |that player |target (?:player|opponent) |each player |each opponent )?loses? (\d+|x|that much) life|\bloses? life equal to ([^.,]+)/i, m => ({do: 'lose-life', amount: m[1] || m[2]})],
-  [/\bdeals? (\d+|x|that much|damage equal to [^.,]+?|twice x) damage to ([^.]+?)(?=\.|,| and |$)/i, m => Object.assign({do: 'damage', amount: m[1]}, rrScope(m[2]))],
+  [
+    /\b(?:you |its controller |that player |target player |each player |each opponent )?gains? (\d+|x|that much|twice x) life|\bgains? life equal to ([^.,]+)/i,
+    m => ({do: 'gain-life', amount: m[1] || m[2]})
+  ],
+  [
+    /\b(?:you |its controller |that player |target (?:player|opponent) |each player |each opponent )?loses? (\d+|x|that much) life|\bloses? life equal to ([^.,]+)/i,
+    m => ({do: 'lose-life', amount: m[1] || m[2]})
+  ],
+  [
+    /\bdeals? (\d+|x|that much|damage equal to [^.,]+?|twice x) damage to ([^.]+?)(?=\.|,| and |$)/i,
+    m => Object.assign({do: 'damage', amount: m[1]}, rrScope(m[2]))
+  ],
   [/\bdeals damage equal to ([^.]+?) to ([^.]+?)(?=\.|$)/i, m => Object.assign({do: 'damage', amount: m[1]}, rrScope(m[2]))],
   [/\bfights? ([^.]+)/i, m => ({do: 'fight', what: m[1]})],
-  [/\bputs? (a|an|one|two|three|four|five|x|\d+|that many|those|its|twice that many) ([+-]1\/[+-]1|\w+) counters? on ([^.]+?)(?=\.|,|$| for )/i, m => ({do: 'put-counters', count: rrNum(m[1]), kind: m[2], on: m[3]})],
+  [
+    /\bputs? (a|an|one|two|three|four|five|x|\d+|that many|those|its|twice that many) ([+-]1\/[+-]1|\w+) counters? on ([^.]+?)(?=\.|,|$| for )/i,
+    m => ({do: 'put-counters', count: rrNum(m[1]), kind: m[2], on: m[3]})
+  ],
   [/\bput those counters on ([^.]+)/i, m => ({do: 'put-counters', what: 'those counters', on: m[1]})],
-  [/\bmove (all|any number of|a|one|those|the) ([^.]*?)counters? from ([^.]+?) onto ([^.]+)/i, m => ({do: 'move-counters', what: m[1] + ' ' + m[2], from: m[3], to: m[4]})],
+  [
+    /\bmove (all|any number of|a|one|those|the) ([^.]*?)counters? from ([^.]+?) onto ([^.]+)/i,
+    m => ({do: 'move-counters', what: m[1] + ' ' + m[2], from: m[3], to: m[4]})
+  ],
   [/\bproliferate\b/i, () => ({do: 'proliferate'})],
   [/\bdouble the number of ([^.]+?) counters?/i, m => ({do: 'double-counters', kind: m[1]})],
   [/\bmills? (a|an|one|two|three|four|five|six|seven|ten|x|\d+|that many) cards?/i, m => ({do: 'mill', count: rrNum(m[1])})],
   [/\bmills cards equal to ([^.]+)/i, m => ({do: 'mill', count: m[1]})],
-  [/\bdiscards? (a|an|one|two|three|x|\d+|that many|their hand|your hand|all the cards in their hand|that card|those cards|it) ?(cards?)?/i, m => ({do: 'discard', count: m[1]})],
-  [/\bsacrifices? (a|an|another|one|two|three|x|\d+|that|it|all|each|~|those|them|the rest)\s*([^.]*?)(?=\.|,|$| and )/i, m => ({do: 'sacrifice', count: m[1], what: m[2]})],
-  [/\buntap (all|each|target|up to \w+ target|those|it|~|that|enchanted|equipped|the|two|three|x|\d+)\s*([^.]*?)(?=\.|,|$)/i, m => ({do: 'untap', what: (m[1] + ' ' + m[2]).trim()})],
-  [/\btap (all|each|target|up to \w+ target|those|it|that|enchanted|equipped|~|x|\d+|two|three)\s*([^.]*?)(?=\.|,|$)/i, m => ({do: 'tap', what: (m[1] + ' ' + m[2]).trim()})],
+  [
+    /\bdiscards? (a|an|one|two|three|x|\d+|that many|their hand|your hand|all the cards in their hand|that card|those cards|it) ?(cards?)?/i,
+    m => ({do: 'discard', count: m[1]})
+  ],
+  [
+    /\bsacrifices? (a|an|another|one|two|three|x|\d+|that|it|all|each|~|those|them|the rest)\s*([^.]*?)(?=\.|,|$| and )/i,
+    m => ({do: 'sacrifice', count: m[1], what: m[2]})
+  ],
+  [
+    /\buntap (all|each|target|up to \w+ target|those|it|~|that|enchanted|equipped|the|two|three|x|\d+)\s*([^.]*?)(?=\.|,|$)/i,
+    m => ({do: 'untap', what: (m[1] + ' ' + m[2]).trim()})
+  ],
+  [
+    /\btap (all|each|target|up to \w+ target|those|it|that|enchanted|equipped|~|x|\d+|two|three)\s*([^.]*?)(?=\.|,|$)/i,
+    m => ({do: 'tap', what: (m[1] + ' ' + m[2]).trim()})
+  ],
   [/\bgain control of ([^.]+?)(?=\.|$| until | for as long)/i, m => ({do: 'gain-control', what: m[1]})],
   [/\b([^.]*?)\bgets? ([+-]\w+)\/([+-]\w+)/i, m => ({do: 'pump', who: m[1].trim(), power: m[2], toughness: m[3]})],
-  [/(?<!you )\b(?:gains?|has|have) ((?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|ward \{\d\}|protection from [^.,]+?|shroud|defender|flash|islandwalk|forestwalk|swampwalk|mountainwalk|plainswalk)(?:,? (?:and )?(?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|protection from [^.,]+?|shroud))*)/i, m => ({do: 'grant', keywords: m[1].split(/,? and |, /)})],
+  [
+    /(?<!you )\b(?:gains?|has|have) ((?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|ward \{\d\}|protection from [^.,]+?|shroud|defender|flash|islandwalk|forestwalk|swampwalk|mountainwalk|plainswalk)(?:,? (?:and )?(?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|protection from [^.,]+?|shroud))*)/i,
+    m => ({do: 'grant', keywords: m[1].split(/,? and |, /)})
+  ],
   [/\bgoad ([^.]+)/i, m => ({do: 'goad', what: m[1]})],
   [/\bphases? out\b/i, () => ({do: 'phase-out'})],
-  [/\bcopy (target [^.]+?spell|that spell|it|~|them)(?=\.|,| and |$| for | twice| x times)/i, m => ({do: 'copy-spell', what: m[1]})],
-  [/\bcreate (?:a|an|\w+|x) (?:tapped and attacking |tapped )?tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of ([^.,]+)/i, m => ({do: 'copy-permanent', what: m[1]})],
+  [
+    /\bcopy (target [^.]+?spell|that spell|it|~|them)(?=\.|,| and |$| for | twice| x times)/i,
+    m => ({do: 'copy-spell', what: m[1]})
+  ],
+  [
+    /\bcreate (?:a|an|\w+|x) (?:tapped and attacking |tapped )?tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of ([^.,]+)/i,
+    m => ({do: 'copy-permanent', what: m[1]})
+  ],
   [/\bscry (\w+)/i, m => ({do: 'scry', count: rrNum(m[1])})],
   [/\bsurveil (\w+)/i, m => ({do: 'surveil', count: rrNum(m[1])})],
-  [/\blook at the top (?:(\w+) )?cards? of (your|target player's|that player's|each player's|their) library/i, m => ({do: 'look', count: rrNum(m[1])})],
-  [/\bexile the top (?:(\w+) )?cards? of (your|their|target player's|each player's|that player's|his or her) library/i, m => ({do: 'exile-top', count: rrNum(m[1])})],
-  [/\b(?:play|cast) (?:that card|it|them|those cards|cards exiled|spells? from among|a [^.]*?from among cards exiled|the exiled card)/i, () => ({do: 'may-play-exiled'})],
+  [
+    /\blook at the top (?:(\w+) )?cards? of (your|target player's|that player's|each player's|their) library/i,
+    m => ({do: 'look', count: rrNum(m[1])})
+  ],
+  [
+    /\bexile the top (?:(\w+) )?cards? of (your|their|target player's|each player's|that player's|his or her) library/i,
+    m => ({do: 'exile-top', count: rrNum(m[1])})
+  ],
+  [
+    /\b(?:play|cast) (?:that card|it|them|those cards|cards exiled|spells? from among|a [^.]*?from among cards exiled|the exiled card)/i,
+    () => ({do: 'may-play-exiled'})
+  ],
   [/\bwithout paying (?:its|their) mana costs?/i, () => ({do: 'free-cast'})],
   [/\btake an extra turn\b/i, () => ({do: 'extra-turn'})],
   [/\badditional combat phase\b/i, () => ({do: 'extra-combat'})],
@@ -152,13 +498,25 @@ const RR_EFFECTS = [
   [/\bplay an additional land\b/i, () => ({do: 'extra-land'})],
   [/\bcan't be blocked\b/i, () => ({do: 'unblockable'})],
   [/\b(?:they|it) can't be regenerated\b/i, () => ({do: 'no-regenerate'})],
-  [/\bcan't (?:attack|block|be countered|be the targets?|cast|activate|untap|gain life|lose)[^.]*/i, m => ({do: 'restrict', what: m[0]})],
-  [/\b(?:costs?|cost) \{(\d+|x)\} (?:less|more) to (?:cast|activate)\b/i, m => ({do: /less/.test(m[0]) ? 'cost-less' : 'cost-more', amount: m[1]})],
+  [
+    /\bcan't (?:attack|block|be countered|be the targets?|cast|activate|untap|gain life|lose)[^.]*/i,
+    m => ({do: 'restrict', what: m[0]})
+  ],
+  [
+    /\b(?:costs?|cost) \{(\d+|x)\} (?:less|more) to (?:cast|activate)\b/i,
+    m => ({do: /less/.test(m[0]) ? 'cost-less' : 'cost-more', amount: m[1]})
+  ],
   [/\bspells? (?:you cast )?(?:[^.]*?)cost \{(\d)\} less\b/i, m => ({do: 'cost-less', amount: m[1]})],
   [/\bregenerate\b/i, () => ({do: 'regenerate'})],
   [/\bchoose (?:a|one|an) [^.]+/i, () => ({do: 'choose'})],
-  [/\bchoose (?:up to (?:one|two|three|four|x) )?target ([^.]+)/i, m => Object.assign({do: 'choose-target'}, rrScope('target ' + m[1]))],
-  [/\battach (?:~|it|that equipment|that aura|target equipment|an equipment|equipment|(?:up to )?one target equipment) to ([^.]+)/i, m => ({do: 'attach', to: m[1]})],
+  [
+    /\bchoose (?:up to (?:one|two|three|four|x) )?target ([^.]+)/i,
+    m => Object.assign({do: 'choose-target'}, rrScope('target ' + m[1]))
+  ],
+  [
+    /\battach (?:~|it|that equipment|that aura|target equipment|an equipment|equipment|(?:up to )?one target equipment) to ([^.]+)/i,
+    m => ({do: 'attach', to: m[1]})
+  ],
   [/\bbecomes? (?:a|an) ([^.]+?)(?: until end of turn|$|\.)/i, m => ({do: 'become', what: m[1]})],
   [/\btransform ~/i, () => ({do: 'transform'})],
   [/\b(?:it )?loses "[^"]+" and gains "[^"]+"/i, () => ({do: 'change-text'})],
@@ -174,9 +532,15 @@ const RR_EFFECTS = [
   [/\bprevent the next (\w+) damage/i, m => ({do: 'prevent-damage', amount: m[1]})],
   [/\bdoesn't untap during/i, () => ({do: 'doesnt-untap'})],
   [/\bget (\{E\})+/i, () => ({do: 'energy'})],
-  [/\bexile (?:it|them|that token|those tokens|the tokens?) at (?:the beginning of the next end step|end of combat)/i, () => ({do: 'delayed-exile'})],
+  [
+    /\bexile (?:it|them|that token|those tokens|the tokens?) at (?:the beginning of the next end step|end of combat)/i,
+    () => ({do: 'delayed-exile'})
+  ],
   [/\bcan block only creatures with/i, () => ({do: 'restrict'})],
-  [/\b(?:monstrosity|adapt|bolster|support) (\w+)/i, m => ({do: 'put-counters', count: rrNum(m[1]), kind: '+1/+1', on: 'creature'})],
+  [
+    /\b(?:monstrosity|adapt|bolster|support) (\w+)/i,
+    m => ({do: 'put-counters', count: rrNum(m[1]), kind: '+1/+1', on: 'creature'})
+  ],
   [/\byou control enchanted (?:creature|permanent|artifact|land)/i, () => ({do: 'gain-control', what: 'enchanted permanent'})],
   [/\bflip a coin/i, () => ({do: 'coin'})],
   [/\bwould die this turn, exile it instead/i, () => ({do: 'exile-if-dies'})],
@@ -190,10 +554,16 @@ const RR_EFFECTS = [
   [/\bas ~ enters, you may pay (\d+) life/i, m => ({do: 'pay', what: m[1] + ' life'})],
   [/\bit enters tapped/i, () => ({do: 'enters-tapped'})],
   [/\blook at the top card of your library any time/i, () => ({do: 'look'})],
-  [/\bput (?:a|an|any number of|up to \w+) [^.]*?cards? (?:from your hand|from among them|from among those cards) onto the battlefield/i, () => ({do: 'cheat-into-play'})],
+  [
+    /\bput (?:a|an|any number of|up to \w+) [^.]*?cards? (?:from your hand|from among them|from among those cards) onto the battlefield/i,
+    () => ({do: 'cheat-into-play'})
+  ],
   [/\bput (?:a|an|any number of|up to \w+) [^.]*?cards? from among (?:them|those cards) into your hand/i, () => ({do: 'put'})],
   [/\b(?:cast|play) [^.]*?as though (?:it|they) had flash/i, () => ({do: 'flash-grant'})],
-  [/\benters? with (?:a|an|one|two|three|x|\d+) additional ([+-]1\/[+-]1|\w+) counters?/i, m => ({do: 'put-counters', kind: m[1], on: 'entering creature'})],
+  [
+    /\benters? with (?:a|an|one|two|three|x|\d+) additional ([+-]1\/[+-]1|\w+) counters?/i,
+    m => ({do: 'put-counters', kind: m[1], on: 'entering creature'})
+  ],
   [/\benters with a \+1\/\+1 counter on (?:it|him|her) for each/i, () => ({do: 'put-counters', kind: '+1/+1', on: 'self'})],
   [/\bput the same number and kind of counters on ([^.]+)/i, m => ({do: 'put-counters', what: 'same', on: m[1]})],
   [/\b(?<!loses "[^"]*" and )(?:gains?|has|have) "([^"]+)"/i, m => ({do: 'grant', ability: m[1]})],
@@ -212,11 +582,15 @@ const RR_EFFECTS = [
   [/\b(?:the )?tokens? enters? tapped and attacking/i, () => ({do: 'enters-attacking'})],
   [/\bput a card exiled with ~ into its owner's graveyard/i, () => ({do: 'put'})],
   [/\bif that spell would be put into (?:your|a) graveyard, exile it instead/i, () => ({do: 'exile-instead'})],
-  [/\badd (?:that much|x|\d+|two|three) mana (?:of any one color|in any combination of colors|of the chosen color)/i, m => ({do: 'add-mana', mana: m[0].slice(4)})],
+  [
+    /\badd (?:that much|x|\d+|two|three) mana (?:of any one color|in any combination of colors|of the chosen color)/i,
+    m => ({do: 'add-mana', mana: m[0].slice(4)})
+  ],
   [/\badd one mana of the chosen color/i, () => ({do: 'add-mana', mana: 'chosen color'})]
 ];
 // joining words that may be left over once the effects of a sentence are found
-const RR_FILLER = /\b(then|and|or|you|may|it|its|that|this|the|a|an|of|to|with|on|in|for|from|as|if|each|all|those|them|their|they|player|opponent|controller|owner|card|cards|instead|until|end|turn|your|target|up|one|two|three|x|ward|where|is|are|be|number|equal|plus|other|another|under|control|controls|onto|into|battlefield|graveyard|hand|library|top|bottom|any|way|order|random|reveal|revealed|creature|creatures|permanent|permanents|spell|spells|land|lands|artifact|artifacts|enchantment|enchantments|gets|get|has|have|gain|gains|at|by|so|do|does|doesn't|don't|isn't|aren't|not|this way|chosen|choice|already|also|still|rest|remaining|amount|power|toughness|mana|value|damage|life|total|count|counters?|counter|token|tokens|times|twice|first|next|last|time|only|can|can't|would|could|other|than|less|more|which|who|whose|what|while|during|after|before|step|phase|combat|upkeep|draw|beginning|precombat|postcombat|main|end|among|exiled|cast|play|additional|kind|same|whenever|when|enters|enter|attacking|tapped|untapped|nonland|noncreature|legendary|types|type|color|colors|colorless|chosen|cards'|instant|sorcery|~)\b/gi;
+const RR_FILLER =
+  /\b(then|and|or|you|may|it|its|that|this|the|a|an|of|to|with|on|in|for|from|as|if|each|all|those|them|their|they|player|opponent|controller|owner|card|cards|instead|until|end|turn|your|target|up|one|two|three|x|ward|where|is|are|be|number|equal|plus|other|another|under|control|controls|onto|into|battlefield|graveyard|hand|library|top|bottom|any|way|order|random|reveal|revealed|creature|creatures|permanent|permanents|spell|spells|land|lands|artifact|artifacts|enchantment|enchantments|gets|get|has|have|gain|gains|at|by|so|do|does|doesn't|don't|isn't|aren't|not|this way|chosen|choice|already|also|still|rest|remaining|amount|power|toughness|mana|value|damage|life|total|count|counters?|counter|token|tokens|times|twice|first|next|last|time|only|can|can't|would|could|other|than|less|more|which|who|whose|what|while|during|after|before|step|phase|combat|upkeep|draw|beginning|precombat|postcombat|main|end|among|exiled|cast|play|additional|kind|same|whenever|when|enters|enter|attacking|tapped|untapped|nonland|noncreature|legendary|types|type|color|colors|colorless|chosen|cards'|instant|sorcery|~)\b/gi;
 // any keyword ability a permanent can gain or have ("gains suspend", "have melee", "have miracle {0}")
 let RR_GRANT_RE = null;
 const rrGrantRe = () =>
@@ -227,10 +601,20 @@ const rrGrantRe = () =>
   ));
 function rrSentence(s0) {
   const effects = [];
-  const s = s0.replace(/^(?:if (?:you|they|that player|it|he or she) (?:do|does|did|don't|doesn't|didn't)(?: not)?|when you do|otherwise|if you can't|if no [^,]+|if (?:a|an|the) [^,]{1,40} (?:is|was) [^,]+),\s*/i, '').replace(/^you may /i, '');
+  const s = s0
+    .replace(
+      /^(?:if (?:you|they|that player|it|he or she) (?:do|does|did|don't|doesn't|didn't)(?: not)?|when you do|otherwise|if you can't|if no [^,]+|if (?:a|an|the) [^,]{1,40} (?:is|was) [^,]+),\s*/i,
+      ''
+    )
+    .replace(/^you may /i, '');
   let rest = s;
   const gk = rrGrantRe().exec(s);
-  if (gk && !/(?<!you )\b(?:gains?|has|have) (?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|protection|shroud|defender|flash)\b/i.test(s)) {
+  if (
+    gk &&
+    !/(?<!you )\b(?:gains?|has|have) (?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|protection|shroud|defender|flash)\b/i.test(
+      s
+    )
+  ) {
     effects.push({do: 'grant', keywords: [gk[1].toLowerCase()]});
     rest = rest.replace(gk[0], ' ');
   }
@@ -239,7 +623,8 @@ function rrSentence(s0) {
     if (!m) continue;
     const e = make(m);
     const d = rrDur(s);
-    if (d && ['pump', 'grant', 'gain-control', 'goad', 'protection', 'life-total-cant-change', 'become'].includes(e.do)) e.until = d;
+    if (d && ['pump', 'grant', 'gain-control', 'goad', 'protection', 'life-total-cant-change', 'become'].includes(e.do))
+      e.until = d;
     effects.push(e);
     rest = rest.replace(m[0], ' ');
   }
@@ -294,23 +679,45 @@ const RR_TRIGGERS = [
 function rrTrigger(clause) {
   const c = clause.trim();
   let m;
-  if ((m = /^at the beginning of (?:(your|each|the|each opponent's|each player's|that player's|the next) )?(?:(next) )?(upkeep|end step|combat on your turn|combat|draw step|precombat main phase|first main phase|second main phase|postcombat main phase|main phase|end of combat)/i.exec(c)))
+  if (
+    (m =
+      /^at the beginning of (?:(your|each|the|each opponent's|each player's|that player's|the next) )?(?:(next) )?(upkeep|end step|combat on your turn|combat|draw step|precombat main phase|first main phase|second main phase|postcombat main phase|main phase|end of combat)/i.exec(
+        c
+      ))
+  )
     return {event: 'beginning-of-' + m[3].replace(/ on your turn/, '').replace(/ /g, '-'), whose: m[1] || 'each', subject: m[3]};
   const t = RR_TRIGGERS.find(([re]) => re.test(c));
   const out = {event: t ? t[1] : 'unknown'};
   // "enters or attacks": one ability listening for two events
-  const also = [...new Set(c.split(/\s+or\s+/).slice(1).map(p => (RR_TRIGGERS.find(([re]) => re.test(p)) || [])[1]).filter(e => e && e !== out.event))];
+  const also = [
+    ...new Set(
+      c
+        .split(/\s+or\s+/)
+        .slice(1)
+        .map(p => (RR_TRIGGERS.find(([re]) => re.test(p)) || [])[1])
+        .filter(e => e && e !== out.event)
+    )
+  ];
   if (also.length) out.also = also;
   out.subject = c.replace(/^(when|whenever|at)\s+/i, '');
-  if (/\ban opponent\b|\bopponents?\b/i.test(c) && /cast|draw|attack|sacrific|discard|gains?|loses?/i.test(c)) out.controller = 'opponent';
-  else if (/\byou control\b|\byou cast\b|\byou draw\b|\byou gain\b|\byou attack\b|\byou sacrifice\b|\byou discard\b|^whenever ~|^when ~/i.test(c)) out.controller = 'you';
+  if (/\ban opponent\b|\bopponents?\b/i.test(c) && /cast|draw|attack|sacrific|discard|gains?|loses?/i.test(c))
+    out.controller = 'opponent';
+  else if (
+    /\byou control\b|\byou cast\b|\byou draw\b|\byou gain\b|\byou attack\b|\byou sacrifice\b|\byou discard\b|^whenever ~|^when ~/i.test(
+      c
+    )
+  )
+    out.controller = 'you';
   const lim = /\b(?:first|second) [^,]* each turn/i.exec(c);
   if (lim) out.limit = lim[0];
   return out;
 }
 // ---- one line of text ----
 function rrKeywordLine(line, types) {
-  const parts = line.split(/,\s*|;\s*/).map(s => s.trim()).filter(Boolean);
+  const parts = line
+    .split(/,\s*|;\s*/)
+    .map(s => s.trim())
+    .filter(Boolean);
   const out = [];
   for (const p of parts) {
     const low = p.toLowerCase();
@@ -350,9 +757,21 @@ function rrLine(line, ctx) {
     const e = rrEffects(m[2]);
     return {abilities: [{kind: 'chapter', chapters: m[1].split(', '), effects: e.effects}], unknown: e.unknown};
   }
-  if (/^(?:level \d+(?:[-+]\d*)?|\d+\/\d+|(?:\{[^}]+\})+ — \d+\/\d+)$/i.test(L)) return {abilities: [{kind: 'level', text: L}], unknown};
-  if (/^partner with [^.]+$/i.test(L) || /^(?:multikicker|kicker|entwine|buyback|flashback|madness|escape|evoke|dash|blitz|overload|prowl|replicate|spectacle|surge|emerge|bestow|disturb|foretell|plot|squad|offspring|gift [^—]+) /i.test(L) && !/\./.test(L.replace(/\.$/, '')))
-    return {abilities: [{kind: 'keyword', name: L.split(' ')[0].toLowerCase() === 'partner' ? 'partner' : L.split(' ')[0].toLowerCase(), what: L}], unknown};
+  if (/^(?:level \d+(?:[-+]\d*)?|\d+\/\d+|(?:\{[^}]+\})+ — \d+\/\d+)$/i.test(L))
+    return {abilities: [{kind: 'level', text: L}], unknown};
+  if (
+    /^partner with [^.]+$/i.test(L) ||
+    (/^(?:multikicker|kicker|entwine|buyback|flashback|madness|escape|evoke|dash|blitz|overload|prowl|replicate|spectacle|surge|emerge|bestow|disturb|foretell|plot|squad|offspring|gift [^—]+) /i.test(
+      L
+    ) &&
+      !/\./.test(L.replace(/\.$/, '')))
+  )
+    return {
+      abilities: [
+        {kind: 'keyword', name: L.split(' ')[0].toLowerCase() === 'partner' ? 'partner' : L.split(' ')[0].toLowerCase(), what: L}
+      ],
+      unknown
+    };
   if ((m = /^(\w+ )?(?:basic )?(\w*)cycling (\{[^}]+\})+$/i.exec(L)) || /^(daybound|nightbound|doctor's companion)$/i.test(L))
     return {abilities: [{kind: 'keyword', name: /cycling/i.test(L) ? 'cycling' : L.toLowerCase(), what: L}], unknown};
   const kw = !aw && rrKeywordLine(L, ctx.types);
@@ -360,7 +779,9 @@ function rrLine(line, ctx) {
   const withAw = a => (aw ? Object.assign(a, {abilityWord: aw}) : a);
   // triggered: When / Whenever / At
   if (/^(when|whenever|at)\b/i.test(L)) {
-    const ev = RR_TRIGGERS.map(([re]) => re.exec(L)).filter(Boolean).sort((a, b) => a.index - b.index)[0];
+    const ev = RR_TRIGGERS.map(([re]) => re.exec(L))
+      .filter(Boolean)
+      .sort((a, b) => a.index - b.index)[0];
     let idx = L.indexOf(', ', ev ? ev.index : 0);
     if (idx < 0) idx = L.indexOf(', ');
     if (idx > 0) {
@@ -372,9 +793,16 @@ function rrLine(line, ctx) {
         body = body.slice(m[0].length);
       }
       if (/^you may\b/i.test(body)) a.optional = true;
-      if ((m = /unless (that player|they|its controller|any player|that spell's controller|an opponent) pays? ([^.]+)/i.exec(body)))
+      if (
+        (m = /unless (that player|they|its controller|any player|that spell's controller|an opponent) pays? ([^.]+)/i.exec(body))
+      )
         a.unless = {who: m[1], pays: m[2]};
-      if ((m = /^(that player|they|its controller|each opponent|an opponent) may pay ([^.]+)\. if (?:the player|they|that player|they) (?:doesn't|don't|does not|do not),? /i.exec(body))) {
+      if (
+        (m =
+          /^(that player|they|its controller|each opponent|an opponent) may pay ([^.]+)\. if (?:the player|they|that player|they) (?:doesn't|don't|does not|do not),? /i.exec(
+            body
+          ))
+      ) {
         a.unless = {who: m[1], pays: m[2]};
         body = body.slice(m[0].length);
       }
@@ -384,10 +812,31 @@ function rrLine(line, ctx) {
     }
   }
   // replacement: "If ... would ..., ... instead" and "~ enters tapped / with counters"
-  if ((m = /^if (.+?) would (.+?), (.+?) instead\b/i.exec(L)) || (m = /^if (.+?) would (.+?), (.+)$/i.exec(L)) && /instead/i.test(L)) {
+  if (
+    (m = /^if (.+?) would (.+?), (.+?) instead\b/i.exec(L)) ||
+    ((m = /^if (.+?) would (.+?), (.+)$/i.exec(L)) && /instead/i.test(L))
+  ) {
     const ev = m[1] + ' would ' + m[2],
       instead = m[3];
-    const event = /create|created/i.test(ev) ? 'create-token' : /counters?/i.test(ev) ? 'put-counters' : /deal damage|deals damage/i.test(ev) ? 'deal-damage' : /\bdie\b/i.test(ev) ? 'dies' : /draw/i.test(ev) ? 'draw' : /put into a graveyard|put into your graveyard/i.test(ev) ? 'to-graveyard' : /enter/i.test(ev) ? 'enters' : /gain life/i.test(ev) ? 'gain-life' : /lose life/i.test(ev) ? 'lose-life' : 'unknown';
+    const event = /create|created/i.test(ev)
+      ? 'create-token'
+      : /counters?/i.test(ev)
+        ? 'put-counters'
+        : /deal damage|deals damage/i.test(ev)
+          ? 'deal-damage'
+          : /\bdie\b/i.test(ev)
+            ? 'dies'
+            : /draw/i.test(ev)
+              ? 'draw'
+              : /put into a graveyard|put into your graveyard/i.test(ev)
+                ? 'to-graveyard'
+                : /enter/i.test(ev)
+                  ? 'enters'
+                  : /gain life/i.test(ev)
+                    ? 'gain-life'
+                    : /lose life/i.test(ev)
+                      ? 'lose-life'
+                      : 'unknown';
     const a = {kind: 'replacement', event, scope: m[1] + ' would ' + m[2], instead: {}};
     if (/twice that many|double that/i.test(instead)) a.instead.times = 2;
     else if (/triple that/i.test(instead)) a.instead.times = 3;
@@ -398,7 +847,12 @@ function rrLine(line, ctx) {
     return {abilities: [withAw(a)], unknown: event === 'unknown' ? [line] : []};
   }
   if ((m = /^~ enters (tapped|with ([^.]+?) counters? on it)/i.exec(L))) {
-    const a = {kind: 'replacement', event: 'enters', scope: 'self', instead: m[1] === 'tapped' ? {tapped: true} : {counters: m[2]}};
+    const a = {
+      kind: 'replacement',
+      event: 'enters',
+      scope: 'self',
+      instead: m[1] === 'tapped' ? {tapped: true} : {counters: m[2]}
+    };
     const rest = L.slice(m[0].length).replace(/^[.,]\s*/, '');
     const e = rest ? rrEffects(rest) : {effects: [], unknown: []};
     if (e.effects.length) a.also = e.effects;
@@ -446,7 +900,11 @@ function rrManaMade(s) {
 // ---- a whole card ----
 function rrFace(o, t, name, pt, m) {
   const types = rrTypes(t);
-  const ctx = {types, spell: types.card.includes('instant') || types.card.includes('sorcery'), instant: types.card.includes('instant')};
+  const ctx = {
+    types,
+    spell: types.card.includes('instant') || types.card.includes('sorcery'),
+    instant: types.card.includes('instant')
+  };
   const lines = rrPrep(o, name)
     .split('\n')
     .flatMap(l => l.split(/(?<=\.)\s+(?=(?:When|Whenever|At the beginning)\b)/));
@@ -458,8 +916,14 @@ function rrFace(o, t, name, pt, m) {
     // modal: "Choose one —" with its bullet lines
     let mm;
     if (
-      (mm = /^(?:([A-Z][\w' -]{1,40}?) — )?choose (one|two|three|one or both|one or more|any number|up to \w+)\b([^—]*)—\s*(.*)$/i.exec(line)) ||
-      (/^choose (one|two|three|one or both|one or more|any number|up to \w+)\b/i.test(line) && i + 1 < lines.length && /^•/.test(lines[i + 1].trim()) && (mm = /^()choose (\S+(?: or both| or more| number| to \w+)?)\b(.*)()$/i.exec(line)))
+      (mm =
+        /^(?:([A-Z][\w' -]{1,40}?) — )?choose (one|two|three|one or both|one or more|any number|up to \w+)\b([^—]*)—\s*(.*)$/i.exec(
+          line
+        )) ||
+      (/^choose (one|two|three|one or both|one or more|any number|up to \w+)\b/i.test(line) &&
+        i + 1 < lines.length &&
+        /^•/.test(lines[i + 1].trim()) &&
+        (mm = /^()choose (\S+(?: or both| or more| number| to \w+)?)\b(.*)()$/i.exec(line)))
     ) {
       const modes = [];
       const first = mm[4].replace(/^•\s*/, '');
@@ -512,7 +976,11 @@ function rrTypes(t) {
   const [left, right] = String(t || '').split(/\s+—\s+/);
   const words = (left || '').toLowerCase().split(/\s+/).filter(Boolean);
   const SUP = ['legendary', 'basic', 'snow', 'world', 'ongoing', 'host', 'elite'];
-  return {super: words.filter(w => SUP.includes(w)), card: words.filter(w => !SUP.includes(w)), sub: (right || '').split(/\s+/).filter(Boolean)};
+  return {
+    super: words.filter(w => SUP.includes(w)),
+    card: words.filter(w => !SUP.includes(w)),
+    sub: (right || '').split(/\s+/).filter(Boolean)
+  };
 }
 function rrManaCost(m) {
   const s = String(m || '').split(' // ')[0];
@@ -539,9 +1007,21 @@ function rrRead(c) {
     ts = String(c.t || '').split(' // '),
     ns = String(c.n || '').split(' // ');
   const faces = os.map((o, i) => rrFace(o, ts[i] || ts[0], ns[i] || ns[0], i === 0 ? c.pt : '', i === 0 ? c.m : ''));
-  const sentences = faces.reduce((a, f) => a + rrPrep(os[faces.indexOf(f)], f.name).split(/(?<=\.)\s+|\n/).filter(s => s.trim()).length, 0);
+  const sentences = faces.reduce(
+    (a, f) =>
+      a +
+      rrPrep(os[faces.indexOf(f)], f.name)
+        .split(/(?<=\.)\s+|\n/)
+        .filter(s => s.trim()).length,
+    0
+  );
   const unknown = faces.reduce((a, f) => a + f.unknown.length, 0);
-  const r = Object.assign({}, faces[0], {faces: faces.length > 1 ? faces : undefined, sentences, unknown: faces.flatMap(f => f.unknown), read: sentences ? Math.max(0, 1 - unknown / sentences) : 1});
+  const r = Object.assign({}, faces[0], {
+    faces: faces.length > 1 ? faces : undefined,
+    sentences,
+    unknown: faces.flatMap(f => f.unknown),
+    read: sentences ? Math.max(0, 1 - unknown / sentences) : 1
+  });
   c._rr = r;
   c._rrk = key;
   return r;
