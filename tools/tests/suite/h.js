@@ -22,7 +22,7 @@ module.exports = function load(dir, files){
       const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, inc, +(v.synergy || 0).toFixed(3)]); }));
     ctx.__er = [...seen.values()]; ctx.__ek = name; ctx.__ed = decks; run(`EDH={key:find(__ek).n,map:new Map(__er.map(r=>[norm(r[0]),{inc:r[1],syn:r[2]}])),decks:__ed,state:'ok',pre:null}`);
     // the commander's bracket 4 page (EDHREC "optimized"; data2/edhrec-opt), when downloaded: what stronger decks run
-    { const fo = D2 + '/edhrec-opt/' + slug(name) + '.json'; if (fs.existsSync(fo)){ const jo = JSON.parse(fs.readFileSync(fo)), so = new Map(); let dd = 0;
+    { const fo = D2 + '/' + (process.env.EDHOPT || 'edhrec-opt') + '/' + slug(name) + '.json'; if (fs.existsSync(fo)){ const jo = JSON.parse(fs.readFileSync(fo)), so = new Map(); let dd = 0;
       ((jo.container && jo.container.json_dict && jo.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => { if (!v.name || !v.potential_decks) return; dd = Math.max(dd, v.potential_decks); const inc = Math.min(1, v.num_decks / v.potential_decks); if (!so.has(v.name) || inc > so.get(v.name)) so.set(v.name, inc); }));
       ctx.__eo = [...so]; ctx.__eod = dd; run(`EDH.opt = new Map(__eo.map(r => [norm(r[0]), {inc:r[1]}])); EDH.optDecks = __eod;`); } }
     // The commander's themes (EDHREC tags) and every downloaded theme page (data2/themes/<commander>__<theme>.json).
