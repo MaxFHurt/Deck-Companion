@@ -297,7 +297,7 @@ function rrPrep(text, name) {
   const short = String(name || '').split(' // ')[0],
     first = short.split(',')[0];
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (short) o = o.replace(new RegExp(esc(short), 'g'), '~');
+  if (short) o = o.split(short).join('~');
   if (first && first !== short && first.length > 3) o = o.replace(new RegExp('\\b' + esc(first) + '\\b', 'g'), '~');
   o = o.replace(
     /\bthis (creature|artifact|enchantment|land|planeswalker|permanent|spell|aura|equipment|vehicle|card|token|saga|battle|siege|class|case|room|attraction)\b/gi,
@@ -621,7 +621,18 @@ const rrGrantRe = () =>
     '(?<!you )\\b(?:gains?|has|have) (' + RR_KEYWORDS.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b',
     'i'
   ));
+// many sentences repeat across cards ("Draw a card."): each is read once and its reading copied
+const RR_SEEN = new Map();
 function rrSentence(s0) {
+  let v = RR_SEEN.get(s0);
+  if (v === undefined) {
+    if (RR_SEEN.size > 100000) RR_SEEN.clear();
+    v = JSON.stringify(rrSentence1(s0));
+    RR_SEEN.set(s0, v);
+  }
+  return JSON.parse(v);
+}
+function rrSentence1(s0) {
   const effects = [];
   const s = s0
     .replace(
@@ -742,6 +753,10 @@ function rrTrigger(clause) {
   return out;
 }
 // ---- one line of text ----
+// a keyword at the start of a part, longest first (built once)
+const rrKwRe = () =>
+  rrKwRe.re ||
+  (rrKwRe.re = new RegExp('^(' + RR_KEYWORDS.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?=$| |—)'));
 function rrKeywordLine(line, types) {
   const parts = line
     .split(/,\s*|;\s*/)
@@ -755,7 +770,7 @@ function rrKeywordLine(line, types) {
       out.push({kind: 'keyword', name: low});
       continue;
     }
-    const k = RR_KEYWORDS.find(k => low === k || low.startsWith(k + ' ') || low.startsWith(k + '—') || low.startsWith(k + ' —'));
+    const k = (rrKwRe().exec(low) || [])[1];
     if (!k) return null;
     const rest = p.slice(k.length).replace(/^\s*—?\s*/, '');
     const a = {kind: 'keyword', name: k};
@@ -770,7 +785,19 @@ function rrKeywordLine(line, types) {
   }
   return out;
 }
+// a whole line read once per card kind (permanent, instant, sorcery) and copied after
+const RR_LINES = new Map();
 function rrLine(line, ctx) {
+  const k = (ctx.spell ? (ctx.instant ? 'i' : 's') : 'p') + line;
+  let v = RR_LINES.get(k);
+  if (v === undefined) {
+    if (RR_LINES.size > 100000) RR_LINES.clear();
+    v = JSON.stringify(rrLine1(line, ctx));
+    RR_LINES.set(k, v);
+  }
+  return JSON.parse(v);
+}
+function rrLine1(line, ctx) {
   const unknown = [];
   let L = line.trim().replace(/\.$/, m => m);
   if (!L) return {abilities: [], unknown};

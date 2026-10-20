@@ -5,6 +5,7 @@
 const path = require('path'), fs = require('fs'), zlib = require('zlib'), dir = path.resolve(process.argv[2] || '../candidate');
 const H = require('./h.js')(dir), X = H.ctx, run = H.run;
 for (const f of ['rules', 'functions']) if (run('typeof ' + (f === 'rules' ? 'rrRead' : 'fnOf')) !== 'function') require('vm').runInContext(fs.readFileSync(path.join(dir, 'engine/' + f + '.js'), 'utf8'), X, {filename:f + '.js'});
+run('Object.assign(UP, ENGINE_OLD)'); // the 0.9.3 column is 0.9.3's own jobs
 const fn = run('fnOf'), key = JSON.parse(fs.readFileSync(path.join(dir, 'tools/rules/testset/cards.json'), 'utf8')).cards;
 const eq = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 let ok = {makes:0, uses:0, roles:0}; const bad = [];
