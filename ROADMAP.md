@@ -263,8 +263,10 @@ snapshot of a deck reworked the upgrade list and jumped it to the top. UI suite 
   (after the fix keeping removal on cards that can also wipe, Vandalblast, Cyclonic Rift): tuneall 0.249 / 0.250 / 0.134,
   weighted 0.279 / 0.280 / 0.162; test and holdout identical to 0.9.3. Then **wipes added from the reading** (never
   taken away, `v2r: ['removal', 'wipe+']`): tuneall 0.251 / 0.253 / 0.135, weighted 0.282 / 0.283 / 0.162; test and
-  holdout identical. Counterspells added the same way lowered holdout (0.295 / 0.302 / 0.207); off. Synergy (UP.syn 0.5,
-  1.5) lower; off.
+  holdout identical. Counterspells added the same way lowered holdout (0.295 / 0.302 / 0.207); off. Synergy (UP.syn 0.25,
+  0.5, 1.5) lower (0.25: test 0.293 / 0.295 / 0.185); off. Added the same way with no change on holdout (left off, they
+  only cost reading time): protection, tutors; ramp added lowered holdout to 0.278. Practice games from the reading
+  (UP.v2sim): holdout unchanged; off.
   `?engine=old` restores 0.9.3. **Entered budget** for generated Budget decks: a "Total budget" box (and "I already own" the
   commander) on Generate; `fitBudget` swaps the priciest cards for the strongest same-job cards that cost less until the
   deck fits (owned cards, an owned commander and basic lands are free). The stats strip shows the price level (and the cost
