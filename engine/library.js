@@ -292,9 +292,11 @@ function tags(c) {
   ) {
     const f = fnOf(c, new Set(roles)).roles;
     for (const [o, n] of FN_OLD) {
-      if (UP.v2r && !UP.v2r.includes(o)) continue;
+      // a role listed as "wipe+" is only added from the reading, never taken away
+      const only = UP.v2r && UP.v2r.includes(o + '+');
+      if (UP.v2r && !only && !UP.v2r.includes(o)) continue;
       if (f.has(n)) roles.add(o);
-      else if (UP.v2 === 1) roles.delete(o);
+      else if (UP.v2 === 1 && !only) roles.delete(o);
     }
   }
   return (c._t = {land, th, roles});
