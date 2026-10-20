@@ -28,6 +28,7 @@ function forgeEvent(t){
     case 'Sacrificed': return 'sacrifice';
     case 'Discarded': case 'DiscardedAll': return 'discard';
     case 'Taps': return 'tapped';
+    case 'TapsForMana': return 'tapped-for-mana';
     case 'Untaps': return 'untapped';
     case 'BecomesTarget': case 'BecomesTargetOnce': return 'targeted';
     case 'Cycled': return 'cycle';

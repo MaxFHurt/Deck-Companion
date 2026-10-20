@@ -320,8 +320,13 @@ function rrCost(text) {
     else if (/^\{Q\}$/i.test(p)) out.push({untap: true});
     else if (/^(\{[^}]+\})+$/.test(p)) out.push({mana: p});
     else if ((m = /^([+−-]?)(\d+|X)$/.exec(p))) out.push({loyalty: (m[1] === '−' || m[1] === '-' ? '-' : m[1] || '') + m[2]});
-    else if ((m = /^sacrifice (~|a|an|another|one|two|three|x|\d+|any number of)\s*(.*)$/i.exec(p)))
-      out.push({sacrifice: {count: m[1] === '~' ? 1 : rrNum(m[1]), what: m[1] === '~' ? 'self' : m[2] || 'permanent'}});
+    else if ((m = /^sacrifice (~|another|an|a|one|two|three|x|\d+|any number of)(?!\w)\s*(.*)$/i.exec(p)))
+      out.push({
+        sacrifice: {
+          count: m[1] === '~' ? 1 : rrNum(m[1]) || 1,
+          what: m[1] === '~' ? 'self' : (m[1] === 'another' ? 'another ' : '') + (m[2] || 'permanent')
+        }
+      });
     else if ((m = /^discard (a|an|one|two|three|x|\d+|your hand|this card|~)\s*(.*)$/i.exec(p)))
       out.push({
         discard: {count: /hand/.test(m[1]) ? 'hand' : /~|this card/.test(m[1]) ? 'self' : rrNum(m[1]), what: m[2] || 'card'}
@@ -363,6 +368,15 @@ const rrDur = s => (RR_DUR.find(([r]) => r.test(s)) || [])[1];
 // ---- effects: one sentence into effect atoms ----
 // Each pattern finds one kind of effect anywhere in the sentence; a sentence is read when its words are covered by what was
 // found (the leftover is only joining words), otherwise it is kept as unknown.
+// the subject of an effect found mid-sentence ("Creatures you control gain ..."): the words before it, back to the last clause break
+const rrWho = m =>
+  m.input
+    .slice(0, m.index)
+    .split(/[,;:]\s*|\bthen\b|\band\b(?= (?:target|each|all|creatures|permanents|it|you)\b)/i)
+    .pop()
+    .trim() ||
+  (/^(each (?:other )?player|each opponent|target (?:player|opponent)|that player)\b/i.exec(m.input) || [])[1] ||
+  '';
 const RR_EFFECTS = [
   [
     /\badd ((?:\{[^}]+\})+(?:,? or (?:\{[^}]+\})+)*|one mana of any (?:one )?color[^.,]*|(?:one|two|three|x|\d+) mana of any (?:one )?color[^.,]*|mana of any color[^.,]*|an amount of \{\w\} equal to [^.,]*)/i,
@@ -435,8 +449,8 @@ const RR_EFFECTS = [
     m => ({do: 'discard', count: m[1]})
   ],
   [
-    /\bsacrifices? (a|an|another|one|two|three|x|\d+|that|it|all|each|~|those|them|the rest)\s*([^.]*?)(?=\.|,|$| and )/i,
-    m => ({do: 'sacrifice', count: m[1], what: m[2]})
+    /\bsacrifices? (another|an|a|one|two|three|x|\d+|that|it|all|each|~|those|them|the rest)(?!\w)\s*([^.]*?)(?=\.|,|$| and )/i,
+    m => ({do: 'sacrifice', who: rrWho(m), count: m[1], what: m[2]})
   ],
   [
     /\buntap (all|each|target|up to \w+ target|those|it|~|that|enchanted|equipped|the|two|three|x|\d+)\s*([^.]*?)(?=\.|,|$)/i,
@@ -446,11 +460,19 @@ const RR_EFFECTS = [
     /\btap (all|each|target|up to \w+ target|those|it|that|enchanted|equipped|~|x|\d+|two|three)\s*([^.]*?)(?=\.|,|$)/i,
     m => ({do: 'tap', what: (m[1] + ' ' + m[2]).trim()})
   ],
+  [
+    /\badds? (?:an additional|one additional|an additional one) ((?:\{[^}]+\})+|mana of any (?:one )?(?:type|color)[^.]*)/i,
+    m => ({do: 'add-mana', mana: m[1], extra: true})
+  ],
+  [
+    /\b(?:the owner of (target [^.]+?|each [^.]+?) shuffles (?:it|them) into (?:their|its owner's) library|(?:puts?|shuffles?) (target [^.]+?) (?:into|on (?:the )?(?:top|bottom) of) (?:its|their) owner's library)/i,
+    m => ({do: 'tuck', target: {count: 1, what: (m[1] || m[2]).replace(/^target /, '')}})
+  ],
   [/\bgain control of ([^.]+?)(?=\.|$| until | for as long)/i, m => ({do: 'gain-control', what: m[1]})],
   [/\b([^.]*?)\bgets? ([+-]\w+)\/([+-]\w+)/i, m => ({do: 'pump', who: m[1].trim(), power: m[2], toughness: m[3]})],
   [
     /(?<!you )\b(?:gains?|has|have) ((?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|ward \{\d\}|protection from [^.,]+?|shroud|defender|flash|islandwalk|forestwalk|swampwalk|mountainwalk|plainswalk)(?:,? (?:and )?(?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|protection from [^.,]+?|shroud))*)/i,
-    m => ({do: 'grant', keywords: m[1].split(/,? and |, /)})
+    m => ({do: 'grant', who: rrWho(m), keywords: m[1].split(/,? and |, /)})
   ],
   [/\bgoad ([^.]+)/i, m => ({do: 'goad', what: m[1]})],
   [/\bphases? out\b/i, () => ({do: 'phase-out'})],
@@ -566,7 +588,7 @@ const RR_EFFECTS = [
   ],
   [/\benters with a \+1\/\+1 counter on (?:it|him|her) for each/i, () => ({do: 'put-counters', kind: '+1/+1', on: 'self'})],
   [/\bput the same number and kind of counters on ([^.]+)/i, m => ({do: 'put-counters', what: 'same', on: m[1]})],
-  [/\b(?<!loses "[^"]*" and )(?:gains?|has|have) "([^"]+)"/i, m => ({do: 'grant', ability: m[1]})],
+  [/\b(?<!loses "[^"]*" and )(?:gains?|has|have) "([^"]+)"/i, m => ({do: 'grant', who: rrWho(m), ability: m[1]})],
   [/\bcast [^.]*?from (?:your|a|their) graveyard/i, () => ({do: 'cast-from-graveyard'})],
   [/\bplay (?:lands?|cards?) from (?:your|the top of your) (?:graveyard|library)/i, () => ({do: 'play-from-graveyard'})],
   [/\bexile cards from the top of (?:your|their|target player's) library until/i, () => ({do: 'exile-until'})],
@@ -607,8 +629,12 @@ function rrSentence(s0) {
       ''
     )
     .replace(/^you may /i, '');
-  let rest = s;
-  const gk = rrGrantRe().exec(s);
+  // quoted text is an ability granted to something (a token's "Sacrifice this token: Add {C}."): it is not this card's own
+  // effect, so only the patterns that read quotes see it; the quote is kept on the token or grant that carries it
+  const masked = s.replace(/"[^"]*"/g, '"…"'),
+    quotes = s.match(/"[^"]*"/g) || [];
+  let rest = masked;
+  const gk = rrGrantRe().exec(masked);
   if (
     gk &&
     !/(?<!you )\b(?:gains?|has|have) (?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|protection|shroud|defender|flash)\b/i.test(
@@ -619,14 +645,16 @@ function rrSentence(s0) {
     rest = rest.replace(gk[0], ' ');
   }
   for (const [re, make] of RR_EFFECTS) {
-    const m = re.exec(s);
+    const quoted = re.source.includes('"'),
+      m = re.exec(quoted ? s : masked);
     if (!m) continue;
     const e = make(m);
     const d = rrDur(s);
     if (d && ['pump', 'grant', 'gain-control', 'goad', 'protection', 'life-total-cant-change', 'become'].includes(e.do))
       e.until = d;
+    if (e.do === 'create-token' && quotes.length) e.ability = quotes[0].slice(1, -1);
     effects.push(e);
-    rest = rest.replace(m[0], ' ');
+    rest = rest.replace(quoted ? m[0].replace(/"[^"]*"/g, '"…"') : m[0], ' ');
   }
   const left = rest
     .replace(RR_FILLER, ' ')
@@ -666,6 +694,7 @@ const RR_TRIGGERS = [
   [/\bloses? life\b/i, 'lose-life'],
   [/\bsacrifices?\b/i, 'sacrifice'],
   [/\bdiscards?\b/i, 'discard'],
+  [/\bis tapped for mana\b|\btaps? an? [^,]*?for mana\b/i, 'tapped-for-mana'],
   [/\bbecomes? tapped\b/i, 'tapped'],
   [/\bbecomes? untapped\b/i, 'untapped'],
   [/\bbecomes? the target\b/i, 'targeted'],
