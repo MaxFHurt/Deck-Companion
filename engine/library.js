@@ -217,7 +217,7 @@ function tags(c) {
   for (const k in THEMES) {
     const T = THEMES[k];
     if (!T.re) continue;
-    th[k] = T.re.test(o) ? 1 : T.type && T.type.test(t) ? 0.5 : 0;
+    th[k] = T.re.test(o) || (T.kw && T.kw.test(o)) ? 1 : T.type && T.type.test(t) ? 0.5 : 0;
   }
   if (UP.kw)
     for (const k in KW_RE)
@@ -403,7 +403,12 @@ function detectStrategy(cmd, d, thin) {
     'voltron',
     'blink',
     'burn',
-    'aggro'
+    'aggro',
+    'flying',
+    'defenders',
+    'goad',
+    'untap',
+    'theft'
   ];
   const themes = order.filter(
     k =>

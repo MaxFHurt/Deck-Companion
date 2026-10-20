@@ -214,6 +214,30 @@ const THEMES = {
     label: 'Aggro / combat',
     re: /deals? (double|triple) that damage|double (the|its|this creature's|target creature's) power|\bhaste\b|double strike|additional combat|whenever [^.]{0,50}\battacks?\b(?! you)|(^|[.—] ?)(other )?creatures you control get \+|\btrample\b/i
   },
+  // Plans EDHREC players build that the app could not see (misread.js, 20 Oct): Isperia's fliers, Felothar's defenders, Kardur's
+  // goad, Emmara's tap/untap, Gonti's theft. "re" is a card that cares about the plan; "kw" a card that is simply part of it
+  // (a flier in a fliers deck): it fits the plan, but only "re" makes a commander lead it.
+  flying: {
+    label: 'Fliers',
+    re: /\bwith flying\b|\bflying creatures?\b|creatures? you control (?:have|gain) flying|\bgains? flying\b|\b(?:has|have) flying\b|\bwithout flying\b/i,
+    kw: /(?:^|\n)(?:[A-Za-z][a-z]*(?: [a-z]+)?, )*flying(?:,|\n|$| \()/i
+  },
+  defenders: {
+    label: 'Defenders / toughness',
+    re: /\bdefender\b|combat damage equal to (?:its|their) toughness|toughness (?:\d+|x) or greater|greatest toughness|total toughness|equal to [^.]*\btoughness\b|\bwith toughness\b|gets? \+0\/\+\d+/i
+  },
+  goad: {
+    label: 'Goad / forced combat',
+    re: /\bgoad|attacks? each combat if able|attack each combat if able|must attack|attacks? a player other than you/i
+  },
+  untap: {
+    label: 'Tap / untap',
+    re: /\buntap (?:all|target|up to|each|another|it|that)|\{Q\}|becomes? tapped|tap an untapped creature you control|tap (?:x |two |three )?untapped creatures you control|during each other player's untap step/i
+  },
+  theft: {
+    label: "Theft (opponents' cards)",
+    re: /gain control of|you don't own|an opponent owns|(?:target|each|an) opponent's (?:library|graveyard|hand)[^.]*\b(?:you may (?:cast|play)|onto the battlefield under your control)|cards? (?:exiled )?(?:with|by) [^.]* (?:you may )?(?:cast|play)[^.]*(?:opponent|you don't own)|cast (?:spells|cards) you don't own|opponent's library[\s\S]*you may (?:cast|play)/i
+  },
   control: {label: 'Control / interaction', re: null},
   draw: {
     label: 'Card advantage engine',
@@ -531,8 +555,15 @@ const TAG_OF = {
   burn: 'burn',
   aggro: 'aggro',
   control: 'control',
-  draw: 'card-draw'
+  draw: 'card-draw',
+  flying: 'flying',
+  defenders: 'defenders',
+  goad: 'forced-combat',
+  untap: 'tap-untap',
+  theft: 'theft'
 };
+// EDHREC tags that name one of the plans above under another word
+const TAG_ALIAS = {'toughness-matters': 'defenders', goad: 'goad'};
 const COLOR_PAGE = {
   '': 'colorless',
   W: 'mono-white',
