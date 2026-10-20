@@ -615,8 +615,9 @@ function capList(d, t) {
     .filter(p => p && entryOf(d, p.cut) && !entryOf(d, p.add));
 }
 // What the upgrade list depends on. The buy list, Considering, ignored alerts, the player and the name don't change any
-// suggestion, so editing them doesn't rework the list (which used to jump the page back to the top).
-const RECS_SKIP = new Set(['want', 'lack', 'consider', 'ignoreH', 'player', 'name', 'folder', 'dtags']);
+// suggestion, so editing them doesn't rework the list (which used to jump the page back to the top). Nor do the deck's version
+// snapshots (one is added on a change, such as putting a card on the buy list; found 20 Oct) or a generated deck's budget.
+const RECS_SKIP = new Set(['want', 'lack', 'consider', 'ignoreH', 'player', 'name', 'folder', 'dtags', 'versions', 'budget']);
 function recsKey(d) {
   return JSON.stringify([
     JSON.stringify(d, (k, v) => (RECS_SKIP.has(k) ? undefined : v)),

@@ -476,7 +476,7 @@ T('UI-ASYNC-01', 'Background score check: Upgrades draws at once and says it is 
 if (RUN('UI-B81-01')) { try { if (SHARD) await RESET();
 // 32. Build 81: decklist A–Z inside each type; a card goes on the player's own buy list with no deck; Upgrades sort by impact;
 // Game Changer chip; health alerts open a Fix menu of direct swaps (with score effect) and can be ignored; Path to Apex tips.
-const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true;
+const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); const save = JSON.stringify(d), saveW = JSON.stringify(S.profile.want || []); S.deckId = d.id; S.view = 'decks'; S.open = true;
   await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
   S.tab = 'list'; render(); const groups = [...document.querySelectorAll('#rows > div:not(.cmdgrp)')].map(g => [...g.querySelectorAll('.dl .nm')].map(x => x.childNodes[0].textContent.trim())).filter(x => x.length > 1);
   out.alpha = groups.length > 2 && groups.every(L => L.every((n, i) => !i || L[i - 1].localeCompare(n) <= 0));
@@ -500,7 +500,7 @@ const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true;
     const g = S.fixG[0]; out.allAddRamp = g.L.every(p => tags(find(p.add)).roles.has('ramp')); m.querySelector('[data-act="fix-swap"]').click(); out.rampUp = analyze(d).roles.ramp === before + 1;
     document.querySelector('#modal [data-act="h-ignore"][data-v="Ramp"]').click(); out.ignored = (d.ignoreH || []).includes('Ramp'); render(); out.unignoreBtn = !!document.querySelector('[data-act="h-unignore"][data-v="Ramp"]'); }
   out.tips = !!document.querySelector('.apextips') || /Path to Apex/.test(document.body.textContent);
-  d.cards = d.save81; delete d.save81; d.ignoreH = []; recsFor.k = null; render(); return out; });
+  Object.keys(d).forEach(k => delete d[k]); Object.assign(d, JSON.parse(save)); S.profile.want = JSON.parse(saveW); S.upOrd = null; recsFor.k = null; render(); return out; });   // leaves the deck and the buy list exactly as it found them
 T('UI-B81-01', 'Build 81: decklist A–Z inside each type; a card goes on My buy list without touching any deck and shows on My decks; Upgrades sort by biggest impact; Game Changers have their own chip; a Ramp alert opens a Fix menu of swaps that each add ramp (with score effect), a swap raises ramp by one, and the alert can be ignored and un-ignored; Path to Apex tips show', b81.alpha && b81.mine && b81.mineShown && b81.impactSorted && b81.sortBar && b81.gcChip !== false && b81.fixBtn && b81.menu && b81.swaps > 0 && b81.scoreShown && b81.allAddRamp && b81.rampUp && b81.ignored && b81.unignoreBtn && b81.tips, JSON.stringify(b81));
 } catch (e) { QUIET = false; T('UI-B81-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B81-02')) { try { if (SHARD) await RESET();
@@ -742,7 +742,8 @@ T('UI-B101-01', 'Too many lands: Lands shows “N more than needed” with Fix t
 if (RUN('UI-B102-01')) { try { if (SHARD) await RESET();
 // 53. Build 102: adding a card to the buy list from the Upgrades list keeps the page where it was (no jump to the top, the
 // list isn't reworked); health buttons read Show / Show all.
-const b102 = await page.evaluate(async () => { const keep = S.syncRecs; S.syncRecs = false; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(d); render();
+const b102 = await page.evaluate(async () => { const keep = S.syncRecs; S.syncRecs = false; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
+  for (let i = 0; i < 150 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));   /* the list is rebuilt once the Apex reference is ready (it is part of the list's key) */ render(); await recsReady(d); render();
   const sc = document.querySelector('#upscroll'), out = {}; const btns = [...sc.querySelectorAll('[data-act="up-buy"]')]; const b = btns[Math.floor(btns.length / 2)]; if (!b) return {btn:false};
   sc.scrollTop = Math.max(0, b.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 200);   /* Build 135: measured on the page, not inside its card */ const y0 = sc.scrollTop, R0 = recsFor(d), n = b.dataset.n; b.click(); await new Promise(r => setTimeout(r, 400));
   const sc2 = document.querySelector('#upscroll'); out.y0 = y0; out.y1 = sc2.scrollTop; out.kept = y0 > 100 && Math.abs(sc2.scrollTop - y0) < 5; out.sameList = recsFor(d) === R0; out.added = wantOf(d).some(x => x.n === n);
