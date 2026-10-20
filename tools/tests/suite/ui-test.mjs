@@ -178,8 +178,9 @@ T('UI-AIM-01', 'Mechanics are the commander’s own themes (shown, with its othe
 } catch (e) { QUIET = false; T('UI-AIM-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-MIX-01')) { try { if (SHARD) await RESET();
 await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(700);
-const applied = await page.evaluate(() => { const d = cur(), n0 = recsFor(d).paths.length; const b = document.querySelector('[data-act="swap-all"][data-v="apex"]'); b.click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } return {n0, size:analyze(d).size, v:validateDeck(d).map(x => x.key), toast:(document.querySelector('#toast') || {}).textContent}; });
+const applied = await page.evaluate(() => { const d = cur(); window.__mix = JSON.stringify(d); const n0 = recsFor(d).paths.length; const b = document.querySelector('[data-act="swap-all"][data-v="apex"]'); b.click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } return {n0, size:analyze(d).size, v:validateDeck(d).map(x => x.key), toast:(document.querySelector('#toast') || {}).textContent}; });
 T('UI-MIX-01', 'Apply all (Apex) makes the swaps as one checked package; the deck stays a valid 100 cards', applied.size === 100 && !applied.v.length && /Made \d+ Apex swap/.test(applied.toast), JSON.stringify(applied));
+await page.evaluate(() => { const d = cur(); Object.keys(d).forEach(k => delete d[k]); Object.assign(d, JSON.parse(window.__mix)); delete window.__mix; recsFor.k = null; render(); });   // the other tests use Wakanda as built
 } catch (e) { QUIET = false; T('UI-MIX-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-COMBO-01')) { try { if (SHARD) await RESET();
 // 11. Combos load from the card-data branch (served here from the frozen copy) and are kept in the browser.
