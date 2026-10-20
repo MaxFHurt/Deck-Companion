@@ -16,8 +16,10 @@ and bracket 4-5 decks (both); Budget = $3 per card and an entered total (both).
 me when you're done working but don't act on it till I say so."** Raise it at the end of every report; change nothing about the
 suite's speed until the owner says so.
 
-1. **Engine redesign open questions** (plan doc): offline AI reading in sessions or as a job with an API key; where the
-   rework is kept between sessions (a separate branch such as `engine-v2` is never served to players).
+1. **Engine redesign decisions (owner, 20 Oct):** offline AI reading is done in work sessions (no API key, no job). The
+   rework lives on the branch `engine-v2` (never served to players; `main` stays the live app). Entered budget: owned cards
+   are free; when a player builds by commander they are asked whether they own the commander, and an owned commander counts
+   as free too. Progress bar: tiers are both a price rule and a power level, shown separately.
 2. **The Apex rule against players** (benchmark with the search): the players' card is still offered on each row as often
    (row@5 0.247 -> 0.249) but Apex now disagrees with players (agreement@5 0.246 -> -0.121). Owner: "the strongest card is the
    Apex card". 2a. Keep as is. 2b. Review the biggest score finds (Archpriest of Shadows, Evolution Witness, The Soul Stone...):
