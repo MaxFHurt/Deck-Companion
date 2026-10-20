@@ -19,7 +19,7 @@ suite's speed until the owner says so.
 1. **Engine redesign decisions (owner, 20 Oct):** offline AI reading is done in work sessions (no API key, no job). The
    rework lives on the branch `engine-v2` (never served to players; `main` stays the live app). Entered budget: owned cards
    are free; when a player builds by commander they are asked whether they own the commander, and an owned commander counts
-   as free too. Progress bar: tiers are both a price rule and a power level, shown separately.
+   as free too, and basic lands are free. Progress bar: tiers are both a price rule and a power level, shown separately.
 2. **The Apex rule against players** (benchmark with the search): the players' card is still offered on each row as often
    (row@5 0.247 -> 0.249) but Apex now disagrees with players (agreement@5 0.246 -> -0.121). Owner: "the strongest card is the
    Apex card". 2a. Keep as is. 2b. Review the biggest score finds (Archpriest of Shadows, Evolution Witness, The Soul Stone...):

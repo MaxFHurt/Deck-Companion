@@ -5,7 +5,8 @@ const { chromium } = require(process.env.PW); const fs = require('fs'), path = r
 const here = path.dirname(new URL(import.meta.url).pathname), SNAP = path.resolve(here, '../snapshot'), OUT = path.resolve(here, '../out');
 const port = process.argv[2] || '8765', label = process.argv[3] || 'ui';
 const cards = zlib.gunzipSync(fs.readFileSync(SNAP + '/cards.json.gz')).toString(), RAWJ = JSON.parse(cards), tags = fs.readFileSync(SNAP + '/tags.json', 'utf8');
-const results = []; const T = (id, desc, pass, detail) => { results.push({id, desc, pass, detail}); console.log((pass ? 'PASS' : 'FAIL'), id.padEnd(9), desc, detail ? '— ' + detail : ''); };
+// FAST=1: skip the heaviest tests nothing later depends on (while working; the full run, without FAST, goes live)
+const results = []; const FAST = !!process.env.FAST, SKIPPED = []; const T = (id, desc, pass, detail) => { results.push({id, desc, pass, detail}); console.log((pass ? 'PASS' : 'FAIL'), id.padEnd(9), desc, detail ? '— ' + detail : ''); };
 const errs = [];
 const b = await chromium.launch(); const ctx = await b.newContext({viewport:{width:1300, height:900}}); const page = await ctx.newPage();
 page.on('pageerror', e => errs.push('pageerror: ' + e.message));
@@ -190,6 +191,7 @@ const s2 = await page.evaluate(async id => { const d = S.profile.decks.find(x =>
   return {sets:d.sets, must:d.setsMust, adds:adds.length, outside:adds.filter(c => !isBasic(c.n) && !inSets(c, d)).map(c => c.n).slice(0, 5)}; }, s1.id);
 T('UI-SET-02', 'Customize: a card set added as a rule is saved with the deck, survives a reload, and every suggested upgrade is printed in that set', s1.must && s2.must && JSON.stringify(s2.sets) === '["msh"]' && !s2.outside.length, JSON.stringify({s1, s2}));
 // 18. Fixed bugs: an unreadable set is not asked for again and again; Generate in Customize keeps colours and tribe and never drops a draft.
+if (!FAST) {   // heavy, and nothing later depends on it: skipped with FAST=1 (owner's plan, 20 Oct)
 const fx = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Doom/i.test(x.name)); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up';
   let renders = 0; const r0 = window.render; window.render = function(){ renders++; return r0.apply(this, arguments); };
   d.sets = ['err']; d.setsMust = false; render(); for (let i = 0; i < 40 && !SETFAIL.has('err'); i++) await new Promise(r => setTimeout(r, 250)); await new Promise(r => setTimeout(r, 2000)); window.render = r0; const loopRenders = renders;
@@ -198,6 +200,7 @@ const fx = await page.evaluate(async () => { const d = S.profile.decks.find(x =>
   return {loopRenders, failed:SETFAIL.has('err'), colours:nd && JSON.stringify(nd.colors) === JSON.stringify(d.colors), draftKept:keptDraft}; });
 const fx2 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Doom/i.test(x.name)); S.deckId = d.id; const dr = newDeck({name:'Unsaved test draft 2', format:'commander'}); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'build'; render(); const b = document.querySelector('[data-act="build-gen"]'); if (b) b.click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } await new Promise(r => setTimeout(r, 300)); for (let i = 0; i < 300 && thinkThen.busy; i++) await new Promise(r => setTimeout(r, 100)); return {saved:S.profile.decks.some(x => x.id === dr.id)}; });
 T('UI-FIX-01', 'An unreadable card set is tried once, not in a loop; Generate in Customize keeps the deck’s colours; an unsaved draft is saved, not lost, when Generate opens a new deck', fx.loopRenders < 6 && fx.failed && fx.colours && fx2.saved, JSON.stringify({fx, fx2}));
+} else SKIPPED.push('UI-FIX-01');
 // 19. Card search → add a card to a chosen deck's buy list; the deck it upgrades is chosen first; decks it can't go in are disabled.
 const w1 = await page.evaluate(async () => { S.draft = null; S.view = 'search'; render(); for (let i = 0; i < 100 && (UPX.busy || !UPX.map.size); i++) await new Promise(r => setTimeout(r, 200));
   const [k, L] = [...UPX.map.entries()][0] || []; if (!k) return {index:0}; const c = find(k); S.search.q = c.n; render(); await new Promise(r => setTimeout(r, 300));
@@ -399,6 +402,7 @@ const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true;
 T('UI-B81-01', 'Build 81: decklist A–Z inside each type; a card goes on My buy list without touching any deck and shows on My decks; Upgrades sort by biggest impact; Game Changers have their own chip; a Ramp alert opens a Fix menu of swaps that each add ramp (with score effect), a swap raises ramp by one, and the alert can be ignored and un-ignored; Path to Apex tips show', b81.alpha && b81.mine && b81.mineShown && b81.impactSorted && b81.sortBar && b81.gcChip !== false && b81.fixBtn && b81.menu && b81.swaps > 0 && b81.scoreShown && b81.allAddRamp && b81.rampUp && b81.ignored && b81.unignoreBtn && b81.tips, JSON.stringify(b81));
 // 33. Build 81: Duplicate deck; main-screen Undo puts back the last change (a swap, a deletion); pop-up frame stays still while its
 // content scrolls; Generate then Regenerate repeats the same picks; a tier with no pick of its own shows the best cheaper card.
+if (!FAST) {   // heavy, and nothing later depends on it: skipped with FAST=1 (owner's plan, 20 Oct)
 const b81b = await page.evaluate(async () => { const out = {}; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
   const n0 = S.profile.decks.length; document.querySelector('[data-act="dup-deck"]').click(); const cp = cur(); out.dup = S.profile.decks.length === n0 + 1 && cp.id !== d.id && /\(copy\)$/.test(cp.name) && JSON.stringify(cp.cards) === JSON.stringify(d.cards);
   // undo: delete the copy (two clicks), then Undo brings it back; a card removed then Undo restores it
@@ -422,6 +426,7 @@ const b81b = await page.evaluate(async () => { const out = {}; const d = S.profi
   out.inherit = true;
   S.profile.decks = S.profile.decks.filter(x => x.id !== g1.id && x.id !== cp.id); S.deckId = d.id; render(); return out; });
 T('UI-B81-02', 'Build 81: Duplicate makes an identical copy; Delete and Don’t suggest ask for confirmation first (Cancel changes nothing); Undo brings back a deleted deck and a removed card; the pop-up frame and title stay still while only its content scrolls; generating twice gives the same deck and Regenerate gives the same picks; a tier with no pick of its own shows the best cheaper card (best at every tier)', b81b.dup && b81b.asks && b81b.cancelKeeps && b81b.dismissAsks && b81b.deleted && b81b.undoDelete && b81b.removed && b81b.undoRemove && b81b.framed && b81b.sameBuild && b81b.sameRegen && b81b.inherit, JSON.stringify(b81b));
+} else SKIPPED.push('UI-B81-02');
 // 34. Upgrade table ranked by the deck score: in every row Apex raises the score most, Mid and Budget are the best of the rest
 // under $12 and $3, no card shows twice, and each tier's alternatives (up to 3) lose to that tier's pick but keep at least
 // half its gain; the alternatives are named and pictured and Swap on one puts it in.
@@ -904,14 +909,17 @@ T('UI-B133-01', 'Customised Build panel: sections fold to one-line headers showi
 // 83. Build 134: the Unpopular pick chip only shows when the gap is big (owner, option B): the alternative clearly out-scores the
 // suggested card (by 0.2 and half again) and the suggested card is run by 3 times as many players (and 10% more of all decks); its
 // pop-up gives both play rates. A small edge over a popular pick shows no chip.
+if (!FAST) {   // heavy, and nothing later depends on it: skipped with FAST=1 (owner's plan, 20 Oct)
 const b134 = await page.evaluate(async () => { const out = {found:false}; S.syncRecs = true; S.upView = 'list';
   for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander))){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; recsFor.k = null; render(); const R = await recsReady(d);
     R.paths.forEach((L, i) => ['apex', 'mid', 'budget'].forEach(t => ((L.alts || {})[t] || []).forEach(a => { if (a.unpop && !out.found){ out.found = true; out.i = i; out.t = t; out.n = a.n; out.vs = a.vs; out.vsInc = a.vsInc; out.inc = a.inc; } })));
     if (out.found){ handleAct('unpop', out.i + '|' + out.t, out.n); const m = document.querySelector('#modal'); out.text = m ? m.textContent : ''; out.both = new RegExp(Math.round(out.vsInc * 100) + '% of decks play').test(out.text) && /only \d+% of/.test(out.text); m.hidden = true; break; } }
   render(); return out; });
 T('UI-B134-01', 'Unpopular pick shows only for a big gap (much higher score, far fewer players), never for a small edge; its pop-up gives the play rates of both cards', b134.found && b134.both && !b81c.unpopBad, JSON.stringify(b134).slice(0, 400) + ' quietSmallEdges=' + (b81c.unpopQuiet || 0));
+} else SKIPPED.push('UI-B134-01');
 // 84. Build 135: swaps players mostly disagree with are left out (Tramplesaurus fix A): no row left is one the rule removes, held
 // swaps are never removed, the tier counts match the rows that remain, and the list says how many were left out.
+if (!FAST) {   // heavy, and nothing later depends on it: skipped with FAST=1 (owner's plan, 20 Oct)
 const b135 = await page.evaluate(async () => { const out = {decks:0, trimmed:0, bad:0, countOk:true, note:null, heldKept:null}; S.syncRecs = true; S.upView = 'list';
   for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander))){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; d.tier = 'apex'; recsFor.k = null; render(); const R = await recsReady(d); out.decks++;
     const tr = R.scored && R.scored.trimmed || 0; out.trimmed += tr; if (R.trimOf) out.bad += R.paths.filter(L => R.trimOf(L)).length;
@@ -921,6 +929,7 @@ const b135 = await page.evaluate(async () => { const out = {decks:0, trimmed:0, 
   if (R.trimOf && R.paths[0] && R.paths[0].opts.apex){ const L = R.paths[0]; L.opts.apex.held = true; const keep = R.trimOf(L); out.heldKept = keep === false; L.opts.apex.held = false; } else out.heldKept = true;
   recsFor.k = null; render(); return out; });
 T('UI-B135-01', 'Swaps that players mostly disagree with are left out of the upgrade list (never a held swap); the list says how many were left out', b135.decks > 0 && !b135.bad && b135.note !== false && b135.heldKept, JSON.stringify(b135));
+} else SKIPPED.push('UI-B135-01');
 // 85. Build 136: visible practice games on the Build stats tab: the 100-game summary (lands, colours, flood, mulligan, commander
 // turn), one game's opening hand and its first 8 turns; Deal another game shows the next game; the same game number always
 // shows the same game; the step-by-step games agree with the deck score's own games; it fits a phone screen.
@@ -946,6 +955,7 @@ const b137 = await page.evaluate(async () => { const out = {}, id5 = ['W','U','B
 T('UI-B137-01', 'Lands: Wooded Foothills makes only red/green (what it can find), Thriving Isle makes blue plus the colour needed, Big Apple is not colourless; a mana fix never takes out a colour the old land made', b137.foothills === 'GR' && b137.thriving === 'UW' && b137.bigApple > 0 && b137.thrivingLC === 5 && b137.covers && !b137.badFix.length && !b137.err, JSON.stringify(b137));
 // 87. Build 138 (owner: the Mana fix offered a swap, but the card's window said its best swap was a different card): every land the
 // Mana fix offers goes where the card window puts it, with the same score; when the deck runs short of lands a weak spell may go.
+if (!FAST) {   // heavy, and nothing later depends on it: skipped with FAST=1 (owner's plan, 20 Oct)
 const b138 = await page.evaluate(async () => { const out = {decks:0, rows:0, agree:0, mismatch:[], ms:0};
   for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander) && ctxOf(x).ident.length >= 2).slice(0, 3)){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; recsFor.k = null; render(); await recsReady(d); for (let i = 0; i < 80 && !evalFor(d); i++) await new Promise(r => setTimeout(r, 100)); out.decks++;
     const t0 = performance.now(), L = fixList(d, 'Mana'); out.ms = Math.max(out.ms, Math.round(performance.now() - t0));
@@ -957,6 +967,7 @@ const b138b = await page.evaluate(async () => { const d = S.profile.decks.find(x
   for (let i = 0; i < 100 && /checking land swaps/i.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100)); const done = /practice games/.test($('#modal').textContent) && !/checking land swaps/i.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });
 b138.soon = b138b.first && b138b.done;
 T('UI-B138-01', 'Mana fix and card window agree: each land the fix offers goes where the card window puts it, with the same score; when the deck runs short of lands a weak spell may make room', b138.decks > 0 && !b138.mismatch.length && b138.starvedSpell && b138.window !== false && b138.soon, JSON.stringify(b138).slice(0, 900));
+} else SKIPPED.push('UI-B138-01');
 // 88. Build 139: the engine knows the rules' keywords (graveyard, token, counter… mechanics) and reads the commander's engine: what
 // it makes, what sets it off; a card that doubles or pays it off says so.
 const b139 = await page.evaluate(() => { const f = n => find(n), out = {};
@@ -1083,19 +1094,23 @@ const b143c = await page.evaluate(() => { const r = n => [...tags(find(n)).roles
 T('UI-B143-03', 'Score blind spots: Ruby Medallion and Goblin Warchief are ramp (Ghalta’s own discount is not); Altar of Dementia needs no big creatures, Fling still does; Teval’s Zombie tokens count as Zombie support', Object.values(b143c).every(Boolean), JSON.stringify(b143c));
 // 101. Build 144: helper cores share the swap measurements, holding only the cards they need; the deck is the same as one built
 // on one core, and their answers are spot-checked.
+if (!FAST) {   // heavy, and nothing later depends on it: skipped with FAST=1 (owner's plan, 20 Oct)
 const b144a = await page.evaluate(async () => { const out = {}, name = 'Captain America, Team Leader', aims = await edhAimsFor(find(name));
   const one = async n => { S.cores = n; wkRestart(); wkGet(); genRun.last = null; const g = await startPlan(name, [], null, null, {fill:'budget', aims}); S.draft = null; return {list:g.cards.map(e => e.n + 'x' + e.q).sort().join('|'), last:genRun.last}; };
   const a = await one(0), b = await one(2); S.cores = null; wkRestart();
   Object.assign(out, {same:a.list === b.list, helpers:b.last && b.last.helpers, shared:!!(b.last && b.last.stat && b.last.stat.keys > b.last.stat.local), checked:b.last && b.last.stat && b.last.stat.checked, wrong:b.last && b.last.stat ? b.last.stat.wrong : -1}); return out; });
 T('UI-B144-01', 'Helper cores: two helpers share the measurements (spot-checked, none wrong) and the Budget deck is the same card for card as on one core', b144a.same && b144a.helpers === 2 && b144a.shared && b144a.checked > 0 && b144a.wrong === 0, JSON.stringify(b144a));
+} else SKIPPED.push('UI-B144-01');
 // 102. Build 144: with Generate open, the deck for the settings shown is built ahead; pressing Build then opens it at once, and it is
 // the deck pressing Build would have built.
+if (!FAST) {   // heavy, and nothing later depends on it: skipped with FAST=1 (owner's plan, 20 Oct)
 const b144b = await page.evaluate(async () => { const out = {}, name = 'Kenrith, the Returned King'; wkGet(); S.draft = null; Object.assign(S.gen, {cmd:name, tier:'mid', mech:[], best:true, sets:[], partner:'', theme:false}); await loadEdh(name); openGenerate();
   for (let i = 0; i < 300 && !(WK.spec && WK.cb.size === 0); i++) await new Promise(r => setTimeout(r, 100)); await WK.spec.p;
   const t0 = Date.now(); document.querySelector('[data-act="gen-go"]').click(); for (let i = 0; i < 300 && !(S.draft && S.draft.cards.length && !thinkThen.busy); i++) await new Promise(r => setTimeout(r, 20)); out.ms = Date.now() - t0; out.early = !!(genRun.last && genRun.last.early);
   const ahead = S.draft.cards.map(e => e.n + 'x' + e.q).sort().join('|'); S.draft = null; S.noWorker = true; const aims = await edhAimsFor(find(name)); const g = await startPlan(name, [], null, null, {fill:'mid', aims}); S.noWorker = false; S.draft = null;
   const now = g.cards.map(e => e.n + 'x' + e.q).sort(); out.same = ahead === now.join('|'); if (!out.same){ const A = ahead.split('|'); out.onlyAhead = A.filter(x => !now.includes(x)).slice(0, 5); out.onlyNow = now.filter(x => !A.includes(x)).slice(0, 5); } $('#modal').hidden = true; return out; });
 T('UI-B144-02', 'Built ahead: with Generate open, pressing Build opens the deck already built for those settings (under 2 s), the same deck as building it then', b144b.early && b144b.same && b144b.ms < 2000, JSON.stringify(b144b));
+} else SKIPPED.push('UI-B144-02');
 // 103. Build 145: a commander with no play data of its own is built from its creature type's and theme's pages in its colours.
 // Ghoulcaller Gisa keeps making Zombies, so she leads a Zombie deck; her own page is treated as missing here.
 const b145a = await page.evaluate(async () => { const out = {}, name = 'Ghoulcaller Gisa', keep = EDH; const E = {key:name, map:null, decks:0, state:'fail', pre:null, tags:[], tmap:{}}; await addFall(E, name);
@@ -1157,4 +1172,5 @@ T('UI-ERR', 'No page errors during the run', !errs.length, errs.join(' | '));
 await page.screenshot({path:OUT + '/' + label + '-desktop.png', fullPage:false});
 fs.writeFileSync(OUT + '/' + label + '.json', JSON.stringify({build, at:new Date().toISOString(), results}, null, 1));
 console.log('\nbuild', build, '|', results.filter(r => r.pass).length, 'passed,', results.filter(r => !r.pass).length, 'failed');
+if (SKIPPED.length) console.log('FAST=1: skipped ' + SKIPPED.length + ' heavy tests (' + SKIPPED.join(', ') + '); run without FAST before going live');
 await b.close();
