@@ -165,6 +165,16 @@ function baseScore(c, d, ctx) {
       why.push('Works with ' + ctx.cmd.n.split(',')[0] + ' (' + y.words.join(', ') + ')');
     }
   }
+  // engine v2 (UP.optW): what the commander's stronger decks (EDHREC's bracket 4 page) run more often than its decks overall,
+  // trusted in proportion to how many strong decks there are (UP.optN) and not at all below UP.optMin of them
+  if (UP.optW && ctx.edh && ctx.edh.opt && ctx.edh.optDecks >= UP.optMin) {
+    const xo = edhOf(ctx.edh.opt, c);
+    if (xo) {
+      const x = edhOf(ctx.edh.map, c),
+        lift = xo.inc - (x ? x.inc : 0);
+      if (lift > 0) s += (UP.optW * lift * ctx.edh.optDecks) / (ctx.edh.optDecks + UP.optN);
+    }
+  }
   // with no play data of its own, the commander's tribe and theme pages (UP.fbW of the weight its own data would have)
   if (ctx.fall) {
     let best = null;
@@ -1809,6 +1819,9 @@ const UP = {
   v2: 1, // engine v2: jobs from the rules reading (engine/rules.js, engine/functions.js); see tags()
   v2r: ['removal', 'wipe+', 'draw+'], // removal from the reading, wipes and card draw added from it: no benchmark number below 0.9.3 (ROADMAP)
   syn: 0, // engine v2: weight of synergy with the commander (fnSynergy)
+  optW: 0, // engine v2: weight of what the commander's bracket 4 decks run more than its decks overall (EDHREC optimized page)
+  optN: 100,
+  optMin: 30,
   v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
   polG: 0.3,
