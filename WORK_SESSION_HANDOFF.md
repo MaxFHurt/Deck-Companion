@@ -100,8 +100,15 @@ possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; 
      exactly the rows of the table below, one at a time, rebuilds the bundles first and prints one summary line per check.
    - While working, after each change: the quick check `PW=/opt/node22/lib/node_modules/playwright node ui-quick.mjs 8765 q`
      (about 25 s, 12 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
-   - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
-     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (118 at Version 0.9.3). If it
+   - **UI suite side by side (owner's speedup, 20 Oct):** `PW=... node ui-par.mjs 8765 bN 3` runs the 118 tests as 3 groups in
+     parallel browsers: 5.6 min (one line: 9.5 min); `FAST=1` skips 7 heavy independent tests (4.9 min). Every test is wrapped
+     `if (RUN('<id>')) { try { ... } catch ... }`; a new test must be written the same way. Groups: `ui-test.groups.json`
+     (tests that share variables run together); times for balancing: `ui-times.json`; UI-ID-01 and UI-AIM-01 make the decks
+     the others use and run in every group. In a group each test starts from a reset screen (Wakanda on Upgrades, card data
+     re-injected after a reload). Kept apart: UI-PLAN-02 and UI-B81-02 (open finding in ROADMAP). Four groups is no faster
+     on this 4-core machine.
+   - UI suite in one line: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
+     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (118 at Version 0.9.3), side by side or in one line. If it
      prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
    - Benchmark (engine changes), all six must not drop:
      `SCORECHECK=1 ALSOW=3,6 node bench.js ../candidate x tuneall|test|holdout --quiet` gives the plain and the weighted numbers

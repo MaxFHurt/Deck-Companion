@@ -2465,16 +2465,25 @@ function statsHtml(d, A, R, mode) {
     pc = v => Math.max(0, Math.min(100, Math.round(v)));
   const mk = pw != null ? {budget: pc((100 * T0.budget) / T0.apex), mid: pc((100 * T0.mid) / T0.apex)} : q.marks,
     qp = pw != null ? pc(pw) : q.vsApex;
+  // the level compares unrounded scores (0.9.3 fix: 95.6% of Apex and a Budget mark at 95.74% both rounded to 96 read as Budget)
   const lvl =
     qp == null || !mk
       ? ''
-      : (pw != null ? pw >= 99.5 : qp >= 97)
-        ? 'Apex'
-        : qp >= mk.mid
-          ? 'Mid'
-          : qp >= mk.budget
-            ? 'Budget'
-            : 'Starter';
+      : pw != null
+        ? pw >= 99.5
+          ? 'Apex'
+          : e.exact >= T0.mid
+            ? 'Mid'
+            : e.exact >= T0.budget
+              ? 'Budget'
+              : 'Starter'
+        : qp >= 97
+          ? 'Apex'
+          : qp >= mk.mid
+            ? 'Mid'
+            : qp >= mk.budget
+              ? 'Budget'
+              : 'Starter';
   const tierMeter =
     qp == null
       ? '<p class="note' +

@@ -222,6 +222,21 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Engine redesign on `engine-v2` (from 20 October 2026; never served to players until it beats 0.9.3)
+
+- **Phase 0 (done):** rules test set (32 cards, 31 rule areas), Forge scripts (tests only, GPL), Scryfall tags (90 tags,
+  27,189 cards), baseline `tools/rules/baseline-0.9.3.json`.
+- **UI suite (owner: speed it up):** side by side in 3 groups, 118/118 in 5.6 min (was 9.5); fast mode 4.9 min. Tests fixed on
+  the way: UI-ASYNC-01 now really loads Family Matters (the test server only served 5 precons, so it was checking whatever
+  draft was left over); UI-B81-03 exempts Players' choice alternatives (listed on the players' word since Build 143);
+  UI-B134-01 loads a fresh Doom Prevails when no open deck has an Unpopular pick; UI-B98-01 checks buttons, not the whole
+  page; UI-B148-01 makes its own buy list; UI-FIX-01's redraw limit 6 -> 12 (a loop is hundreds; a busy machine adds a few);
+  UI-GEN-01 waits up to 60 s for a generated deck.
+- **App fix found by the grouped runs:** the progress bar's level compared rounded percentages, so a deck at 95.6% of Apex
+  with the Budget mark at 95.74% read "Budget level"; it now compares the unrounded scores (ui/upgrades.js statsHtml).
+- **Open finding:** after UI-PLAN-02 in the same browser, UI-B81-02's "generating twice gives the same deck" fails (Captain
+  America); not reproduced outside the suite yet. The grouped runner keeps the two apart.
+
 ## Version 0.9.3 (build 148, 19-20 October 2026; pushed with the owner's OK)
 
 Owner's reports from the iPad (4 Brothers, Heroes in a Half Shell) and choices 1c / 2c / 3 (19 Oct).
