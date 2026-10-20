@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Version 0.9.2 (build 147); Version 0.9.3 (build 148) built and tested, waiting for the owner's OK to push. Each item ships as its own build: build, run the full test suite
+Live: Version 0.9.3 (build 148). Next: the engine redesign, kept off the live app until it makes better choices (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -222,7 +222,7 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
-## Version 0.9.3 (build 148, 19-20 October 2026; built and tested, waiting for the owner's OK to push)
+## Version 0.9.3 (build 148, 19-20 October 2026; pushed with the owner's OK)
 
 Owner's reports from the iPad (4 Brothers, Heroes in a Half Shell) and choices 1c / 2c / 3 (19 Oct).
 - **The strongest card is the Apex card** (owner: "If a .38 cent card is the best card, it's the Apex card. We have too many

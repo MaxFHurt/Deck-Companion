@@ -1,8 +1,13 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 20 October 2026. Live: Version 0.9.2 (build 147). Version 0.9.3 (build 148) is committed on the work branch,
-tested, and waits for the owner's OK to push.
+Last updated: 20 October 2026. Live: Version 0.9.3 (build 148), pushed with the owner's OK ("Send it live").
+**Next: the engine redesign** (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Owner, 20 Oct: "all the
+engine rework stays here until we're sure we are doing better choices. I still want all the options available that were
+available before... I don't want to change our app. Just the way choices are made behind the scenes." Decisions: the rules
+reader understands everything a card does before practice games get smarter; Scryfall community tags yes; Forge scripts yes
+(kept in tests only, GPL); offline AI reading asked how (plan, Where card knowledge comes from); Apex learned from tournament
+and bracket 4-5 decks (both); Budget = $3 per card and an entered total (both).
 
 ## 0. Open questions for the owner (ask these first, numbered)
 
@@ -11,9 +16,8 @@ tested, and waits for the owner's OK to push.
 me when you're done working but don't act on it till I say so."** Raise it at the end of every report; change nothing about the
 suite's speed until the owner says so.
 
-1. **Push Version 0.9.3 (build 148)?** Best card is Apex (with Popular pick / On theme alternative), tier buttons, chip in the
-   score bar, two button fixes, flattened and split code, minified bundles, testing tools. Tested: UI suite, benchmark identical
-   to 0.9.2 without the search.
+1. **Engine redesign open questions** (plan doc): offline AI reading in sessions or as a job with an API key; where the
+   rework is kept between sessions (a separate branch such as `engine-v2` is never served to players).
 2. **The Apex rule against players** (benchmark with the search): the players' card is still offered on each row as often
    (row@5 0.247 -> 0.249) but Apex now disagrees with players (agreement@5 0.246 -> -0.121). Owner: "the strongest card is the
    Apex card". 2a. Keep as is. 2b. Review the biggest score finds (Archpriest of Shadows, Evolution Witness, The Soul Stone...):
