@@ -495,7 +495,7 @@ const RR_EFFECTS = [
     m => ({do: 'exile-top', count: rrNum(m[1])})
   ],
   [
-    /\b(?:play|cast) (?:that card|it|them|those cards|cards exiled|spells? from among|a [^.]*?from among cards exiled|the exiled card)/i,
+    /(?:\b(?:you may|you can|may|you could) |^)(?:play|cast) (?:that card|it|them|those cards|cards exiled|spells? from among|a [^.]*?from among cards exiled|the exiled card)(?! this way)/i,
     () => ({do: 'may-play-exiled'})
   ],
   [/\bwithout paying (?:its|their) mana costs?/i, () => ({do: 'free-cast'})],

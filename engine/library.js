@@ -275,7 +275,7 @@ function tags(c) {
   }
   // engine v2: a card's jobs come from its rules reading (engine/functions.js) as well as, or instead of, the text patterns above
   // UP.v2 1: the reading's jobs replace the patterns'; 2: both; UP.v2r: the jobs taken from the reading (the rest keep the patterns')
-  // (only removal and wipes are taken from the reading: a card with no removal words and no 0.9.3 removal is left unread, the same
+  // (only removal, wipes and card draw are taken from the reading: a card with no removal words and no 0.9.3 removal is left unread, the same
   // result faster)
   if (
     UP.v2 &&
@@ -283,8 +283,12 @@ function tags(c) {
     !(
       UP.v2 === 1 &&
       UP.v2r &&
-      UP.v2r.every(r => r === 'removal' || r === 'wipe+') &&
+      UP.v2r.every(r => r === 'removal' || r === 'wipe+' || r === 'draw+') &&
       !roles.has('removal') &&
+      !(
+        UP.v2r.includes('draw+') &&
+        /\bdraws?\b|\bhand\b|exile the top|look at the top|investigate|clue|connive|monarch|initiative|may (?:play|cast)/i.test(o)
+      ) &&
       !/destroy|exile|damage|\/[-−]|sacrific|fights?\b|gains? control|controls enchanted|owners?'?s? (?:hand|library)|hands\b|shuffles|loses all|can't attack|base power|tap target|doesn't untap|waterbend/i.test(
         o
       )

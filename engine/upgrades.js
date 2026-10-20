@@ -1807,7 +1807,7 @@ function tierPick(L, t) {
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
 const UP = {
   v2: 1, // engine v2: jobs from the rules reading (engine/rules.js, engine/functions.js); see tags()
-  v2r: ['removal', 'wipe+'], // removal from the reading, wipes added from it: no benchmark number below 0.9.3 (ROADMAP)
+  v2r: ['removal', 'wipe+', 'draw+'], // removal from the reading, wipes and card draw added from it: no benchmark number below 0.9.3 (ROADMAP)
   syn: 0, // engine v2: weight of synergy with the commander (fnSynergy)
   v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
