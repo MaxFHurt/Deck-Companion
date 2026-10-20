@@ -1642,13 +1642,24 @@ function handleAct(act, v, n, pArg) {
           }
         } catch (e) {}
         await thinkThen('Thinking… building the strongest deck for ' + c.n.split(',')[0], () =>
-          startPlan(c.n, [], null, null, {fill: g.tier || 'apex', mechChosen: true, aims, tribe, player: g.player || ''})
+          startPlan(c.n, [], null, null, {
+            fill: g.tier || 'apex',
+            mechChosen: true,
+            aims,
+            tribe,
+            player: g.player || '',
+            budget: genBudget(false)
+          })
         );
         touch();
         render();
       })();
       return;
     }
+    case 'gen-cmdown':
+      S.gen.cmdOwned = !S.gen.cmdOwned;
+      openGenerate();
+      return;
     case 'gen-tier':
       S.gen.tier = TIERS[v] ? v : 'apex';
       S.gen.warn = '';
@@ -1745,7 +1756,13 @@ function handleAct(act, v, n, pArg) {
             null,
             p && canPair(c, p) ? p.n : null,
             Object.assign(
-              {fill: g.tier || 'apex', themeFirst: !!g.theme && !g.best, mechChosen: !!g.mech.length, player: g.player || ''},
+              {
+                fill: g.tier || 'apex',
+                themeFirst: !!g.theme && !g.best,
+                mechChosen: !!g.mech.length,
+                player: g.player || '',
+                budget: genBudget(!!g.cmdOwned)
+              },
               sets.length ? {sets, setsMust: must} : {},
               aims.length ? {aims} : {}
             )
@@ -2260,6 +2277,8 @@ document.addEventListener('change', ev => {
     render();
   } else if (t.id === 'gen-player') {
     S.gen.player = t.value || '';
+  } else if (t.id === 'gen-budget' || t.id === 'gen-tbudget') {
+    S.gen.budget = Math.max(0, +t.value || 0);
   } else if (t.id === 'gen-ttribe') {
     S.gen.ttribe = t.value || '';
     openGenerate();

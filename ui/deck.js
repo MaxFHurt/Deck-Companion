@@ -1411,7 +1411,9 @@ function themeBuildBox() {
       .join('') +
     '</div><p class="note" style="margin:0">' +
     GEN_PRICE[g.tier || 'apex'] +
-    '</p></div>'
+    '</p>' +
+    genBudgetBox(null, 'gen-tbudget') +
+    '</div>'
   );
 }
 function openGenerate() {
@@ -1593,6 +1595,35 @@ function genModeBox(c, st) {
     GEN_PRICE[g.tier] +
     ' Every choice above works at every price level' +
     (g.tier === 'apex' && g.theme ? ': Apex with Theme first is the strongest deck that keeps the theme' : '') +
+    '.</p>' +
+    genBudgetBox(c, 'gen-budget') +
+    '</div>'
+  );
+}
+// Budget decks take an optional total budget (owner, 20 Oct): the whole deck fits it. Cards you own and basic lands are free,
+// and so is the commander when you say you own it.
+function genBudgetBox(c, id) {
+  const g = S.gen;
+  if (g.tier !== 'budget') return '';
+  return (
+    '<div class="grp" style="margin:0"><label class="lab" for="' +
+    id +
+    '">Total budget · optional</label><div class="row"><span>$</span><input type="number" id="' +
+    id +
+    '" min="0" step="5" inputmode="decimal" style="max-width:8em" placeholder="No limit" value="' +
+    (g.budget > 0 ? +g.budget : '') +
+    '"></div>' +
+    (c
+      ? '<div class="row"><button class="chk' +
+        (g.cmdOwned ? ' on' : '') +
+        '" data-act="gen-cmdown" role="checkbox" aria-checked="' +
+        !!g.cmdOwned +
+        '"><i></i>I already own ' +
+        esc(c.n.split(',')[0]) +
+        '</button></div>'
+      : '') +
+    '<p class="note" style="margin:0">The whole deck fits this total. Cards you own and basic lands are free' +
+    (c ? (g.cmdOwned ? ', and so is your commander' : '; the commander counts unless you own it') : '') +
     '.</p></div>'
   );
 }

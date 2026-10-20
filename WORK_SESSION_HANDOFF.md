@@ -9,6 +9,12 @@ reader understands everything a card does before practice games get smarter; Scr
 (kept in tests only, GPL); offline AI reading asked how (plan, Where card knowledge comes from); Apex learned from tournament
 and bracket 4-5 decks (both); Budget = $3 per card and an entered total (both).
 
+**Engine v2 progress (branch `engine-v2`, see ROADMAP "Engine redesign"):** Phase 1 rules reader and Phase 2 card functions
+done (`engine/rules.js`, `engine/functions.js`, checks `rrcheck.js`, `forgecheck.js`, `fncheck.js`). Phase 3: the new jobs and
+the synergy signal sit behind `UP.v2` / `UP.v2r` / `UP.syn`, all off until a mix beats 0.9.3 on all six benchmark numbers
+(removal/wipe/counterspell from the reader: tuneall and test up, holdout down, so still off). Entered total budget for
+generated Budget decks is built (Generate → Budget → Total budget, "I already own" the commander; `fitBudget`; UI-BUD-01).
+
 ## 0. Open questions for the owner (ask these first, numbered)
 
 **Owner's rule (18 Oct): do not push anything without the owner's confirmation.**

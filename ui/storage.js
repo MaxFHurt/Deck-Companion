@@ -471,7 +471,7 @@ function wkGet() {
   if (!WK.ok || S.noWorker || typeof Worker === 'undefined') return null;
   if (WK.w) return WK.w;
   try {
-    const v = 'work.js?v=' + (window.BUILD || '') + (window.DEV ? '&dev=1' : ''),   // the worker loads what the page loaded
+    const v = 'work.js?v=' + (window.BUILD || '') + (window.DEV ? '&dev=1' : ''), // the worker loads what the page loaded
       w = new Worker(v);
     w.onmessage = ev => {
       const m = ev.data || {},

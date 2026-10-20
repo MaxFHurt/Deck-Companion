@@ -14,7 +14,7 @@ function rng32(seed) {
 }
 const NUMW = {a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7};
 function simCard(c, ident) {
-  if (c._sim) return c._sim;
+  if (c._sim && (c._sim.v2 === undefined || c._sim.v2 === !!UP.v2sim)) return c._sim; // (a fetched basic carries its own)
   const t = frontType(c),
     o = (c.o || '').split(' // ')[0],
     land = tags(c).land,
@@ -31,7 +31,8 @@ function simCard(c, ident) {
       perm: !/^(Instant|Sorcery)/.test(t),
       creature: /Creature/.test(t),
       artifact: /Artifact/.test(t),
-      power: /Creature/.test(t) ? parseInt(String(c.pt || '0').split('/')[0], 10) || 0 : 0
+      power: /Creature/.test(t) ? parseInt(String(c.pt || '0').split('/')[0], 10) || 0 : 0,
+      v2: !!UP.v2sim
     };
   // cost reductions the simulator can follow: total power of your creatures (Ghalta), one less per creature or artifact you control
   if (/costs \{X\} less to cast, where X is the total power of creatures you control/i.test(o)) x.redPower = true;
@@ -83,7 +84,64 @@ function simCard(c, ident) {
     if (dr && !/whenever|at the beginning|each player/i.test(o.slice(Math.max(0, dr.index - 60), dr.index)))
       x.draw = NUMW[dr[1].toLowerCase()] || +dr[1] || 0;
   }
+  if (UP.v2sim && !land) simReading(c, x);
   return (c._sim = x);
+}
+// Practice games from the rules reading (engine v2 phase 5, UP.v2sim): a mana ability pays for spells only with what it nets
+// (a Signet's "{1}, {T}: Add {U}{B}" makes one more mana, not two) and only when tapping is its whole cost besides mana and life
+// (a sacrifice is a one-shot, not a source); a creature that taps for mana is summoning sick unless it has haste, and once
+// tapped for mana it cannot attack that turn. Creatures attack from the turn after they come down (haste: at once).
+function simReading(c, x) {
+  const r = rrRead(c),
+    abs = r.abilities.concat(...(r.faces || []).slice(0, 1).map(f => f.abilities)),
+    kw = n => abs.some(a => a.kind === 'keyword' && a.name === n);
+  x.haste = kw('haste');
+  x.evasive =
+    ['flying', 'menace', 'trample', 'shadow', 'fear', 'intimidate'].some(kw) ||
+    abs.some(a => (a.effects || []).some(e => e.do === 'unblockable' && /^~|^$/.test(e.who || '')));
+  if (r.body && x.creature) x.power = typeof r.body.power === 'number' ? r.body.power : 0;
+  const o = c.o || '';
+  if (/Spend this mana only/i.test(o)) return;
+  let best = null;
+  for (const a of abs) {
+    if (a.kind !== 'mana') continue;
+    const cost = a.cost || [];
+    if (
+      !cost.some(k => k.tap) ||
+      cost.some(k => k.sacrifice || k.discard || k['remove-counters'] || k['tap-others'] || k['exile-self'])
+    )
+      continue;
+    const paid = cost
+        .filter(k => k.mana)
+        .reduce(
+          (s, k) =>
+            s +
+            (k.mana.match(/\{\d+\}/g) || []).reduce((t, q) => t + +q.slice(1, -1), 0) +
+            (k.mana.match(/\{[WUBRGC]\}/g) || []).length,
+          0
+        ),
+      mk = a.makes || {},
+      net = (+mk.amount || 1) - paid;
+    if (net < 1) continue;
+    const sym = mk.colors && mk.colors.length ? mk.colors : (String(mk.choice || '').match(/\{[WUBRGC]\}/g) || []).map(q => q[1]);
+    if (!best || net > best.net)
+      best = {
+        net,
+        cols: sym.length && !/any|identity|could produce/i.test(mk.choice || '') ? [...new Set(sym)] : 'WUBRG'.split('')
+      };
+  }
+  if (best) {
+    x.mana = best.net;
+    x.cols = best.cols;
+    x.sick = x.creature && !x.haste;
+    x.tappedRock =
+      abs.some(a => a.kind === 'replacement' && /enters tapped/i.test(a.scope || a.event || '')) || /enters tapped/i.test(o);
+  } else if (x.mana) {
+    // the text pattern found a source the reading does not count as one (a sacrifice, or a net of nothing)
+    x.mana = 0;
+    x.cols = [];
+    x.sick = false;
+  }
 }
 // Can these pips be paid from these sources (each source: list of colours it can make)? Generic is paid from the rest.
 function payable(pips, generic, srcs) {
@@ -164,7 +222,9 @@ function simulate(d, games, seed) {
       flood: 0,
       landsT4: [],
       noPlayT3: 0,
-      mull: 0
+      mull: 0,
+      dmg: [0, 0, 0, 0, 0, 0, 0, 0],
+      kill: []
     },
     rnd = rng32(seed || 1);
   const colsOf = s => (s.cols.length ? s.cols.filter(k => k === 'C' || ident.includes(k)) : ['C']);
@@ -196,7 +256,9 @@ function simulate(d, games, seed) {
       cz = cmds.slice();
     let cmdT = 0,
       stuckAny = false,
-      ramped = 0;
+      ramped = 0,
+      dmg = 0,
+      killT = 0;
     for (let turn = 1; turn <= 10; turn++) {
       if (turn > 1 || true) {
         if (lib.length) hand.push(lib.shift());
@@ -320,7 +382,15 @@ function simulate(d, games, seed) {
               cols: x.cols.length ? x.cols.filter(k => ident.includes(k)) : ['C']
             })
           );
-        else if (x.perm) bf.push({mana: 0, cols: [], power: x.power, creature: x.creature, artifact: x.artifact});
+        else if (x.perm)
+          bf.push({
+            mana: 0,
+            cols: [],
+            power: x.power,
+            creature: x.creature,
+            artifact: x.artifact,
+            sickNow: !!UP.v2sim && x.creature && !x.haste
+          });
         if (x.ramp) {
           ramped += x.ramp;
           for (let r = 0; r < x.ramp; r++) bf.push({land: true, mana: 1, cols: ident.slice(), tappedNow: true, wake: turn + 1});
@@ -337,6 +407,12 @@ function simulate(d, games, seed) {
         }
         for (let q = 0; q < (x.draw || 0); q++) if (lib.length) hand.push(lib.shift());
       }
+      // combat basics (UP.v2sim): every creature that is not summoning sick and was not tapped for mana attacks an empty board
+      if (UP.v2sim) {
+        dmg += bf.reduce((a, s) => a + (s.creature && s.power > 0 && !s.sickNow && !s.usedCount ? s.power : 0), 0);
+        if (turn <= 8) R.dmg[turn - 1] += dmg;
+        if (!killT && dmg >= 40) killT = turn;
+      }
       bf.forEach(s => {
         s.used = false;
         s.usedCount = 0;
@@ -350,11 +426,13 @@ function simulate(d, games, seed) {
       if (turn === 8 && L + hand.filter(c => simCard(c, ident).land).length - ramped >= 9) R.flood++; // flood: 9+ of the ~15 cards seen by turn 8 are lands
     }
     R.cmdTurn.push(cmdT || 11);
+    R.kill.push(killT || 11);
     if (stuckAny) R.colourStuck++;
   }
   const n = R.games,
     med = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
-  return {
+  const combat = UP.v2sim ? {damageT1to8: R.dmg.map(v => +(v / n).toFixed(1)), killMedianTurn: med(R.kill)} : {};
+  return Object.assign(combat, {
     games: n,
     cmdMedianTurn: med(R.cmdTurn),
     cmdByT4: R.cmdTurn.filter(t => t <= 4).length / n,
@@ -366,7 +444,7 @@ function simulate(d, games, seed) {
     floodT8: +(R.flood / n).toFixed(3),
     mulligan: +(R.mull / n).toFixed(3),
     landsT4: +(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)
-  };
+  });
 }
 // Visible practice games (Build 136): the same games as simulate(), step by step, for the Practice panel. A copy that also
 // records each turn, so simulate() (the deck score's 300 games) stays exactly as it is; a test checks both agree game for game.

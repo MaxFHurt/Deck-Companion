@@ -2,7 +2,10 @@
 // all taken from its rules reading (engine/rules.js) instead of from patterns over its text. The words are the answer key's
 // (tools/rules/testset/README.md): makes/uses mana, cards, tokens, treasure, counters, life, graveyard, bodies, damage, plus
 // the events a card listens for; roles ramp, draw, removal, wipe, counterspell, tutor, protection, recursion, sac-outlet,
-// finisher, stax, combat. fnOf(c) caches the result on the card as c._fn.
+// finisher, stax, combat. fnOf(c) caches the result on the card as c._fn; tags(c) passes its 0.9.3 roles as oldRoles.
+
+// The engine settings that make every choice the way 0.9.3 did ("?engine=old", ui/boot.js; the benchmark's baseline)
+const ENGINE_OLD = {v2: 0, v2r: null, syn: 0, v2sim: 0};
 
 // every ability of a reading with its effects (a modal ability's modes count as its effects), front and back faces
 function fnAbilities(r) {
@@ -33,7 +36,27 @@ const fnIsTarget = e => !!((e.target && !/\byou control\b/i.test(e.target.what |
 const fnLandSearch = e => e.do === 'search' && /\bland\b|\b(?:Plains|Island|Swamp|Mountain|Forest)\b/i.test(e.what || '');
 // who keeps a protective keyword: your side, or the creature an Equipment or Aura is on, or a creature you target
 const FN_OURS = /\byou control\b|equipped creature|enchanted (?:creature|permanent)|^target\b|^(?:those creatures|it|you)$/i;
-function fnOf(c) {
+// Synergy with the commander (engine v2, UP.syn): the card makes something the commander uses, or uses something the commander
+// makes. Mana, cards and damage are left out: every deck uses them. A word a card makes feeds these uses.
+const FN_FEEDS = {
+  tokens: ['tokens', 'token-created'],
+  treasure: ['tokens', 'token-created'],
+  counters: ['counters', 'counters-placed', 'creature-leaves-with-counters'],
+  bodies: ['bodies', 'creature-dies'],
+  graveyard: ['graveyard'],
+  life: ['life']
+};
+function fnSynergy(c, cmd) {
+  if (!cmd || c === cmd) return {n: 0, words: []};
+  const a = fnOf(c),
+    b = fnOf(cmd),
+    words = [];
+  const feeds = (m, u) => (FN_FEEDS[m] || []).some(x => u.has(x));
+  for (const m of a.makes) if (feeds(m, b.uses)) words.push('makes ' + m);
+  for (const m of b.makes) if (feeds(m, a.uses) && !words.includes('uses ' + m)) words.push('uses ' + m);
+  return {n: words.length, words};
+}
+function fnOf(c, oldRoles) {
   if (c._fn) return c._fn;
   const r = rrRead(c),
     makes = new Set(),
@@ -292,8 +315,8 @@ function fnOf(c) {
   if (r.abilities.some(x => x.kind === 'keyword' && /umbra armor|totem armor/.test(x.name))) roles.add('protection');
   if (!land && /\bcreates? [^."]*\bTreasure tokens?\b/i.test(o)) (makes.add('treasure'), makes.add('mana'), roles.add('ramp'));
   // a card the reader could not fully read keeps the jobs the 0.9.3 text patterns give it, so no card loses a job it had
-  if (r.unknown.length && typeof tags === 'function') {
-    const old = tags(c).roles;
+  if (r.unknown.length && (oldRoles || typeof tags === 'function')) {
+    const old = oldRoles || tags(c).roles;
     for (const [from, to] of FN_OLD) if (old.has(from)) roles.add(to);
   }
   // a wipe that leaves your side alone is still a wipe; a wipe is not also counted as spot removal

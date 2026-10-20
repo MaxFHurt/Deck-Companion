@@ -273,6 +273,16 @@ function tags(c) {
     if (ROLE_RE.tutor.test(ro) && !roles.has('ramp')) roles.add('tutor');
     if (ROLE_RE.protect.test(ro) || (/\bInstant\b/.test(t) && ROLE_RE.blink.test(ro))) roles.add('protect'); // an instant-speed blink saves a creature; a blink engine does not count
   }
+  // engine v2: a card's jobs come from its rules reading (engine/functions.js) as well as, or instead of, the text patterns above
+  // UP.v2 1: the reading's jobs replace the patterns'; 2: both; UP.v2r: the jobs taken from the reading (the rest keep the patterns')
+  if (UP.v2 && !land) {
+    const f = fnOf(c, new Set(roles)).roles;
+    for (const [o, n] of FN_OLD) {
+      if (UP.v2r && !UP.v2r.includes(o)) continue;
+      if (f.has(n)) roles.add(o);
+      else if (UP.v2 === 1) roles.delete(o);
+    }
+  }
   return (c._t = {land, th, roles});
 }
 function matchAim(c, key, tribe) {

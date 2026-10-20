@@ -8,6 +8,8 @@
   "engine/core.js",
   "engine/practice.js",
   "engine/reading.js",
+  "engine/rules.js",
+  "engine/functions.js",
   "engine/score.js",
   "engine/library.js",
   "engine/upgrades.js",

@@ -236,6 +236,24 @@ no more leaving room for better."
   with the Budget mark at 95.74% read "Budget level"; it now compares the unrounded scores (ui/upgrades.js statsHtml).
 - **Open finding:** after UI-PLAN-02 in the same browser, UI-B81-02's "generating twice gives the same deck" fails (Captain
   America); not reproduced outside the suite yet. The grouped runner keeps the two apart.
+- **Phase 1 (done): rules reader** `engine/rules.js` (`rrRead(c)`): every ability of a card as kind (keyword, static,
+  triggered, activated, mana, loyalty, replacement, spell, modal, chapter, level), costs, triggers, conditions, "unless" taxes,
+  durations and effect atoms. Answer key 32/32; retail precon spell sentences read 98.9% (281 of 289 cards fully; 0.9.3
+  read 156); every Commander card 89%. A sentence it cannot cover is reported as unread, never guessed. Agreement with
+  Forge's scripts (`forgecheck.js`, fully read cards): triggered 97.5%, activated 98.1%, mana 99.9%, replacement 97.9%,
+  trigger events 99.1%. Checks: `rrcheck.js` (answer key, coverage, EX= examples), `forgecheck.js`.
+- **Phase 2 (done): card functions** `engine/functions.js` (`fnOf(c)`): what a card makes (mana, cards, tokens, treasure,
+  counters, life, graveyard, bodies, damage), uses (the same plus events it listens for) and its jobs, all from the reading.
+  A card with an unread sentence keeps 0.9.3's jobs, so none is lost. Against Scryfall's community tags over 25,234 Commander
+  cards (precision / recall, 0.9.3 in brackets): ramp 86/81 (85/82), draw 95/63 (96/60), removal 94/77 (94/58), wipe 86/77
+  (87/77), counterspell 98/94 (99/89), tutor 93/53 (98/53), protection 83/60 (84/60). `fncheck.js`.
+- **Phase 3 (in progress):** `UP.v2` / `UP.v2r` in `tags()` take a card's jobs from the reading. All jobs from the reading
+  scored lower (tuneall 0.245 / 0.247 / 0.12); removal, wipe and counterspell from the reading and the rest from 0.9.3 scored
+  higher on all three tuneall numbers (0.251 / 0.253 / 0.133, weighted 0.281 / 0.283 / 0.160; baseline 0.248 / 0.249 / 0.130,
+  0.279 / 0.279 / 0.158). **Entered budget** for generated Budget decks: a "Total budget" box (and "I already own" the
+  commander) on Generate; `fitBudget` swaps the priciest cards for the strongest same-job cards that cost less until the
+  deck fits (owned cards, an owned commander and basic lands are free). The stats strip shows the price level (and the cost
+  against the budget) apart from the power tier.
 
 ## Version 0.9.3 (build 148, 19-20 October 2026; pushed with the owner's OK)
 

@@ -1,4 +1,7 @@
 // ---------- boot ----------
+// Engine v2 phase 4: "?engine=old" runs every choice the way 0.9.3 made it (the rules reading, synergy and practice-game changes
+// off), so the two engines can be compared side by side. The worker gets the same settings with each job.
+if (/[?&]engine=old(&|$)/.test(location.search)) Object.assign(UP, ENGINE_OLD);
 ornaments();
 paintSky();
 let rz = 0;

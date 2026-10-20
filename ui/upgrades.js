@@ -1894,6 +1894,7 @@ function planDeck(cmdName, extraAims, partner, opts) {
     nd.aimLocked = true;
   } // Build by theme: the chosen creature type
   if (opts && opts.player) nd.player = opts.player;
+  if (opts && opts.budget) nd.budget = Object.assign({}, opts.budget);
   (extraAims || []).forEach(a => {
     if (nd.aims.length < 3 && !nd.aims.includes(a)) nd.aims.push(a);
   });
@@ -1944,11 +1945,25 @@ async function startPlan(cmdName, seeds, extraAims, partner, opts) {
           TIERS[opts.fill].label +
           '.' +
           short +
-          (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.')
+          (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.') +
+          (nd.budget && nd.budget.total && nd.budget.cost != null
+            ? nd.budget.cost <= nd.budget.total
+              ? ' It costs $' + nd.budget.cost.toFixed(2) + ' of your $' + (+nd.budget.total).toFixed(2) + ' budget.'
+              : ' It could not get under your $' +
+                (+nd.budget.total).toFixed(2) +
+                ' budget: the cheapest build found costs $' +
+                nd.budget.cost.toFixed(2) +
+                '.'
+            : '')
       );
     } else toast('Designed a ' + n + '-card build for ' + c.n + '.' + short + ' Add the cards you want from the Upgrades tab.');
   }
   return nd;
+}
+// The total budget for a generated Budget deck, or null (no total, or another price level)
+function genBudget(cmdOwned) {
+  const g = S.gen;
+  return g.tier === 'budget' && g.budget > 0 ? {total: +g.budget, cmdOwned: !!cmdOwned} : null;
 }
 function ownToggle(kind) {
   const n = libCount();
@@ -2535,6 +2550,15 @@ function statsHtml(d, A, R, mode) {
     (e ? statDelta(e.total, prev && prev.score) : '') +
     '</span>' +
     (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') +
+    // the price level is a rule on what the deck may cost, shown apart from the power tier (owner, 20 Oct); a generated deck
+    // with a total budget shows what is left to buy against it
+    (d.format === 'commander' && TIERS[d.tier]
+      ? '<span>Price <b>' +
+        TIERS[d.tier].label +
+        '</b>' +
+        (d.budget && d.budget.total > 0 ? ' · $' + Math.round(deckCost(d, own)) + ' of $' + Math.round(d.budget.total) : '') +
+        '</span>'
+      : '') +
     (A.ctx.bracket ? '<span>Bracket <b>' + A.ctx.bracket + '</b></span>' : '') +
     '<span>Swaps <b>' +
     nSw +

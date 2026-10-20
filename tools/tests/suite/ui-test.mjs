@@ -219,6 +219,18 @@ const g3 = await page.evaluate(async () => { S.draft = null; S.gen = {cmd:'Capta
   return {sets:d.sets, must:d.setsMust, label, slots:d.cards.reduce((a, x) => a + x.q, 0), outside:all.filter(c => !isBasic(c.n) && !inSets(c, d)).map(c => c.n).slice(0, 5)}; });
 T('UI-SET-01', 'Generate: card sets as a rule; every card put in the deck (and every stand-in left over) is printed in the chosen sets or is a basic land', g3.must && g3.sets && g3.sets.join() === 'msc,msh' && /Only these sets/.test(g3.label) && g3.slots > 0 && !g3.outside.length, JSON.stringify(g3));
 } catch (e) { QUIET = false; T('UI-SET-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-BUD-01')) { try { if (SHARD) await RESET();
+// 15a. Entered budget (owner, 20 Oct): Budget generation takes a total budget and asks whether the commander is owned; the deck fits
+// it (owned cards, an owned commander and basic lands are free). Other price levels show no budget box.
+const gb = await page.evaluate(async () => { S.draft = null; S.gen = {cmd:'Captain America, Team Leader', tier:'apex', partner:'', sets:[], setsMust:false}; openGenerate(); const M = () => document.querySelector('#modal');
+  const apexBox = !!M().querySelector('#gen-budget'); M().querySelector('[data-act="gen-tier"][data-v="budget"]').click();
+  const inp = M().querySelector('#gen-budget'), own = M().querySelector('[data-act="gen-cmdown"]'); if (!inp || !own) return {apexBox, box:!!inp, own:!!own};
+  inp.value = '40'; inp.dispatchEvent(new Event('change', {bubbles:true})); own.click(); const kept = (M().querySelector('#gen-budget') || {}).value, note = /commander[^.]*free|so is your commander/i.test(M().innerText);
+  M().querySelector('[data-act="gen-go"]').click(); await new Promise(r => setTimeout(r, 300)); for (let i = 0; i < 300 && !(S.draft && S.draft.cards.length); i++) await new Promise(r => setTimeout(r, 200));
+  const d = S.draft; if (!d) return {apexBox, box:true, own:true, draft:false};
+  return {apexBox, box:true, own:true, kept, note, budget:d.budget, cost:deckCost(d, ownSet()), cards:d.cards.reduce((a, x) => a + x.q, 0)}; });
+T('UI-BUD-01', 'Generate at Budget with a total budget: the box appears only for Budget, the owned commander is free and the deck costs no more than the budget', !gb.apexBox && gb.box && gb.own && gb.kept === '40' && gb.note && gb.budget && gb.budget.total === 40 && gb.budget.cmdOwned && gb.cost <= 40 && gb.cards === 99, JSON.stringify(gb));
+} catch (e) { QUIET = false; T('UI-BUD-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-GEN-03')) { try { if (SHARD) await RESET();
 // 15b. How to build it: Best overall / Theme first / mechanics are switches that combine where they can, with an alert when a choice
 // switches another off; the deck is filled at the chosen price level and is more on theme than Best overall.

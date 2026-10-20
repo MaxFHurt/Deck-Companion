@@ -1064,11 +1064,97 @@ function* genDeckG(nd, seeds, ownOnly, ownAll, fill) {
       delete nd.plan;
       nd.tier = fill;
       if (fill !== 'apex') yield* polishDeckG(nd);
+      if (fill === 'budget' && nd.budget && nd.budget.total > 0) fitBudget(nd, nd.budget.total, ownAll || new Set());
     }
     return {n, k};
   } finally {
     upgradePaths.own = own0;
   }
+}
+// A generated Budget deck with a total budget (owner, 20 Oct) fits it. Owned cards and basic lands cost nothing, and so does the
+// commander when the player owns it. deckCost is what the player would still have to buy.
+function deckCost(d, own) {
+  own = own || new Set();
+  let t = 0;
+  const price = n => {
+    if (!n || isBasic(n) || own.has(norm(n))) return 0;
+    const c = find(n);
+    return (c && c.p) || 0;
+  };
+  for (const e of d.cards) t += price(e.n) * (e.q || 1);
+  if (!(d.budget && d.budget.cmdOwned)) t += price(d.commander) + price(d.partner);
+  return Math.round(t * 100) / 100;
+}
+// While the deck costs more than the budget, one paid card gives way to the strongest card that does the same job for less
+// (an owned card is free; nothing new costs $3 or more): of the eight priciest cards, the swap that loses the least strength per
+// dollar saved. With no cheaper stand-in left, the priciest card gives way to a basic land (ten at most, so the deck is not
+// gutted to reach an impossible total). The player's own seeds stay.
+const BASIC_OF = {W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest'};
+function fitBudget(d, total, own) {
+  own = own || new Set();
+  const ctx = ctxOf(d),
+    vm = new Map(),
+    val = x => {
+      if (!vm.has(x._k)) vm.set(x._k, baseScore(x, d, ctx).s);
+      return vm.get(x._k);
+    },
+    cost = x => (own.has(x._n) ? 0 : x.p),
+    used = new Set(d.cards.map(e => norm(e.n)).concat([norm(d.commander), norm(d.partner || '')])),
+    dis = new Set((d.dismissed || []).map(norm)),
+    pool = LIB.filter(
+      x => !isBasic(x.n) && legalIn(x, d.format) && x.ci.every(k => ctx.ident.includes(k)) && mustOk(x, d) && !dis.has(x._n)
+    );
+  // the commander alone over the budget: nothing in the 99 can fix that, so the deck is left as built
+  const cmdOnly = deckCost({cards: [], commander: d.commander, partner: d.partner, budget: d.budget}, own);
+  let left = deckCost(d, own),
+    guard = 150,
+    lands = 10;
+  // each card's cheaper stand-ins, found once: [card, its price, its strength]
+  const subs = new Map(),
+    subsOf = c => {
+      if (!subs.has(c._k)) {
+        const same = sameJobAs(c, d, ctx);
+        subs.set(
+          c._k,
+          pool
+            .filter(y => {
+              const py = cost(y);
+              return py != null && py < c.p && (py === 0 || py < TIERS.budget.cap) && y._n !== c._n && same(y);
+            })
+            .map(y => [y, cost(y), val(y)])
+        );
+      }
+      return subs.get(c._k);
+    };
+  while (left > total && cmdOnly < total && guard-- > 0) {
+    const paid = d.cards
+      .filter(e => !e.l && !isBasic(e.n) && !own.has(norm(e.n)))
+      .map(e => ({e, c: find(e.n)}))
+      .filter(x => x.c && x.c.p > 0)
+      .sort((a, b) => b.c.p - a.c.p)
+      .slice(0, 8);
+    if (!paid.length) break;
+    let best = null;
+    for (const x of paid) {
+      const vx = val(x.c);
+      for (const [y, py, vy] of subsOf(x.c)) {
+        if (used.has(y._n)) continue;
+        const loss = (vx - vy) / (x.c.p - py);
+        if (!best || loss < best.loss) best = {x, y, loss};
+      }
+    }
+    if (best) {
+      cutCard(d, best.x.e.n, 1);
+      addCard(d, best.y.n, 1);
+      used.add(best.y._n);
+    } else if (lands-- > 0) {
+      cutCard(d, paid[0].e.n, 1);
+      addCard(d, BASIC_OF[ctx.ident[0]] || 'Wastes', 1);
+    } else break;
+    left = deckCost(d, own);
+  }
+  d.budget = Object.assign({}, d.budget, {cost: left});
+  return left;
 }
 function planPick(s, t) {
   return t === 'apex' ? s.a : t === 'mid' ? s.m || s.a : s.b || s.m || s.a;

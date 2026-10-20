@@ -156,6 +156,15 @@ function baseScore(c, d, ctx) {
       else why.push(f.why);
     }
   }
+  // engine v2 (UP.syn): the card makes what the commander uses, or uses what it makes (engine/functions.js)
+  if (UP.syn && ctx.cmd && d.format === 'commander') {
+    const y = fnSynergy(c, ctx.cmd);
+    if (y.n) {
+      s += UP.syn * Math.min(2, y.n);
+      hit = true;
+      why.push('Works with ' + ctx.cmd.n.split(',')[0] + ' (' + y.words.join(', ') + ')');
+    }
+  }
   // with no play data of its own, the commander's tribe and theme pages (UP.fbW of the weight its own data would have)
   if (ctx.fall) {
     let best = null;
@@ -1797,6 +1806,10 @@ function tierPick(L, t) {
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
 const UP = {
+  v2: 0, // engine v2: jobs from the rules reading (engine/rules.js, engine/functions.js); see tags()
+  v2r: null,
+  syn: 0, // engine v2: weight of synergy with the commander (fnSynergy)
+  v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
   polG: 0.3,
   midOpen: 0,
