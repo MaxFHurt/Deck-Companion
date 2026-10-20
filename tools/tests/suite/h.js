@@ -8,7 +8,7 @@ const RAW = JSON.parse(zlib.gunzipSync(fs.readFileSync(SNAP + '/cards.json.gz'))
 const slug = n => String(n).split(' // ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-');
 module.exports = function load(dir, files){
   const ctx = vm.createContext({console, Math, JSON, Set, Map, Date, RegExp, Object, Array, String, Number, Infinity, isNaN, parseFloat, parseInt, Error});
-  for (const f of (files || ['data.js', 'lists.js', 'engine.js'])) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, {filename:f});
+  for (const f of (files || (() => { const F = JSON.parse(fs.readFileSync(path.join(dir, 'files.json'), 'utf8')); return F.data.concat(F.engine); })())) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, {filename:f});
   const run = c => vm.runInContext(c, ctx);
   ctx.__raw = RAW; ctx.__tags = TAGS;
   // Combos (data2/spellbook/combos.json.gz, the card-data job's output format); H.noCombos leaves them out.

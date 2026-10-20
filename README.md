@@ -27,8 +27,17 @@ It is a static site: no build step and no server. Decks are saved in the browser
 | `index.html` | Page markup and styles |
 | `data.js` | Built-in starter card library, precon and theme definitions |
 | `lists.js` | Official precon decklists |
-| `engine.js` | Import parsing, deck analysis, recommendations |
-| `ui.js` | Screens, storage, Scryfall data loading |
+| `engine/` | Deck logic, in load order: `core` (themes, keywords, commander engines), `practice` (practice games, combos), `reading` (card text), `score` (deck score, Apex reference), `library` (card lookup, analysis), `upgrades` (scoring, upgrade list, whole-card search), `mana` (fixes, lands), `generator` (deck building) |
+| `ui/` | Screens, in load order: `base`, `storage` (saving, undo, background cores), `library`, `views`, `upgrades`, `deck`, `cards`, `events`, `boot` |
+| `work.js` | The background worker that builds decks and measures swaps |
+| `files.json` | The script list in load order (the page, the worker and the tests all follow it) |
+| `app.min.js`, `engine.min.js` | What the live page downloads: the scripts joined and minified by `sh tools/build.sh`. Never edit these; edit the readable files and rebuild. `?dev=1` on the page runs the readable files instead |
+
+## Making a change
+
+1. Edit the readable files in `engine/` and `ui/` (formatted with Prettier, settings in `.prettierrc.json`).
+2. Run `sh tools/build.sh` so the bundles match (the tests fail on a stale bundle).
+3. Test with `sh tools/tests/suite/check.sh <kind> quick|live` (see the work session handoff).
 
 ## Credits
 

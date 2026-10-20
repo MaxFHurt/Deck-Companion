@@ -25,6 +25,17 @@ await page.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'});
 await page.evaluate(([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)){ const c = fromScryfall(o); if (c) rows.push(c); } const best = new Map(); for (const c of rows){ const k = norm(c.n), x = best.get(k); if (!x || (x.p == null && c.p != null)) best.set(k, c); }
   useFull([...best.values()], '2026-10-06', true); S.noAsk = true; S.upView = 'list'; S.autoYes = new Set(['swap', 'swap-top', 'swap-a3', 'want', 'fix-swap', 'swap-cap', 'add-to-deck', 'consider-in']); S.syncRecs = true; const t = JSON.parse(tg); useTags(t); }, [cards, tags]);
 const build = await page.evaluate(() => window.BUILD);
+// The page runs the minified bundles (tools/build.sh, 0.9.3): each must be made from the current readable files, and the page's
+// file list (DEV_FILES, used with ?dev=1) must be files.json's. A stale bundle means: run sh tools/build.sh.
+{ const base = 'http://127.0.0.1:' + port + '/', get = async f => Buffer.from(await (await fetch(base + f)).arrayBuffer()), crypto = require('crypto');
+  const F = JSON.parse((await get('files.json')).toString()), fp = async L => { const h = crypto.createHash('sha256'); for (const f of L) h.update(await get(f)); return h.digest('hex').slice(0, 16); };
+  const head = async f => ((/sources ([0-9a-f]{16})/.exec((await get(f)).toString('utf8', 0, 300)) || [])[1]);
+  const app = (await head('app.min.js')) === (await fp(F.data.concat(F.engine, F.ui))), eng = (await head('engine.min.js')) === (await fp(F.data.concat(F.engine)));
+  const devList = await page.evaluate(() => (window.DEV_FILES || []).join()), same = devList === F.data.concat(F.engine, F.ui).join();
+  T('Q-BUNDLE', 'The live bundles are made from the current readable files (else run sh tools/build.sh) and the page’s file list matches files.json', app && eng && same, JSON.stringify({app, engine:eng, fileList:same})); }
+{ const p2 = await ctx.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message)); await p2.goto('http://127.0.0.1:' + port + '/index.html?dev=1', {waitUntil:'load'}); await p2.waitForTimeout(1500);
+  const r2 = await p2.evaluate(() => ({dev:window.DEV, fns:typeof handleAct === 'function' && typeof poolPromote === 'function' && typeof render === 'function'})); await p2.close();
+  T('Q-DEV', 'With ?dev=1 the page runs the readable files, with no page errors', r2.dev === true && r2.fns && !e2.length, JSON.stringify(r2) + ' ' + e2.join(' | ')); }
 
 // 1. Native precon loader, Wakanda (alternate printed names) — the path that recommended installed cards before.
 await page.evaluate(async () => { window.__save = async (slug, label) => { await loadPreconLive(slug, label); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); return d; }; await __save('wakanda-forever', 'Wakanda Forever'); }); await page.waitForTimeout(800);

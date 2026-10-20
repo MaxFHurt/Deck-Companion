@@ -18,7 +18,7 @@ const rows = run(`(() => { const cs = new Map(), add = n => { const c = n && fin
   return JSON.stringify({rows:[...seen].map(k => clean(KI.get(k))), cmb, edh:{...E, map:[...EDH.map], tmap:Object.fromEntries(Object.entries(EDH.tmap || {}).map(([k, v]) => [k, [...v]]))}, up:UP, bt:{mld:[...BTAGS.mld], turns:[...BTAGS.turns], v:BTAGS.v}}); })()`);
 const S = JSON.parse(rows); console.log('slice cards', S.rows.length, 'combos', S.cmb.length);
 const vm = require('vm'), fs = require('fs'), ctx = vm.createContext({console, Math, JSON, Set, Map, Date, RegExp, Object, Array, String, Number, Infinity, isNaN, parseFloat, parseInt, Error});
-for (const f of ['data.js', 'lists.js', 'engine.js']) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, {filename:f});
+for (const f of (() => { const F = JSON.parse(fs.readFileSync(path.join(dir, 'files.json'), 'utf8')); return F.data.concat(F.engine); })()) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, {filename:f});
 ctx.__S = S; ctx.__b = JSON.parse(JSON.stringify(b));
 ctx.__full = run('LIB.length'); const hv = vm.runInContext(`(() => { buildIndex(__S.rows); LIB.full = __full; const list = __S.cmb.sort((a, b) => a[0] - b[0]).map(x => x[1]), by = new Map(); list.forEach(x => x.keys.forEach(k => { if (!by.has(k)) by.set(k, []); by.get(k).push(x); })); COMBOS = {list, by, at:'', state:'ok'};
   const E = __S.edh; E.map = new Map(E.map); E.tmap = Object.fromEntries(Object.entries(E.tmap).map(([k, v]) => [k, new Map(v)])); EDH = E; Object.assign(UP, __S.up); BTAGS = {mld:new Set(__S.bt.mld), turns:new Set(__S.bt.turns), v:__S.bt.v};

@@ -26,6 +26,8 @@ edge(){ add "edge throws:  $(node edge.js "$DIR" 2>&1 | grep -c THROW)"; }
 genstrong(){ add "genstrong:    $(node genstrong.js "$DIR" tuneall 2>&1 | tail -1)"; }
 tourney(){ add "tourney:      $(node tourney.js "$DIR" 2>&1 | tail -1)"; }
 T0=$(date +%s)
+# the page runs the minified bundles: rebuild them from the readable files first (0.9.3)
+[ -f "$DIR/tools/build.sh" ] && sh "$DIR/tools/build.sh" >/dev/null
 if [ "$MODE" = quick ]; then
   if has screens || has generator || has sim; then quick; fi
   if has upgrade; then quick; bench tuneall; fi

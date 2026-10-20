@@ -5,7 +5,7 @@
 const fs = require('fs'), path = require('path');
 const ts = require(process.env.TS || '/opt/node22/lib/node_modules/typescript');
 function flat(code, name){ const sf = ts.createSourceFile(name, code, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS), out = [];
-  const walk = n => { if (n.kind === ts.SyntaxKind.ParenthesizedExpression) return walk(n.expression);
+  const walk = n => { if (n.kind === ts.SyntaxKind.ParenthesizedExpression) return walk(n.expression); if (n.kind === ts.SyntaxKind.EndOfFileToken) return;   // split files: no end-of-file marks
     const k = ts.SyntaxKind[n.kind];
     if (ts.isIdentifier(n) || ts.isPrivateIdentifier(n)) out.push(k + ':' + n.text);
     else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) out.push('Str:' + JSON.stringify(n.text));

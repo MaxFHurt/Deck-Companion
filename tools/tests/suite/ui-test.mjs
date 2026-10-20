@@ -26,6 +26,17 @@ await page.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'});
 await page.evaluate(([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)){ const c = fromScryfall(o); if (c) rows.push(c); } const best = new Map(); for (const c of rows){ const k = norm(c.n), x = best.get(k); if (!x || (x.p == null && c.p != null)) best.set(k, c); }
   useFull([...best.values()], '2026-10-06', true); S.noAsk = true; S.upView = 'list'; S.autoYes = new Set(['swap', 'swap-top', 'swap-a3', 'want', 'fix-swap', 'swap-cap', 'add-to-deck', 'consider-in']); S.syncRecs = true; const t = JSON.parse(tg); useTags(t); }, [cards, tags]);
 const build = await page.evaluate(() => window.BUILD);
+// The page runs the minified bundles (tools/build.sh, 0.9.3): each must be made from the current readable files, and the page's
+// file list (DEV_FILES, used with ?dev=1) must be files.json's. A stale bundle means: run sh tools/build.sh.
+{ const base = 'http://127.0.0.1:' + port + '/', get = async f => Buffer.from(await (await fetch(base + f)).arrayBuffer()), crypto = require('crypto');
+  const F = JSON.parse((await get('files.json')).toString()), fp = async L => { const h = crypto.createHash('sha256'); for (const f of L) h.update(await get(f)); return h.digest('hex').slice(0, 16); };
+  const head = async f => ((/sources ([0-9a-f]{16})/.exec((await get(f)).toString('utf8', 0, 300)) || [])[1]);
+  const app = (await head('app.min.js')) === (await fp(F.data.concat(F.engine, F.ui))), eng = (await head('engine.min.js')) === (await fp(F.data.concat(F.engine)));
+  const devList = await page.evaluate(() => (window.DEV_FILES || []).join()), same = devList === F.data.concat(F.engine, F.ui).join();
+  T('UI-BUNDLE', 'The live bundles are made from the current readable files (else run sh tools/build.sh) and the page’s file list matches files.json', app && eng && same, JSON.stringify({app, engine:eng, fileList:same})); }
+{ const p2 = await ctx.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message)); await p2.goto('http://127.0.0.1:' + port + '/index.html?dev=1', {waitUntil:'load'}); await p2.waitForTimeout(1500);
+  const r2 = await p2.evaluate(() => ({dev:window.DEV, fns:typeof handleAct === 'function' && typeof poolPromote === 'function' && typeof render === 'function'})); await p2.close();
+  T('UI-DEV', 'With ?dev=1 the page runs the readable files, with no page errors', r2.dev === true && r2.fns && !e2.length, JSON.stringify(r2) + ' ' + e2.join(' | ')); }
 
 // 1. Native precon loader, Wakanda (alternate printed names) — the path that recommended installed cards before.
 await page.evaluate(async () => { window.__save = async (slug, label) => { await loadPreconLive(slug, label); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); return d; }; await __save('wakanda-forever', 'Wakanda Forever'); }); await page.waitForTimeout(800);
@@ -1062,7 +1073,7 @@ T('UI-B143-01', 'Background building: a generated deck is built on another core 
 // among a row's alternatives with its play rate; a pick marked so is never made by "Make every swap".
 const b143b = await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)) || (() => { const x = {id:'tp', name:'tp', format:'commander', commander:'', tier:'apex', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[]}; setCommander(x, 'Don & Leo, Problem Solvers'); addCard(x, 'Brainstone', 1); return x; })(), R = {paths:[{cut:d.cards.find(e => !isBasic(e.n)).n, opts:{}, alts:{apex:[{n:['Smothering Tithe', 'Esper Sentinel', 'Rhystic Study', 'Mystic Remora'].find(n => !hasCard(d, n)), p:1, dScore:-0.02, inc:0.41, pc:true}], mid:[], budget:[]}}]};
   const h = alt3Html(d, R, new Set(), {add:'Arcane Signet', cut:R.paths[0].cut}, 0, 'apex'), h2 = pcChip({pcInc:0.3, dScore:0.12});
-  return {label:/Players’ choice · in 41% of decks/.test(h), even:/Score about even/.test(h), noWarn:!/Lowers the deck score/.test(h), upShown:/Small upgrade/.test(h2) && !/about even/.test(h2), swapAllSkips:/!x\.p\.pc/.test(String(handleAct))}; });
+  return {label:/Players’ choice · in 41% of decks/.test(h), even:/Score about even/.test(h), noWarn:!/Lowers the deck score/.test(h), upShown:/Small upgrade/.test(h2) && !/about even/.test(h2), swapAllSkips:/![\w$]+\.p\.pc/.test(String(handleAct))}; });
 T('UI-B143-02', 'Players’ choice: listed with the share of decks that run it and "Score about even" (or its real gain when it raises the score), never as lowering the score; Make every swap leaves these picks out', Object.values(b143b).every(Boolean), JSON.stringify(b143b));
 // 100. Build 143, score blind spots: a cost reducer for the spells you cast is ramp; Altar of Dementia is a sacrifice outlet that
 // mills (it does not need big creatures); creature tokens the deck makes count as support for a creature-type payoff.
@@ -1131,8 +1142,9 @@ T('UI-B147-01', 'Fix: Mana fills in land by land: a "Checking land" note at once
 const b148 = await page.evaluate(async () => { const out = {}, d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
   const before = JSON.stringify(d.cards), a = d.cards.find(e => !tags(find(e.n)).land && !isBasic(e.n)), b = d.cards.find(e => e !== a && !tags(find(e.n)).land && !isBasic(e.n));
   const ay = S.autoYes; S.autoYes = new Set([...(ay || []), 'swap', 'undo-card']);
-  doSwap(d, {cut:a.n, add:'Sol Ring' === a.n ? 'Arcane Signet' : 'Mind Stone', q:1}, 0); doSwap(d, {cut:b.n, add:'Fellwar Stone', q:1}, 0); touch(); render();
-  const en = d.cards.find(e => e.n === 'Mind Stone' || e.n === 'Arcane Signet'); handleAct('undo-card', '', en.n); out.cardBack = !!entryOf(d, a.n) && !entryOf(d, en.n) && !!entryOf(d, 'Fellwar Stone');   // only that card's swap is undone
+  const [x1, x2] = LIB.filter(c => !c.ci.length && !tags(c).land && legalIn(c, 'commander') && !hasCard(d, c.n) && c.r && c.r < 3000).slice(0, 2).map(c => c.n);   // cards the deck doesn't hold
+  doSwap(d, {cut:a.n, add:x1, q:1}, 0); doSwap(d, {cut:b.n, add:x2, q:1}, 0); touch(); render();
+  handleAct('undo-card', '', x1); out.cardBack = !!entryOf(d, a.n) && !entryOf(d, x1) && !!entryOf(d, x2) && !entryOf(d, b.n);   // only that card's swap is undone
   d.cards = JSON.parse(before); S.autoYes = ay; touch();
   S.view = 'buy'; render(); const btn = document.querySelector('[data-act="buy-copy-all"]'); let copied = null; const ct = window.copyText; window.copyText = (t, m) => { copied = t; }; out.btn = !!btn; if (btn) btn.click(); window.copyText = ct;
   out.allLists = copied === null || copied === buyAllText(); out.noDup = !document.querySelector('[data-act="undo"][data-n]') && !document.querySelector('.buyall [data-act="buy-copy"]'); S.view = 'decks'; render(); return out; });

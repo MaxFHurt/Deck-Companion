@@ -9,7 +9,7 @@ const v8 = require('v8'), clone = x => v8.deserialize(v8.serialize(x));
 const rows = clone(run('LIB.map(c => { const x = {}; for (const k in c) if (k[0] !== "_") x[k] = c[k]; return x; })')), edh = clone(run('(() => { const v = {}; for (const k in EDH) if (k !== "wait" && k[0] !== "_" && typeof EDH[k] !== "function") v[k] = EDH[k]; return v; })()'));
 const cj = clone(run('typeof __cj !== "undefined" ? __cj : null'));
 const ctx = vm.createContext({console, Math, JSON, Set, Map, Date, RegExp, Object, Array, String, Number, Infinity, isNaN, parseFloat, parseInt, Error});
-for (const f of ['data.js', 'lists.js', 'engine.js']) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, {filename:f});
+for (const f of (() => { const F = JSON.parse(fs.readFileSync(path.join(dir, 'files.json'), 'utf8')); return F.data.concat(F.engine); })()) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, {filename:f});
 ctx.__rows = rows; ctx.__edh = edh; ctx.__n = name; ctx.__combos = clone(run('COMBOS')); ctx.__bt = clone(run('BTAGS')); ctx.__up = clone(run('UP'));
 vm.runInContext('buildIndex(__rows); COMBOS = __combos; BTAGS = __bt; Object.assign(UP, __up); EDH = __edh;', ctx);
 const work = vm.runInContext(G, ctx);

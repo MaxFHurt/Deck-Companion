@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Version 0.9.1 (build 146); Version 0.9.2 (build 147) built and tested, waiting for the owner's OK to push. Each item ships as its own build: build, run the full test suite
+Live: Version 0.9.2 (build 147); Version 0.9.3 (build 148) built and tested, waiting for the owner's OK to push. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -222,7 +222,46 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
-## Version 0.9.2 (build 147, 19 October 2026; built and tested, waiting for the owner's OK to push)
+## Version 0.9.3 (build 148, 19-20 October 2026; built and tested, waiting for the owner's OK to push)
+
+Owner's reports from the iPad (4 Brothers, Heroes in a Half Shell) and choices 1c / 2c / 3 (19 Oct).
+- **The strongest card is the Apex card** (owner: "If a .38 cent card is the best card, it's the Apex card. We have too many
+  rules conflicting"): after the whole-card search, Apex is the card that raises the deck score most of every card measured
+  for the slot; Budget and Mid the best of the rest under $3 / $12 (Budget first). Held picks and Game Changer rows no longer
+  keep a weaker card in place; picks are held only after the search. The pick it replaces stays as the row's **Popular pick**
+  (when 10%+ of the commander's players run it) and an on-theme card within 10% is the **On theme alternative** (owner).
+  Turtle Power: 10 of 14 Apex picks changed (Krang: Splinter +0.06 -> Graveshifter $0.17 +0.55).
+  **Benchmark with the search (POOL=1):** the players' card is still on the row as often (row@5 0.247 -> 0.249, test 0.300 ->
+  0.300, holdout 0.300 -> 0.300) but the Apex picks now disagree with players (agreement@5 0.246 -> -0.121, test -0.132,
+  holdout -0.085) while the deck score's own gain rises (0.79 -> 1.36 per swap). The owner chose this rule knowing it may
+  disagree; the size of the gap suggests the deck score overrates some cards the search finds (open question).
+- **Upgrades tab:** the tiers are one row of buttons ("Apply All Budget Swaps" / "6 cards $4"); under them the Apex package
+  line and the Best deck under $3 / $12 boxes. Removed: the Apex progress label, the level sentence (kept on Build stats),
+  "Upgrade paths · N cards", How the tiers work (Remove suggestion is explained on its button) and the folder tabs.
+  The EDHREC chip sits at the right end of the score bar ("4,374 T'Challa decks (EDHREC)"; phones "4,374 decks").
+- **Bugs:** a card's "Undo · bring back" undid the last change instead of that swap, and the Buy list page's Copy copied the
+  open deck's list: both buttons shared an action name with another (found by the minifier).
+- **Flattened (owner 1c):** engine.js and ui.js split into `engine/` (8 files) and `ui/` (9 files) at their sections and laid
+  out by Prettier (one statement per line; 5,000 dense lines -> 22,000); `samecode.js` proved the split and the layout are the
+  same program (syntax trees identical). Switched-off experiments removed (UP.uncR, uncPick, kwB, kwS, stN and its settings;
+  numbers stay in this file) plus the tier tabs' leftovers.
+- **Smaller download (owner 2c):** `tools/build.sh` joins and minifies the scripts (esbuild) into `app.min.js` (page) and
+  `engine.min.js` (worker): 278 KB -> 210 KB compressed, 1 request instead of 19. `?dev=1` runs the readable files.
+  Q-BUNDLE/UI-BUNDLE fail if a bundle is older than its sources.
+- **Speed (owner 2a), measured with speed.mjs (processor slowed 4x, roughly a phone; desktop in brackets):** page load 1.1 s;
+  first open of a deck until its Apex reference is built 15 s (1.9 s), page busy most of it; complete Upgrades list 10-17 s;
+  Fix: Mana 8.4 s; switching tabs 0.1-0.2 s; reading every card's text 14 s (3.4 s), done a little at a time as cards are
+  needed. Tried and reverted: building the Apex reference on the background core: sending it the card library costs more
+  than it saves (fresh start 1.9 s -> 11.1 s on desktop, 15 s -> 22 s at phone speed, and the page still freezes while it
+  sends). Proposed next: keep each card's reading (tags) between launches (stored by card text and engine build), which
+  removes most of the 14 s; send the library to the background core once at launch, in pieces, so later jobs are cheap.
+- **Checks:** UI suite 118/118 (new UI-BUNDLE, UI-DEV, UI-B148-01; UI-B131-01, UI-B132-01, UI-EX-01, UI-CAP-01, UI-B143-02 updated),
+  quick check 12/12, semantics 51/51, benchmark without the search identical to 0.9.2 on all six numbers.
+- **Testing (owner 3):** `check.sh` (one command per kind of change), `ALSOW` (plain and weighted numbers from one benchmark
+  run, half the time), `POOL` (benchmark with the whole-card search), 68 unused scripts in `archive/`. The UI suite's speed
+  waits for the owner's talk (owner: "don't act on it till I say so").
+
+## Version 0.9.2 (build 147, 19 October 2026; pushed with the owner's OK)
 
 - **Fix: Mana fills in land by land (owner's choice 4c):** the window opens with "Checking land 1 of 5…" and each land's best
   swap appears as soon as its practice games are done (openFix -> step, manaPick; fixList still gives the same list at once).

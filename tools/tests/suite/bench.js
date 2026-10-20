@@ -69,13 +69,13 @@ for (const [slug, file] of list){
   // row@5: per row, the best player match among the cards the row offers (its pick, and the "Most played" card when that is not
   // the pick), so a stronger pick never hides the popular one; gain@5: how much the picks raise the deck score.
   const PL = R.paths.map(L => ({L, p:X.tierPick ? X.tierPick(L, TIER) : L.opts[TIER]})).filter(x => x.p && (process.env.LANDS ? isLand(x.p.cut) && isLand(x.p.add) : !isLand(x.p.cut) && !isLand(x.p.add))).slice(0, 5);
-  const rowAg5 = mean(PL.map(({L, p}) => Math.max(aOf(p), ...['apex', 'mid', 'budget'].map(t => L.opts[t] ? aOf(L.opts[t]) : -1), ...Object.values(L.pop || {}).map(x => aOf(x))) - kOf(p))), gain5 = mean(PL.map(({p}) => p.dScore || 0));
+  const rowAg5 = mean(PL.map(({L, p}) => Math.max(aOf(p), ...['apex', 'mid', 'budget'].map(t => L.opts[t] ? aOf(L.opts[t]) : -1), ...Object.values(L.pop || {}).map(x => aOf(x)), ...((L.alts || {}).apex || []).filter(a => a.most).map(a => aOf({add:a.n}))) - kOf(p))), gain5 = mean(PL.map(({p}) => p.dScore || 0));
   const ag5 = mean(swaps.slice(0, 5).map(p => aOf(p) - kOf(p))), ag10 = mean(top.map(p => aOf(p) - kOf(p))), k10 = mean(top.map(kOf)), a10 = mean(top.map(aOf));
   // ALSOW=3,6 (testing 3a, 19 Oct): the same engine run also judged with weighted player data, so one run gives both rows of numbers
   if (process.env.ALSOW){ const w0 = process.env.WEIGHT; process.env.WEIGHT = process.env.ALSOW; const evW = evidence(slug, file); if (w0 == null) delete process.env.WEIGHT; else process.env.WEIGHT = w0;
     const kW = p => evW.K.get(run('keyOf')(p.cut)) || 0, aW = p => evW.A.get(run('keyOf')(p.add)) || 0;
     if (evW.n){ tot.wn = (tot.wn || 0) + 1; tot.w5 = (tot.w5 || 0) + mean(swaps.slice(0, 5).map(p => aW(p) - kW(p))); tot.w10 = (tot.w10 || 0) + mean(top.map(p => aW(p) - kW(p)));
-      tot.wr5 = (tot.wr5 || 0) + mean(PL.map(({L, p}) => Math.max(aW(p), ...['apex', 'mid', 'budget'].map(t => L.opts[t] ? aW(L.opts[t]) : -1), ...Object.values(L.pop || {}).map(x => aW(x))) - kW(p))); } }
+      tot.wr5 = (tot.wr5 || 0) + mean(PL.map(({L, p}) => Math.max(aW(p), ...['apex', 'mid', 'budget'].map(t => L.opts[t] ? aW(L.opts[t]) : -1), ...Object.values(L.pop || {}).map(x => aW(x)), ...((L.alts || {}).apex || []).filter(a => a.most).map(a => aW({add:a.n}))) - kW(p))); } }
   const sk = [...ev.K.values()].sort((a, b) => a - b), sa = [...ev.A.values()].sort((a, b) => b - a), ceil10 = mean(sa.slice(0, 10).map((v, i) => v - sk[i]));
   const sc = score(ev, swaps), kc = swaps.map(p => ev.K.get(run('keyOf')(p.cut)) || 0), aa = swaps.map(p => ev.A.get(run('keyOf')(p.add)) || 0);
   const meanK = [...ev.K.values()].reduce((a, b) => a + b, 0) / Math.max(1, ev.K.size);

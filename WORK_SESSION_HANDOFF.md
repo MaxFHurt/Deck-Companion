@@ -1,35 +1,32 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 20 October 2026. Live: Version 0.9.1 (build 146). Version 0.9.2 (build 147) is committed on the work branch,
-tested, and waits for the owner's OK to push (the owner named it 0.9.2).
+Last updated: 20 October 2026. Live: Version 0.9.2 (build 147). Version 0.9.3 (build 148) is committed on the work branch,
+tested, and waits for the owner's OK to push.
 
 ## 0. Open questions for the owner (ask these first, numbered)
 
 **Owner's rule (18 Oct): do not push anything without the owner's confirmation.**
+**REMINDER (owner, 19 Oct): "We need to stop and talk about why the full suite takes so long to run. Remember this and remind
+me when you're done working but don't act on it till I say so."** Raise it at the end of every report; change nothing about the
+suite's speed until the owner says so.
 
-1. **iPhone check of Version 0.9.1.**
-   1a. Does Safari stay up while a deck is generated? That uses a background core plus up to 5 helper cores, about 12 MB each.
-   1b. Does the Upgrades list now show one "Thinking..." and then the complete list (4-7 s on a desktop)?
-   1c. Do the iPhone changes look right: Undo next to Save deck, the bigger "Previous" / "Next" buttons, and the decklist grouped by colour?
-   1d. Is the duplicate upgrade in the shared Avengers deck gone?
-2. **Background search (owner's 1c, "may be implemented later").** Keep the whole-card search on the cores, with the list
-   waiting until it is done, or drop it so the list appears sooner without its extra finds? The owner said the current times
-   "are short enough to not matter", so don't raise it unless the owner does.
-3. **Commander engine reasons** (not answered yet). Cards say why they fit the commander ("Doubles the tokens your commander
-   makes", "Uses the cards your commander puts in your graveyard"). Do they read the owner's commanders correctly? Misreads
-   reported here are what will let it count in the score (UP.kwB/kwS still 0).
-4. **Push Version 0.9.2?** (Fix: Mana fills in land by land; The Ozolith and other counter, token-doubler, damage-doubler
-   and power-doubler cards read correctly.) Tested: UI 115/115, benchmark no drop (tuneall up slightly).
-5. **Real-device screenshots** (iPhone upright, iPad unchanged) of anything that looks wrong.
-6. **Plans the engine can't see yet** (`misread.js`, 180 cards across 42 commanders). Players' signature cards for themes the app
-   has no plan for. Which are worth adding?
-   6a. Fliers (Isperia: Favorable Winds, Empyrean Eagle...).
-   6b. Defenders / toughness matters (Felothar: Tree of Redemption, Assault Formation, Doran...).
-   6c. Goad (Kardur: Disrupt Decorum, Geode Rager...).
-   6d. Untap effects (Emmara, Felothar: Seedborn Muse, Drumbellower...).
-   6e. Playing your opponents' cards (Gonti: Thief of Sanity, Fallen Shinobi...).
-   6f. Keyword counters (Tidus: shield and flying counters).
+1. **Push Version 0.9.3 (build 148)?** Best card is Apex (with Popular pick / On theme alternative), tier buttons, chip in the
+   score bar, two button fixes, flattened and split code, minified bundles, testing tools. Tested: UI suite, benchmark identical
+   to 0.9.2 without the search.
+2. **The Apex rule against players** (benchmark with the search): the players' card is still offered on each row as often
+   (row@5 0.247 -> 0.249) but Apex now disagrees with players (agreement@5 0.246 -> -0.121). Owner: "the strongest card is the
+   Apex card". 2a. Keep as is. 2b. Review the biggest score finds (Archpriest of Shadows, Evolution Witness, The Soul Stone...):
+   the gap suggests the deck score overrates some of them.
+3. **Progress bar and budget plan (talked through 19 Oct, not built):** 3a. Tier = price rule, power level, or both shown
+   separately? 3b. Marks = the deck with all of a tier's swaps applied, measured together, frozen until settings change?
+   3c. Entered budget: owned cards free? Commander included? Basics free?
+4. **Speed next steps:** 4a. Keep each card's reading between launches (about 14 s at phone speed now, a little at a time).
+   4b. Send the card library to the background core once at launch, in pieces.
+5. **iPhone check of 0.9.1-0.9.3** (Safari stays up while generating; the new tier buttons; the chip; Undo per card).
+6. **Plans the engine can't see yet** (`misread.js`): 6a fliers, 6b defenders/toughness, 6c goad, 6d untap, 6e opponents'
+   cards, 6f keyword counters. Which are worth adding?
+7. **Commander engine reasons** (not answered): do the reasons on cards read the owner's commanders correctly?
 
 Versions now count from 0.9; the owner names each next release (0.9.2, 0.10...). Cores: the owner asked for as many as
 possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; see ROADMAP, Build 144).
@@ -39,10 +36,13 @@ possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; 
 **Deck Companion** is a Magic: The Gathering deck builder for Commander and Standard.
 - **Live:** https://maxfhurt.github.io/Deck-Companion/ (GitHub Pages, served from `main`).
 - **Repository:** `MaxFHurt/Deck-Companion`. Work branch: `claude/build-140` (still the name; live is Version 0.9.1, build 146).
-- **App files:** `index.html` (CSS, boot and build number), `ui.js` (screens and buttons), `engine.js` (all deck logic:
-  scoring, upgrades, generation, evaluator, practice games), `work.js` (background worker: builder and helper cores),
-  `data.js` and `lists.js` (static data), `version.json`.
-- **No build step and no runtime AI.** Plain browser JavaScript. Card data from Scryfall, play data from EDHREC (fetched
+- **App files (0.9.3: flattened and split):** `index.html` (CSS, boot, build number, script loader), `engine/*.js` (all deck
+  logic, 8 files), `ui/*.js` (screens and buttons, 9 files), `work.js` (background worker: builder and helper cores),
+  `data.js` and `lists.js` (static data), `files.json` (the script list in load order), `version.json`. The live page loads
+  `app.min.js` and the worker `engine.min.js`, both made by `sh tools/build.sh` (owner's choice 2c); `?dev=1` runs the
+  readable files. Code is formatted with Prettier (`.prettierrc.json`); `tools/tests/suite/samecode.js` proves a reformat or
+  a split is the same program.
+- **One build step (bundling), no runtime AI.** Plain browser JavaScript. Card data from Scryfall, play data from EDHREC (fetched
   live), combos from Commander Spellbook (`card-data` branch).
 
 **Other files:**
@@ -86,15 +86,21 @@ possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; 
    (`proto/data2/tags`, not in the test-data branch) that UI-B145-01 and `genstrong.js FALL=1` need. EDHREC pages for extra commanders can be fetched into `proto/data2/edhrec/<slug>.json` and
    themes into `proto/data2/themes/<slug>__<theme>.json` (`json.edhrec.com/pages/commanders/<slug>[/<theme>].json`).
 2. **Bump the build** in `index.html` (`window.BUILD = N`, numeric, used for self-update; `window.VERSION = '0.9.x'`, shown in
-   the footer) and `version.json` (`{"build": N, "version": "0.9.x"}`). The owner names the version.
+   the footer) and `version.json` (`{"build": N, "version": "0.9.x"}`). The owner names the version. Then **`sh tools/build.sh`**
+   after every script change (the bundles carry the build number and a fingerprint of their sources; Q-BUNDLE/UI-BUNDLE fail
+   on a stale bundle). esbuild comes from `npx` (or set `ESBUILD=<path>`).
 3. **Test:**
+   - **One command (testing 3c):** `sh check.sh <kinds> quick|live` (kinds: screens, upgrade, cards, generator, sim, all) runs
+     exactly the rows of the table below, one at a time, rebuilds the bundles first and prints one summary line per check.
    - While working, after each change: the quick check `PW=/opt/node22/lib/node_modules/playwright node ui-quick.mjs 8765 q`
-     (about 25 s, 10 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
+     (about 25 s, 12 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
    - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
-     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (115 at Version 0.9.2). If it
+     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (118 at Version 0.9.3). If it
      prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
    - Benchmark (engine changes), all six must not drop:
-     `SCORECHECK=1 [WEIGHT=3,6] node bench.js ../candidate x tuneall|test|holdout --quiet`.
+     `SCORECHECK=1 ALSOW=3,6 node bench.js ../candidate x tuneall|test|holdout --quiet` gives the plain and the weighted numbers
+     from one run (testing 3a; `WEIGHT=3,6` alone still works). `POOL=1` adds the whole-card search and its picks (slow:
+     about 15-20 min a set).
      **Always set `SCORECHECK=1`**, otherwise the Apex pick rule is skipped and the numbers are wrong.
    - Add one UI test per build, inserted before the iPad reload test near the end of `ui-test.mjs`.
    - **Run only what the change can affect; always run its regression check (owner, 18 Oct).**
@@ -112,13 +118,14 @@ possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; 
      Economies: screen an experiment on tuneall first and run test and holdout only for versions that pass it; never run the
      benchmark and the UI suite at the same time (each slows the other); fix every failure found before re-running the full
      suite, so it runs once more, not once per fix.
-4. **Ship:** after the owner's OK, copy `engine.js ui.js work.js index.html version.json` and `tools/tests/suite/ui-test.mjs` (plus new tools) into the
-   repo, update `ROADMAP.md` and this file, commit with the session's attribution lines, then
+4. **Ship:** after the owner's OK, copy `engine/ ui/ work.js index.html version.json files.json app.min.js engine.min.js` and
+   the changed test tools into the repo (or edit the repo and copy into the test layout), update `ROADMAP.md` and this file, commit with the session's attribution lines, then
    `git push origin <work branch>` and `git push origin HEAD:main` (fast-forward). Poll
    `https://maxfhurt.github.io/Deck-Companion/version.json` until it shows N, then load the live page in Playwright and
    check `window.BUILD` and zero page errors.
 5. **Gotchas:** a `// comment` at the end of a one-line function comments out the rest of the line (syntax-check with
-   `node -e "new (require('vm').Script)(require('fs').readFileSync('engine.js','utf8'))"`). The remote was renamed to
+   `node -e "new (require('vm').Script)(require('fs').readFileSync('engine/upgrades.js','utf8'))"`); Prettier's layout makes
+   this rare now. Old one-off scripts are in `tools/tests/suite/archive/` (copy one back next to `h.js` to run it). The remote was renamed to
    `Deck-Companion`; if git says "unpushed commits", refresh the tracking ref
    (`git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && git fetch origin`).
 
@@ -138,6 +145,14 @@ Helper tools: `misread.js` (cards players pick for a commander that the app says
 `fullsearch.js` (scores every legal same-job card per slot), `wcheck.js` (weighted yardstick validity).
 
 ## 5. Engine map (where things live)
+
+Since 0.9.3 the functions below live in `engine/<part>.js` and `ui/<part>.js` (README lists what each part holds); find one
+with `grep -n "function name" engine/*.js ui/*.js`. Names written as "engine.js" / "ui.js" below mean those folders.
+- **Best card is Apex (0.9.3):** after the whole-card search, `poolPromote(Q, d)` (engine/upgrades.js) makes each row's Apex the
+  highest-scoring card measured (search finds in `L.finds` via `poolKeep`, and the check's own `L.top`), Budget and Mid the best
+  of the rest under $3 / $12; the pick it replaces goes into `L.alts.apex` as a Popular pick (`most`), and an on-theme card
+  within 10% (`RANK_THEME`) as the On theme alternative (`onTheme`). Holds are released for replaced picks (`poolFree`, ui) and
+  picks are held only after the search (watchAlerts waits for `R.poolDone`).
 
 - **Upgrade list:** `upgradePaths(d)` picks rows; `scoreCheck(d, R, o)` confirms every swap with `swapScore`, ranks,
   builds alternatives (`L.alts`, Unpopular pick only for a big gap: `UP.unpopX/G/S/R`), `L.top`, spare-land rows, and at
@@ -195,7 +210,7 @@ Helper tools: `misread.js` (cards players pick for a commander that the app says
   self-mill, graveyard. Share link in the chat of 18 Oct. Its EDHREC page and three theme pages are in the test data folder
   (`proto/data2/edhrec`, `proto/data2/themes`) of this session only; `gensym.js` generates a deck for any commander and shows
   ramp, reanimation engines and fast mana.
-- **0.9.2 (147, not pushed):** Fix: Mana fills in land by land (`openFix` step loop, `manaPick`, `fixDraw`); counters theme reads
+- **0.9.2 (147, live):** Fix: Mana fills in land by land (`openFix` step loop, `manaPick`, `fixDraw`); counters theme reads
   kept/moved counters (The Ozolith); token, damage and power doublers read (THEMES in engine.js).
 - **Known limits:** Fix: Mana takes ~2.5 s on desktop (first swap ~1 s); Node test runs must go one at a time (running them in
   parallel crashed, cause not traced); local test servers die now and then: restart them.
@@ -207,5 +222,5 @@ Helper tools: `misread.js` (cards players pick for a commander that the app says
 > and `CHAT_TO_WORK_HANDOFF.md`. Follow the owner's rules exactly: plain English, numbered questions, a Summary at the end of
 > every reply, questions numbered 1a/1b/1c, complete and tested builds, no engine change that regresses any benchmark number,
 > and never push anything without the owner's explicit OK. Set up tests with `sh tools/tests/suite/setup.sh /tmp/dc3` and
-> `sh tools/tests/suite/fetchtags.sh /tmp/dc3`. Live is Version 0.9.1 (build 146); 0.9.2 (build 147) is committed and waits for the owner's OK to push. Ask the owner the open questions in
+> `sh tools/tests/suite/fetchtags.sh /tmp/dc3`. Live is Version 0.9.2 (build 147); 0.9.3 (build 148) is committed and waits for the owner's OK to push. Ask the owner the open questions in
 > section 0 first.
