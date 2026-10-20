@@ -36,7 +36,7 @@ T('UI-ID-01', 'Precon loader (Wakanda): every card recognised, no installed card
 
 // 2. The exclusion button: label, accessible name, explanation.
 const btn = await page.evaluate(() => { const b = document.querySelector('[data-act="dismiss"]'); return b ? {text:b.textContent.trim(), aria:b.getAttribute('aria-label'), n:b.dataset.n} : null; });
-const helpText = await page.evaluate(() => document.body.textContent.includes('excludes that card from this deck’s recommendations. Your deck stays unchanged'));
+const helpText = await page.evaluate(() => { const b = document.querySelector('[data-act="dismiss"]'); return !!b && (b.title || '').includes('excludes that card from this deck’s recommendations. Your deck stays unchanged'); });   /* 0.9.3: explained on the button (How the tiers work removed) */
 const oldLabel = await page.evaluate(() => document.body.innerText.includes('Not this card'));
 T('UI-EX-01', 'Button reads “Remove suggestion”, names the card for screen readers, and is explained on the page', !!btn && btn.text === 'Remove suggestion' && btn.aria === 'Remove suggestion: ' + btn.n && helpText && !oldLabel, JSON.stringify(btn) + ' help text: ' + helpText + ', old label left: ' + oldLabel);
 
@@ -103,7 +103,7 @@ T('UI-TIER-01', 'Empty tiers show their reason on the page', tiers.empty > 0 && 
 // 9. "Best deck with every new card under $3": shown in the Budget box; Apply adds only cards under $3 each; deck stays valid.
 await page.evaluate(async () => { await loadPreconLive('avengers-assemble', 'Avengers Assemble'); const d0 = S.draft; S.profile.decks.unshift(d0); S.draft = null; S.deckId = d0.id; touch(); const d = cur(); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(900);
 await page.evaluate(() => { handleAct('cap-show', 'budget'); });
-const cap = await page.evaluate(() => { const d = cur(), before = new Set(d.cards.map(e => keyOf(e.n))), box = document.querySelector('[data-act="swap-cap"][data-v="budget"]'), shown = !!box && /every new card under \$3/.test(box.closest('.tpane').textContent);
+const cap = await page.evaluate(() => { const d = cur(), before = new Set(d.cards.map(e => keyOf(e.n))), box = document.querySelector('[data-act="swap-cap"][data-v="budget"]'), shown = !!box && /every new card under \$3/.test(box.closest('.capbox').textContent);
   if (box) box.click(); const added = d.cards.filter(e => !before.has(keyOf(e.n))).map(e => ({n:e.n, p:(find(e.n) || {}).p}));
   return {shown, added:added.length, over:added.filter(x => !(x.p != null && x.p < 3)), size:analyze(d).size, v:validateDeck(d).map(x => x.key), toast:(document.querySelector('#toast') || {}).textContent}; });
 T('UI-CAP-01', 'Budget box offers “best deck with every new card under $3”; Apply adds only cards under $3 each and the deck stays a valid 100', cap.shown && cap.added > 0 && !cap.over.length && cap.size === 100 && !cap.v.length && /under \$3 each/.test(cap.toast), JSON.stringify(cap));
@@ -865,21 +865,23 @@ const b130 = await page.evaluate(async () => { const d = S.profile.decks.find(x 
   const w = d.want[0]; out.kept = !!w && w.ps === 'Fancy Foil Edition' && w.pp === 9.99; S.view = 'buy'; S.buySel = null; render(); const t = document.querySelector('#main').textContent; out.shown = /Fancy Foil Edition/.test(t) && /\$9\.99/.test(t);
   out.plainExport = buyAllText().split('\n').includes('1 Sol Ring'); d.want = JSON.parse(keep); S.pick = null; S.view = 'decks'; render(); return out; });
 T('UI-B130-01', 'Apex is the strongest credible pick and a popular card it replaces stays first as Most played; the buy list keeps the chosen printing (set and price) and still exports the plain name', b130.mostFirst && b130.apexStrongest && b130.kept && b130.shown && b130.plainExport, JSON.stringify(b130));
-// 80. Build 131: the upgrade filters are one row of drop-downs; the EDHREC chip sits in the stats module above the Apex progress bar;
+// 80. Build 131: the upgrade filters are one row of drop-downs; the EDHREC chip sits at the right end of the score bar (0.9.3);
 // the bar marks Budget, Mid and Apex in their own colours with their power scores in a legend row, with no empty row under it.
 const b131 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; render(); await recsReady(d); render();
   const sels = [...document.querySelectorAll('.fbar select')], tops = new Set(sels.map(x => Math.round(x.getBoundingClientRect().top))), out = {selects:sels.length, oneRow:tops.size === 1, oldButtons:!document.querySelector('#upscroll .typebar [data-act="upsort"]')};
-  const m = document.querySelector('#upscroll .tmeter'), g = m && m.closest('.grp'); out.chipAbove = !!(g && g.querySelector('.chip.good, .chip.warn, .chip') && g.querySelector('.chip').compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const m = document.querySelector('#upscroll .tmeter'), sb = document.querySelector('#upscroll .statbar'), ch = sb && sb.querySelector('.sb-edh .chip'), sc = sb && sb.querySelector('span b'); out.chipAbove = !!(ch && m && sb.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING) && Math.abs(ch.getBoundingClientRect().top + ch.getBoundingClientRect().height / 2 - (sc.getBoundingClientRect().top + sc.getBoundingClientRect().height / 2)) < 12 && ch.getBoundingClientRect().right > sb.getBoundingClientRect().right - 40;   /* 0.9.3 (owner, 19 Oct): the chip sits at the right end of the score bar, on the score's line */
   const leg = m ? m.querySelector('.tm-leg').textContent : ''; out.legend = /Budget\s*\d/.test(leg) && /Mid\s*\d/.test(leg) && /Apex\s*\d/.test(leg) && /You\s*\d/.test(leg); out.ticks = m ? m.querySelectorAll('u.tk').length : 0;
   const nx = m && m.nextElementSibling; out.gap = nx ? Math.round(nx.getBoundingClientRect().top - m.getBoundingClientRect().bottom) : 0; return out; });
-T('UI-B131-01', 'Upgrade filters are one row of drop-downs; the EDHREC chip is in the stats module above the progress bar; Budget, Mid and Apex are marked in their own colours with their scores in a legend; no empty row under the bar', b131.selects >= 2 && b131.oneRow && b131.oldButtons && b131.chipAbove && b131.legend && b131.ticks === 3 && b131.gap <= 14, JSON.stringify(b131));
-// 81. Build 132: upgrade paths as folder tabs: Budget, Mid and Apex stacked on the left with swaps and cost; tapping one shows its
-// description and buttons on the right; Apply all still works for each tier.
+T('UI-B131-01', 'Upgrade filters are one row of drop-downs; the EDHREC chip is at the right end of the score bar, above the progress bar; Budget, Mid and Apex are marked in their own colours with their scores in a legend; no empty row under the bar', b131.selects >= 2 && b131.oneRow && b131.oldButtons && b131.chipAbove && b131.legend && b131.ticks === 3 && b131.gap <= 14, JSON.stringify(b131));
+// 81. Version 0.9.3 (owner, 19 Oct; replaces Build 132's folder tabs): the tiers are one row of three buttons, "Apply All Budget
+// Swaps" over "N cards $X"; the Upgrades tab no longer shows the Apex progress label, the level sentence, the "Upgrade paths" label
+// or How the tiers work (Build stats keeps the level sentence).
 const b132 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(d); render();
-  const tabs = [...document.querySelectorAll('.tiertabs .ttab')].map(b => b.dataset.v), vis = () => [...document.querySelectorAll('.tiertabs .tpane')].filter(x => x.offsetParent).map(x => x.dataset.t), out = {tabs:tabs.join(','), one:vis().length === 1};
-  document.querySelector('.ttab[data-v="mid"]').click(); out.mid = vis().join() === 'mid' && !!document.querySelector('.tpane[data-t="mid"] [data-act="swap-all"][data-v="mid"]').offsetParent;
-  document.querySelector('.ttab[data-v="apex"]').click(); out.apex = vis().join() === 'apex'; const tt = document.querySelector('.tiertabs'); out.h = Math.round(tt.getBoundingClientRect().height); out.allButtons = ['budget', 'mid', 'apex'].every(t => !!document.querySelector('[data-act="swap-all"][data-v="' + t + '"]')); return out; });
-T('UI-B132-01', 'Upgrade paths are folder tabs: Budget, Mid, Apex stacked on the left; the chosen tier shows its description and buttons; every tier keeps its Apply all', b132.tabs === 'budget,mid,apex' && b132.one && b132.mid && b132.apex && b132.allButtons && b132.h < 260, JSON.stringify(b132));
+  const up = document.querySelector('#upscroll'), bs = [...up.querySelectorAll('.tierbtns [data-act="swap-all"]')], out = {tiers:bs.map(b => b.dataset.v).join(',')};
+  out.oneRow = new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size === 1; out.text = bs.every(b => /^Apply All (Budget|Mid|Apex) Swaps$/i.test(b.querySelector('b').textContent) && /^(\d+ cards? −?\$\d+|No worthwhile upgrades)$/.test(b.querySelector('span').textContent));
+  const t = up.textContent; out.gone = !/Apex progress|Your deck is at|Upgrade paths|How the tiers work|The strongest card for each slot/i.test(t) && !up.querySelector('.tiertabs');
+  S.tab = 'stats'; render(); out.statsKeeps = /Your deck is at/.test(document.querySelector('#statscroll').textContent); S.tab = 'up'; render(); return out; });
+T('UI-B132-01', 'Tiers are one row of three buttons ("Apply All Budget Swaps" over "N cards $X"); the Upgrades tab drops the Apex progress label, the level sentence, the Upgrade paths label and How the tiers work; Build stats keeps the sentence', b132.tiers === 'budget,mid,apex' && b132.oneRow && b132.text && b132.gone && b132.statsKeeps, JSON.stringify(b132));
 // 82. Build 133: the customised Build panel folds into one-line headers that always show their settings (format, mechanics,
 // filters, colours, generate) and fits the iPad screen; the upgrade list keeps its order once shown until you leave the tab.
 const b133 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)), was = d.custom; d.custom = true; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; S.bsec = {}; render(); const R = await recsReady(d); render();
@@ -1124,6 +1126,17 @@ const b147 = await page.evaluate(async () => { const out = {}, d = S.profile.dec
   const fin = g().L.map(p => p.cut + '>' + p.add + ' ' + p.dScore).join(), all = fixList(d, 'Mana').map(p => p.cut + '>' + p.add + ' ' + p.dScore).join(); out.same = fin === all; out.n = g().L.length;
   $('#modal').hidden = true; return out; });
 T('UI-B147-01', 'Fix: Mana fills in land by land: a "Checking land" note at once, the first swap long before the end, Make the top hidden until done, paused while a Swap is confirmed, and the final list matches the all-at-once list', b147.noteAtOnce && b147.firstBusy && b147.rowsShown > 0 && b147.noTopWhileBusy && b147.paused !== false && b147.done && b147.same && b147.n > 0, JSON.stringify(b147));
+// 107. Version 0.9.3: two buttons shared an action name with another button, so their own code never ran: a card's
+// "Undo · bring back" undid the last change instead of that card's swap, and the Buy list page's Copy copied only the open deck.
+const b148 = await page.evaluate(async () => { const out = {}, d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+  const before = JSON.stringify(d.cards), a = d.cards.find(e => !tags(find(e.n)).land && !isBasic(e.n)), b = d.cards.find(e => e !== a && !tags(find(e.n)).land && !isBasic(e.n));
+  const ay = S.autoYes; S.autoYes = new Set([...(ay || []), 'swap', 'undo-card']);
+  doSwap(d, {cut:a.n, add:'Sol Ring' === a.n ? 'Arcane Signet' : 'Mind Stone', q:1}, 0); doSwap(d, {cut:b.n, add:'Fellwar Stone', q:1}, 0); touch(); render();
+  const en = d.cards.find(e => e.n === 'Mind Stone' || e.n === 'Arcane Signet'); handleAct('undo-card', '', en.n); out.cardBack = !!entryOf(d, a.n) && !entryOf(d, en.n) && !!entryOf(d, 'Fellwar Stone');   // only that card's swap is undone
+  d.cards = JSON.parse(before); S.autoYes = ay; touch();
+  S.view = 'buy'; render(); const btn = document.querySelector('[data-act="buy-copy-all"]'); let copied = null; const ct = window.copyText; window.copyText = (t, m) => { copied = t; }; out.btn = !!btn; if (btn) btn.click(); window.copyText = ct;
+  out.allLists = copied === null || copied === buyAllText(); out.noDup = !document.querySelector('[data-act="undo"][data-n]') && !document.querySelector('.buyall [data-act="buy-copy"]'); S.view = 'decks'; render(); return out; });
+T('UI-B148-01', 'A card’s “Undo · bring back” undoes only that card’s swap (not the last change); the Buy list page’s Copy copies the chosen lists (its own action, no longer the open deck’s)', b148.cardBack && b148.btn && b148.allLists && b148.noDup, JSON.stringify(b148));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

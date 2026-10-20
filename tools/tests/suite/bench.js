@@ -57,7 +57,8 @@ for (const [slug, file] of list){
   if (process.env.AIMS === 'edh'){ const E = run('EDH'); const t = E.tags.filter(x => E.tmap[x.slug]).slice(0, +(process.env.NTHEMES || 3)); if (t.length) d.aims = t.map(x => 'edh:' + x.slug); }
   // BUDGETONLY=3: experiment — the whole engine restricted to cards under $3 (everything else ruled out for this deck).
   if (process.env.BUDGETONLY){ X.__cap = +process.env.BUDGETONLY; run('__d.dismissed = LIB.filter(c => c.p == null || c.p >= __cap).map(c => c.n)'); }
-  X.__cap = +(process.env.CAP || 0); if (process.env.TIER) X.__d.tier = process.env.TIER; X.__sco = process.env.SCORECHECK === '2' ? {refill:false, theme:false} : {}; const t0 = Date.now(), R = run(process.env.SCORECHECK ? '(() => { const R0 = upgradePaths(__d, __cap ? {cap:__cap} : undefined); try { scoreCheck(__d, R0, Object.assign({apex:apexRef(__d)}, __sco)); } catch (e) {} return R0; })()' : 'upgradePaths(__d, __cap ? {cap:__cap} : undefined)'), ms = Date.now() - t0;   // CAP=3: the per-card price-capped package
+  X.__cap = +(process.env.CAP || 0); X.__pool = !!process.env.POOL;   // POOL=1: the whole-card search and its picks (0.9.3), as the app shows them
+   if (process.env.TIER) X.__d.tier = process.env.TIER; X.__sco = process.env.SCORECHECK === '2' ? {refill:false, theme:false} : {}; const t0 = Date.now(), R = run(process.env.SCORECHECK ? '(() => { const R0 = upgradePaths(__d, __cap ? {cap:__cap} : undefined); try { scoreCheck(__d, R0, Object.assign({apex:apexRef(__d)}, __sco)); } catch (e) {} if (__pool && typeof poolPromote === "function") try { const Q = poolQueue(__d, R0); if (Q){ poolStep(Q, 1e12); poolPromote(Q); } } catch (e) {} return R0; })()' : 'upgradePaths(__d, __cap ? {cap:__cap} : undefined)'), ms = Date.now() - t0;   // CAP=3: the per-card price-capped package
   const TIER = process.env.TIER || 'apex', swaps = R.paths.map(L => X.tierPick ? X.tierPick(L, TIER) : L.opts[TIER]).filter(Boolean).filter(p => process.env.LANDS ? isLand(p.cut) && isLand(p.add) : !isLand(p.cut) && !isLand(p.add)).map(p => ({cut:p.cut, add:p.add}));
   // Ranking quality over everything, not just the top 10: does the engine's value order the deck's cards the way players keep
   // them, and the candidate additions the way players add them? (Spearman; needs the engine's diagnostics.)
@@ -70,6 +71,11 @@ for (const [slug, file] of list){
   const PL = R.paths.map(L => ({L, p:X.tierPick ? X.tierPick(L, TIER) : L.opts[TIER]})).filter(x => x.p && (process.env.LANDS ? isLand(x.p.cut) && isLand(x.p.add) : !isLand(x.p.cut) && !isLand(x.p.add))).slice(0, 5);
   const rowAg5 = mean(PL.map(({L, p}) => Math.max(aOf(p), ...['apex', 'mid', 'budget'].map(t => L.opts[t] ? aOf(L.opts[t]) : -1), ...Object.values(L.pop || {}).map(x => aOf(x))) - kOf(p))), gain5 = mean(PL.map(({p}) => p.dScore || 0));
   const ag5 = mean(swaps.slice(0, 5).map(p => aOf(p) - kOf(p))), ag10 = mean(top.map(p => aOf(p) - kOf(p))), k10 = mean(top.map(kOf)), a10 = mean(top.map(aOf));
+  // ALSOW=3,6 (testing 3a, 19 Oct): the same engine run also judged with weighted player data, so one run gives both rows of numbers
+  if (process.env.ALSOW){ const w0 = process.env.WEIGHT; process.env.WEIGHT = process.env.ALSOW; const evW = evidence(slug, file); if (w0 == null) delete process.env.WEIGHT; else process.env.WEIGHT = w0;
+    const kW = p => evW.K.get(run('keyOf')(p.cut)) || 0, aW = p => evW.A.get(run('keyOf')(p.add)) || 0;
+    if (evW.n){ tot.wn = (tot.wn || 0) + 1; tot.w5 = (tot.w5 || 0) + mean(swaps.slice(0, 5).map(p => aW(p) - kW(p))); tot.w10 = (tot.w10 || 0) + mean(top.map(p => aW(p) - kW(p)));
+      tot.wr5 = (tot.wr5 || 0) + mean(PL.map(({L, p}) => Math.max(aW(p), ...['apex', 'mid', 'budget'].map(t => L.opts[t] ? aW(L.opts[t]) : -1), ...Object.values(L.pop || {}).map(x => aW(x))) - kW(p))); } }
   const sk = [...ev.K.values()].sort((a, b) => a - b), sa = [...ev.A.values()].sort((a, b) => b - a), ceil10 = mean(sa.slice(0, 10).map((v, i) => v - sk[i]));
   const sc = score(ev, swaps), kc = swaps.map(p => ev.K.get(run('keyOf')(p.cut)) || 0), aa = swaps.map(p => ev.A.get(run('keyOf')(p.add)) || 0);
   const meanK = [...ev.K.values()].reduce((a, b) => a + b, 0) / Math.max(1, ev.K.size);
@@ -103,4 +109,5 @@ fs.writeFileSync(path.resolve(__dirname, '../out/bench/' + label + '-' + which +
 console.log('\n' + 'deck'.padEnd(20) + 'copies swaps  agree@10 ceil@10 keep@10 add@10 | sum   90% CI         recall');
 for (const [k, r] of Object.entries(out.decks)) console.log(k.padEnd(20) + String(r.upgraded).padStart(6) + String(r.swaps).padStart(6) + String(r.ag10).padStart(9) + String(r.ceil10).padStart(8) + String(r.keep10).padStart(8) + String(r.add10).padStart(7) + ' | ' + String(r.score).padStart(6) + '  ' + JSON.stringify(r.ci90).padEnd(15) + r.cutRecall + ' of ' + r.lowKeep);
 if (tot.cpN) console.log('RANK (decks with swaps: ' + tot.cpN + ') cut percentile ' + (tot.cp / tot.cpN).toFixed(2) + ' | add percentile ' + (tot.apc / tot.cpN).toFixed(2) + '  (0.5 = random)');
+if (tot.wn) console.log('MEAN weighted (' + process.env.ALSOW + ') agreement@5 ' + (tot.w5 / tot.wn).toFixed(3) + ' row@5 ' + (tot.wr5 / tot.wn).toFixed(3) + ' @10 ' + (tot.w10 / tot.wn).toFixed(3));
 console.log('MEAN agreement@5 ' + out.total.ag5 + ' row@5 ' + out.total.row5 + ' gain@5 ' + out.total.gain5 + ' @10 ' + out.total.ag10 + ' | whole-list regret ' + out.total.regret + ' | cutRank ' + out.total.cutRank + ' addRank ' + out.total.addRank + ' | sum ' + out.total.score + ' over ' + out.total.swaps + ' swaps');

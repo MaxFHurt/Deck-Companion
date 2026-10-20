@@ -188,7 +188,7 @@ function ensureEdh(){ const d = S.view === 'decks' && S.open ? cur() : null, c =
   const themes = () => { if (EDH.key !== c.n || EDH.state !== 'ok') return; const ch = themeDefaults(d); if (ch) touch(); loadThemes(c.n, d.aims).then(g => { if (g || ch) render(); }); };
   if (EDH.key === c.n){ if (EDH.state === 'ok' && (d.aims.some(a => isEdhAim(a) && !EDH.tmap[a.slice(4)]) || themeDefaults(d))) themes(); return; }
   loadEdh(c.n).then(() => { if (EDH.key === c.n){ render(); themes(); } }); }
-function edhNote(c){ if (!c || EDH.key !== c.n) return ''; return EDH.state === 'ok' ? '<span class="chip good">Using what ' + EDH.decks.toLocaleString() + ' ' + esc(c.n.split(',')[0]) + ' decks play (EDHREC)</span>' : EDH.state === 'loading' ? '<span class="chip">Loading what ' + esc(c.n.split(',')[0]) + ' players run…</span>' : '<span class="chip warn">Commander-specific data unavailable · using general popularity</span>'; }
+function edhNote(c){ if (!c || EDH.key !== c.n) return ''; return EDH.state === 'ok' ? '<span class="chip good"><span class="sbl">Using what </span>' + EDH.decks.toLocaleString() + '<span class="sbn"> ' + esc(c.n.split(',')[0]) + '</span> decks<span class="sbl"> play</span> (EDHREC)</span>' : EDH.state === 'loading' ? '<span class="chip">Loading what ' + esc(c.n.split(',')[0]) + ' players run…</span>' : '<span class="chip warn">Commander-specific data unavailable · using general popularity</span>'; }
 function artFor(c, e){
   if (c && c.id) return imgUrl('art_crop', pidOf(c, e));
   const key = c ? c.n : '?'; if (ART.has(key)) return ART.get(key);
@@ -613,7 +613,7 @@ function undoSwap(d, n){
 function histHtml(en){
   if (!en || !en.hist || !en.hist.length) return '<div></div>';
   const prev = en.hist[en.hist.length - 1];
-  return '<div class="hist"><span><small>History</small>' + en.hist.map(x => '<button data-act="card" data-n="' + esc(x.n) + '">' + esc(x.n) + '</button> → ').join('') + '<b>' + esc(en.n) + '</b></span><button class="btn sm" data-act="undo" data-n="' + esc(en.n) + '">Undo · bring back ' + esc(prev.n) + '</button></div>';
+  return '<div class="hist"><span><small>History</small>' + en.hist.map(x => '<button data-act="card" data-n="' + esc(x.n) + '">' + esc(x.n) + '</button> → ').join('') + '<b>' + esc(en.n) + '</b></span><button class="btn sm" data-act="undo-card" data-n="' + esc(en.n) + '">Undo · bring back ' + esc(prev.n) + '</button></div>';
 }
 // ---------- library: the cards the player owns ----------
 function lib(){ const P = S.profile; if (!P.library || typeof P.library !== 'object') P.library = {}; return P.library; }
@@ -703,7 +703,7 @@ function viewBuy(){ const G = buyGroups(), sel = buySel(), price = L => L.reduce
   const n = G.filter(g => sel.has(g.id)).reduce((a, g) => a + g.list.reduce((b, x) => b + (x.q || 1), 0), 0);
   return '<section class="panel"><div class="ph"><h2>Buy list</h2><small>' + G.length + ' list' + (G.length === 1 ? '' : 's') + '</small></div>' +
     (!G.length ? '<p class="note" style="margin:0">Nothing to buy yet. Add cards from a deck’s Upgrades, its decklist (Add all to buy list) or Card search.</p>' :
-    '<div class="row"><button class="btn sm" data-act="buy-all">Choose all</button><button class="btn sm" data-act="buy-none">Choose none</button><span class="note" style="flex:1">' + n + ' card' + (n === 1 ? '' : 's') + ' chosen</span><button class="btn sm" data-act="buy-copy">Copy</button><button class="btn pri sm" data-act="buy-export">Export .txt</button></div>' +
+    '<div class="row"><button class="btn sm" data-act="buy-all">Choose all</button><button class="btn sm" data-act="buy-none">Choose none</button><span class="note" style="flex:1">' + n + ' card' + (n === 1 ? '' : 's') + ' chosen</span><button class="btn sm" data-act="buy-copy-all">Copy</button><button class="btn pri sm" data-act="buy-export">Export .txt</button></div>' +
     G.map(g => '<div class="grp"><div class="row"><button class="chk' + (sel.has(g.id) ? ' on' : '') + '" data-act="buy-sel" data-v="' + esc(g.id) + '" role="checkbox" aria-checked="' + sel.has(g.id) + '" aria-label="Include ' + esc(g.name) + ' in the export"></button><b style="flex:1;min-width:0">' + esc(g.name) + '</b><span class="chip">' + g.list.reduce((a, x) => a + (x.q || 1), 0) + ' cards · ' + est + '$' + price(g.list).toFixed(2) + '</span>' + (g.deck ? '<button class="btn sm" data-act="open-deck" data-v="' + esc(g.id) + '">Open deck</button>' : '') + '</div>' +
       '<details open><summary class="note">Cards</summary>' + g.list.map(row).join('') + '</details></div>').join('')) + '</section>'; }
 function viewLibrary(){ const d = cur() || S.profile.decks[0]; if (!d) return '<section class="panel"><div class="ph"><h2>Library</h2></div><p class="note" style="margin:0">Make or load a deck first; then add the cards you own here.</p></section>';
@@ -755,7 +755,7 @@ function poolRun(d, R, k){ let Q = null; try { Q = poolQueue(d, R); } catch (e) 
   // the list appears once it is back. Without them (or if they fail), the page searches in slices as before.
   if (wkGet() && R.base){ if (poolRun.job) try { WK.w.postMessage({kind:'cancel', job:poolRun.job}); } catch (e) {}
     const p = wkSend({kind:'measure', b:{kind:'swap', d:JSON.parse(JSON.stringify(d)), base:R.base, apex:R.apexR || null, keys:poolKeys(Q)}}, 600000); poolRun.job = p.id;
-    p.then(r => { if (recsFor.v !== R) return; if (r && r.vals && r.vals.length === Q.total){ poolApply(Q, r.vals); R.poolDone = true; R.poolMs = r.ms; render(); } else poolSlices(d, R, Q); });
+    p.then(r => { if (recsFor.v !== R) return; if (r && r.vals && r.vals.length === Q.total){ poolApply(Q, r.vals); poolFree(d, poolPromote(Q, d)); ROWC.k = null; R.poolDone = true; R.poolMs = r.ms; render(); } else poolSlices(d, R, Q); });
     return; }
   poolSlices(d, R, Q); }
 function poolSlices(d, R, Q){
@@ -764,8 +764,10 @@ function poolSlices(d, R, Q){
     const n = document.querySelector('#pool-note'), done = Q.r >= Q.rows.length; if (n){ n.textContent = done ? '' : poolNote(Q); if (done) n.remove(); }
     if (!done){ setTimeout(tick, 8); return; }
     // every row's Highest score appears at once, when the search is done: nothing shifts while it runs
-    R.poolDone = true; render(); };   // the whole list appears now
+    poolFree(d, poolPromote(Q, d)); ROWC.k = null; R.poolDone = true; render(); };   // the whole list appears now, the best card of each slot as its Apex pick (0.9.3)
   setTimeout(tick, 400); }
+// A held pick that a better card replaced (0.9.3) is no longer held; the picks now shown are held instead (watchAlerts).
+function poolFree(d, keys){ if (!d.recP) return; let ch = false; (keys || []).forEach(k => { if (d.recP[k]){ delete d.recP[k]; ch = true; } }); if (ch) persistSoon(); }
 function poolNote(Q){ return 'Thinking… checking every card that could fill these slots for a higher score: ' + Math.floor(100 * Q.done / Math.max(1, Q.total)) + '%'; }
 // Waits for the score check of the current list (Regenerate and the tests use it).
 async function recsReady(d){ for (let i = 0; i < 200 && recsFor(d).pending; i++) await new Promise(r => setTimeout(r, 50)); return recsFor(d); }
@@ -1115,7 +1117,7 @@ function watchAlerts(d){
   if (!d || !isAimed(d) || (d.plan && d.plan.length) || !DBINFO.complete || DBINFO.source === 'starter') return [];
   { const c0 = d.format === 'commander' ? find(d.commander) : null; if (c0 && (EDH.key !== c0.n || EDH.state === 'loading' || !EDH.state)) return [];   // wait for the play data before holding any pick
     if (c0 && EDH.state === 'ok' && (d.aims.some(a => isEdhAim(a) && !(EDH.tmap || {})[a.slice(4)]) || (analyze(d).size >= 90 && !apexFor(d)))) return []; }   // and for the theme pages and the Apex reference the score check uses
-  const R = recsFor(d), out = []; let ch = false, freed = false; if (R.pending) return []; if (!d.recP) d.recP = {};
+  const R = recsFor(d), out = []; let ch = false, freed = false; if (R.pending || (R.pool && !R.poolDone)) return []; if (!d.recP) d.recP = {};   // picks are held once shown: after the whole-card search (0.9.3)
   (R.unlock || []).forEach(k => { if (d.recP[k]){ delete d.recP[k]; ch = true; freed = true; } });   // a clearly better card took the slot
   R.paths.forEach(L => ['apex', 'mid', 'budget'].forEach(t => { const p = L.opts[t]; if (!p || p.beaten) return; const c = find(p.add); if (!c) return; const k = norm(p.add), cap = TIERS[t].cap, r = d.recP[k];
     if (!r){ if (t === 'apex' || underCap(c.p, t)){ d.recP[k] = {t, p:c.p, at:new Date().toISOString().slice(0, 10), pair:JSON.parse(JSON.stringify(p))}; ch = true; } return; }
@@ -1402,7 +1404,7 @@ function rowCols(d, R, L, i){
 function alt3Html(d, R, rowShown, p, i, t){ const L = R.paths[i], A = (L && L.alts && L.alts[t] || []).filter(a => !(d.format === 'commander' && hasCard(d, a.n))); if (!p || p.own || !A.length) return '';
   return '<div class="alt3"><small class="lab" style="margin:0">Alternatives</small>' + A.map(a => { const c = find(a.n);
     return '<div class="a3"><button class="sw in" data-act="card" data-n="' + esc(a.n) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span>' + esc(a.n) + (a.theme ? ' <span class="chip gold">' + esc(a.theme) + '</span>' : '') + (c && c.gc ? ' <span class="chip gc">GC</span>' : '') + '</span><em>' + money(c) + '</em></button>' +
-      '<div class="row">' + (a.most ? '<span class="chip gold" title="The card most of this commander’s players choose here; the pick above raises the deck score more">Most played' + (a.inc ? ' · in ' + Math.round(a.inc * 100) + '% of decks' : '') + '</span>' : '') + (a.pc ? pcChip(a) : scoreChip(a.dScore)) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
+      '<div class="row">' + (a.onTheme ? '<span class="chip gold" title="On theme for this deck and nearly as strong as the pick above">On theme alternative</span>' : '') + (a.most ? '<span class="chip gold" title="The card this commander’s players choose here; the pick above raises the deck score more">Popular pick' + (a.inc ? ' · in ' + Math.round(a.inc * 100) + '% of decks' : '') + '</span>' : '') + (a.pc ? pcChip(a) : scoreChip(a.dScore)) + (a.unpop ? '<button class="chip warn" data-act="unpop" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" title="Tap for why">Unpopular pick ⓘ</button>' : '') + '<button class="btn sm" data-act="swap-a3" data-v="' + i + '|' + t + '" data-n="' + esc(a.n) + '" style="margin-left:auto">Swap</button></div></div>'; }).join('') + '</div>'; }
 function capBox(d, t){ const cap = TIERS[t].cap; if (!(S.capOpen && S.capOpen[d.id + t])) return '<div class="capbox" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><button class="btn sm" data-act="cap-show" data-v="' + t + '">Best deck with every card under $' + cap + '</button></div>';
   const L = capList(d, t); if (!L.length) return '<p class="note" style="margin:6px 0 0">Best deck with every new card under $' + cap + ': no worthwhile swaps.</p>';
   const cost = L.reduce((s, p) => { const a = find(p.add), c = find(p.cut); return s + ((p.own ? 0 : a && a.p || 0) - (c && c.p || 0)) * p.q; }, 0);
@@ -1612,10 +1614,11 @@ function statsHtml(d, A, R, mode){   // mode "compact" (Upgrades tab): deck scor
       : '<p class="note" style="margin:0">Your cards are at <b>' + lvl + '</b> level' + (lvl === 'Starter' ? ' (below the best Budget build)' : '') + ': ' + qp + '% of the way from random playable cards to the Apex build' + statDelta(qp, B && B.q, ' pts') + (B && B.q != null && B.q !== qp ? ' since ' + B.at : '') + '. The marks show where the best all-under-$3 and all-under-$12 builds land.</p>');
   const strip = '<div class="statbar" role="status" aria-live="polite"><span><b>' + (e ? e.total : '—') + '</b>/100' + (e ? statDelta(e.total, prev && prev.score) : '') + '</span>' +
     (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') + (A.ctx.bracket ? '<span>Bracket <b>' + A.ctx.bracket + '</b></span>' : '') +
-    '<span>Swaps <b>' + nSw + '</b></span><span class="hdot ' + hs + '">Health ' + (nBad + nWarn ? nBad + nWarn + ' to watch' : 'good') + '</span></div>';
+    '<span>Swaps <b>' + nSw + '</b></span><span class="hdot ' + hs + '">Health ' + (nBad + nWarn ? nBad + nWarn + ' to watch' : 'good') + '</span>' + (edhNote(A.ctx.cmd) ? '<span class="sb-edh" title="' + esc(edhNote(A.ctx.cmd).replace(/<[^>]+>/g, '')) + '">' + edhNote(A.ctx.cmd) + '</span>' : '') + '</div>';   // the play-data chip sits at the bar's right end (owner, 19 Oct)
   const open1 = S.statsOpen !== false;
-  const prog = '<div class="grp"><div class="row" style="justify-content:space-between"><span class="lab" style="margin:0">Apex progress</span>' + edhNote(A.ctx.cmd) + '</div>' + tierMeter + '</div>';
-  if (mode === 'compact') return strip + prog;
+  const prog = '<div class="grp"><div class="row" style="justify-content:space-between"><span class="lab" style="margin:0">Apex progress</span></div>' + tierMeter + '</div>';
+  // Upgrades tab (owner, 19 Oct): the bar and its legend only; the label and the explanation stay on Build stats
+  if (mode === 'compact') return strip + '<div class="grp">' + (qp == null ? tierMeter : tmeterHtml(qp, mk, lvl, pw != null ? {you:e.total, budget:Math.round(T0.budget), mid:Math.round(T0.mid), apex:Math.round(T0.apex)} : null, pw != null)) + '</div>';
   return strip + prog + apexTips(d, A, R, e, HA, lvl) + '<details class="stats grp" id="stats-more"' + (open1 ? ' open' : '') + '><summary><span class="lab" style="margin:0">Build stats</span></summary>' +
     '<div class="sgrid"><div><small>Deck score</small><b>' + (e ? e.total : '—') + '</b>' + (e ? statDelta(e.total, B && B.score) + (B && B.score !== e.total ? '<span class="note"> since ' + B.at + '</span>' : '') : '') + '</div>' +
     '<div><small>Card quality</small><b>' + (qp == null ? '—' : qp + '%') + '</b><span class="note">of Apex</span></div>' +
@@ -1782,7 +1785,7 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
   const any = R.paths.length;
   const out0 = (d.dismissed || []).filter(n => !entryOf(d, n));
   const outHtml = out0.length ? '<div class="grp"><span class="lab">Excluded cards for this deck · ' + out0.length + '</span><p class="note" style="margin:0">These are not suggested for this deck: cards you swapped out or removed, and cards you chose “Don’t suggest for this deck” for. Your deck itself is unchanged. The list keeps the latest 80. Tap a card to allow it in recommendations again.</p><div class="row">' + out0.map(n => '<button class="chip" data-act="undismiss" data-n="' + esc(n) + '" aria-label="Allow ' + esc(n) + ' in recommendations">Allow ' + esc(n) + '</button>').join('') + '</div></div>' : '';
-  h += '<div class="grp"><span class="lab">Upgrade paths' + (any && !R.pending ? ' · ' + any + ' card' + (any === 1 ? '' : 's') : '') + '</span>';
+  h += '<div class="grp">';
   // the list appears once it is complete (owner, 19 Oct): the score check and the whole-card search both done
   const wait = R.pending || !!(R.pool && !R.poolDone);
   if (wait) h += '<p class="note think" style="margin:0" id="pool-note" role="status">' + (R.pending ? 'Thinking… checking each upgrade against your deck score' : 'Thinking… checking every card that could fill these slots for a higher score' + (WK.w ? '' : ': ' + Math.floor(100 * R.pool.done / Math.max(1, R.pool.total)) + '%')) + '</p>';
@@ -1790,14 +1793,12 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
   else if (!any) h += '<p class="note" style="margin:0">No card in this deck has a clear upgrade right now that keeps the deck’s identity' + (DBINFO.source === 'starter' ? '. More options appear once the full card data has finished downloading' : '') + '.</p>';
   else {
     if (R.count.free) h += '<div class="tip good"><b><small>Tip</small>' + R.count.free + ' free swap' + (R.count.free === 1 ? '' : 's') + ' from your library</b><ul><li class="pro"><i>+</i>You already own ' + (R.count.free === 1 ? 'a card' : 'cards') + ' that would improve this deck, so there is nothing to buy. They are listed first below.</li></ul><div class="row" style="margin-top:8px"><button class="btn sm" data-act="swap-all" data-v="free">Make all free swaps</button></div></div>';
-    // Upgrade paths as folder tabs (Build 132): Budget, Mid and Apex stacked on the left with their swaps and cost; the chosen
-    // tier's description and buttons on the right. All three panels are in the page; the chosen one shows.
-    { const sel = TIER_KEYS.includes(S.tierTab) ? S.tierTab : TIER_KEYS.includes(d.tier) ? d.tier : 'apex', TS = {}; TIER_KEYS.forEach(t => TS[t] = tierSum(d, R, t));
-    h += '<div class="tiertabs" data-sel="' + sel + '"><div class="ttabs" role="tablist" aria-label="Upgrade paths">' + TIER_KEYS.map(t => { const ts = TS[t]; return '<button class="ttab' + (t === sel ? ' on' : '') + '" data-act="tier-tab" data-v="' + t + '" role="tab" aria-selected="' + (t === sel) + '"><b>' + TIERS[t].label + '</b><span>' + (ts.n ? ts.n + ' swap' + (ts.n === 1 ? '' : 's') + ' · ' + (ts.cost >= 0 ? '+' : '−') + '$' + Math.abs(ts.cost).toFixed(0) : 'No worthwhile upgrades') + '</span></button>'; }).join('') + '</div>' +
-      '<div class="tpanes">' + TIER_KEYS.map(t => { const ts = TS[t]; return '<div class="tpane" data-t="' + t + '" role="tabpanel"><em>' + (t === 'apex' ? 'The strongest card for each slot, any price.' : 'The Apex card where it costs under $' + TIERS[t].cap + ', otherwise a cheaper card that does the same job.') + '</em>' + packLine(R, t, ts.n) +
-        '<div class="row"><button class="btn sm pri" data-act="swap-all" data-v="' + t + '"' + (ts.n ? '' : ' disabled') + '>Apply all ' + TIERS[t].label + ' swaps</button></div>' + (t === 'apex' ? '' : capBox(d, t)) + '</div>'; }).join('') + '</div></div>' +
-      '<details class="grp" id="tierhow"' + (S.tierHowOpen ? ' open' : '') + '><summary class="note" style="cursor:pointer">How the tiers work</summary><p class="note" style="margin:0">Apex is the strongest card found for each slot, whatever it costs, so a cheap card can be the Apex pick. Mid and Budget are cheaper cards that do the same job as the Apex card: under $12 and under $3, and cheaper than the Apex card. When nothing qualifies the tier stays empty and says why. When the Apex card already costs less than a tier’s limit, that tier uses it. Mid and Budget also offer the best deck with every new card under their limit (per card; cards you own count as free). That list is chosen on its own, so it can replace different cards than the Apex list. The Apex swaps are also checked together: the line under Apex shows what applying all of them does to the deck. Picks you have been shown are held in place until you swap them in, exclude them, or regenerate.</p>' +
-      '<p class="note" style="margin:0"><b>Remove suggestion</b> excludes that card from this deck’s recommendations. Your deck stays unchanged, and you can allow the card again under Excluded cards for this deck.</p></details>'; }
+    // Version 0.9.3 (owner, 19 Oct): the tiers are one row of three buttons, each applying that tier's swaps (it asks first):
+    // "Apply All Budget Swaps" over "4 cards $5".
+    { const TS = {}; TIER_KEYS.forEach(t => TS[t] = tierSum(d, R, t));
+    h += '<div class="tierbtns" role="group" aria-label="Apply a tier">' + TIER_KEYS.map(t => { const ts = TS[t]; return '<button class="btn tierbtn' + (t === 'apex' ? ' pri' : '') + '" data-act="swap-all" data-v="' + t + '"' + (ts.n ? '' : ' disabled') + '><b>Apply All ' + TIERS[t].label + ' Swaps</b><span>' + (ts.n ? ts.n + ' card' + (ts.n === 1 ? '' : 's') + ' ' + (ts.cost < 0 ? '−' : '') + '$' + Math.abs(ts.cost).toFixed(0) : 'No worthwhile upgrades') + '</span></button>'; }).join('') + '</div>' +
+      // owner, 19 Oct ("all of them"): what all the Apex swaps do together, and the best decks with every new card under $3 and $12
+      '<div class="tierx">' + (TS.apex.n && packLine(R, 'apex', TS.apex.n) ? '<p class="note tierpack">All Apex swaps together: ' + packLine(R, 'apex', TS.apex.n) + '</p>' : '') + ['budget', 'mid'].map(t => capBox(d, t)).join('') + '</div>'; }
     const show = S.pathShow || 12, PT = R.paths.map(L => slotTypes(Object.values(L.opts).map(o => o.add))), PK = R.paths.map(L => slotKinds(d, Object.values(L.opts))), PV = R.paths.map((L, i) => [L, i]).filter(([, i]) => (!upT() || PT[i].has(upT())) && (!upK() || PK[i].has(upK())));
     // Sort: by how much each upgrade raises the deck score (the default), the engine's own ranking, or cheapest first.
     { const so = S.upSort || 'impact', imp = L => Math.max(...Object.values(L.opts).map(p => p && p.dScore != null ? p.dScore : -1e9)), cost = L => { const p = tierPick(L, d.tier || 'apex') || L.opts.apex || Object.values(L.opts)[0], c = p && find(p.add); return p && p.own ? -1 : c && c.p != null ? c.p : 1e6; };
@@ -1819,7 +1820,7 @@ function upPanel(d, A, mode){   // mode "stats": the Build stats tab (the deck a
         TIER_KEYS.map(t => { const RC = rowCols(d, R, L, i), col = RC[t], src = col && col.src, p = col && col.p; if (!p) return '<div class="opt none" data-t="' + t + '"><span class="chip">' + TIERS[t].label + '</span><p>' + esc((col && col.note) || (L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') + '</p></div>';
           const inh = col.kind === 'moved' ? '<span class="chip gold" title="No stronger card was found for this slot, so this is its Apex card.">Best card for this slot</span>' : '';
           return '<div class="opt" data-t="' + t + '"><span class="chip gold">' + TIERS[t].label + '</span>' + side('in', p.add, p.q) + '<div class="row">' + inh + (p.held ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>' : '') + (p.own ? '<span class="chip good">You own this</span>' : '') + (p.pc ? pcChip(p) : col.kind === 'alt' ? scoreChip(p.dScore) : upChip(L, src) + driftChip(d, p.add, src)) + gcChip(p, R) + p.why.slice(0, 2).map(w => '<span class="chip">' + esc(w) + '</span>').join('') + '</div>' +
-            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Remove suggestion: ' + esc(p.add) + '">Remove suggestion</button>' + (col.kind === 'alt' ? '' : altBtn('up|' + i + '|' + src).replace('>See alternatives<', '>Alternate Options<')) + (p.own ? '' : upBuyBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + (col.kind === 'alt' ? t + '|alt' : src) + '" style="margin-left:auto">Swap</button></div>' + alt3Html(d, R, RC.shown, p, i, t) + '</div>';
+            '<div class="row"><button class="btn sm" data-act="dismiss" data-n="' + esc(p.add) + '" aria-label="Remove suggestion: ' + esc(p.add) + '" title="Remove suggestion excludes that card from this deck’s recommendations. Your deck stays unchanged, and you can allow the card again under Excluded cards for this deck.">Remove suggestion</button>' + (col.kind === 'alt' ? '' : altBtn('up|' + i + '|' + src).replace('>See alternatives<', '>Alternate Options<')) + (p.own ? '' : upBuyBtn(d, p.add)) + '<button class="btn pri sm" data-act="swap" data-v="' + i + '|' + (col.kind === 'alt' ? t + '|alt' : src) + '" style="margin-left:auto">Swap</button></div>' + alt3Html(d, R, RC.shown, p, i, t) + '</div>';
 }).join('') + topHtml(d, R, L, i) + '</div>'; }).join('') + '</div>' + (sheet ? '</div>' : '');
     if (!sheet && PV.length > show) h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, PV.length - show) + ' more</button>';
   }
@@ -2563,7 +2564,7 @@ function handleAct(act, v, n, pArg){
       if (bad.length){ toast('Nothing applied: ' + bad.length + ' problem' + (bad.length === 1 ? '' : 's') + ' found (' + bad[0].key.replace(/_/g, ' ') + (bad[0].card ? ': ' + bad[0].card : '') + ').'); return; }
       list.forEach(x => doSwap(d, x.p, x.L.opts.apex && x.L.opts.apex.add === x.p.add ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(x.p.t) + 1)));
       toast('Made ' + list.length + ' ' + (v === 'free' ? 'free' : TIERS[v].label) + ' swap' + (list.length === 1 ? '' : 's') + '.'); break; }
-    case 'undo': if (!undoSwap(d, n)) return; break;
+    case 'undo-card': if (!undoSwap(d, n)) return; break;   // its own name (0.9.3): as 'undo' it was taken by the general Undo
     case 'lib-add': { document.querySelectorAll('.ddl').forEach(x => x.hidden = true); const q0 = $('#lib-q'); if (q0) q0.value = ''; libAdd(n, 1); toast('Added ' + n + ' to your library.'); break; }
     case 'lib-not-own': { const L = lib(), k = Object.keys(L).find(x => norm(x) === norm(n)); if (k) delete L[k]; S.libV = (S.libV || 0) + 1; if (d && d.plan) d.plan.forEach(x => { if (norm(x.a) === norm(n)) delete x.own; }); if (d && d.format) addWant(d, n); toast(n + ' is no longer counted as owned and is on the ' + (d ? d.name + ' ' : '') + 'buy list.'); break; }
     case 'lib-inc': libAdd(n, 1); break;
@@ -2639,7 +2640,8 @@ function handleAct(act, v, n, pArg){
     case 'buy-all': S.buySel = new Set(buyGroups().map(g => g.id)); render(); return;
     case 'buy-none': S.buySel = new Set(); render(); return;
     case 'buy-export': { const t = buyAllText(); if (!t) { toast('Choose at least one list with cards.'); return; } saveText('buy-list.txt', t + '\n'); return; }
-    case 'buy-copy': { const t = buyAllText(); if (!t) { toast('Choose at least one list with cards.'); return; } copyText(t, 'Buy list copied.'); return; }
+    case 'buy-copy-all': { const t = buyAllText();   // its own name (0.9.3): as 'buy-copy' it copied the open deck's list
+      if (!t) { toast('Choose at least one list with cards.'); return; } copyText(t, 'Buy list copied.'); return; }
     case 'mywant-copy': copyText(['// My buy list'].concat(myWant().map(x => x.q + ' ' + x.n)).join('\n'), 'Buy list copied.'); return;
     case 'want-add': case 'want-undo': { const c = find(n), sel = ($('#want-deck') || {}).value || MINE;
       if (c && sel === MINE){ const W = myWant(); if (act === 'want-add'){ const o = W.find(x => keyOf(x.n) === c._k); if (o) Object.assign(o, pickPrint(c)); else W.push(Object.assign({n:c.n, q:1, at:Date.now()}, pickPrint(c))); toast('Added ' + c.n + ' to your buy list.'); } else { S.profile.want = W.filter(x => keyOf(x.n) !== c._k); toast('Removed ' + c.n + ' from your buy list.'); }

@@ -245,6 +245,8 @@ table.pg td{padding:3px 4px;border-top:1px solid var(--line,rgba(127,127,127,.2)
 .opt{display:flex;flex-direction:column;gap:5px;padding:6px 0 0;border-top:1px dashed var(--line)} .opt>.chip{align-self:flex-start}
 .statbar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;padding:7px 10px;margin:0 0 2px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);box-shadow:0 6px 14px #0008;font:600 12px var(--label);letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
 .statbar b{color:var(--chrome);font-size:14px;font-variant-numeric:tabular-nums}
+.sb-edh{flex:1 0 140px;min-width:140px;display:flex;justify-content:flex-end;overflow:hidden} .sb-edh .chip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;letter-spacing:.02em;padding-inline:8px;font-size:.92em}   /* takes the rest of the score line; shortens with … rather than wrapping (iPad 1180) */
+.sb-edh .sbl{display:none} @media (max-width:600px){.sb-edh .sbn{display:none}}   /* in the score bar the chip reads "4,374 T'Challa decks (EDHREC)", on phones "4,374 decks (EDHREC)"; the full sentence is its hover text (0.9.3) */
 .statbar em,.sgrid em,.stats .note em{font-style:normal;margin-left:4px;font-weight:700}.up{color:var(--good)}.dn{color:var(--bad)}
 .hdot::before{content:'';display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle;background:var(--good)}.hdot.warn::before{background:var(--warn)}.hdot.bad::before{background:var(--bad)}
 .stats>summary{cursor:pointer;list-style:none}.stats>summary::-webkit-details-marker{display:none}.stats>summary::after{content:' ▾';color:var(--mute)}.stats:not([open])>summary::after{content:' ▸'}
@@ -278,6 +280,8 @@ img.ms.ms.ms{display:inline-block;width:1.05em;height:1.05em;min-width:0;aspect-
 .prog i{position:relative;z-index:1;width:14px;height:14px;border-radius:50%;background:#150c2e;border:2px solid #3a2a6b}
 .prog .has i{border-color:var(--gold)} .prog .done i{background:var(--glow);border-color:#fff} .prog .done{color:var(--ink)}
 .prog .here i{box-shadow:0 0 0 3px rgba(185,147,255,.35),0 0 12px var(--violet)}
+.tierbtns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px} .tierbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 6px;line-height:1.2;text-align:center;white-space:normal} .tierbtn b{font-weight:700} .tierbtn span{font-size:.85em;opacity:.85;text-transform:none;letter-spacing:.02em}
+.tierx{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px} .tierx .tierpack{flex-basis:100%;margin:0} .tierx .tierpack em{font-style:normal} .tierx .capbox{margin-top:0!important;border-top:0!important;padding-top:0!important} .tierx .capbox:has(details){flex-basis:100%;display:flex;flex-direction:column;gap:4px}
 .tiertabs{display:grid;grid-template-columns:minmax(140px,28%) minmax(0,1fr);align-items:stretch}
 .ttabs{display:flex;flex-direction:column;gap:4px;padding:4px 0}
 .ttab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 12px;border:1px solid var(--line);border-right:0;border-radius:9px 0 0 9px;background:#120a28;color:var(--mute);font:600 11px var(--label);letter-spacing:.06em;text-transform:uppercase;text-align:left;cursor:pointer;margin-right:-1px;position:relative}
@@ -458,7 +462,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 147; window.VERSION = '0.9.2';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
+window.BUILD = 148; window.VERSION = '0.9.3';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
 (function(){
   var last = 0;
   function check(){

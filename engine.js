@@ -1364,16 +1364,50 @@ function poolQueue(d, R){ if (!R || !R.dOf || d.format !== 'commander') return n
   return {rows, r:0, done:0, total:rows.reduce((a, x) => a + x.pool.length, 0), dOf:R.dOf, edh:ctx.edh}; }
 function poolStep(Q, ms){ const t0 = Date.now(), changed = new Set(); if (!Q) return changed;
   while (Q.r < Q.rows.length && Date.now() - t0 < ms){ const x = Q.rows[Q.r]; if (x.k >= x.pool.length){ Q.r++; continue; } const c = x.pool[x.k++]; Q.done++;
-    const L = x.L, v = Q.dOf(L.cut, c.n, x.q); if (v == null || v < Math.max(scoreFloor(), UP.rankMin) || (L.top && v <= L.top.dScore)) continue;
+    const L = x.L, v = Q.dOf(L.cut, c.n, x.q); if (v == null || v < Math.max(scoreFloor(), UP.rankMin)) continue; poolKeep(L, c, v); if (L.top && v <= L.top.dScore) continue;
     const e = Q.edh && edhOf(Q.edh.map, c); L.top = {n:c.n, p:c.p, dScore:v, inc:e ? +e.inc.toFixed(3) : 0, pool:true}; changed.add(x.i); }
   return changed; }
 // The whole search at once (Build 146): every swap it measures, in order, as one batch for the background cores (measureBatch
 // 'swap': its first value is R.dOf's), then the results applied exactly as poolStep would, so the outcome is the same.
 function poolKeys(Q){ return Q.rows.flatMap(x => x.pool.map(c => [x.L.cut, c.n, x.q])); }
 function poolApply(Q, vals){ let i = 0; for (const x of Q.rows){ for (const c of x.pool){ const r = vals[i++], v = r && r[0] != null ? r[0] : null; const L = x.L;
-    if (v == null || v < Math.max(scoreFloor(), UP.rankMin) || (L.top && v <= L.top.dScore)) continue;
+    if (v == null || v < Math.max(scoreFloor(), UP.rankMin)) continue; poolKeep(L, c, v); if (L.top && v <= L.top.dScore) continue;
     const e = Q.edh && edhOf(Q.edh.map, c); L.top = {n:c.n, p:c.p, dScore:v, inc:e ? +e.inc.toFixed(3) : 0, pool:true}; } x.k = x.pool.length; }
   Q.r = Q.rows.length; Q.done = Q.total; }
+// Version 0.9.3 (owner, 19 Oct: "If a 38 cent card is the best card, it's the Apex card. We have too many rules conflicting"):
+// once the whole-card search is done, one rule decides each row's picks. Apex is the card that raises the deck score most of every
+// card measured for the slot (the search's finds and the check's own best included), Mid and Budget the best of the rest under $12 and $3 (or owned). A held
+// pick or a Game Changer row no longer keeps a weaker card in place (its hold is released). Each card is on one row: biggest finds first.
+// A pick that loses its place is not lost: it stays on the row as Mid or Budget when its price fits, and in the alternatives.
+// Each row's best few search finds (0.9.3), so a card another row takes leaves this row its next best.
+function poolKeep(L, c, v){ const A = L.finds || (L.finds = []); if (A.some(y => y.n === c.n)) return; A.push({n:c.n, dScore:v}); A.sort((a, b) => b.dScore - a.dScore); if (A.length > 6) A.length = 6; }
+function poolPromote(Q, d){ if (!Q) return []; const own = upgradePaths.own, used = new Set(), freed = [], T3 = ['apex', 'mid', 'budget'], TC = d ? themeCtx(d) : null, inc = n => { const e = Q.edh && edhOf(Q.edh.map, find(n)); return e ? +e.inc.toFixed(3) : 0; };
+  const fits = (p, t) => underCap((find(p.add) || {}).p, t) || !!p.own, best = O => T3.map(t => O[t]).filter(p => p && p.dScore != null).sort((a, b) => b.dScore - a.dScore)[0];
+  Q.rows.forEach(x => Object.values(x.L.opts).forEach(p => { if (p) used.add(norm(p.add)); }));
+  // every row's candidates: its search finds and the best card its own check measured (L.top), biggest gains first across rows
+  const cand = []; Q.rows.forEach(x => { const L = x.L, seen = new Set(); (L.finds || []).concat(L.top ? [L.top] : []).forEach(f => { if (!seen.has(f.n)){ seen.add(f.n); cand.push({x, n:f.n, v:f.dScore}); } }); });
+  cand.sort((a, b) => b.v - a.v); const done = new Set();
+  for (const y of cand){ const L = y.x.L, O = L.opts, k = norm(y.n), c = find(y.n), base = O.apex || O.mid || O.budget; if (done.has(L) || !c || !base) continue;
+    const b = best(O); if (b && norm(b.add) === k){ done.add(L); continue; }   // the row's best card is already its pick
+    if (used.has(k)) continue;   // suggested on another row: this row tries its next find
+    if (b && y.v < b.dScore + SCORE_MIN){ done.add(L); continue; }   // nothing left beats the row's own best
+    const np = Object.assign({}, base, {add:c.n, dScore:y.v, held:false, own:!!(own && own.has(c._n)), gc:!!c.gc, pc:false, gcPick:false, why:['Highest score of every card checked'], alt:base.add});
+    const left = T3.map(t => O[t]).filter(p => p && p.dScore != null).concat([np]).sort((a, b) => b.dScore - a.dScore), out = {apex:left.shift()};
+    for (const t of ['budget', 'mid']){ const i = left.findIndex(p => fits(p, t)); if (i >= 0) out[t] = left.splice(i, 1)[0]; }   // Budget first: a cheap card fills the cheapest tier it fits
+    const kept = new Set(Object.values(out).map(p => norm(p.add))); T3.forEach(t => { if (O[t] && !kept.has(norm(O[t].add))){ if (O[t].held) freed.push(norm(O[t].add)); used.delete(norm(O[t].add)); } });
+    T3.forEach(t => { if (out[t]) O[t] = Object.assign({}, out[t], {t}); else delete O[t]; }); used.add(k); done.add(L);
+    // owner, 19 Oct: the strongest card is the Apex card; the card it pushed out stays on the row as an alternative (a Popular pick
+    // when this commander's players run it), and an on-theme card nearly as strong is offered as the On theme alternative
+    const A = L.alts || (L.alts = {apex:[], mid:[], budget:[]}), ax = A.apex || (A.apex = []), has = n => T3.some(t => O[t] && norm(O[t].add) === norm(n)) || ax.some(a => norm(a.n) === norm(n));
+    const gone = left;   // the picks that lost their tier (the old best among them)
+    gone.forEach(p => { if (has(p.add)) return; const c2 = find(p.add), ic = inc(p.add); ax.unshift({n:p.add, p:c2 && c2.p, dScore:p.dScore, inc:ic, most:ic >= 0.1, theme:themeOf(c2, TC), vs:np.add, vsScore:np.dScore}); used.add(norm(p.add)); });
+    if (TC && !themeOf(c, TC)){ const lim = y.v - Math.max(Math.abs(y.v) * RANK_THEME, 0.1), th = (L.finds || []).concat(gone.map(p => ({n:p.add, dScore:p.dScore}))).filter(f => f.dScore >= lim && !has(f.n) && !used.has(norm(f.n)) && themeOf(find(f.n), TC)).sort((a, b2) => b2.dScore - a.dScore)[0];
+      const prior = th ? null : ax.find(a => a.theme && a.dScore >= lim);
+      if (th){ ax.unshift({n:th.n, p:(find(th.n) || {}).p, dScore:th.dScore, inc:inc(th.n), theme:themeOf(find(th.n), TC), onTheme:true, vs:np.add, vsScore:np.dScore}); used.add(norm(th.n)); } else if (prior) prior.onTheme = true; }
+    if (ax.length > 4) ax.length = 4; }
+  // a row's Highest score never names a card suggested on another row
+  Q.rows.forEach(x => { const L = x.L, mine = new Set(Object.values(L.opts).filter(Boolean).map(p => norm(p.add))); if (L.top && used.has(norm(L.top.n)) && !mine.has(norm(L.top.n))) L.top = null; });
+  return freed; }   // the held picks that lost their place: their holds are released
 const RANK_THEME = 0.1;
 function tierPick(L, t){
   const a = L.opts.apex; if (!a) return t === 'budget' ? (L.opts.budget || null) : (L.opts.mid || L.opts.budget || null);   // the Apex pick was dropped by the score check
