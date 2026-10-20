@@ -250,7 +250,10 @@ no more leaving room for better."
 - **Phase 3 (in progress):** `UP.v2` / `UP.v2r` in `tags()` take a card's jobs from the reading. All jobs from the reading
   scored lower (tuneall 0.245 / 0.247 / 0.12); removal, wipe and counterspell from the reading and the rest from 0.9.3 scored
   higher on all three tuneall numbers (0.251 / 0.253 / 0.133, weighted 0.281 / 0.283 / 0.160; baseline 0.248 / 0.249 / 0.130,
-  0.279 / 0.279 / 0.158). **Entered budget** for generated Budget decks: a "Total budget" box (and "I already own" the
+  0.279 / 0.279 / 0.158) but holdout lower (wipe and counterspell lower it). **On by default on engine-v2: removal only**
+  (after the fix keeping removal on cards that can also wipe, Vandalblast, Cyclonic Rift): tuneall 0.249 / 0.250 / 0.134,
+  weighted 0.279 / 0.280 / 0.162; test and holdout identical to 0.9.3. Synergy (UP.syn 0.5, 1.5) lower; off.
+  `?engine=old` restores 0.9.3. **Entered budget** for generated Budget decks: a "Total budget" box (and "I already own" the
   commander) on Generate; `fitBudget` swaps the priciest cards for the strongest same-job cards that cost less until the
   deck fits (owned cards, an owned commander and basic lands are free). The stats strip shows the price level (and the cost
   against the budget) apart from the power tier.
