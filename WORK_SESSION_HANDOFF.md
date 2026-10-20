@@ -1,7 +1,8 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
+Last updated: 20 October 2026. Live: Version 0.9.1 (build 146). Version 0.9.2 (build 147) is committed on the work branch,
+tested, and waits for the owner's OK to push (the owner named it 0.9.2).
 
 ## 0. Open questions for the owner (ask these first, numbered)
 
@@ -18,14 +19,17 @@ Last updated: 19 October 2026, Version 0.9.1 (build 146) live.
 3. **Commander engine reasons** (not answered yet). Cards say why they fit the commander ("Doubles the tokens your commander
    makes", "Uses the cards your commander puts in your graveyard"). Do they read the owner's commanders correctly? Misreads
    reported here are what will let it count in the score (UP.kwB/kwS still 0).
-4. **Mana fix speed.** Fix: Mana weighs up to 5 lands, each against up to 9 cards it could replace, with 200 practice games
-   per check: up to 45 checks, about 3 s on a desktop and 6-8 s on an iPad.
-   4a. Keep it as it is.
-   4b. Weigh fewer swaps: 3 lands x 6, about 1 s, but it may miss the best swap.
-   4c. Show each land's best swap as soon as it is measured: same total time, first answer in under a second.
-   4d. Use 100 games per check: twice as fast, noisier numbers.
-   Recommended: 4c.
+4. **Push Version 0.9.2?** (Fix: Mana fills in land by land; The Ozolith and other counter, token-doubler, damage-doubler
+   and power-doubler cards read correctly.) Tested: UI 115/115, benchmark no drop (tuneall up slightly).
 5. **Real-device screenshots** (iPhone upright, iPad unchanged) of anything that looks wrong.
+6. **Plans the engine can't see yet** (`misread.js`, 180 cards across 42 commanders). Players' signature cards for themes the app
+   has no plan for. Which are worth adding?
+   6a. Fliers (Isperia: Favorable Winds, Empyrean Eagle...).
+   6b. Defenders / toughness matters (Felothar: Tree of Redemption, Assault Formation, Doran...).
+   6c. Goad (Kardur: Disrupt Decorum, Geode Rager...).
+   6d. Untap effects (Emmara, Felothar: Seedborn Muse, Drumbellower...).
+   6e. Playing your opponents' cards (Gonti: Thief of Sanity, Fallen Shinobi...).
+   6f. Keyword counters (Tidus: shield and flying counters).
 
 Versions now count from 0.9; the owner names each next release (0.9.2, 0.10...). Cores: the owner asked for as many as
 possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; see ROADMAP, Build 144).
@@ -87,7 +91,7 @@ possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; 
    - While working, after each change: the quick check `PW=/opt/node22/lib/node_modules/playwright node ui-quick.mjs 8765 q`
      (about 25 s, 10 checks). The full UI suite runs once per live build, never alongside the benchmark (owner, 18 Oct).
    - UI suite: `(cd ../candidate && setsid nohup python3 -m http.server 8765 >/dev/null 2>&1 &)` then
-     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (114 at Version 0.9.1). If it
+     `PW=/opt/node22/lib/node_modules/playwright node ui-test.mjs 8765 bN`. Must pass every test (115 at Version 0.9.2). If it
      prints `ERR_CONNECTION_REFUSED`, restart the server (don't rely on `pgrep -f`, it can match its own shell).
    - Benchmark (engine changes), all six must not drop:
      `SCORECHECK=1 [WEIGHT=3,6] node bench.js ../candidate x tuneall|test|holdout --quiet`.
@@ -118,19 +122,19 @@ possible; the app uses up to 5 helpers (`hardwareConcurrency - 1`, capped at 5; 
    `Deck-Companion`; if git says "unpushed commits", refresh the tracking ref
    (`git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' && git fetch origin`).
 
-## 4. Benchmark baseline (Version 0.9.1, build 146, SCORECHECK=1)
+## 4. Benchmark baseline (Version 0.9.2, build 147, SCORECHECK=1)
 
 | Set | agreement@5 | @10 | weighted @5 / @10 |
 |---|---|---|---|
-| tuneall | 0.246 | 0.128 | 0.276 / 0.156 |
+| tuneall | 0.248 | 0.130 | 0.279 / 0.158 |
 | test | 0.298 | 0.191 | 0.317 / 0.210 |
 | holdout | 0.300 | 0.211 | 0.326 / 0.245 |
 
-Other checks at 0.9.1: accept 39 (both modes), semantics 44, claims 20 unrecognised, cisweep 0, edge clean, scheck bad 1
+Other checks at 0.9.2: accept 39 (both modes), semantics 51, claims 20 unrecognised, cisweep 0, edge clean, scheck bad 1
 (Doom HYDRA, known). No-play-data commanders: typicality 0.184 -> 0.293 (genstrong FALL=1 NOEDH=1). Score blind spots 9 -> 5
 of 472 (`blind.js`). Generator: tourney MID2 (a real Mid build) 39% match.
 
-Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`, `rowfeat.js` (per-row evidence),
+Helper tools: `misread.js` (cards players pick for a commander that the app says fit no plan: likely misreads), `guidecheck.js` (9 published guides, check only), `unpopcount.js`, `rowfeat.js` (per-row evidence),
 `fullsearch.js` (scores every legal same-job card per slot), `wcheck.js` (weighted yardstick validity).
 
 ## 5. Engine map (where things live)
@@ -191,7 +195,9 @@ Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`,
   self-mill, graveyard. Share link in the chat of 18 Oct. Its EDHREC page and three theme pages are in the test data folder
   (`proto/data2/edhrec`, `proto/data2/themes`) of this session only; `gensym.js` generates a deck for any commander and shows
   ramp, reanimation engines and fast mana.
-- **Known limits:** Fix: Mana takes ~3 s on desktop (question 4); Node test runs must go one at a time (running them in
+- **0.9.2 (147, not pushed):** Fix: Mana fills in land by land (`openFix` step loop, `manaPick`, `fixDraw`); counters theme reads
+  kept/moved counters (The Ozolith); token, damage and power doublers read (THEMES in engine.js).
+- **Known limits:** Fix: Mana takes ~2.5 s on desktop (first swap ~1 s); Node test runs must go one at a time (running them in
   parallel crashed, cause not traced); local test servers die now and then: restart them.
 
 ## 7. Prompt for a new Claude Code session
@@ -201,5 +207,5 @@ Helper tools: `guidecheck.js` (9 published guides, check only), `unpopcount.js`,
 > and `CHAT_TO_WORK_HANDOFF.md`. Follow the owner's rules exactly: plain English, numbered questions, a Summary at the end of
 > every reply, questions numbered 1a/1b/1c, complete and tested builds, no engine change that regresses any benchmark number,
 > and never push anything without the owner's explicit OK. Set up tests with `sh tools/tests/suite/setup.sh /tmp/dc3` and
-> `sh tools/tests/suite/fetchtags.sh /tmp/dc3`. Live is Version 0.9.1 (build 146). Ask the owner the open questions in
+> `sh tools/tests/suite/fetchtags.sh /tmp/dc3`. Live is Version 0.9.1 (build 146); 0.9.2 (build 147) is committed and waits for the owner's OK to push. Ask the owner the open questions in
 > section 0 first.

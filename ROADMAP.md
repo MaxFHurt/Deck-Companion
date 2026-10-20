@@ -1,6 +1,6 @@
 # Deck Companion roadmap
 
-Live: Build 141 (Build 142 built and tested, waiting for the owner's OK to push). Each item ships as its own build: build, run the full test suite
+Live: Version 0.9.1 (build 146); Version 0.9.2 (build 147) built and tested, waiting for the owner's OK to push. Each item ships as its own build: build, run the full test suite
 (`tools/tests/suite/README.md`), then go live only if nothing fails.
 
 ## Queue (smallest first)
@@ -221,6 +221,31 @@ no more leaving room for better."
   (identical decks and benchmark); upgrade lists are faster too. `genprof.js` shows where the time goes.
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
+
+## Version 0.9.2 (build 147, 19 October 2026; built and tested, waiting for the owner's OK to push)
+
+- **Fix: Mana fills in land by land (owner's choice 4c):** the window opens with "Checking land 1 of 5…" and each land's best
+  swap appears as soon as its practice games are done (openFix -> step, manaPick; fixList still gives the same list at once).
+  First swap 0.6-1.3 s, all five about 2.5 s on a desktop (unchanged total). "Make the top N swaps" waits until every land is
+  checked; the run pauses while a Swap is being confirmed and stops when the window closes or the deck changes. The rows can
+  reorder as better swaps arrive (each card going out is still used once).
+- **The Ozolith misread (owner's iPad report, 4 Brothers / Heroes in a Half Shell):** "doesn't feed any of the deck's plans
+  (+1/+1 counters…)" and "Fits: No specific mechanic". The counters theme needed the words "+1/+1"; it now also reads cards that
+  keep or move counters ("put those counters on", "move all counters", "had counters on it"): 16 more cards (The Ozolith,
+  Raphael the Muscle, Fate Transfer, Nexus Mentality, Heroic Sacrifice, Leech Bonder...). The Ozolith now reads "Good fit:
+  supports the deck's main plan (+1/+1 counters)". engineFit uses the same reading for counter commanders.
+- **misread.js (new):** for every commander with play data, the cards its players pick far more than other decks (synergy 0.2+,
+  10%+ of decks) that the app says feed no plan (job cards, staples and lands left out). 192 at first. Three plain misreads fixed:
+  token doublers worded "If one or more tokens would be created" (Chatterfang, Exalted Sunborn, Divine Visitation: 17 cards)
+  are token cards; damage doublers (Gratuitous Violence, Fiery Emancipation, Dictate of the Twin Gods, Solphim: 35) are attack
+  and burn cards; "double the power" (Unnatural Growth, Unleash Fury, Devilish Valet: 28) are attack cards. 180 remain: mostly
+  plans the engine has no theme for (fliers: Isperia; defenders/toughness: Felothar; goad; untap; casting opponents' cards:
+  Gonti), for the owner to decide.
+- **Benchmark (SCORECHECK=1):** tuneall 0.246 -> 0.248, @10 0.128 -> 0.130, weighted 0.276 / 0.156 -> 0.279 / 0.158; test and
+  holdout identical. Semantics 51/51 (7 new), accept 39, claims 18 unrecognised (unchanged).
+- **Tests:** UI suite 115/115. New UI-B147-01 (the land-by-land window); UI-B93-01 and UI-B99-01 wait for the list; the quick
+  check's Upgrades test waits for the whole-card search (stale since 0.9.1, it failed on 0.9.1 too). UI-B144-02 (built-ahead
+  deck under 2 s) missed by 40-45 ms in two earlier runs on this machine and passed in the final one: worth a look if it recurs.
 
 ## Version 0.9.1 (build 146, 19 October 2026; pushed with the owner's OK)
 

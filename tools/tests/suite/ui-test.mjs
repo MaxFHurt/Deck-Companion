@@ -504,7 +504,7 @@ T('UI-B92-01', 'Players: up to 5 tablemates on the profile; a deck can be set to
 // measured with fresh practice games; none lowers the score.
 const b93 = await page.evaluate(async () => { const out = {}; await loadPreconLive('avengers-assemble', 'Avengers Assemble'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.syncRecs = true;
   await loadEdh(d.commander); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); await recsReady(d); render();
-  openFix(['Mana']); const m = document.querySelector('#modal'); out.menu = /Fix: Mana/.test(m.textContent); const g = (S.fixG || [])[0] || {L:[]}; out.swaps = g.L.length;
+  openFix(['Mana']); for (let i = 0; i < 300 && ((S.fixG || []).find(x => x.k === 'Mana') || {}).busy; i++) await new Promise(r => setTimeout(r, 50));   /* Version 0.9.2: the Mana list fills in land by land */ const m = document.querySelector('#modal'); out.menu = /Fix: Mana/.test(m.textContent); const g = (S.fixG || [])[0] || {L:[]}; out.swaps = g.L.length;
   out.allLands = g.L.every(p => tags(find(p.add)).land); out.kinds = g.L.map(p => (tags(find(p.cut)).land ? 'land' : 'spell') + '>' + p.add + ' ' + p.dScore); out.noneLower = g.L.every(p => p.dScore != null && p.dScore >= SCORE_MIN); out.scored = g.L.every(p => p.dScore != null);
   out.why = /stuck without a colour it needs in \d+% of games and runs out of lands by turn 5 in \d+%/.test(m.textContent);
   out.noUpkindBtn = !document.querySelector('.hfix [data-act="upkind"]'); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); return out; });
@@ -557,7 +557,7 @@ T('UI-B98-01', 'Upgrade rows: Add to Buy List next to Alternate Options (precons
 // 50. Build 99: a generated Don & Leo deck (the owner's case): Fix this on Mana never comes up empty-handed. It offers swaps
 // that raise the deck score, or says plainly why there are none and offers a basic-land rebalance when one exists.
 const b99 = await page.evaluate(async () => { const g = await startPlan('Don & Leo, Problem Solvers', [], null, null, {fill:'apex'}); if (!g) return {gen:false}; S.profile.decks.unshift(g); S.draft = null; S.deckId = g.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
-  for (let i = 0; i < 80 && !apexFor(g); i++) await new Promise(r => setTimeout(r, 100)); render(); const e = evalFor(g); const t0 = performance.now(); openFix(['Mana']); const ms = Math.round(performance.now() - t0);
+  for (let i = 0; i < 80 && !apexFor(g); i++) await new Promise(r => setTimeout(r, 100)); render(); const e = evalFor(g); const t0 = performance.now(); openFix(['Mana']); const ms = Math.round(performance.now() - t0); for (let i = 0; i < 300 && ((S.fixG || []).find(x => x.k === 'Mana') || {}).busy; i++) await new Promise(r => setTimeout(r, 50));   /* Version 0.9.2: the Mana list fills in land by land */
   const m = document.querySelector('#modal'), L = ((S.fixG || [])[0] || {L:[]}).L, out = {gen:true, size:analyze(g).size, stuck:e && e.sim.colourStuck, short:e && e.sim.screwT5, ms, swaps:L.map(p => p.cut + '>' + p.add + ' ' + p.dScore), why:/practice games/.test(m.textContent)};
   out.useful = L.length ? L.every(p => p.dScore >= SCORE_MIN) : /No land swap raised the deck score/.test(m.textContent); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== g.id); return out; });
 T('UI-B99-01', 'Generated Don & Leo deck: Mana Fix this offers swaps that raise the score (or explains why there are none), and says whether colours or missing lands are the problem', b99.gen && b99.why && b99.useful, JSON.stringify(b99));
@@ -1110,6 +1110,20 @@ const b146b = await page.evaluate(async code => { const out = {}; location.hash 
   const R = recsFor.v; out.done = !!R.poolDone; out.onCores = R.poolMs != null; out.note = !!document.querySelector('#pool-note'); const seen = new Map(), dup = []; R.paths.forEach((L, i) => new Set(['apex', 'mid', 'budget'].map(t => L.opts[t] && L.opts[t].add).filter(Boolean)).forEach(a => { if (seen.has(a) && seen.get(a) !== i) dup.push(a); seen.set(a, i); }));
   out.dup = dup; S.syncRecs = sy; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; location.hash = ''; render(); return out; }, code146);
 T('UI-B146-02', 'The owner’s shared deck: the whole-card search runs on the background cores and finishes (not stuck at 2%), and no card is suggested on two rows', b146b.done && b146b.onCores && !b146b.note && !b146b.dup.length, JSON.stringify(b146b));
+// 106. Version 0.9.2 (owner's choice 4c): Fix: Mana shows each land's best swap as soon as it is measured, with a note while it
+// checks the rest; it pauses while a Swap is being confirmed, and the finished list is the same as the one worked out all at once.
+const b147 = await page.evaluate(async () => { const out = {}, d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; render();
+  for (let i = 0; i < 150 && !(apexFor(d) && evalFor(d) && evalFor(d).exact != null); i++){ await new Promise(r => setTimeout(r, 100)); if (i % 10 === 0) render(); } out.ready = evalFor(d) && evalFor(d).exact != null; FRESH.clear(); const t0 = performance.now(); openFix(['Mana']); const g = () => (S.fixG || []).find(x => x.k === 'Mana');
+  out.noteAtOnce = /Checking land 1 of \d/.test($('#modal').textContent); out.noTopWhileBusy = true;
+  for (let i = 0; i < 300 && g() && g().busy && !g().L.length; i++){ await new Promise(r => setTimeout(r, 20)); }
+  out.firstMs = Math.round(performance.now() - t0); out.firstBusy = !!(g() && g().busy); out.rowsShown = document.querySelectorAll('#modal .fixsw').length;
+  if (g().busy && document.querySelector('#modal [data-act="fix-top"]')) out.noTopWhileBusy = false;
+  const sw = document.querySelector('#modal [data-act="fix-swap"]'), ay = S.autoYes; if (sw && g().busy){ S.autoYes = new Set([...(ay || [])].filter(x => x !== 'fix-swap')); sw.click(); await new Promise(r => setTimeout(r, 50)); const i0 = g().busy && g().busy.i; await new Promise(r => setTimeout(r, 700)); out.paused = !!$('#confirm') && !$('#confirm').hidden && !!g().busy && g().busy.i === i0; confirmDone(false); S.autoYes = ay; }
+  for (let i = 0; i < 300 && g() && g().busy; i++) await new Promise(r => setTimeout(r, 50));
+  out.totalMs = Math.round(performance.now() - t0); out.done = !g().busy && !document.querySelector('#modal .think');
+  const fin = g().L.map(p => p.cut + '>' + p.add + ' ' + p.dScore).join(), all = fixList(d, 'Mana').map(p => p.cut + '>' + p.add + ' ' + p.dScore).join(); out.same = fin === all; out.n = g().L.length;
+  $('#modal').hidden = true; return out; });
+T('UI-B147-01', 'Fix: Mana fills in land by land: a "Checking land" note at once, the first swap long before the end, Make the top hidden until done, paused while a Swap is confirmed, and the final list matches the all-at-once list', b147.noteAtOnce && b147.firstBusy && b147.rowsShown > 0 && b147.noTopWhileBusy && b147.paused !== false && b147.done && b147.same && b147.n > 0, JSON.stringify(b147));
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));

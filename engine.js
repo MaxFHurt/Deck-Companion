@@ -18,9 +18,12 @@ function universeOf(c){ const g = c && c.sc ? UNIVERSES.find(x => x.includes(c.s
 function bracketOf(gc, mld){ return mld > 0 || gc > 3 ? 4 : gc > 0 ? 3 : 2; }
 const TRIBES = ['Elf','Goblin','Zombie','Dragon','Vampire','Angel','Merfolk','Dinosaur','Wizard','Human','Soldier','Knight','Cat','Sliver','Elemental','Spirit','Pirate','Eldrazi','Squirrel','Rat','Bird','Beast','Demon','Warrior','Cleric','Rogue','Faerie','Giant','Hydra','Dwarf','Myr','Wolf','Werewolf','Skeleton','Insect','Fungus','Snake','Treefolk','Ninja','Samurai','Shaman','Druid','Artificer','Horror','Phyrexian','Kraken','Sphinx','Rabbit','Mouse','Otter','Lizard','Frog','Bat','Raccoon','Dog','Bear','Ooze','Plant','Rebel','Ally','Advisor','God','Construct','Thopter','Golem','Devil','Minotaur','Centaur','Kithkin','Vedalken','Kor','Orc','Halfling','Detective','Assassin','Scout','Monk','Berserker','Barbarian','Noble','Avatar','Shapeshifter','Illusion','Drake','Serpent','Octopus','Fish','Crab','Spider','Boar','Elk','Ox','Unicorn','Pegasus','Griffin','Phoenix','Hellion','Wurm','Leviathan','Turtle','Nightmare','Shade','Specter','Wraith','Imp','Gargoyle','Kobold','Ogre','Troll','Cyclops','Satyr','Dryad','Nymph','Naga','Djinn','Efreet','Archon','Praetor','Mutant','Robot','Astartes','Tyranid','Necron','Time Lord','Doctor','Hero','Villain'];
 
+// Version 0.9.2 (19 Oct): token doublers worded as a replacement ("If one or more tokens would be created"), damage doublers
+// and power doublers are read too (found by tools/tests/suite/misread.js).
 const THEMES = {
-  tokens:      {label:'Tokens / go wide', re:/\bcreates?\b[^.]*\btokens?\b|tokens? you control|populate|(^|[.—] ?)(other )?creatures you control get \+/i},
-  counters:    {label:'+1/+1 counters', re:/\+1\/\+1 counter|proliferate|number of (each kind of )?counters?/i},
+  tokens:      {label:'Tokens / go wide', re:/\bcreates?\b[^.]*\btokens?\b|tokens? you control|populate|(^|[.—] ?)(other )?creatures you control get \+|tokens? would be created/i},
+  // counters a card keeps or moves count too, even when the text never says +1/+1 (The Ozolith, Fate Transfer, Nexus Mentality; owner, 19 Oct)
+  counters:    {label:'+1/+1 counters', re:/\+1\/\+1 counter|proliferate|number of (each kind of )?counters?|\bmove (all |any number of |one or more |a |one |those |the )?counters?\b|\bput (those|its|the same) counters on\b|\bhad counters on (it|them)\b|\bwith (one or more )?counters on (it|them)\b/i},
   graveyard:   {label:'Graveyard / reanimator', re:/from (your|a|any) graveyard|\bmills?\b|in(to)? your graveyard|flashback|unearth|dredge|cards? in your graveyard/i},
   sacrifice:   {label:'Sacrifice / aristocrats', re:/sacrifice (a|an|another|two|three|ten) |whenever [^.]*\bdies\b|each (other )?(opponent|player) sacrifices/i},
   spells:      {label:'Spellslinger', re:/instant or sorcery|instant and sorcery|noncreature spell|magecraft|prowess|copy (target|that) (instant|sorcery|spell)/i, type:/Instant|Sorcery/},
@@ -30,8 +33,8 @@ const THEMES = {
   lands:       {label:'Lands / landfall', re:/landfall|whenever a land|additional land|lands? (cards? )?from your (graveyard|hand)|for each land you control|land card from your hand onto/i},
   voltron:     {label:'Voltron (equipment / auras)', re:/equipped creature|enchanted creature|\bequip\b|\battach\b|aura,? (and|or) equipment|aura and equipment/i, type:/Equipment|Aura/},
   blink:       {label:'Enter-the-battlefield / blink', re:/then return (it|that card|those cards|them) to the battlefield|whenever (a|another|one or more)[^.]{0,40}creatures?[^.]{0,30}\benters?\b|when [^.]{1,45} enters,|triggers an additional time/i},
-  burn:        {label:'Burn / direct damage', re:/deals? (\d+|x|that much) damage to (each opponent|any target|target player|each player|that player)|damage to each opponent|deals damage equal to [^.]* to any target/i},
-  aggro:       {label:'Aggro / combat', re:/\bhaste\b|double strike|additional combat|whenever [^.]{0,50}\battacks?\b(?! you)|(^|[.—] ?)(other )?creatures you control get \+|\btrample\b/i},
+  burn:        {label:'Burn / direct damage', re:/deals? (double|triple) that damage|deals? (\d+|x|that much) damage to (each opponent|any target|target player|each player|that player)|damage to each opponent|deals damage equal to [^.]* to any target/i},
+  aggro:       {label:'Aggro / combat', re:/deals? (double|triple) that damage|double (the|its|this creature's|target creature's) power|\bhaste\b|double strike|additional combat|whenever [^.]{0,50}\battacks?\b(?! you)|(^|[.—] ?)(other )?creatures you control get \+|\btrample\b/i},
   control:     {label:'Control / interaction', re:null},
   draw:        {label:'Card advantage engine', re:/draws? (a|an|two|three|four|seven|x|that many|up to two) (additional )?cards?|draw cards equal|draw a card for each|draw x cards|no maximum hand size/i},
   tribal:      {label:'Creature type (tribal)', re:null}
@@ -81,7 +84,7 @@ function engineFit(c, E){ if (!E || !c) return {v:0}; const o = c.o || '', t = f
   for (const k of E.tokens) if (new RegExp('\\b' + k + '\\b').test(o)) return {v:0.8, why:'Uses the ' + k + ' tokens your commander makes'};
   if (E.creatureTokens && (/tokens? you control|whenever one or more (creature )?tokens|populate|creatures you control get \+|for each creature you control|sacrifice (a|another) creature[^.]*:/i.test(o))) return {v:0.8, why:'Pays off the creature tokens your commander makes'};
   for (const ty of E.types) if (new RegExp('\\b' + ty + 's?\\b').test(o) || new RegExp('\\b' + ty + '\\b').test(t)) return {v:0.8, why:'Works with your commander’s ' + ty + ' tokens'};
-  if (E.counters && /\+1\/\+1 counters? on|for each \+1\/\+1 counter|proliferate|with a \+1\/\+1 counter/i.test(o)) return {v:0.8, why:'Uses the +1/+1 counters your commander puts'};
+  if (E.counters && (/\+1\/\+1 counters? on|for each \+1\/\+1 counter|proliferate|with a \+1\/\+1 counter/i.test(o) || THEMES.counters.re.test(o))) return {v:0.8, why:'Uses the +1/+1 counters your commander puts'};
   if ((E.sacs || E.creatureTokens) && /whenever [^.]{0,30}\b(a|another|one or more)( other)?( nontoken)? creatures?( you control)?( die| dies)|whenever you sacrifice/i.test(o)) return {v:0.8, why:E.sacs ? 'Pays off the creatures your commander sacrifices' : 'Pays off the creature tokens your commander makes'};
   if (E.fillsGY && (tg.th.graveyard === 1 || /from (your|their|a|any|each) graveyards?|graveyard to the battlefield|cards? in your graveyard/i.test(o)) && !/exile (all|each|target player's) graveyards?|exile all cards from/i.test(o)) return {v:0.8, why:'Uses the cards your commander puts in your graveyard'};
   const en = {'cast-spell':() => /Instant|Sorcery/.test(t) && (c.cmc || 0) <= 3, 'cast-creature':() => /Creature/.test(t) && (c.cmc || 0) <= 3, etb:() => /Creature/.test(t) && (c.cmc || 0) <= 3 || /\bcreates? [^.]*creature tokens?/i.test(o) || ROLE_RE.blink.test(o),

@@ -38,7 +38,7 @@ const q1 = await page.evaluate(async () => { await loadPreconLive('wakanda-forev
 T('Q-LOAD', 'A precon loads with every card recognised', q1.size >= 99 && !q1.unknown, JSON.stringify(q1));
 // Q2. Upgrades in the background: says it is checking, then lists checked swaps within 15 s (catches a slower score check or a hidden list).
 await open('up', false);
-const q2 = await page.evaluate(async () => { const d = cur(); recsFor.k = null; render(); const checking = /checking each upgrade/i.test(document.body.textContent), t0 = performance.now(); await recsReady(d); const ms = Math.round(performance.now() - t0); await new Promise(r => setTimeout(r, 200));
+const q2 = await page.evaluate(async () => { const d = cur(); recsFor.k = null; render(); const checking = /checking each upgrade/i.test(document.body.textContent), t0 = performance.now(); await recsReady(d); for (let i = 0; i < 150 && recsFor.v && recsFor.v.pool && !recsFor.v.poolDone; i++) await new Promise(r => setTimeout(r, 100)); const ms = Math.round(performance.now() - t0);   /* Version 0.9.1: the list appears once the whole-card search is done */ await new Promise(r => setTimeout(r, 200));
   return {checking, ms, rows:document.querySelectorAll('.paths .path').length, swaps:document.querySelectorAll('.paths [data-act="swap"]').length, alts:document.querySelectorAll('.paths .alt3 .a3').length, slots:document.querySelectorAll('.topslot[data-i]').length}; });
 T('Q-UPGRADES', 'Upgrades: says it is checking, then shows rows with Swap buttons, alternatives and Highest score slots within 15 s', q2.checking && q2.ms < 15000 && q2.rows > 0 && q2.swaps > 0 && q2.alts > 0 && q2.slots > 0, JSON.stringify(q2));
 // Q3. A swap goes in, and Undo brings the deck back.

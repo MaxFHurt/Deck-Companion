@@ -45,6 +45,15 @@ for (const [slug, cmd] of [['avengers-assemble', 'Captain America, Team Leader']
 ok('Doctor Doom: only your own land discards (the need is landDiscard, not opponent discard)', needs('Doctor Doom, King of Latveria').includes('landDiscard') && /you discard/.test(X.find('Doctor Doom, King of Latveria').o));
 ok('Ghalta: cost reduction by total power is read', fx('Ghalta, Primal Hunger').effects.some(e => e.kind === 'cost' && e.how === 'total power'));
 ok('Leonardo: any token counts (not only creature tokens)', needs('Leonardo, the Balance').includes('tokens') && !needs('Leonardo, the Balance').includes('creatureTokens'));
+// Version 0.9.2 (owner's iPad report, 19 Oct: The Ozolith "doesn't feed" a +1/+1 counters deck). The Ozolith — "Whenever a creature
+// you control leaves the battlefield, if it had counters on it, put those counters on The Ozolith. ... move all counters from The
+// Ozolith onto target creature." Chatterfang — "If one or more tokens would be created under your control, those tokens plus that
+// many 1/1 green Squirrel creature tokens are created instead." Gratuitous Violence — "deals double that damage instead".
+// Unnatural Growth — "double the power and toughness of each creature you control".
+{ const th = n => run('tags')(X.find(n)).th; ok('The Ozolith is a counters card', th('The Ozolith').counters === 1, th('The Ozolith')); ok('Fate Transfer (moves counters) is a counters card', th('Fate Transfer').counters === 1);
+  ok('Chatterfang and Divine Visitation are token cards', th('Chatterfang, Squirrel General').tokens === 1 && th('Divine Visitation').tokens === 1); ok('Gratuitous Violence is an attack card', th('Gratuitous Violence').aggro === 1);
+  ok('Fiery Emancipation is a burn card', th('Fiery Emancipation').burn === 1); ok('Unnatural Growth is an attack card', th('Unnatural Growth').aggro === 1);
+  ok('Counterspells are not counters cards', th('Counterspell').counters !== 1 && th('Mana Leak').counters !== 1); }
 // Unknown text stays unknown: coverage over the five retail decks
 { let n = 0, unk = 0; const seen = new Set(); for (const s of ['avengers-assemble', 'doom-prevails', 'tramplesaurus-rex', 'turtle-power', 'wakanda-forever']) H.retail(s).cards.forEach(e => { const c = X.find(e.n); if (!c || seen.has(c.n) || run('tags')(c).land) return; seen.add(c.n); n++; if (fx(c.n).unknown.length) unk++; });
   console.log('coverage: ' + (n - unk) + ' of ' + n + ' distinct spells in the five retail decks have every sentence read; ' + unk + ' keep some text marked unknown (never given a role from it)'); }

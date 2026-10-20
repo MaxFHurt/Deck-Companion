@@ -1668,21 +1668,35 @@ function fixList(d, key){ let kind = FIX_OF[key]; if (!kind) return []; if (kind
   // practice games, and keeps only the ones that raise the deck score, best first.
   // Build 138: each land the fix offers goes where the card window would put it (landRank), so the two always agree; the swaps
   // that raise the score most are taken first, each card once.
-  if (FIX_OF[key] === 'mana' && e && e.exact != null){ try { const starved = manaStarved(d, e), ranks = manaAdds(d, 5, starved).map(c => ({c, r:landRank(d, c.n, ar)})).filter(x => x.r.length);
-      const used = new Set(), out = []; ranks.sort((a, b) => b.r[0].dScore - a.r[0].dScore);
-      for (const x of ranks){ if (out.length >= 5) break; const b = x.r.find(y => !used.has(y.n) && y.dScore >= SCORE_MIN); if (!b) continue; used.add(b.n);
-        out.push({cut:b.n, add:x.c.n, q:1, kind:'mana', dScore:b.dScore, best:b === x.r[0], why:b.spell ? 'A land for a weak spell: the deck runs short of lands' : landSpeed(find(b.n)) === 'tapped' ? 'Replaces a land that enters tapped' : isBasic(b.n) ? 'Replaces a basic with a land making more of your colours' : 'A better land for the same colours'}); }
-      return out.sort((a, b) => b.dScore - a.dScore); } catch (err) { return []; } }
+  if (FIX_OF[key] === 'mana' && e && e.exact != null){ try { return manaPick(manaAdds(d, 5, manaStarved(d, e)).map(c => ({c, r:landRank(d, c.n, ar)}))); } catch (err) { return []; } }
   // adding or cutting lands changes the mana, which only fresh practice games measure; keep the swaps that raise the score
   if (key === 'Lands'){ try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score}).filter(p => !hasCard(d, p.add)).map(p => Object.assign(p, {dScore:landScore(p.cut, p.add)})).filter(p => p.dScore != null && p.dScore >= SCORE_MIN).sort((a, b) => b.dScore - a.dScore); } catch (err) { return []; } }
   try { return fixSwaps(d, kind, {n:5, val:R && R.valOf, score, landScore, spareLands:true}).filter(p => !hasCard(d, p.add)); } catch (err) { return []; } }
+// The Mana fix's list from the lands measured so far: the swaps that raise the score most are taken first, each card going out once.
+function manaPick(ranks){ const used = new Set(), out = []; ranks = ranks.filter(x => x.r.length).sort((a, b) => b.r[0].dScore - a.r[0].dScore);
+  for (const x of ranks){ if (out.length >= 5) break; const b = x.r.find(y => !used.has(y.n) && y.dScore >= SCORE_MIN); if (!b) continue; used.add(b.n);
+    out.push({cut:b.n, add:x.c.n, q:1, kind:'mana', dScore:b.dScore, best:b === x.r[0], why:b.spell ? 'A land for a weak spell: the deck runs short of lands' : landSpeed(find(b.n)) === 'tapped' ? 'Replaces a land that enters tapped' : isBasic(b.n) ? 'Replaces a basic with a land making more of your colours' : 'A better land for the same colours'}); }
+  return out.sort((a, b) => b.dScore - a.dScore); }
 // The Mana fix plays fresh practice games for every land swap it weighs (a few seconds on a phone): the window opens at once with a
 // note, and the swaps appear when they are ready (Build 138).
 function openFixSoon(keys){ if (!keys.includes('Mana')) return openFix(keys); const t = keys.length > 1 ? 'Fix all alerts' : 'Fix: ' + keys[0];
   $('#modal').innerHTML = '<div class="panel" role="dialog" aria-label="Fix deck health"><div class="ph"><h2>' + esc(t) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note think" role="status">Thinking… checking land swaps with fresh practice games</p></div>'; $('#modal').hidden = false;
   setTimeout(() => { if (!$('#modal').hidden) openFix(keys); }, 40); }
-function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const A = analyze(d), ign = new Set(d.ignoreH || []);
-  const G = keys.filter(k => !ign.has(k)).map(k => ({k, L:fixList(d, k)})); S.fixG = G;
+// Version 0.9.2 (owner's choice 4c): the Mana fix measures one land at a time and shows each land's best swap as soon as it is
+// measured, so the first answer comes in about a second (0.6-1.3 s on a desktop); a note says how many lands are still being checked. The run pauses
+// while a Swap is being confirmed, and stops when the window closes or the deck changes.
+const MFIX = {tok:0};
+function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const ign = new Set(d.ignoreH || []), tok = ++MFIX.tok;
+  const mk = k => { if (FIX_OF[k] !== 'mana') return {k, L:fixList(d, k)}; const e = evalFor(d); if (!e || e.exact == null) return {k, L:fixList(d, k)};
+    let adds = []; try { adds = manaAdds(d, 5, manaStarved(d, e)); } catch (err) {} return {k, L:[], busy:{adds, ranks:[], i:0}}; };
+  const G = keys.filter(k => !ign.has(k)).map(mk); S.fixG = G; fixDraw(d, keys, G);
+  const g = G.find(x => x.busy); if (!g) return; const ar = apexFor(d), sig = d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|');
+  const step = () => { if (tok !== MFIX.tok || $('#modal').hidden || !$('#modal [aria-label="Fix deck health"]') || cur() !== d || d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|') !== sig) return;
+    if ($('#confirm') && !$('#confirm').hidden) return setTimeout(step, 150);
+    const B = g.busy; if (B.i < B.adds.length){ const c = B.adds[B.i++]; try { B.ranks.push({c, r:landRank(d, c.n, ar)}); } catch (err) {} g.L = manaPick(B.ranks); }
+    if (B.i >= B.adds.length) g.busy = null; fixDraw(d, keys, G); if (g.busy) setTimeout(step, 0); };
+  setTimeout(step, 0); }
+function fixDraw(d, keys, G){ const A = analyze(d), sc = $('#modal .mscroll'), top = sc ? sc.scrollTop : 0;
   const tgt = {Lands:[A.lands, A.T.lands], Ramp:[A.roles.ramp, A.T.ramp], Draw:[A.roles.draw, A.T.draw], Removal:[A.roles.removal, A.T.removal], Wipes:[A.roles.wipe, A.T.wipe]};
   const need = k => tgt[k] ? Math.max(1, Math.abs(tgt[k][1] - tgt[k][0])) : 1, over = k => k === 'Lands' && tgt.Lands[0] > tgt.Lands[1];
   const sw = (g, p, i) => { const a = find(p.add), c = find(p.cut); return '<div class="opt fixsw"><button class="sw out" data-act="card" data-n="' + esc(p.cut) + '">' + (c ? '<img alt="" src="' + artFor(c, {pid:c.id}) + '">' : '<span></span>') + '<span><small>Cut</small>' + esc(p.cut) + '</span><em>' + money(c) + '</em></button><button class="sw in" data-act="card" data-n="' + esc(p.add) + '">' + (a ? '<img alt="" src="' + artFor(a, {pid:a.id}) + '">' : '') + '<span><small>Add</small>' + esc(p.add) + '</span><em>' + money(a) + '</em></button>' +
@@ -1690,11 +1704,11 @@ function openFix(keys){ const d = cur(); if (!d) return; S.fixKeys = keys; const
   let h = '<div class="panel" role="dialog" aria-label="Fix deck health"><div class="ph"><h2>' + (keys.length > 1 ? 'Fix all alerts' : 'Fix: ' + esc(keys[0])) + '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="mscroll">' +
     '<p class="note" style="margin:0">Direct swaps that fix each alert, best for the deck score first. Each swap takes out a card the deck can best spare (never one you hold, and never one doing a job the deck is short of). Every swap can be undone.</p>';
   if (!G.length) h += '<p class="note">Nothing to fix: every alert here is ignored.</p>';
-  G.forEach(g => { const n = need(g.k), good = g.L.filter(p => p.dScore == null || p.dScore >= 0);
+  G.forEach(g => { const n = need(g.k), good = g.busy ? [] : g.L.filter(p => p.dScore == null || p.dScore >= 0), wait = g.busy ? '<p class="note think" role="status">Checking land ' + Math.min(g.busy.i + 1, g.busy.adds.length) + ' of ' + g.busy.adds.length + ' with fresh practice games… ' + (g.L.length ? 'more swaps may appear' : 'the first swaps appear here') + '</p>' : '';
     h += '<div class="grp"><span class="lab">' + esc(g.k) + (tgt[g.k] ? ' · ' + tgt[g.k][0] + ' of ' + tgt[g.k][1] : '') + '</span><p class="note" style="margin:0">' + esc(FIX_OF[g.k] === 'mana' ? manaWhy(d) : over(g.k) ? 'The deck runs more lands than it needs, so some can go for cards that do a job the deck is short of. Each swap was tested in fresh practice games and raises the deck score.' : FIX_WHY[FIX_OF[g.k]] || '') + (tgt[g.k] ? ' ' + n + (over(g.k) ? ' fewer' : ' more') + ' would reach the target.' : '') + '</p>' +
-      (g.L.length ? '<div class="paths">' + g.L.map((p, i) => sw(g, p, i)).join('') + '</div>' : FIX_OF[g.k] === 'mana' ? manaNone(d) : '<p class="note" style="margin:0">No swap found that fixes this without weakening something the deck needs.</p>') +
+      (g.L.length ? '<div class="paths">' + g.L.map((p, i) => sw(g, p, i)).join('') + '</div>' + wait : wait ? wait : FIX_OF[g.k] === 'mana' ? manaNone(d) : '<p class="note" style="margin:0">No swap found that fixes this without weakening something the deck needs.</p>') +
       '<div class="row">' + (good.length ? '<button class="btn sm" data-act="fix-top" data-v="' + esc(g.k) + '">Make the top ' + Math.min(n, good.length) + ' swap' + (Math.min(n, good.length) === 1 ? '' : 's') + '</button>' : '') + '<button class="btn sm" data-act="h-ignore" data-v="' + esc(g.k) + '">Ignore this alert</button></div></div>'; });
-  h += '</div></div>'; $('#modal').innerHTML = h; $('#modal').hidden = false; }
+  h += '</div></div>'; $('#modal').innerHTML = h; $('#modal').hidden = false; const sc2 = $('#modal .mscroll'); if (sc2 && top) sc2.scrollTop = top; }
 // What the Mana alert is about, from the practice games, so the swaps make sense.
 // The Mana alert's line: colour trouble always; missing lands only when it happens often enough to matter (8%+ of games).
 function manaText(m){ const st = Math.round(m.colourStuck * 100), sh = Math.round(m.screwT5 * 100); return 'Stuck without a colour in ' + st + '% of practice games' + (m.screwT5 >= 0.08 ? ' · ran out of lands in ' + sh + '%' : ''); }
