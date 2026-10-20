@@ -222,6 +222,15 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.4 (build 149, 20 October 2026; pushed with the owner's OK: "Push it live")
+
+The first engine-v2 release: the rules reader decides which cards are removal, and adds wipes and card draw the text patterns
+missed (never taking one away). Benchmark against 0.9.3: tuneall 0.252 / 0.254 / 0.136 (was 0.248 / 0.249 / 0.130), weighted
+0.281 / 0.282 / 0.163 (0.279 / 0.279 / 0.158); test 0.298 / 0.300 / 0.192 and holdout 0.300 / 0.300 / 0.212 (equal or
+above). New: a total budget for generated Budget decks (owned cards, an owned commander and basic lands free); the price
+level on the stats strip, apart from the power tier; `?engine=old` runs every choice as 0.9.3. Fix: the first version
+snapshot of a deck reworked the upgrade list and jumped it to the top. UI suite 118/119 (UI-B81-02, the known open finding).
+
 ## Engine redesign on `engine-v2` (from 20 October 2026; never served to players until it beats 0.9.3)
 
 - **Phase 0 (done):** rules test set (32 cards, 31 rule areas), Forge scripts (tests only, GPL), Scryfall tags (90 tags,
