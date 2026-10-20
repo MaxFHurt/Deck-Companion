@@ -266,7 +266,11 @@ snapshot of a deck reworked the upgrade list and jumped it to the top. UI suite 
   holdout identical. Counterspells added the same way lowered holdout (0.295 / 0.302 / 0.207); off. Synergy (UP.syn 0.25,
   0.5, 1.5) lower (0.25: test 0.293 / 0.295 / 0.185); off. Added the same way with no change on holdout (left off, they
   only cost reading time): protection, tutors; ramp added lowered holdout to 0.278. Practice games from the reading
-  (UP.v2sim): holdout unchanged; off.
+  (UP.v2sim): holdout unchanged; off. **Learning adds from stronger decks** (UP.optW: cards the commander's EDHREC
+  power-level page runs more than its decks overall, trusted by sample size): bracket 4 ("optimized") weight 5: tuneall
+  @10 0.136 -> 0.135, 10: 0.134, holdout unchanged; bracket 3 ("upgraded") weight 5: identical to 0.9.4 everywhere, 10:
+  @10 0.134. No gain; off. The players in the benchmark upgrade precons, and EDHREC's commander page already holds what
+  they run; the power-level pages say little beyond it. Pages kept in the test data (data2/edhrec-opt, edhrec-upg).
   `?engine=old` restores 0.9.3. **Entered budget** for generated Budget decks: a "Total budget" box (and "I already own" the
   commander) on Generate; `fitBudget` swaps the priciest cards for the strongest same-job cards that cost less until the
   deck fits (owned cards, an owned commander and basic lands are free). The stats strip shows the price level (and the cost
