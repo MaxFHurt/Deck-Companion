@@ -218,23 +218,28 @@ const THEMES = {
   // goad, Emmara's tap/untap, Gonti's theft. "re" is a card that cares about the plan; "kw" a card that is simply part of it
   // (a flier in a fliers deck): it fits the plan, but only "re" makes a commander lead it.
   flying: {
+    v2: true,
     label: 'Fliers',
     re: /\bwith flying\b|\bflying creatures?\b|creatures? you control (?:have|gain) flying|\bgains? flying\b|\b(?:has|have) flying\b|\bwithout flying\b/i,
     kw: /(?:^|\n)(?:[A-Za-z][a-z]*(?: [a-z]+)?, )*flying(?:,|\n|$| \()/i
   },
   defenders: {
+    v2: true,
     label: 'Defenders / toughness',
     re: /\bdefender\b|combat damage equal to (?:its|their) toughness|toughness (?:\d+|x) or greater|greatest toughness|total toughness|equal to [^.]*\btoughness\b|\bwith toughness\b|gets? \+0\/\+\d+/i
   },
   goad: {
+    v2: true,
     label: 'Goad / forced combat',
     re: /\bgoad|attacks? each combat if able|attack each combat if able|must attack|attacks? a player other than you/i
   },
   untap: {
+    v2: true,
     label: 'Tap / untap',
     re: /\buntap (?:all|target|up to|each|another|it|that)|\{Q\}|becomes? tapped|tap an untapped creature you control|tap (?:x |two |three )?untapped creatures you control|during each other player's untap step/i
   },
   theft: {
+    v2: true,
     label: "Theft (opponents' cards)",
     re: /gain control of|you don't own|an opponent owns|(?:target|each|an) opponent's (?:library|graveyard|hand)[^.]*\b(?:you may (?:cast|play)|onto the battlefield under your control)|cards? (?:exiled )?(?:with|by) [^.]* (?:you may )?(?:cast|play)[^.]*(?:opponent|you don't own)|cast (?:spells|cards) you don't own|opponent's library[\s\S]*you may (?:cast|play)/i
   },

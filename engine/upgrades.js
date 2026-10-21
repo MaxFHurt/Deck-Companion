@@ -1822,6 +1822,7 @@ const UP = {
   optW: 0, // engine v2: weight of what the commander's bracket 4 decks run more than its decks overall (EDHREC optimized page)
   optN: 100,
   optMin: 30,
+  newTh: [], // engine v2: the plans added 20 Oct (THEMES v2: flying, defenders, goad, untap, theft) that are switched on; all together lowered tuneall
   v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
   polG: 0.3,

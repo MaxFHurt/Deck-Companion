@@ -216,7 +216,7 @@ function tags(c) {
       .join('\n');
   for (const k in THEMES) {
     const T = THEMES[k];
-    if (!T.re) continue;
+    if (!T.re || (T.v2 && !UP.newTh.includes(k))) continue;
     th[k] = T.re.test(o) || (T.kw && T.kw.test(o)) ? 1 : T.type && T.type.test(t) ? 0.5 : 0;
   }
   if (UP.kw)
@@ -412,6 +412,7 @@ function detectStrategy(cmd, d, thin) {
   ];
   const themes = order.filter(
     k =>
+      !(THEMES[k].v2 && !UP.newTh.includes(k)) &&
       (THEMES[k].re ? THEMES[k].re.test(plan) : tg.th[k] === 1) &&
       (k !== 'blink' || /whenever (a|another|one or more)|then return/i.test(o))
   );
