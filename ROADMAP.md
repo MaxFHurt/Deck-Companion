@@ -222,6 +222,13 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.6 (build 151, 21 October 2026; pushed to main with the owner's OK: "Push it live")
+
+Owner (21 Oct): push straight to main from now on (not engine-v2), only when asked. Creature types: a type a commander only
+searches for no longer makes its tribe, and irregular plurals are read (Magda: Dragon -> Dwarf). New plans players can
+choose: Unblockable / evasion, Stax / lock pieces, Clones / copies (never picked for a commander on its own), Voting.
+Benchmark identical to 0.9.5 on all twelve numbers (old decks and corpus5); misread.js 229 -> 177.
+
 ## Version 0.9.5 (build 150, 21 October 2026; pushed with the owner's OK: "Push it live")
 
 New plans players can choose for any deck: Fliers, Defenders / toughness, Goad / forced combat, Tap / untap, Theft
