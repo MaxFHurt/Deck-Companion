@@ -569,6 +569,8 @@ const TAG_OF = {
   untap: 'tap-untap',
   theft: 'theft'
 };
+// The plans the app offers: every one above except a new plan that is switched off (UP.newTh)
+const themeKeys = () => Object.keys(THEMES).filter(k => !THEMES[k].v2 || UP.newTh.includes(k));
 // EDHREC tags that name one of the plans above under another word
 const TAG_ALIAS = {'toughness-matters': 'defenders', goad: 'goad'};
 const COLOR_PAGE = {

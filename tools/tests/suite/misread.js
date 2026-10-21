@@ -6,6 +6,7 @@
 // node misread.js <engineDir> [minSyn=0.2] [minInc=0.1]   AIMS=edh: plans are the commander's top EDHREC themes with their
 // theme pages, as the app builds them (the default maps EDHREC's tags onto the built-in plans only)
 const fs = require('fs'), path = require('path'), H = require('./h.js')(path.resolve(process.argv[2])), X = H.ctx, run = H.run;
+if (process.env.UP){ X.__up = JSON.parse(process.env.UP); run('Object.assign(UP, __up)'); }
 const minSyn = +(process.argv[3] || 0.2), minInc = +(process.argv[4] || 0.1);
 const dirs = ['../snapshot/edhrec', '../data2/edhrec'].map(d => path.resolve(__dirname, d)).filter(fs.existsSync), seen = new Set();
 const REV = run('(() => { const r = {}; for (const k in TAG_OF) r[TAG_OF[k]] = k; if (typeof TAG_ALIAS === "object") Object.assign(r, TAG_ALIAS); return r; })()');

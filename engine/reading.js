@@ -428,7 +428,7 @@ function buildThemes(d) {
           r: cs.length * Math.sqrt((t.count || 0) / top)
         });
     });
-  Object.keys(THEMES)
+  themeKeys()
     .filter(k => THEMES[k].re && k !== 'draw')
     .forEach(k => {
       const cs = spells.filter(c => matchAim(c, k, ctx.tribe) >= 0.7);

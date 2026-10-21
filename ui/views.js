@@ -441,7 +441,7 @@ function openMechList() {
         own.map(t => row('edh:' + t.slug, t.label, t.count.toLocaleString() + ' decks')).join('')
       : '') +
     '<span class="lab">Other mechanics</span>' +
-    Object.keys(THEMES)
+    themeKeys()
       .map(k => row(k, THEMES[k].label, ''))
       .join('') +
     '</div></div>';

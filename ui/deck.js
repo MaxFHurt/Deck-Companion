@@ -892,7 +892,7 @@ function viewSearch() {
     '</select>' +
     '<select id="s-theme" aria-label="Mechanic">' +
     opt('', 'Any mechanic', f.theme) +
-    Object.keys(THEMES)
+    themeKeys()
       .filter(k => k !== 'tribal')
       .map(k => opt(k, THEMES[k].label, f.theme))
       .join('') +
@@ -1309,7 +1309,7 @@ function themeBuildBox() {
     tribe = g.ttribe || '';
   let h =
     '<div class="grp" id="themebuild"><span class="lab">Or start from a theme</span><p class="note" style="margin:0">Pick what the deck should do. Deck Companion suggests the commanders that build around it best, then designs the deck with that theme first.</p><div class="row" role="group" aria-label="Theme">' +
-    Object.keys(THEMES)
+    themeKeys()
       .map(
         t =>
           '<button class="btn sm' +

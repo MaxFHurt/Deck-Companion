@@ -1098,7 +1098,7 @@ function openCard(name, pid) {
   phSeen(c);
   const d = cur(),
     tg = tags(c),
-    th = Object.keys(THEMES)
+    th = themeKeys()
       .filter(k => tg.th[k] === 1)
       .map(k => THEMES[k].label),
     inDeck = d && d.cards.find(e => norm(e.n) === c._n);
