@@ -222,6 +222,13 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.9 (build 154, 21 October 2026; owner: "Yes make the trade off and push live")
+
+UP.xPlan 0.25 on: a card that fits a plan this commander's players build, beyond the deck's own three, scores a little more
+and says so ("Graveyard (a plan Bello players build)"). Benchmark: test @10 0.192 -> 0.198 (corpus5 0.191 -> 0.197), holdout
+0.300 / 0.300 / 0.212 -> 0.301 / 0.301 / 0.213 (corpus5 0.345 -> 0.346); tuneall @10 0.136 -> 0.135 (corpus5 0.163 -> 0.162),
+test row@5 0.300 -> 0.299. The owner took the trade-off. misread.js 176 -> 22.
+
 ## Version 0.9.8 (build 153, 21 October 2026; pushed to main when the benchmark was clean, as the owner asked)
 
 Reasons say when a card completes a short combo (three cards or fewer) with the commander or with cards a quarter of its

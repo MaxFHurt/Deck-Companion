@@ -1853,7 +1853,7 @@ const UP = {
   optN: 100,
   optMin: 30,
   newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones', 'cheat', 'topdeck'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
-  xPlan: 0, // engine v2: weight of fitting another plan this commander's players build (xPlansOf)
+  xPlan: 0.25, // engine v2: weight of fitting another plan this commander's players build (xPlansOf); owner took the trade-off 21 Oct
   v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
   polG: 0.3,
