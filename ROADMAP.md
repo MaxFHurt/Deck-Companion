@@ -222,6 +222,16 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.5 (build 150, 21 October 2026; pushed with the owner's OK: "Push it live")
+
+New plans players can choose for any deck: Fliers, Defenders / toughness, Goad / forced combat, Tap / untap, Theft
+(opponents' cards), read from card text and matched to EDHREC's tags (flying, defenders, toughness-matters, forced-combat,
+tap-untap, theft). The engine picks a plan for a commander on its own only from text that rewards it, never Defenders (owner,
+21 Oct: "We need to give players all their choices"; picking it for Felothar's precon lowered that deck from 0.527 to 0.430).
+A plain flier or defender fits its plan but is not "on theme" for pairing swaps. Benchmark identical to 0.9.4 on all six
+numbers; misread.js 255 -> 229 cards. UI suite 118/119 (UI-B146-02, background cores under the grouped run's load; passes
+alone). Test data: 25,691 Archidekt decks (up to 1,000 per commander, corpus5, `CORPUS=corpus5`).
+
 ## Version 0.9.4 (build 149, 20 October 2026; pushed with the owner's OK: "Push it live")
 
 The first engine-v2 release: the rules reader decides which cards are removal, and adds wipes and card draw the text patterns
