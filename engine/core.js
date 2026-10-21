@@ -248,6 +248,13 @@ const THEMES = {
     label: "Theft (opponents' cards)",
     re: /gain control of|you don't own|an opponent owns|(?:target|each|an) opponent's (?:library|graveyard|hand)[^.]*\b(?:you may (?:cast|play)|onto the battlefield under your control)|cards? (?:exiled )?(?:with|by) [^.]* (?:you may )?(?:cast|play)[^.]*(?:opponent|you don't own)|cast (?:spells|cards) you don't own|opponent's library[\s\S]*you may (?:cast|play)/i
   },
+  evasion: {
+    v2: true,
+    pick: false,
+    label: 'Unblockable / evasion',
+    re: /creatures? you control (?:can't be blocked|have [^.]*can't be blocked)|\bunblocked\b|can't be blocked except by/i,
+    kw: /\bcan't be blocked\b|\b(?:shadow|fear|intimidate|skulk|menace)\b/i
+  },
   control: {label: 'Control / interaction', re: null},
   draw: {
     label: 'Card advantage engine',
@@ -570,7 +577,8 @@ const TAG_OF = {
   defenders: 'defenders',
   goad: 'forced-combat',
   untap: 'tap-untap',
-  theft: 'theft'
+  theft: 'theft',
+  evasion: 'unblockable'
 };
 // The plans the app offers: every one above except a new plan that is switched off (UP.newTh)
 const themeKeys = () => Object.keys(THEMES).filter(k => !THEMES[k].v2 || UP.newTh.includes(k));
