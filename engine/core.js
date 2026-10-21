@@ -175,7 +175,7 @@ const THEMES = {
   // counters a card keeps or moves count too, even when the text never says +1/+1 (The Ozolith, Fate Transfer, Nexus Mentality; owner, 19 Oct)
   counters: {
     label: '+1/+1 counters',
-    re: /\+1\/\+1 counter|proliferate|number of (each kind of )?counters?|\bmove (all |any number of |one or more |a |one |those |the )?counters?\b|\bput (those|its|the same) counters on\b|\bhad counters on (it|them)\b|\bwith (one or more )?counters on (it|them)\b/i
+    re: /shield counters?|\+1\/\+1 counter|proliferate|number of (each kind of )?counters?|\bmove (all |any number of |one or more |a |one |those |the )?counters?\b|\bput (those|its|the same) counters on\b|\bhad counters on (it|them)\b|\bwith (one or more )?counters on (it|them)\b/i
   },
   graveyard: {
     label: 'Graveyard / reanimator',
@@ -195,7 +195,7 @@ const THEMES = {
   lifegain: {label: 'Lifegain / drain', re: /gains? [^.]{0,30}life|lifelink|whenever you gain life|loses? [^.]{0,30}life/i},
   lands: {
     label: 'Lands / landfall',
-    re: /landfall|whenever a land|additional land|lands? (cards? )?from your (graveyard|hand)|for each land you control|land card from your hand onto/i
+    re: /number of lands you control|lands you control (?:are|have|get)|land cards in your library|landfall|whenever a land|additional land|lands? (cards? )?from your (graveyard|hand)|for each land you control|land card from your hand onto/i
   },
   voltron: {
     label: 'Voltron (equipment / auras)',
@@ -283,9 +283,8 @@ const THEMES = {
   },
   topdeck: {
     v2: true,
-    pick: false,
     label: 'Top of library',
-    re: /\bon top of (?:your|their owner's) library in any order|exchange [^.]* top of your library|put [^.]* cards? from your hand on top of your library|look at the top card of your library any time|play with the top card of your library revealed|reveal the top card of your library\. if it's a/i
+    re: /\bon top of (?:your|their owner's) library in any order|exchange [^.]* top of your library|put [^.]* cards? from your hand on top of your library|look at the top card of your library any time|play with the top card of your library revealed|reveal the top card of your library\. if it's a|put (?:them|those cards) back in any order|reveal the top card of your library and put (?:that card|it) into your hand/i
   },
   control: {label: 'Control / interaction', re: null},
   draw: {
@@ -543,7 +542,7 @@ const ROLE_RE = {
     /(destroy|exile) (up to (one|two|three|x) |x |two |three )?(other |another )?target (?!player|card|instant|sorcery|spell|non-|creature you control|creature card|artifacts, creatures|land\b)[^.]*(creature|permanent|artifact|enchantment|planeswalker|battle)|deals? (\d+|x|that much|twice that much) damage to (any target|(up to (one|two|three) )?(other |another )?target (attacking or blocking |attacking |blocking |tapped )?(creature|permanent|planeswalker))|damage equal to (its|their|that creature's|x|the number)[^.]{0,40} to (any target|(up to one |another |each of up to \w+ )?target (creature|permanent|planeswalker))|deals damage equal to its power to (any target|(another |up to one )?target|each of)|target creature gets -(\d+|x)|gets? -(\d+|x)\/-(\d+|x) until|return (up to (one|two) )?(another )?target (spell or )?(nonland permanent|creature|permanent)[^.]*to its owner's hand|fights? (up to one |another |a different |target )|owner of target permanent shuffles|exile that creature|target (player|opponent) sacrifices (a|an|two) (creature|permanent|nonland)|each (other )?(opponent|player) sacrifices (a|an|two|three|that many) (nontoken )?(creatures?|permanents?|nonland)|put (a|an|two|three|x) -1\/-1 counters? on (up to one )?target creature(?! you control)|enchanted (creature|permanent)[^.]* loses all other (abilities|card types)|enchanted (creature|permanent) is a colorless (land|forest)|put target (creature|nonland permanent|permanent)[^.]*(top|bottom) of its owner's library|enchanted (creature|permanent) (can't attack or block|can't attack, block|loses all abilities|doesn't untap)|target creature[^.]*loses all abilities|gain control of target (creature|permanent|artifact)/i,
   wipe: /(destroy|exile) (all|each) (?!lands)(creatures?|nontoken|nonland|artifacts?|enchantments?|permanents?|other|non)|deals? (\d+|x|that much) damage to each (creature|other creature|non|attacking|blocking)|damage to each creature|(all|each) (other )?creatures? gets? -|creatures (your opponents control|you don't control) get -(\d+|x)\/-|destroy all artifacts, creatures|return (all|each) (nonland|attacking|creature|other)[^.]*to (its|their) owner(s|'s|s')? hands?|(destroy|exile) (all|each) (?!lands?\b)([\w-]+ ){1,3}?(creatures|permanents|artifacts|enchantments)\b|put (x|a|an|two|three) -1\/-1 counters? on each creature|damage to each opponent and each creature|then sacrifices the rest|each player sacrifices (all|\w+ creatures)|sacrifices? all (creatures|permanents|nonland)|damage divided as you choose among any number of target creatures|each of those[^.]*fights a different|(destroy|exile|damage|return|gets -)[^]*\boverload\b/i,
   counter:
-    /counter (up to one |another )?target|counter (that|the) (spell|ability)(?! unless (that player|its controller) pays)/i, // ward's reminder text is not a counterspell
+    /counter (up to one |another )?target|counter (that|the) (spell|ability)(?! unless (that player|its controller) pays)|exile (any number of |up to \w+ )?target spells?\b/i, // ward's reminder text is not a counterspell
   tutor:
     /search your library (and\/or graveyard )?for (a|an|up to (one|two|three|four|x)|two|three|four|x) (?!basic|land|plains|island|swamp|mountain|forest|gate)[^.]*cards?/i,
   // protects what you control (grants, fogs, blinks, phasing); a creature that is merely hard to kill itself does not count

@@ -118,6 +118,20 @@ function tourneyOf(c, d) {
     ? TOURNEY_OF.get(c._n) || ''
     : '';
 }
+// The short combo (three cards or fewer) a card completes with this commander or with cards its players commonly run, as a reason
+function comboFor(c, ctx) {
+  if (!COMBOS.list.length || !ctx.cmd || c === ctx.cmd) return '';
+  const common = k => {
+    if (k === ctx.cmd._k || k === c._k) return true;
+    const x = ctx.edh && ctx.edh.map && edhOf(ctx.edh.map, KEYMAP().get(k));
+    return !!x && x.inc >= 0.25;
+  };
+  const cb = (COMBOS.by.get(c._k) || []).find(x => x.keys.length <= 3 && x.keys.every(common));
+  if (!cb) return '';
+  const others = cb.names.filter(n => n !== c.n).map(n => n.split(',')[0]);
+  return 'Combo with ' + others.join(' + ') + (cb.what ? ': ' + cb.what : '');
+}
+const KEYMAP = () => KEYMAP.m || (KEYMAP.m = new Map(LIB.map(x => [x._k, x])));
 function baseScore(c, d, ctx) {
   let s = 0,
     hit = false,
@@ -155,6 +169,12 @@ function baseScore(c, d, ctx) {
       if (f.v >= 0.8) why.unshift(f.why);
       else why.push(f.why);
     }
+  }
+  // a combo with the commander, or with cards a quarter of its players run (Commander Spellbook): said as a reason only;
+  // combos already count in the deck score (21 Oct)
+  {
+    const cb = comboFor(c, ctx);
+    if (cb) why.push(cb);
   }
   // engine v2 (UP.xPlan): a card that fits another plan this commander's players build (beyond the deck's own plans) counts a
   // little, so the small packages players add are found too; the deck's own plans still lead (owner, 21 Oct)
