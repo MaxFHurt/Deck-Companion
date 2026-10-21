@@ -184,12 +184,18 @@ function fnOf(c, oldRoles) {
           // overload: one target, or (for the overload cost) all of them
           if (fnIsTarget(e) && r.abilities.some(x => x.kind === 'keyword' && x.name === 'overload')) roles.add('wipe');
           if (e.all && FN_BIG.test(e.all)) roles.add('wipe');
-          else if (theirs && /creature|permanent|artifact|enchantment|planeswalker|land|nonland/i.test(w) && !/card/i.test(w))
+          else if (
+            theirs &&
+            /creature|permanent|artifact|enchantment|planeswalker|land|nonland/i.test(w) &&
+            (!/card/i.test(w) || /permanent/i.test(w))
+          )
             roles.add('removal');
           else if (/^(?:that creature|enchanted (?:creature|permanent))$/i.test(w) && e.do !== 'bounce') roles.add('removal');
           if (/\bspells?\b(?! you control)/i.test(w) && !/\bcards?\b/i.test(w) && (fnIsTarget(e) || e.all))
             roles.add('counterspell');
           if (e.do === 'exile' && /graveyard/i.test(w)) uses.add('graveyard');
+          // "chooses a creature you don't control" then destroys it (Sadistic Shell Game)
+          if (/\bchooses? (?:a|an) creature you don't control\b/i.test(o)) roles.add('removal');
           break;
         case 'sacrifice':
           // an edict: someone else sacrifices; all of them is a wipe
@@ -259,6 +265,8 @@ function fnOf(c, oldRoles) {
           // a blink: exile your own permanent and return it (saves it from removal)
           if (e.do === 'return-to-battlefield' && /\bexile [^.]*\btargets? [^.]*you control[^.]*then return/i.test(o))
             roles.add('protection');
+          // "return each creature card put there from the battlefield this turn" (Into the Pit style undo)
+          if (e.do === 'return-to-battlefield' && /put there from the battlefield this turn/i.test(o)) roles.add('protection');
           makes.add('bodies');
           if (e.do === 'return-to-battlefield' && /graveyard/i.test(o)) (uses.add('graveyard'), roles.add('recursion'));
           break;

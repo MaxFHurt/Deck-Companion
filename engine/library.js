@@ -199,6 +199,11 @@ function altName(name) {
   return k ? ALT_IDX.get(k) || ALT_IDX.get(norm(String(name).split(' // ')[0])) || '' : '';
 }
 
+// a creature's power and toughness as numbers (a * counts as 0)
+const ptOf = c =>
+  String(c.pt || '0/0')
+    .split('/')
+    .map(x => parseInt(x, 10) || 0);
 function tags(c) {
   if (c._t) return c._t;
   const o = c.o || '',
@@ -219,7 +224,12 @@ function tags(c) {
     if (!T.re || (T.v2 && !UP.newTh.includes(k))) continue;
     th[k] = T.re.test(o)
       ? 1
-      : (T.kw && T.kw.test(o)) || (T.pw && /Creature/.test(t) && parseInt(String(c.pt || '0').split('/')[0], 10) >= T.pw)
+      : (T.kw && T.kw.test(o)) ||
+          (T.pw && /Creature/.test(t) && parseInt(String(c.pt || '0').split('/')[0], 10) >= T.pw) ||
+          // stats when the words say nothing: a wall (toughness 6+, over twice its power), a creature that costs nothing
+          (T.wall && /Creature/.test(t) && ptOf(c)[1] >= 6 && ptOf(c)[1] > 2 * ptOf(c)[0]) ||
+          (T.free && /Creature/.test(t) && !(c.cmc > 0) && !/\{X\}/.test(c.m || '')) ||
+          (T.mv && c.cmc >= 10 && T.mv.test(o))
         ? 0.7
         : T.type && T.type.test(t)
           ? 0.5
@@ -295,7 +305,7 @@ function tags(c) {
         UP.v2r.includes('draw+') &&
         /\bdraws?\b|\bhand\b|exile the top|look at the top|investigate|clue|connive|monarch|initiative|may (?:play|cast)/i.test(o)
       ) &&
-      !/destroy|exile|damage|\/[-−]|sacrific|fights?\b|gains? control|controls enchanted|owners?'?s? (?:hand|library)|hands\b|shuffles|loses all|can't attack|base power|tap target|doesn't untap|waterbend/i.test(
+      !/destroy|exile|damage|\/[-−]|sacrific|fights?\b|gains? control|controls enchanted|owners?'?s? (?:hand|library)|hands\b|top or bottom of|shuffles|loses all|can't attack|base power|tap target|doesn't untap|waterbend/i.test(
         o
       )
     )
@@ -333,6 +343,7 @@ function matchAim(c, key, tribe) {
     return v;
   }
   const tg = tags(c);
+  if (key === 'combo') return UP.newTh.includes('combo') && (COMBOS.by.get(c._k) || []).some(x => x.keys.length <= 3) ? 1 : 0;
   if (key === 'control') return tg.roles.has('counter') || tg.roles.has('removal') || tg.roles.has('wipe') ? 1 : 0;
   return tg.th[key] || 0;
 }
@@ -432,7 +443,13 @@ function detectStrategy(cmd, d, thin) {
     'defenders',
     'goad',
     'untap',
-    'theft'
+    'theft',
+    'evasion',
+    'stax',
+    'voting',
+    'clones',
+    'cheat',
+    'topdeck'
   ];
   const themes = order.filter(
     k =>

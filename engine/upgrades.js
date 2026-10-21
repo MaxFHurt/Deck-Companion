@@ -118,15 +118,15 @@ function tourneyOf(c, d) {
     ? TOURNEY_OF.get(c._n) || ''
     : '';
 }
-// The short combo (three cards or fewer) a card completes with this commander or with cards its players commonly run, as a reason
+// The short combo (four cards or fewer) a card completes with this commander or with cards a fifth of its players run, as a reason
 function comboFor(c, ctx) {
   if (!COMBOS.list.length || !ctx.cmd || c === ctx.cmd) return '';
   const common = k => {
     if (k === ctx.cmd._k || k === c._k) return true;
     const x = ctx.edh && ctx.edh.map && edhOf(ctx.edh.map, KEYMAP().get(k));
-    return !!x && x.inc >= 0.25;
+    return !!x && x.inc >= 0.2;
   };
-  const cb = (COMBOS.by.get(c._k) || []).find(x => x.keys.length <= 3 && x.keys.every(common));
+  const cb = (COMBOS.by.get(c._k) || []).find(x => x.keys.length <= 4 && x.keys.every(common));
   if (!cb) return '';
   const others = cb.names.filter(n => n !== c.n).map(n => n.split(',')[0]);
   return 'Combo with ' + others.join(' + ') + (cb.what ? ': ' + cb.what : '');
@@ -1852,7 +1852,7 @@ const UP = {
   optW: 0, // engine v2: weight of what the commander's bracket 4 decks run more than its decks overall (EDHREC optimized page)
   optN: 100,
   optMin: 30,
-  newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones', 'cheat', 'topdeck'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
+  newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones', 'cheat', 'topdeck', 'combo'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
   xPlan: 0.25, // engine v2: weight of fitting another plan this commander's players build (xPlansOf); owner took the trade-off 21 Oct
   v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,

@@ -183,7 +183,7 @@ const THEMES = {
   },
   sacrifice: {
     label: 'Sacrifice / aristocrats',
-    re: /sacrifice (a|an|another|two|three|ten) |whenever [^.]*\bdies\b|each (other )?(opponent|player) sacrifices/i
+    re: /by sacrificing|sacrifice (a|an|another|two|three|ten) |whenever [^.]*\bdies\b|each (other )?(opponent|player) sacrifices/i
   },
   spells: {
     label: 'Spellslinger',
@@ -208,11 +208,12 @@ const THEMES = {
   },
   burn: {
     label: 'Burn / direct damage',
-    re: /deals? (double|triple) that damage|deals? (\d+|x|that much) damage to (each opponent|any target|target player|each player|that player)|damage to each opponent|deals damage equal to [^.]* to any target/i
+    re: /deals? (double|triple) that damage|deals? (\d+|x|that much) damage to (each opponent|any target|target player|each player|that player)|damage to each opponent|deals damage equal to [^.]* to any target|deals? damage equal to [^.]* to (?:that player|target player|each opponent|target opponent)/i
   },
   aggro: {
     label: 'Aggro / combat',
-    re: /deals? (double|triple) that damage|double (the|its|this creature's|target creature's) power|\bhaste\b|double strike|additional combat|whenever [^.]{0,50}\battacks?\b(?! you)|(^|[.—] ?)(other )?creatures you control get \+|\btrample\b/i
+    re: /creatures you control with [^.]*? get \+\d|deals? (double|triple) that damage|double (the|its|this creature's|target creature's) power|\bhaste\b|double strike|additional combat|whenever [^.]{0,50}\battacks?\b(?! you)|(^|[.—] ?)(other )?creatures you control get \+|\btrample\b/i,
+    free: true
   },
   // Plans EDHREC players build that the app could not see (misread.js, 20 Oct): Isperia's fliers, Felothar's defenders, Kardur's
   // goad, Emmara's tap/untap, Gonti's theft. "re" is a card that cares about the plan; "kw" a card that is simply part of it
@@ -231,7 +232,8 @@ const THEMES = {
     pick: false,
     label: 'Defenders / toughness',
     re: /creatures? (?:you control )?with defender|as though (?:it|they) didn't have defender|combat damage equal to (?:its|their) toughness|toughness (?:\d+|x) or greater|greatest toughness|total toughness|equal to [^.]*\btoughness\b|\bwith toughness\b|gets? \+0\/\+\d+/i,
-    kw: /(?:^|\n)(?:[A-Za-z][a-z]*(?: [a-z]+)?, )*defender(?:,|\n|$| \()/i
+    kw: /(?:^|\n)(?:[A-Za-z][a-z]*(?: [a-z]+)?, )*defender(?:,|\n|$| \()/i,
+    wall: true
   },
   goad: {
     v2: true,
@@ -259,7 +261,7 @@ const THEMES = {
     v2: true,
     pick: false,
     label: 'Stax / lock pieces',
-    re: /can't cast more than one|your opponents can't cast|players? can't cast (?:noncreature )?spells from|can't be activated|(?:spells?|abilities) (?:your opponents cast |cast by your opponents )?costs? \{\d\} more|don't untap during|(?:lands|creatures|permanents|artifacts) (?:your opponents control )?enter (?:the battlefield )?tapped|don't cause abilities to trigger|can't draw more than one|searches the top four|can't enter the battlefield|can't cast spells this turn|can't cast additional|costs? \{\d\} more to cast for each|produces? \{C\} instead/i
+    re: /can't cast more than one|your opponents can't cast|players? can't cast (?:noncreature )?spells from|can't be activated|(?:spells?|abilities) (?:your opponents cast |cast by your opponents )?costs? \{\d\} more|don't untap during|(?:lands|creatures|permanents|artifacts) (?:your opponents control )?enter (?:the battlefield )?tapped|don't cause abilities to trigger|can't draw more than one|searches the top four|can't enter the battlefield|can't cast spells this turn|can't cast additional|costs? \{\d\} more to cast for each|produces? \{C\} instead|exile (?:up to \w+ target cards|target card|all cards) from (?:a single|target player's|an opponent's|each opponent's|each) graveyard/i
   },
   voting: {v2: true, label: 'Voting', re: /\bvotes?\b|\bvoting\b|council's dilemma|will of the council|secret council/i},
   clones: {
@@ -279,13 +281,17 @@ const THEMES = {
     v2: true,
     pick: false,
     label: 'Free casting / cascade',
-    re: /without paying (?:its|their|that spell's) mana costs?|\bcascade\b|\bdiscover (?:\d+|x)\b|put (?:a|any number of|up to \w+) [^.]*(?:creature|permanent) cards? (?:from your hand|from among them) onto the battlefield/i
+    re: /without paying (?:its|their|that spell's) mana costs?|\bcascade\b|\bdiscover (?:\d+|x)\b|put (?:a|any number of|up to \w+) [^.]*(?:creature|permanent) cards?[^.]*? (?:from your hand|from among them) onto the battlefield/i
   },
   topdeck: {
     v2: true,
     label: 'Top of library',
-    re: /\bon top of (?:your|their owner's) library in any order|exchange [^.]* top of your library|put [^.]* cards? from your hand on top of your library|look at the top card of your library any time|play with the top card of your library revealed|reveal the top card of your library\. if it's a|put (?:them|those cards) back in any order|reveal the top card of your library and put (?:that card|it) into your hand/i
+    re: /\bon top of (?:your|their owner's) library in any order|exchange [^.]* top of your library|put [^.]* cards? from your hand on top of your library|look at the top card of your library any time|play with the top card of your library revealed|put (?:them|those cards) back in any order|reveal the top card of your library and put (?:that card|it) into your hand|on top(?: of it)? in any order/i,
+    kw: /\bmiracle\b/i,
+    mv: /costs? \{X\} less to cast|rather than pay (?:this spell's|its) mana cost/i
   },
+  // a card that is a piece of a short known combo (Commander Spellbook; matchAim reads the combo list, which loads later)
+  combo: {v2: true, pick: false, label: 'Combo pieces', re: null},
   control: {label: 'Control / interaction', re: null},
   draw: {
     label: 'Card advantage engine',
@@ -544,7 +550,7 @@ const ROLE_RE = {
   counter:
     /counter (up to one |another )?target|counter (that|the) (spell|ability)(?! unless (that player|its controller) pays)|exile (any number of |up to \w+ )?target spells?\b/i, // ward's reminder text is not a counterspell
   tutor:
-    /search your library (and\/or graveyard )?for (a|an|up to (one|two|three|four|x)|two|three|four|x) (?!basic|land|plains|island|swamp|mountain|forest|gate)[^.]*cards?/i,
+    /search your library (and\/or (?:graveyard|outside the game) )?for (a|an|up to (one|two|three|four|x)|exactly \w+|two|three|four|x) (?!basic|land|plains|island|swamp|mountain|forest|gate)[^.]*cards?/i,
   // protects what you control (grants, fogs, blinks, phasing); a creature that is merely hard to kill itself does not count
   protect:
     /(creatures?|permanents?|artifacts?) you control[^.]{0,45}(gain|gains|have|has)[^.]{0,35}(hexproof|indestructible|protection from|shroud|ward)|(target|another target|equipped|enchanted|each|that) (creature|permanent|artifact)[^.]{0,60}(gains?|has|have)[^.]{0,40}(hexproof|indestructible|protection from|shroud|ward)|you (gain|have) (hexproof|protection from|shroud)|phases? out|prevent all (combat )?damage|(totem|umbra) armor|regenerate (target|each|enchanted|equipped)|can't be the targets? of spells or abilities your opponents control|gains? "when this creature dies, return it to the battlefield|when enchanted (creature|permanent) dies or is put into exile, return|change (a|the) target of target (spell|instant)|(those|target) creatures? (you control )?gains? (indestructible|hexproof)|exile (two |any number of )?target [^.]*you control, then return/i,
@@ -615,7 +621,8 @@ const TAG_OF = {
   clones: 'clones',
   big: 'stompy',
   cheat: 'cascade',
-  topdeck: 'topdeck'
+  topdeck: 'topdeck',
+  combo: 'combo'
 };
 // The plans the app offers: every one above except a new plan that is switched off (UP.newTh)
 const themeKeys = () => Object.keys(THEMES).filter(k => !THEMES[k].v2 || UP.newTh.includes(k));

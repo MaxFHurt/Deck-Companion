@@ -465,7 +465,7 @@ const RR_EFFECTS = [
     m => ({do: 'add-mana', mana: m[1], extra: true})
   ],
   [
-    /\b(?:the owner of (target [^.]+?|each [^.]+?) shuffles (?:it|them) into (?:their|its owner's) library|(?:puts?|shuffles?) (target [^.]+?) (?:into|on (?:the )?(?:top|bottom) of) (?:its|their) owner's library)/i,
+    /\b(?:the owner of (target [^.]+?|each [^.]+?) (?:shuffles (?:it|them) into|puts (?:it|them) on (?:their choice of )?the top or bottom of) (?:their|its owner's) library|(?:puts?|shuffles?) (target [^.]+?) (?:into|on (?:the )?(?:top|bottom) of) (?:its|their) owner's library)/i,
     m => ({do: 'tuck', target: {count: 1, what: (m[1] || m[2]).replace(/^target /, '')}})
   ],
   [/\bgain control of ([^.]+?)(?=\.|$| until | for as long)/i, m => ({do: 'gain-control', what: m[1]})],

@@ -222,6 +222,18 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.10 (build 155, 21 October 2026; owner: "finish all the cards, don't ask for permission")
+
+misread.js 12 -> 0: every card on the 52 test commanders' upgrade lists now shows a reason tied to the deck's plans. New
+Combo pieces plan (off for auto-pick, offered to everyone): a card in a known combo of three cards or fewer fits it
+(Thassa's Oracle, Seedborn Muse, Training Grounds, Wilderness Reclamation, Marvin, Continue?). Top of library reads "on top in
+any order" and huge spells that put cards on top (Lim-Dul's Vault, Shadow of Mortality); a dropped "reveal the top card ...
+if it's a" alternative stopped false hits. Sacrifice reads "by sacrificing" (Sevinne's Reclamation). Card functions: a tuck
+of a permanent card is removal (Endless Detour), "return each creature card put there from the battlefield this turn" is
+protection (Into the Pit), "each player chooses a creature you don't control ... destroy" is removal (Sadistic Shell
+Game). Benchmark equal to 0.9.9 on all twelve numbers except tuneall @10 0.135 -> 0.136. Reader answer key 32/32; quick UI
+check 12/12.
+
 ## Version 0.9.9 (build 154, 21 October 2026; owner: "Yes make the trade off and push live")
 
 UP.xPlan 0.25 on: a card that fits a plan this commander's players build, beyond the deck's own three, scores a little more
