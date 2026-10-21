@@ -222,6 +222,15 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.7 (build 152, 21 October 2026; pushed to main with the owner's OK: "Push it live")
+
+Remaining misreads: theft read in "target opponent exiles ... you may cast" wording (Gonti), more stax wording (Ethersworn
+Canonist, Damping Sphere); new plans players can choose: Free casting / cascade, Top of library (never picked on their own).
+Held back (each lowered the benchmark): a Big creatures plan (test 0.298 -> 0.294 even unpicked; off and hidden) and reading
+Hazel as a Squirrel deck from her players' themes (Squirreled Away @10 0.362 -> 0.293; removed: tribes are the player's call).
+Benchmark identical to 0.9.6 on all twelve numbers; misread.js 177 -> 176. Built, off: UP.xPlan (cards fitting a plan the
+commander's players build beyond the deck's top three; misreads -> 31 at 0.5), not yet benchmarked.
+
 ## Version 0.9.6 (build 151, 21 October 2026; pushed to main with the owner's OK: "Push it live")
 
 Owner (21 Oct): push straight to main from now on (not engine-v2), only when asked. Creature types: a type a commander only

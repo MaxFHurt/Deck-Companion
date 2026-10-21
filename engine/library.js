@@ -441,14 +441,7 @@ function detectStrategy(cmd, d, thin) {
       (THEMES[k].re ? THEMES[k].re.test(plan) : tg.th[k] === 1) &&
       (k !== 'blink' || /whenever (a|another|one or more)|then return/i.test(o))
   );
-  // a tribe its own players build around even when the deck is empty (Hazel's Squirrels: one of its top three EDHREC themes is
-  // the commander's own creature type; 21 Oct)
-  let tr = tribe;
-  if (!tr && EDH.key === cmd.n && (EDH.tags || []).length) {
-    const top = EDH.tags.slice(0, 3).map(x => x.slug);
-    tr = subtypes(cmd).find(t => TRIBE_SET.has(t) && top.includes(tribeSlug(t))) || '';
-  }
-  return {themes: (tr ? ['tribal'] : []).concat(themes), tribe: tr};
+  return {themes: (tribe ? ['tribal'] : []).concat(themes), tribe};
 }
 
 // ----- deck text import -----
