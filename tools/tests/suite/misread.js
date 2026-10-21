@@ -20,7 +20,7 @@ for (const dir of dirs) for (const f of fs.readdirSync(dir).filter(f => /^[a-z0-
     const ctx = ctxOf(d); if (ctx.tribe && !d.aims.includes('tribal')) d.aims.push('tribal');
     const res = []; for (const [k, v] of EDH.map){ if (v.syn < ${minSyn} || v.inc < ${minInc}) continue; const c = find(k); if (!c || c.n === ctx.cmd.n) continue; const t = tags(c);
       if (t.land || ['ramp', 'draw', 'removal', 'wipe', 'protect', 'counter', 'tutor'].some(r => t.roles.has(r)) || CORE.has(c._n) || (c.r && c.r < 250)) continue;
-      const fit = d.aims.some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1) || (ctx.engine && engineFit(c, ctx.engine).v > 0);
+      const fit = d.aims.some(a => matchAim(c, a, ctx.tribe) >= 0.7) || ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1) || (ctx.engine && engineFit(c, ctx.engine).v > 0) || (ctx.xPlans || []).some(a => matchAim(c, a, ctx.tribe) >= 0.7);
       if (!fit) res.push({n:c.n, inc:Math.round(v.inc * 100), syn:+v.syn.toFixed(2), o:(c.o || '').replace(/\\n/g, ' ').slice(0, 150)}); }
     return {aims:d.aims, cmdThemes:ctx.cmdThemes, tribe:ctx.tribe, res:res.sort((a, b) => b.syn - a.syn)}; })()`);
   if (!out.res.length) continue; total += out.res.length;

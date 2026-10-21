@@ -217,7 +217,13 @@ function tags(c) {
   for (const k in THEMES) {
     const T = THEMES[k];
     if (!T.re || (T.v2 && !UP.newTh.includes(k))) continue;
-    th[k] = T.re.test(o) ? 1 : T.kw && T.kw.test(o) ? 0.7 : T.type && T.type.test(t) ? 0.5 : 0;
+    th[k] = T.re.test(o)
+      ? 1
+      : (T.kw && T.kw.test(o)) || (T.pw && /Creature/.test(t) && parseInt(String(c.pt || '0').split('/')[0], 10) >= T.pw)
+        ? 0.7
+        : T.type && T.type.test(t)
+          ? 0.5
+          : 0;
   }
   if (UP.kw)
     for (const k in KW_RE)
@@ -360,6 +366,20 @@ function deckTribe(d, cmd, named) {
   });
   return best;
 }
+// Every plan this commander's players build (its EDHREC themes, as the app's plans, or as the theme pages when they are loaded)
+function xPlansOf(cmd) {
+  if (!UP.xPlan || !cmd || EDH.key !== cmd.n || !(EDH.tags || []).length) return [];
+  const rev = {};
+  for (const k in TAG_OF) rev[TAG_OF[k]] = k;
+  Object.assign(rev, TAG_ALIAS);
+  const on = new Set(themeKeys()),
+    out = [];
+  EDH.tags.forEach(t => {
+    if (EDH.tmap && EDH.tmap[t.slug]) out.push('edh:' + t.slug);
+    else if (rev[t.slug] && on.has(rev[t.slug])) out.push(rev[t.slug]);
+  });
+  return [...new Set(out)];
+}
 function detectStrategy(cmd, d, thin) {
   if (!cmd) return {themes: [], tribe: ''};
   const tg = tags(cmd),
@@ -421,7 +441,14 @@ function detectStrategy(cmd, d, thin) {
       (THEMES[k].re ? THEMES[k].re.test(plan) : tg.th[k] === 1) &&
       (k !== 'blink' || /whenever (a|another|one or more)|then return/i.test(o))
   );
-  return {themes: (tribe ? ['tribal'] : []).concat(themes), tribe};
+  // a tribe its own players build around even when the deck is empty (Hazel's Squirrels: one of its top three EDHREC themes is
+  // the commander's own creature type; 21 Oct)
+  let tr = tribe;
+  if (!tr && EDH.key === cmd.n && (EDH.tags || []).length) {
+    const top = EDH.tags.slice(0, 3).map(x => x.slug);
+    tr = subtypes(cmd).find(t => TRIBE_SET.has(t) && top.includes(tribeSlug(t))) || '';
+  }
+  return {themes: (tr ? ['tribal'] : []).concat(themes), tribe: tr};
 }
 
 // ----- deck text import -----
@@ -574,6 +601,7 @@ function ctxOf(d) {
     fall: cmd && UP.fbW && EDH.key === cmd.n && (EDH.fall || []).length && (!EDH.map || EDH.map.size < 60) ? EDH.fall : null,
     cap: TIERS[d.tier || 'budget'].cap,
     cmdThemes: strat.themes,
+    xPlans: xPlansOf(cmd),
     cmdTribe: strat.tribe,
     tribe: d.tribe || strat.tribe,
     bracket,

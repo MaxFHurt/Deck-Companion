@@ -246,7 +246,7 @@ const THEMES = {
   theft: {
     v2: true,
     label: "Theft (opponents' cards)",
-    re: /gain control of|you don't own|an opponent owns|(?:target|each|an) opponent's (?:library|graveyard|hand)[^.]*\b(?:you may (?:cast|play)|onto the battlefield under your control)|cards? (?:exiled )?(?:with|by) [^.]* (?:you may )?(?:cast|play)[^.]*(?:opponent|you don't own)|cast (?:spells|cards) you don't own|opponent's library[\s\S]*you may (?:cast|play)/i
+    re: /gain control of|you don't own|an opponent owns|(?:target|each|an) opponent's (?:library|graveyard|hand)[^.]*\b(?:you may (?:cast|play)|onto the battlefield under your control)|cards? (?:exiled )?(?:with|by) [^.]* (?:you may )?(?:cast|play)[^.]*(?:opponent|you don't own)|cast (?:spells|cards) you don't own|(?:target|each) opponent exiles the top|exile the top [^.]* of (?:target|each) opponent's library|spells? (?:you cast )?(?:that )?you don't own|cards? you don't own|from (?:your )?opponents' graveyards|opponent's library[\s\S]*you may (?:cast|play)/i
   },
   evasion: {
     v2: true,
@@ -259,7 +259,7 @@ const THEMES = {
     v2: true,
     pick: false,
     label: 'Stax / lock pieces',
-    re: /can't cast more than one|your opponents can't cast|players? can't cast (?:noncreature )?spells from|can't be activated|(?:spells?|abilities) (?:your opponents cast |cast by your opponents )?costs? \{\d\} more|don't untap during|(?:lands|creatures|permanents|artifacts) (?:your opponents control )?enter (?:the battlefield )?tapped|don't cause abilities to trigger|can't draw more than one|searches the top four|can't enter the battlefield|can't cast spells this turn/i
+    re: /can't cast more than one|your opponents can't cast|players? can't cast (?:noncreature )?spells from|can't be activated|(?:spells?|abilities) (?:your opponents cast |cast by your opponents )?costs? \{\d\} more|don't untap during|(?:lands|creatures|permanents|artifacts) (?:your opponents control )?enter (?:the battlefield )?tapped|don't cause abilities to trigger|can't draw more than one|searches the top four|can't enter the battlefield|can't cast spells this turn|can't cast additional|costs? \{\d\} more to cast for each|produces? \{C\} instead/i
   },
   voting: {v2: true, label: 'Voting', re: /\bvotes?\b|\bvoting\b|council's dilemma|will of the council|secret council/i},
   clones: {
@@ -267,6 +267,25 @@ const THEMES = {
     pick: false,
     label: 'Clones / copies',
     re: /enter (?:the battlefield )?as a copy of|create a token that's a copy of|becomes a copy of|tokens? that (?:are|is) (?:a )?cop(?:y|ies) of/i
+  },
+  big: {
+    v2: true,
+    pick: false,
+    label: 'Big creatures',
+    re: /power (?:[4-9]|\d\d) or greater|greatest power|total power of creatures|creatures? you control with power \d+ or greater/i,
+    pw: 6
+  },
+  cheat: {
+    v2: true,
+    pick: false,
+    label: 'Free casting / cascade',
+    re: /without paying (?:its|their|that spell's) mana costs?|\bcascade\b|\bdiscover (?:\d+|x)\b|put (?:a|any number of|up to \w+) [^.]*(?:creature|permanent) cards? (?:from your hand|from among them) onto the battlefield/i
+  },
+  topdeck: {
+    v2: true,
+    pick: false,
+    label: 'Top of library',
+    re: /\bon top of (?:your|their owner's) library in any order|exchange [^.]* top of your library|put [^.]* cards? from your hand on top of your library|look at the top card of your library any time|play with the top card of your library revealed|reveal the top card of your library\. if it's a/i
   },
   control: {label: 'Control / interaction', re: null},
   draw: {
@@ -594,12 +613,15 @@ const TAG_OF = {
   evasion: 'unblockable',
   stax: 'stax',
   voting: 'voting',
-  clones: 'clones'
+  clones: 'clones',
+  big: 'stompy',
+  cheat: 'cascade',
+  topdeck: 'topdeck'
 };
 // The plans the app offers: every one above except a new plan that is switched off (UP.newTh)
 const themeKeys = () => Object.keys(THEMES).filter(k => !THEMES[k].v2 || UP.newTh.includes(k));
 // EDHREC tags that name one of the plans above under another word
-const TAG_ALIAS = {'toughness-matters': 'defenders', goad: 'goad'};
+const TAG_ALIAS = {'toughness-matters': 'defenders', goad: 'goad', 'power-matters': 'big', 'big-mana': 'big'};
 const COLOR_PAGE = {
   '': 'colorless',
   W: 'mono-white',

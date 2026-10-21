@@ -156,6 +156,16 @@ function baseScore(c, d, ctx) {
       else why.push(f.why);
     }
   }
+  // engine v2 (UP.xPlan): a card that fits another plan this commander's players build (beyond the deck's own plans) counts a
+  // little, so the small packages players add are found too; the deck's own plans still lead (owner, 21 Oct)
+  if (UP.xPlan && !hit && (ctx.xPlans || []).length) {
+    const xp = ctx.xPlans.find(a => !(d.aims || []).includes(a) && matchAim(c, a, ctx.tribe) >= 0.7);
+    if (xp) {
+      s += UP.xPlan;
+      hit = true;
+      why.push(aimLabel(xp, ctx.tribe) + ' (a plan ' + ctx.cmd.n.split(',')[0] + ' players build)');
+    }
+  }
   // engine v2 (UP.syn): the card makes what the commander uses, or uses what it makes (engine/functions.js)
   if (UP.syn && ctx.cmd && d.format === 'commander') {
     const y = fnSynergy(c, ctx.cmd);
@@ -1822,7 +1832,8 @@ const UP = {
   optW: 0, // engine v2: weight of what the commander's bracket 4 decks run more than its decks overall (EDHREC optimized page)
   optN: 100,
   optMin: 30,
-  newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
+  newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones', 'big', 'cheat', 'topdeck'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
+  xPlan: 0, // engine v2: weight of fitting another plan this commander's players build (xPlansOf)
   v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
   polG: 0.3,
