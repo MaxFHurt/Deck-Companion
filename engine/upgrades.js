@@ -1832,7 +1832,7 @@ const UP = {
   optW: 0, // engine v2: weight of what the commander's bracket 4 decks run more than its decks overall (EDHREC optimized page)
   optN: 100,
   optMin: 30,
-  newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones', 'big', 'cheat', 'topdeck'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
+  newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones', 'cheat', 'topdeck'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
   xPlan: 0, // engine v2: weight of fitting another plan this commander's players build (xPlansOf)
   v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
