@@ -6,7 +6,9 @@ if (process.env.NOPRE) require('./h.js').noPrecon = true;   // compare without t
 const H = require('./h.js')(dir), X = H.ctx, run = H.run;
 // Weight overrides for experiments: UP='{"wf":0.1}' node bench.js ...  (applied to the engine's UP object)
 if (process.env.UP){ X.__up = JSON.parse(process.env.UP); run('Object.assign(UP, __up)'); }
-const CORP = ['corpus', 'corpus2', 'corpus3', 'corpus4'].map(x => path.resolve(__dirname, '../../' + x));
+// CORPUS=corpus5: judge with that folder of player decks only (corpus5: up to 1,000 per commander, fetched 21 Oct by
+// corpus-fetch.py); the default is the original folders
+const CORP = (process.env.CORPUS ? [process.env.CORPUS] : ['corpus', 'corpus2', 'corpus3', 'corpus4']).map(x => path.resolve(__dirname, '../../' + x));
 const SETS = {
   test: [['avengers-assemble', 'Captain_America'], ['doom-prevails', 'Doctor_Doom'], ['tramplesaurus-rex', 'Ghalta'], ['turtle-power', 'Leonardo'], ['wakanda-forever', 'TChalla']],
   tune: [['calling-all-angels', 'Giada'], ['keen-engineering', 'Sai'], ['wretched-ranks', 'Ghoulcaller_Gisa'], ['reign-of-dragons', 'Lathliss'], ['fantastic-four', 'Invisible_Woman']],
