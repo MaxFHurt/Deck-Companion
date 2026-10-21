@@ -220,13 +220,14 @@ const THEMES = {
   flying: {
     v2: true,
     label: 'Fliers',
-    re: /\bwith flying\b|\bflying creatures?\b|creatures? you control (?:have|gain) flying|\bgains? flying\b|\b(?:has|have) flying\b|\bwithout flying\b/i,
+    re: /creatures? (?:you control |your opponents control )?with flying\b|\bflying creatures?\b|creatures you control (?:have|gain) flying|\bwithout flying\b|if (?:it|that creature|they) (?:has|have) flying|for each (?:other )?creature (?:you control )?with flying/i,
     kw: /(?:^|\n)(?:[A-Za-z][a-z]*(?: [a-z]+)?, )*flying(?:,|\n|$| \()/i
   },
   defenders: {
     v2: true,
     label: 'Defenders / toughness',
-    re: /\bdefender\b|combat damage equal to (?:its|their) toughness|toughness (?:\d+|x) or greater|greatest toughness|total toughness|equal to [^.]*\btoughness\b|\bwith toughness\b|gets? \+0\/\+\d+/i
+    re: /creatures? (?:you control )?with defender|as though (?:it|they) didn't have defender|combat damage equal to (?:its|their) toughness|toughness (?:\d+|x) or greater|greatest toughness|total toughness|equal to [^.]*\btoughness\b|\bwith toughness\b|gets? \+0\/\+\d+/i,
+    kw: /(?:^|\n)(?:[A-Za-z][a-z]*(?: [a-z]+)?, )*defender(?:,|\n|$| \()/i
   },
   goad: {
     v2: true,
