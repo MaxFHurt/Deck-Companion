@@ -226,6 +226,9 @@ const THEMES = {
   },
   defenders: {
     v2: true,
+    // offered to every player, but not picked for a commander on its own: players upgrading Felothar's precon keep its plan
+    // (choosing it for them lowered that deck's benchmark from 0.527 to 0.430); a player who wants defenders picks it
+    pick: false,
     label: 'Defenders / toughness',
     re: /creatures? (?:you control )?with defender|as though (?:it|they) didn't have defender|combat damage equal to (?:its|their) toughness|toughness (?:\d+|x) or greater|greatest toughness|total toughness|equal to [^.]*\btoughness\b|\bwith toughness\b|gets? \+0\/\+\d+/i,
     kw: /(?:^|\n)(?:[A-Za-z][a-z]*(?: [a-z]+)?, )*defender(?:,|\n|$| \()/i

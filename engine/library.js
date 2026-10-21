@@ -413,6 +413,7 @@ function detectStrategy(cmd, d, thin) {
   const themes = order.filter(
     k =>
       !(THEMES[k].v2 && !UP.newTh.includes(k)) &&
+      THEMES[k].pick !== false &&
       (THEMES[k].re ? THEMES[k].re.test(plan) : tg.th[k] === 1) &&
       (k !== 'blink' || /whenever (a|another|one or more)|then return/i.test(o))
   );
