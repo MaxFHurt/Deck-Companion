@@ -236,6 +236,15 @@ alone). Test data: 25,691 Archidekt decks (up to 1,000 per commander, corpus5, `
 0.217); holdout 0.345 / 0.345 / 0.256 both. With three times the decks the tuning gain holds; test @10 is 0.001 lower (one
 swap among the five retail decks). From now on changes are judged on corpus5 as well.
 
+## On engine-v2 after 0.9.5 (21 Oct, not live)
+
+- **Unblockable / evasion** plan players can choose (EDHREC "unblockable"; never picked for a commander on its own).
+  Benchmark identical to 0.9.5 on all twelve numbers (old decks and corpus5); misread.js 229 -> 204. Quick check 12/12.
+- **Explanations checked:** the reasons on upgrade picks match the data ("In 44% of T'Challa decks", "Added in 32% of
+  2,366 decks built from Wakanda Forever"). Gap left: a pick that fits the deck's plan rarely says so.
+- **Next:** the remaining 204 misreads (Ghalta's big creatures, Bello's cast triggers, Emmara's untap creatures without a
+  tap/untap plan picked); a plan line in the reasons; full UI suite before the next release.
+
 ## Version 0.9.4 (build 149, 20 October 2026; pushed with the owner's OK: "Push it live")
 
 The first engine-v2 release: the rules reader decides which cards are removal, and adds wipes and card draw the text patterns
