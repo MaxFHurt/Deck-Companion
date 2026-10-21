@@ -255,6 +255,19 @@ const THEMES = {
     re: /creatures? you control (?:can't be blocked|have [^.]*can't be blocked)|\bunblocked\b|can't be blocked except by/i,
     kw: /\bcan't be blocked\b|\b(?:shadow|fear|intimidate|skulk|menace)\b/i
   },
+  stax: {
+    v2: true,
+    pick: false,
+    label: 'Stax / lock pieces',
+    re: /can't cast more than one|your opponents can't cast|players? can't cast (?:noncreature )?spells from|can't be activated|(?:spells?|abilities) (?:your opponents cast |cast by your opponents )?costs? \{\d\} more|don't untap during|(?:lands|creatures|permanents|artifacts) (?:your opponents control )?enter (?:the battlefield )?tapped|don't cause abilities to trigger|can't draw more than one|searches the top four|can't enter the battlefield|can't cast spells this turn/i
+  },
+  voting: {v2: true, label: 'Voting', re: /\bvotes?\b|\bvoting\b|council's dilemma|will of the council|secret council/i},
+  clones: {
+    v2: true,
+    pick: false,
+    label: 'Clones / copies',
+    re: /enter (?:the battlefield )?as a copy of|create a token that's a copy of|becomes a copy of|tokens? that (?:are|is) (?:a )?cop(?:y|ies) of/i
+  },
   control: {label: 'Control / interaction', re: null},
   draw: {
     label: 'Card advantage engine',
@@ -578,7 +591,10 @@ const TAG_OF = {
   goad: 'forced-combat',
   untap: 'tap-untap',
   theft: 'theft',
-  evasion: 'unblockable'
+  evasion: 'unblockable',
+  stax: 'stax',
+  voting: 'voting',
+  clones: 'clones'
 };
 // The plans the app offers: every one above except a new plan that is switched off (UP.newTh)
 const themeKeys = () => Object.keys(THEMES).filter(k => !THEMES[k].v2 || UP.newTh.includes(k));

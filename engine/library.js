@@ -367,6 +367,8 @@ function detectStrategy(cmd, d, thin) {
   // (Build 145, UP.cbec) what the commander turns other things into ("are 4/4 Elemental creatures") is not a creature type it rewards
   const o2 = o
     .replace(/[^.]*\bcreates?\b[^.]*tokens?[^.]*\./gi, ' ')
+    // a type it only searches for is not a type it rewards (Magda finds "an artifact or Dragon card" but leads Dwarves; 21 Oct)
+    .replace(/\bsearch your library for [^.]*\./gi, ' ')
     .replace(
       UP.cbec ? /\b(is|are|becomes?)\s+(an?\s+)?(\d+\/\d+\s+)?([a-z]+\s+)*?([A-Z][a-z]+\s+)+(artifact\s+)?creatures?\b/g : /$^/,
       ' '
@@ -382,7 +384,9 @@ function detectStrategy(cmd, d, thin) {
   const tribe = deckTribe(
     d,
     cmd,
-    TRIBES.filter(t => new RegExp('\\b(' + t + (t === 'Elf' ? '|Elves' : '') + ')s?\\b').test(o2) || tokT.includes(t))
+    TRIBES.filter(
+      t => new RegExp('\\b(' + t + '|' + t[0] + tribeSlug(t).replace(/-/g, ' ').slice(1) + ')s?\\b').test(o2) || tokT.includes(t)
+    ) // irregular plurals too (Elves, Dwarves, Wolves)
   );
   // Read the plan, not the payoff: counters a commander only puts on itself are growth, not a counters deck, and
   // making Treasure-style artifact tokens is an artifact plan, not going wide.
