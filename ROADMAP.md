@@ -231,6 +231,10 @@ tap-untap, theft). The engine picks a plan for a commander on its own only from 
 A plain flier or defender fits its plan but is not "on theme" for pairing swaps. Benchmark identical to 0.9.4 on all six
 numbers; misread.js 255 -> 229 cards. UI suite 118/119 (UI-B146-02, background cores under the grouped run's load; passes
 alone). Test data: 25,691 Archidekt decks (up to 1,000 per commander, corpus5, `CORPUS=corpus5`).
+**Re-measured on corpus5 (21 Oct), 0.9.3 -> 0.9.5:** tuneall 0.274 / 0.275 / 0.159 -> 0.276 / 0.278 / 0.163 (weighted
+0.304 / 0.305 / 0.187 -> 0.305 / 0.306 / 0.191); test 0.296 / 0.296 / 0.192 -> 0.296 / 0.296 / 0.191 (weighted @10 0.218 ->
+0.217); holdout 0.345 / 0.345 / 0.256 both. With three times the decks the tuning gain holds; test @10 is 0.001 lower (one
+swap among the five retail decks). From now on changes are judged on corpus5 as well.
 
 ## Version 0.9.4 (build 149, 20 October 2026; pushed with the owner's OK: "Push it live")
 
