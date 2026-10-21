@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 21 October 2026. Live: Version 0.9.7 (build 152), pushed straight to main with the owner's OK. Owner: push to main (not engine-v2), only when asked.
+Last updated: 21 October 2026. Live: Version 0.9.8 (build 153), pushed straight to main with the owner's OK. Owner: push to main (not engine-v2), only when asked.
 **Next: the engine redesign** (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Owner, 20 Oct: "all the
 engine rework stays here until we're sure we are doing better choices. I still want all the options available that were
 available before... I don't want to change our app. Just the way choices are made behind the scenes." Decisions: the rules

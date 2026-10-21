@@ -222,6 +222,15 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.8 (build 153, 21 October 2026; pushed to main when the benchmark was clean, as the owner asked)
+
+Reasons say when a card completes a short combo (three cards or fewer) with the commander or with cards a quarter of its
+players run ("Combo with ..."; combos already counted in the score). Shield counters count for +1/+1 counters, land-count
+cards for lands, "exile any number of target spells" (Mindbreak Trap) is a counterspell, "put them back in any order" is top
+of library; a commander that reveals its top card into your hand (Yuriko) leads Top of library. Benchmark identical to 0.9.7
+on all twelve numbers. UP.xPlan 0.5 (cards fitting a plan the commander's players build beyond the deck's top three;
+misreads 176 -> 22) stays off: test @10 0.192 -> 0.198 and holdout up, but tuneall @10 0.136 -> 0.132 (corpus5 0.163 -> 0.159).
+
 ## Version 0.9.7 (build 152, 21 October 2026; pushed to main with the owner's OK: "Push it live")
 
 Remaining misreads: theft read in "target opponent exiles ... you may cast" wording (Gonti), more stax wording (Ethersworn
