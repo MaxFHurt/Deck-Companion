@@ -216,7 +216,8 @@ const THEMES = {
   },
   // Plans EDHREC players build that the app could not see (misread.js, 20 Oct): Isperia's fliers, Felothar's defenders, Kardur's
   // goad, Emmara's tap/untap, Gonti's theft. "re" is a card that cares about the plan; "kw" a card that is simply part of it
-  // (a flier in a fliers deck): it fits the plan, but only "re" makes a commander lead it.
+  // (a flier in a fliers deck): it fits the plan (0.7) but is not "on theme" for pairing swaps, and only "re" makes a
+  // commander lead it.
   flying: {
     v2: true,
     label: 'Fliers',

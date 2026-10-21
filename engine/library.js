@@ -217,7 +217,7 @@ function tags(c) {
   for (const k in THEMES) {
     const T = THEMES[k];
     if (!T.re || (T.v2 && !UP.newTh.includes(k))) continue;
-    th[k] = T.re.test(o) || (T.kw && T.kw.test(o)) ? 1 : T.type && T.type.test(t) ? 0.5 : 0;
+    th[k] = T.re.test(o) ? 1 : T.kw && T.kw.test(o) ? 0.7 : T.type && T.type.test(t) ? 0.5 : 0;
   }
   if (UP.kw)
     for (const k in KW_RE)
