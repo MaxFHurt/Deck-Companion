@@ -1494,6 +1494,24 @@ const b161 = await page.evaluate(async () => { const out = {}, sum = d => d ? d.
   S.draft = null; S.view = 'home'; render(); return out; });
 T('UI-B161-01', 'Version 0.9.16: every way of generating builds the full deck: no price level gives a precon-like Budget deck, a commander with no strategy of its own is built in full, Build around my cards keeps your cards and fills the rest, a chosen level is kept', b161.noStrategy.cards === 99 && !b161.noStrategy.plan && b161.noStrategy.tier === 'budget' && !b161.noStrategy.over3 && b161.seeds.cards === 99 && b161.seeds.kept && !b161.seeds.plan && !b161.seeds.over3 && b161.mid.cards === 99 && !b161.mid.over12, JSON.stringify(b161));
 } catch (e) { QUIET = false; T('UI-B161-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B162-01')) { try { if (SHARD) await RESET();
+// Version 0.9.17 (owner, 25 Oct: alternate printings showed under the original card name): a card shown in a themed printing that
+// carries another name is named by that printing first, then its real name, on the upgrade sheet and in the card window,
+// whether it is in the deck or recommended.
+const b162 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'sheet'; recsFor.k = null; render(); await recsReady(d); render();
+  const names = [...document.querySelectorAll('.s4 b')].map(x => x.textContent).filter(x => x !== 'No pick'), k = names.map(n => find(n)).filter(Boolean);
+  k.forEach((c, i) => PRINT.map.set(c._n, {id: c.id, sc: 'tst', set: 'Test', rar: 'rare', fn: 'Printed Name ' + i})); render();
+  out.sheet = [...document.querySelectorAll('.s4 b')].map(x => x.textContent).filter(x => x !== 'No pick');
+  out.sheetOk = out.sheet.length > 0 && out.sheet.every((x, i) => x === 'Printed Name ' + i + ' (' + k[i].n + ')');
+  const rec = recsFor(d).paths.map(L => L.opts.apex && L.opts.apex.add).find(n => n && !hasCard(d, n)), rc = find(rec);
+  PRINT.map.set(rc._n, {id: rc.id, sc: 'tst', set: 'Test', rar: 'rare', fn: 'Printed Pick'}); handleAct('card', '', rec); await new Promise(r => setTimeout(r, 200));
+  out.card = (document.querySelector('#modal h2') || {}).textContent; out.cardOk = out.card === 'Printed Pick ' + rc.n;
+  $('#modal').hidden = true; PRINT.map = new Map(); PRINT.key = ''; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-B162-01', 'Version 0.9.17: a card shown in a printing that carries another name is named by that printing, then its real name, on the upgrade sheet and in the card window', b162.sheetOk && b162.cardOk, JSON.stringify(b162));
+} catch (e) { QUIET = false; T('UI-B162-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-IPAD-02')) { try { if (SHARD) await RESET();
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);

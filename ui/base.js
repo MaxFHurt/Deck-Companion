@@ -184,6 +184,22 @@ const imgUrl = (kind, id, back) => IMG + kind + (back ? '/back/' : '/front/') + 
 function pidOf(c, e) {
   return (e && e.pid) || (PRINT.map.get(c._n) || {}).id || c.id;
 }
+// The printing a card is shown in (the same choice as pidOf): the deck entry's own, the deck's themed set's, or the card's own.
+// Themed printings keep the name printed on them (dc.theme3), so a reskin is never shown under the original name alone.
+function shownPrint(c, e) {
+  if (!c) return null;
+  if (e && e.pid) return {id: e.pid, set: e.ps || '', rar: e.pr || '', fn: e.pn || (e.pid === c.id ? c.fn || '' : '')};
+  const pm = PRINT.map.get(c._n);
+  if (pm) return pm;
+  return {id: c.id, set: c.set || '', rar: c.rar || '', fn: c.fn || ''};
+}
+// A card's name beside its picture (owner, 25 Oct: alternate printings showed under the original name): a printing that carries
+// another name gives that name first, then the card's real name ("Patriotic Shield (Sword of Fire and Ice)").
+function nameHtml(c, e, n) {
+  if (!c) return esc(n || '');
+  const fn = (shownPrint(c, e) || {}).fn;
+  return fn && norm(fn) !== c._n ? esc(fn) + ' <small class="aka">(' + esc(c.n) + ')</small>' : esc(n || c.n);
+}
 // Set and rarity of the printing being shown for a card (the commander-set printing when there is one).
 function printInfo(c) {
   if (!c) return null;
@@ -226,7 +242,7 @@ async function ensureTheme() {
   PRINT.key = code;
   PRINT.map = new Map();
   if (!code) return;
-  const cached = lsGet('dc.theme2.' + code);
+  const cached = lsGet('dc.theme3.' + code);
   if (cached) {
     PRINT.map = new Map(cached);
     render();
@@ -242,11 +258,17 @@ async function ensureTheme() {
       const k = norm(o.name),
         old = m.get(k);
       if (!old || (o.set === code && old.sc !== code))
-        m.set(k, {id: o.id, sc: o.set, set: o.set_name || '', rar: o.rarity || ''});
+        m.set(k, {
+          id: o.id,
+          sc: o.set,
+          set: o.set_name || '',
+          rar: o.rarity || '',
+          fn: o.flavor_name || ((o.card_faces || [])[0] || {}).flavor_name || ''
+        });
     });
     if (PRINT.key !== code) return;
     PRINT.map = m;
-    if (lsGet('dc.sets')) lsSet('dc.theme2.' + code, [...m]);
+    if (lsGet('dc.sets')) lsSet('dc.theme3.' + code, [...m]);
     render();
   } catch (e) {}
 }
@@ -283,7 +305,7 @@ function faceNote(c) {
 }
 function picNote(c) {
   const x = S.pick,
-    fn = x && x.fn != null ? x.fn : x && x.id === c.id ? c.fn : '';
+    fn = x && x.fn != null ? x.fn : x && x.id === c.id ? c.fn : (shownPrint(c) || {}).fn || '';
   return fn && norm(fn) !== c._n
     ? 'The picture shows the ' + esc(fn) + ' printing of ' + esc(c.n) + ' (same card, another name).'
     : '';
@@ -998,7 +1020,7 @@ function cardHtml(c, mini, pr, extra) {
     '"' +
     attrs +
     '><div class="ct"><span>' +
-    esc(c.n) +
+    nameHtml(c) +
     '</span><span>' +
     pips(c.m) +
     '</span></div><img alt="" src="' +

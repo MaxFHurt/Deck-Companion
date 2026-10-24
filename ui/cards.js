@@ -1152,7 +1152,9 @@ function openCard(name, pid) {
   S.prints = null;
   S.face = 0;
   S.pick = c.id ? {n: c.n, id: pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
-  const pnm = inDeck ? printedName(d, inDeck, c) : '';
+  // a card not in the deck (an upgrade pick) shown in a printing with another name says so too (owner, 25 Oct)
+  const sfn = !inDeck ? (shownPrint(c, pid ? {pid} : null) || {}).fn : '',
+    pnm = inDeck ? printedName(d, inDeck, c) : sfn && norm(sfn) !== c._n ? sfn : '';
   $('#modal').innerHTML =
     '<div class="panel" role="dialog" aria-label="' +
     esc(c.n) +
@@ -1319,7 +1321,7 @@ function dropdown(input, box, filter, act) {
           '"><img alt="" src="' +
           artFor(c) +
           '"><span>' +
-          esc(c.n) +
+          nameHtml(c) +
           '<small>' +
           esc(c.t) +
           '</small></span><span>' +

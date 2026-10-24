@@ -87,7 +87,7 @@ function watchHtml(d, L) {
       '<span><small>' +
       (a.kind === 'price' ? TIERS[a.t].label + ' pick · replaces ' + esc(a.cut) : 'In your deck') +
       '</small>' +
-      esc(a.n) +
+      nameHtml(c, null, a.n) +
       '</span><em>' +
       (a.kind === 'price' ? 'was $' + a.was.toFixed(2) + ' · now $' + a.now.toFixed(2) : 'not legal') +
       '</em></button>' +
@@ -829,7 +829,7 @@ function openFindCmd() {
               '"><div style="min-width:0"><button class="nm" data-act="card" data-n="' +
               esc(c.n) +
               '" style="background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:700;text-align:left">' +
-              esc(c.n) +
+              nameHtml(c) +
               '</button> ' +
               c.ci.map(k => '<i class="pip p' + k + '">' + k + '</i>').join('') +
               '<div class="why">' +
@@ -949,7 +949,8 @@ function sheetHead(d, R, L, i, si, n, sel) {
   const RC = rowCols(d, R, L, i),
     en = d.cards.find(x => x.n === L.cut);
   const slot = (k, lab, name, chip, price) => {
-    const c = name && find(name);
+    const c = name && find(name),
+      e = k === 'cut' ? en : null; // your card in the printing you chose
     return (
       '<button class="s4' +
       (sel === k ? ' on' : '') +
@@ -961,9 +962,9 @@ function sheetHead(d, R, L, i, si, n, sel) {
       '"><small>' +
       lab +
       '</small>' +
-      (c ? '<img alt="" src="' + artFor(c) + '">' : '<span class="noimg"></span>') +
+      (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span class="noimg"></span>') +
       '<b>' +
-      esc(name || 'No pick') +
+      (c ? nameHtml(c, e, name) : esc(name || 'No pick')) +
       '</b><span class="r">' +
       chip +
       '</span><span class="p">' +

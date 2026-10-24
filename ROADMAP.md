@@ -222,6 +222,16 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.17 (build 162, 25 October 2026; owner: "alternate printings of cards as the original card name and the wrong card being displayed")
+
+- A deck's themed set printings (ensureTheme) now keep the name printed on them (Scryfall flavor_name; cache dc.theme2 ->
+  dc.theme3, fetched again once). `shownPrint` gives the printing a card is shown in (the entry's own, the themed set's, or the
+  card's own, the same choice as the picture) and `nameHtml` names it: a printing that carries another name shows that name,
+  then the real name in small type ("Marauding Mutagen (Acidic Slime)").
+- Used on the upgrade sheets (Your card now shows the printing you chose), the card window (recommended cards too, not only
+  cards in the deck), the card pop-up's own frame, the price alerts and the theme commander lists.
+- Engine unchanged. UI-B162-01 added; UI suite 125 (B135-01, B146-02, GEN-03 pass alone).
+
 ## Version 0.9.16 (build 161, 24 October 2026; owner: "When generating a deck in any way, you should generate that deck with a full deck list at the appropriate tier. If none is assigned, you should make a commander deck equivalent to a precon.")
 
 - **Every way of generating builds the whole list** (`startPlan`): Build around my cards (seed-go) used to design a build plan
