@@ -17,6 +17,10 @@ const SETS = {
   holdout: [['jeskai-striker', 'Shiko_and_Narset'], ['mardu-surge', 'Zurgo_Stormrender'], ['sultai-arisen', 'Teval'], ['counter-blitz', 'Tidus'], ['scions-spellcraft', 'Yshtola'], ['endless-punishment', 'Valgavoth'], ['family-matters', 'Zinnia'], ['most-wanted', 'Olivia']]
 };
 SETS.tuneall = SETS.tune.concat(SETS.tune2);
+// wide (24 Oct, owner's choice B): 24 more precons, the most built of every Commander precon whose cards are all in the snapshot,
+// judged with up to 400 Archidekt decks each (CORPUS=corpus5); their EDHREC pages live in data3/edhrec. wide-set.json lists them.
+try { SETS.wide = JSON.parse(fs.readFileSync(path.join(__dirname, 'wide-set.json'), 'utf8')); } catch (e) {}
+if (which === 'wide' && !process.env.EDHX) process.env.EDHX = 'data3/edhrec';
 const list = which === 'all' ? SETS.tune.concat(SETS.tune2, SETS.test) : SETS[which];
 const oidSet = new Set(run('LIB.map(c => c.oid).filter(Boolean)'));
 const keyFor = (name, uid) => uid && oidSet.has(uid) ? uid : run('keyOf')(name);

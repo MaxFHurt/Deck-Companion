@@ -75,6 +75,17 @@ function viewProfile() {
 }
 // The deck editor fills what is left of the screen, and its panes scroll inside themselves.
 // One-pane (tabbed) layout for phones in portrait and narrow tablets in portrait; two panes whenever there is room side by side.
+// counterspells and protection in a deck, from both card readings (jobsShown); worked out only when the stats are drawn
+function shownJobs(d) {
+  const out = {counter: 0, protect: 0};
+  d.cards.forEach(e => {
+    const c = find(e.n);
+    if (!c) return;
+    const js = jobsShown(c);
+    for (const r in out) if (js.has(r)) out[r] += e.q;
+  });
+  return out;
+}
 function isNarrow() {
   const w = innerWidth,
     h = innerHeight;
@@ -961,6 +972,16 @@ async function openAnalysis() {
           : '';
       })
       .join('') +
+    (Sh =>
+      '<p class="note" style="margin:4px 0 0">Also in the deck: ' +
+      Sh.counter +
+      ' counterspell' +
+      (Sh.counter === 1 ? '' : 's') +
+      ' · ' +
+      Sh.protect +
+      ' card' +
+      (Sh.protect === 1 ? '' : 's') +
+      ' that protect your creatures or permanents.</p>')(shownJobs(d)) +
     '</div>';
   // 5. what to add next and the weakest cards
   if (A.nonland) {
@@ -1200,7 +1221,7 @@ function openCard(name, pid) {
     (c.r ? '<dt>EDHREC rank</dt><dd>#' + c.r.toLocaleString() + '</dd>' : '') +
     (c.set || c.rar ? '<dt>Printing</dt><dd id="pr-info">' + pickHtml(c) + '</dd>' : '') +
     '<dt>Does</dt><dd>' +
-    ([...tg.roles]
+    ([...jobsShown(c)]
       .map(r => ROLE_LABEL[r] || {counter: 'Counterspell', tutor: 'Tutor', protect: 'Protection'}[r])
       .concat(tg.land ? ['Land'] : [])
       .join(', ') || 'Threat / synergy piece') +

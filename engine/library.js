@@ -735,6 +735,24 @@ function landTarget(A, d) {
 function legalIn(c, fmt) {
   return fmt === 'commander' ? c.cmd : c.std;
 }
+// Jobs shown to the player (Phase 3, owner's choice A, 24 Oct): the jobs scoring uses, plus counterspells and protection the
+// rules reading finds (against Scryfall's tags: counterspells 90% -> 95% of cards found, protection 61% -> 69%, nearly as
+// precise). Display only: scoring keeps tags(), and the reading done here is not kept on the card, so it never changes a score.
+function jobsShown(c) {
+  const tg = tags(c);
+  if (c._js && c._js.t === tg) return c._js.v;
+  const out = new Set(tg.roles);
+  c._js = {t: tg, v: out};
+  if (tg.land || typeof fnOf !== 'function') return out;
+  try {
+    const had = c._fn,
+      f = fnOf(c, new Set(tg.roles)).roles;
+    if (!had) delete c._fn;
+    if (f.has('counterspell')) out.add('counter');
+    if (f.has('protection')) out.add('protect');
+  } catch (e) {}
+  return out;
+}
 function analyze(d) {
   const ctx = ctxOf(d),
     T = targetsOf(d, ctx);

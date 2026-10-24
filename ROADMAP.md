@@ -222,6 +222,30 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.14 (build 159, 24 October 2026; owner: Phase 3 options "A then B")
+
+- **A. Jobs shown from both card readings** (`jobsShown`, display only): against Scryfall's tags on equal terms the live app
+  already matched the rules reading for removal, draw and wipes (removal 94% / 77%); taking the reading's counterspells and
+  protection as well finds more (counterspells 90% -> 95% of cards, protection 61% -> 69%, precision 99 -> 98 and 84 -> 82).
+  Shown in the card window's Does line, a new Interaction tile in Build stats and a line in Analyze this build. Scoring
+  still uses tags(); the reading done for display is not kept on the card, and analyze() is untouched (counting it there cost
+  10% of its time). Ramp and tutors were left alone: both readings together lose precision (ramp 85 -> 80, tutors 98 -> 94).
+- **B. A bigger benchmark: the wide set.** 24 more precons, the most built of every Commander precon on EDHREC whose cards are
+  all in the snapshot (Szarel, Hakbal, Auntie Ool, Wise Mothman, Pantlaza, Ashling, Frodo, Ms. Bumbleflower, Ulalek, Kilo,
+  Eowyn, Killian, both Zimones, Temmet, Dina, Quintorius, Jace, Clavileno, Caesar, Aminatou, Satya, Zhulodok, Rootha), each
+  judged with 400 public Archidekt decks (85 to 286 upgraded copies per precon). Data: data2/precon and data2/fixtures
+  (retail lists), data3/edhrec (commander pages), data2/themes (5 theme pages each), corpus5. Run with CORPUS=corpus5.
+  Baseline (0.9.14): agreement@5 0.420, row@5 0.429, @10 0.303 (weighted 0.448 / 0.458 / 0.334). The Classic engine (0.9.3)
+  on the same decks: 0.409 / 0.423 / 0.294 (weighted 0.438 / 0.451 / 0.324): fresh data confirms the current engine.
+  With the wide set the no-drop rule covers fifteen numbers (old and corpus5 tuneall, test, holdout, and wide).
+- **Baseline note (my mistake, fixed):** fetching the wide set overwrote 16 precon pages that the commander pages name
+  (data2/precon, EDHREC's slugs differ from the fixture names), and a cleanup step deleted them. They were downloaded again
+  from EDHREC (today's versions; no copy of the old ones was kept). Only one benchmark deck is affected: Invisible Woman
+  (The Fantastic Four), so tuneall @10 moves 0.136 -> 0.139 (weighted 0.163 -> 0.166; corpus5 0.162 -> 0.166, weighted
+  0.191 -> 0.194). 0.9.13 and 0.9.14 give identical numbers on all twelve on the restored data. New baseline: those four
+  numbers; every other number is unchanged.
+- UI suite as before (B81-02, B135-01, GEN-03 pass alone; they clash only side by side).
+
 ## Version 0.9.13 (build 158, 24 October 2026; owner: "Yes" to Stick to the theme, "Fix the problem cards")
 
 - **Stick to the theme** (a deck setting on the Upgrades tab, `d.stick`, off by default; engine `stickTheme`): each row's picks

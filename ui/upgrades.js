@@ -2433,6 +2433,15 @@ function statsHtml(d, A, R, mode) {
   ].forEach(([k, h, w]) => {
     if (w) H.push({k, s: st(h, w), t: h + ' / ' + w});
   });
+  // counterspells and protection from both card readings (jobsShown, display only; no target, so no colour)
+  {
+    const J = shownJobs(d);
+    H.push({
+      k: 'Interaction',
+      s: 'info',
+      t: J.counter + ' counterspell' + (J.counter === 1 ? '' : 's') + ' · ' + J.protect + ' protection'
+    });
+  }
   H.push({k: 'Curve', s: A.avg <= 3.3 ? 'good' : A.avg <= 3.7 ? 'warn' : 'bad', t: 'avg ' + A.avg.toFixed(2)});
   if (e && e.sim) {
     const m = e.sim,
