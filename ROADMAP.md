@@ -222,6 +222,17 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## After 0.9.19 (25 October 2026): switches for the Mid/Budget polish decision (all at today's behaviour)
+
+- UP.tierPolish (1): the polish rounds on a generated Mid / Budget deck after it is made from the Apex build (UP.polish also
+  polishes the Apex build itself while it is designed; that stays). UP.polishSlot (0): polish only swaps a stand-in for
+  another card serving the same Apex slot, undoes a round that does not raise the score, and builds Mid no weaker than Budget.
+- Measured with the Apex build made the same way each time (node, apexRef, 300 games): Mid/Budget polish adds about 0.6
+  points on average (Edgar Markov Budget 87.31 -> 89.25) by bringing in 1-6 cards per deck that are not cheaper versions of
+  Apex cards; slot-faithful polish finds almost no swaps (same as none). Mid scored above Budget for all four commanders in
+  every mode (an earlier browser reading of Captain America Budget above Mid scored before its reference loaded).
+- Awaiting the owner: A remove Mid/Budget polish, B keep it, C keep it only for clear gains, labelled. Benchmark identical.
+
 ## Version 0.9.19 (build 164, 25 October 2026; owner: "Budget being 87 and Apex being 91 is too tight ... Combo of A and B, for sure. Let's try C as well")
 
 Why the tiers sat close: the deck score is synergy 30 + balance 25 + card quality 20 + win routes 15 + mana 10, and synergy and

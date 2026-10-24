@@ -796,15 +796,30 @@ function polishOk(d, p) {
 function polishDeck(d, rounds) {
   return runSync(polishDeckG(d, rounds));
 }
-function* polishDeckG(d, rounds) {
+// slots (UP.polishSlot, owner 25 Oct: Mid and Budget are cheaper versions of the Apex build): each card's Apex slot card. A swap
+// may only replace a stand-in (a slot whose Apex card is over the price keeps its Apex card otherwise) with another card that
+// serves the same Apex slot (does its job, shares a job, or fits a plan it is there for), so every card stays traceable.
+function slotServes(d, a, add, t) {
+  const A = a && find(a),
+    X = add && find(add);
+  if (!A || !X) return false;
+  if (underCap(A.p, t)) return false; // the slot holds its Apex card: it stays
+  const ctx = ctxOf(d);
+  if (sameJobAs(A, d, ctx)(X)) return true;
+  const ra = tags(A).roles,
+    rx = tags(X).roles;
+  if ([...ra].some(r => rx.has(r))) return true;
+  return (d.aims || []).some(k => matchAim(A, k, ctx.tribe) >= 0.7 && matchAim(X, k, ctx.tribe) >= 0.7);
+}
+function* polishDeckG(d, rounds, slots) {
   if (!UP.polish || d.format !== 'commander' || !find(d.commander)) return 0;
   const t = d.tier || 'apex',
     ar = apexRef(d);
   let n = 0;
   for (let r = 0; r < (rounds || UP.polish); r++) {
-    let R;
+    let R, e;
     try {
-      const e = evaluateDeck(d, {apex: ar, games: 300});
+      e = evaluateDeck(d, {apex: ar, games: 300});
       R = upgradePaths(d);
       yield* scoreCheckG(d, R, {apex: ar, base: e});
     } catch (err) {
@@ -815,12 +830,18 @@ function* polishDeckG(d, rounds) {
         .map(L => tierPick(L, t))
         .filter(
           p =>
-            p && p.dScore != null && p.dScore >= Math.max(scoreFloor(), UP.polishMin) && polishOk(d, p) && !keep.has(norm(p.cut))
+            p &&
+            p.dScore != null &&
+            p.dScore >= Math.max(scoreFloor(), UP.polishMin) &&
+            polishOk(d, p) &&
+            !keep.has(norm(p.cut)) &&
+            (!slots || slotServes(d, slots.get(norm(p.cut)), p.add, t))
         )
         .sort((a, b) => b.dScore - a.dScore);
     const cutU = new Set(),
       addU = new Set();
     let k = 0;
+    const before = UP.polishSlot ? JSON.stringify(d.cards) : null; // a round that does not raise the score is undone
     for (const p of P) {
       if (
         k >= UP.polishK ||
@@ -832,9 +853,20 @@ function* polishDeckG(d, rounds) {
         continue;
       cutCard(d, p.cut, p.q || 1);
       addCard(d, p.add, p.q || 1);
+      if (slots) slots.set(norm(p.add), slots.get(norm(p.cut)));
       cutU.add(norm(p.cut));
       addU.add(norm(p.add));
       k++;
+    }
+    if (k && before) {
+      let after = null;
+      try {
+        after = evaluateDeck(d, {apex: ar, games: 300}).exact;
+      } catch (err) {}
+      if (after == null || after < e.exact + SCORE_MIN) {
+        d.cards = JSON.parse(before);
+        break;
+      }
     }
     n += k;
     if (!k) break;
@@ -1084,10 +1116,29 @@ function* genDeckG(nd, seeds, ownOnly, ownAll, fill) {
     const n = nd.plan.reduce((s, x) => s + x.q, 0);
     let k = 0;
     if (fill) {
+      const slots = new Map();
+      if (UP.polishSlot)
+        nd.plan.forEach(x => [x.a, x.m, x.b].filter(Boolean).forEach(n => slots.has(norm(n)) || slots.set(norm(n), x.a)));
+      const nb = fill === 'mid' && UP.polishSlot ? JSON.parse(JSON.stringify(nd)) : null,
+        nbSlots = nb ? new Map(slots) : null;
       k = planAll(nd, fill);
       delete nd.plan;
       nd.tier = fill;
-      if (fill !== 'apex') yield* polishDeckG(nd);
+      if (fill !== 'apex' && UP.tierPolish) yield* polishDeckG(nd, 0, UP.polishSlot ? slots : null);
+      // Mid is never weaker than Budget (owner, 25 Oct): the Budget build is made from the same Apex build, and when it scores
+      // higher it is the Mid deck too (every card is under $12)
+      if (fill === 'mid' && UP.polishSlot && nb) {
+        planAll(nb, 'budget');
+        delete nb.plan;
+        nb.tier = 'budget';
+        if (UP.tierPolish) yield* polishDeckG(nb, 0, nbSlots);
+        try {
+          const ar = apexRef(nd),
+            vm = evaluateDeck(nd, {apex: ar, games: 300}).exact,
+            vb = evaluateDeck(Object.assign({}, nb, {tier: 'mid'}), {apex: ar, games: 300}).exact;
+          if (vb > vm) nd.cards = nb.cards;
+        } catch (err) {}
+      }
       if (fill === 'budget' && nd.budget && nd.budget.total > 0) fitBudget(nd, nd.budget.total, ownAll || new Set());
     }
     return {n, k};

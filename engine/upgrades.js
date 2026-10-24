@@ -2051,6 +2051,8 @@ const UP = {
   starve: 0.08,
   lfix: 1,
   sjx: 1,
+  tierPolish: 1, // generated Mid / Budget decks: the polish rounds after they are made from the Apex build (UP.polish rounds)
+  polishSlot: 0, // generated Mid / Budget decks: polish only swaps a stand-in for another card serving the same Apex slot
   looseAll: 0, // tests only (generator buildPlan): every cheaper stand-in from the loose pass
   weakD: 0.2,
   weakA: 1,
