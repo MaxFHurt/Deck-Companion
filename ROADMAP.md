@@ -231,7 +231,8 @@ no more leaving room for better."
   points on average (Edgar Markov Budget 87.31 -> 89.25) by bringing in 1-6 cards per deck that are not cheaper versions of
   Apex cards; slot-faithful polish finds almost no swaps (same as none). Mid scored above Budget for all four commanders in
   every mode (an earlier browser reading of Captain America Budget above Mid scored before its reference loaded).
-- Awaiting the owner: A remove Mid/Budget polish, B keep it, C keep it only for clear gains, labelled. Benchmark identical.
+- **Owner's decision (25 Oct): "Keep the strongest option" = B, keep Mid/Budget polish** (UP.tierPolish 1, UP.polishSlot 0,
+  today's behaviour). Benchmark identical.
 
 ## Version 0.9.19 (build 164, 25 October 2026; owner: "Budget being 87 and Apex being 91 is too tight ... Combo of A and B, for sure. Let's try C as well")
 
