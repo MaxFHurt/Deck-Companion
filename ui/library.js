@@ -674,12 +674,91 @@ function carryRecs(d, key) {
   ROWC.k = null;
   recsFor.k = key;
   recsFor.done(d);
+  recSave(d, R);
+  return R;
+}
+// A finished upgrade list is saved with the deck's inputs (owner, 24 Oct: "it needs to be checked one time"): opening the deck
+// again with nothing changed shows the same list at once instead of thinking again. Anything the list depends on (the deck,
+// its settings, the app build, the engine, the card data and its prices, the commander's play data) changes the key, and then
+// the list is worked out again. Regenerate drops the saved list. The last 12 decks' lists are kept.
+const REC_KEEP = 12,
+  recSig = (d, key) => strHash(JSON.stringify([key, window.BUILD || 0, engineMode(), DBINFO.when || '', EDH.decks || 0])),
+  REC_FIELDS = [
+    'paths',
+    'fixes',
+    'drops',
+    'fills',
+    'count',
+    'cost',
+    'shift',
+    'conflicts',
+    'scored',
+    'base',
+    'apexR',
+    'pack',
+    'trimN',
+    'bracket',
+    'gcIn',
+    'mldIn',
+    'gcCap',
+    'cap',
+    'smart',
+    'thin',
+    'poolMs'
+  ];
+function recSave(d, R) {
+  if (S.recFresh || !d || !d.id || !R || R.pending || (R.pool && !R.poolDone) || !S.profile.decks.some(x => x.id === d.id))
+    return;
+  try {
+    const v = {};
+    REC_FIELDS.forEach(k => {
+      if (R[k] !== undefined) v[k] = R[k];
+    });
+    lsSet('dc.rec.' + d.id, {sig: recSig(d, recsFor.k), at: Date.now(), v});
+    const idx = (lsGet('dc.recIdx') || []).filter(x => x !== d.id).concat(d.id);
+    while (idx.length > REC_KEEP) localStorage.removeItem('dc.rec.' + idx.shift());
+    lsSet('dc.recIdx', idx);
+  } catch (e) {}
+}
+function recDrop(d) {
+  try {
+    if (d && d.id) localStorage.removeItem('dc.rec.' + d.id);
+  } catch (e) {}
+}
+function recRestore(d, key) {
+  if (S.recFresh || !d || !d.id || d.format !== 'commander' || !DBINFO.complete) return null;
+  const s = lsGet('dc.rec.' + d.id);
+  if (!s || !s.v || s.sig !== recSig(d, key)) return null;
+  upgradePaths.own = ownSet();
+  const R = upgradePaths(d); // the quick first step, for the helpers the screens use (card values, trims)
+  REC_FIELDS.forEach(k => {
+    if (s.v[k] !== undefined) R[k] = s.v[k];
+  });
+  R.pending = false;
+  R.pool = null;
+  R.poolDone = true;
+  R.restored = s.at;
+  // a swap's score for the card window's alternatives, against this deck's score (worked out when first asked)
+  R.dOf = (cut, add, q) => {
+    const b = evalFor(d);
+    return b ? swapScore(d, b, apexFor(d), cut, add, q) : 0;
+  };
   return R;
 }
 function recsFor(d) {
   dropHolds(d);
   const key = recsKey(d);
   if (recsFor.k !== key && carryRecs(d, key)) return recsFor.v;
+  if (recsFor.k !== key) {
+    const R0 = recRestore(d, key);
+    if (R0) {
+      recsFor.k = key;
+      recsFor.v = R0;
+      ROWC.k = null;
+      recsFor.done(d);
+      return R0;
+    }
+  }
   if (recsFor.k !== key) {
     recsFor.k = key;
     upgradePaths.own = ownSet();
@@ -699,6 +778,7 @@ function recsFor(d) {
           }
           R.pending = false;
           if (UP.pool2 && !S.syncRecs) poolRun(d, R, k);
+          if (!R.pool) recSave(d, R);
         };
       if (S.syncRecs) run1();
       else {
@@ -776,6 +856,7 @@ function poolRun(d, R, k) {
         ROWC.k = null;
         R.poolDone = true;
         R.poolMs = r.ms;
+        recSave(d, R);
         render();
       } else poolSlices(d, R, Q);
     });
@@ -808,6 +889,7 @@ function poolSlices(d, R, Q) {
     stickTheme(d, R);
     ROWC.k = null;
     R.poolDone = true;
+    recSave(d, R);
     render();
   }; // the whole list appears now, the best card of each slot as its Apex pick (0.9.3)
   setTimeout(tick, 400);

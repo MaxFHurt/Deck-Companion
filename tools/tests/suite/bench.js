@@ -56,6 +56,18 @@ function score(ev, swaps, Kx, Ax){
   return s;
 }
 if (require.main !== module){ module.exports = {evidence, H, SETS}; return; }
+// RCACHE=<dir> (testing speed, 24 Oct): the engine's picks for a deck do not depend on which player decks judge them, so a run
+// saves each deck's result and a second run with another CORPUS reuses it instead of working it out again. The key covers the
+// engine's files, the deck and every setting that changes the picks; benchall.js gives each full run its own folder.
+const RC = process.env.RCACHE ? path.resolve(process.env.RCACHE) : null,
+  rcKey = (() => { if (!RC) return null; const h = require('crypto').createHash('sha256'), F = JSON.parse(fs.readFileSync(path.join(dir, 'files.json'), 'utf8'));
+    F.data.concat(F.engine).forEach(f => h.update(fs.readFileSync(path.join(dir, f)))); ['UP', 'SCORECHECK', 'POOL', 'CAP', 'TIER', 'AIMS', 'NTHEMES', 'BUDGETONLY', 'NOPRE', 'EDHX'].forEach(k => h.update(k + '=' + (process.env[k] || '') + ';'));
+    return h.digest('hex').slice(0, 16); })(),
+  rcFile = slug => path.join(RC, rcKey + '-' + slug + '.json'),
+  rcGet = slug => { if (!RC || !fs.existsSync(rcFile(slug))) return null; return JSON.parse(fs.readFileSync(rcFile(slug), 'utf8')); },
+  rcPut = (slug, R) => { if (!RC || fs.existsSync(rcFile(slug))) return; fs.mkdirSync(RC, {recursive:true});
+    // what the scoring below reads: each row's options, Most played picks, alternatives and the engine's diagnostics
+    fs.writeFileSync(rcFile(slug), JSON.stringify({paths:R.paths.map(L => ({cut:L.cut, opts:L.opts, pop:L.pop, alts:L.alts ? {apex:L.alts.apex} : undefined})), _dbg:R._dbg})); };
 const out = {label, engine:dir, at:new Date().toISOString(), set:which, decks:{}}; const tot = {score:0, swaps:0};
 for (const [slug, file] of list){
   const ev = evidence(slug, file), d = ev.d; H.edh(d.commander); X.__d = d;
@@ -64,7 +76,7 @@ for (const [slug, file] of list){
   // BUDGETONLY=3: experiment — the whole engine restricted to cards under $3 (everything else ruled out for this deck).
   if (process.env.BUDGETONLY){ X.__cap = +process.env.BUDGETONLY; run('__d.dismissed = LIB.filter(c => c.p == null || c.p >= __cap).map(c => c.n)'); }
   X.__cap = +(process.env.CAP || 0); X.__pool = !!process.env.POOL;   // POOL=1: the whole-card search and its picks (0.9.3), as the app shows them
-   if (process.env.TIER) X.__d.tier = process.env.TIER; X.__sco = process.env.SCORECHECK === '2' ? {refill:false, theme:false} : {}; const t0 = Date.now(), R = run(process.env.SCORECHECK ? '(() => { const R0 = upgradePaths(__d, __cap ? {cap:__cap} : undefined); try { scoreCheck(__d, R0, Object.assign({apex:apexRef(__d)}, __sco)); } catch (e) {} if (__pool && typeof poolPromote === "function") try { const Q = poolQueue(__d, R0); if (Q){ poolStep(Q, 1e12); poolPromote(Q); } } catch (e) {} return R0; })()' : 'upgradePaths(__d, __cap ? {cap:__cap} : undefined)'), ms = Date.now() - t0;   // CAP=3: the per-card price-capped package
+   if (process.env.TIER) X.__d.tier = process.env.TIER; X.__sco = process.env.SCORECHECK === '2' ? {refill:false, theme:false} : {}; const t0 = Date.now(), R = rcGet(slug) || run(process.env.SCORECHECK ? '(() => { const R0 = upgradePaths(__d, __cap ? {cap:__cap} : undefined); try { scoreCheck(__d, R0, Object.assign({apex:apexRef(__d)}, __sco)); } catch (e) {} if (__pool && typeof poolPromote === "function") try { const Q = poolQueue(__d, R0); if (Q){ poolStep(Q, 1e12); poolPromote(Q); } } catch (e) {} return R0; })()' : 'upgradePaths(__d, __cap ? {cap:__cap} : undefined)'), ms = Date.now() - t0; rcPut(slug, R);   // CAP=3: the per-card price-capped package
   const TIER = process.env.TIER || 'apex', swaps = R.paths.map(L => X.tierPick ? X.tierPick(L, TIER) : L.opts[TIER]).filter(Boolean).filter(p => process.env.LANDS ? isLand(p.cut) && isLand(p.add) : !isLand(p.cut) && !isLand(p.add)).map(p => ({cut:p.cut, add:p.add}));
   // Ranking quality over everything, not just the top 10: does the engine's value order the deck's cards the way players keep
   // them, and the candidate additions the way players add them? (Spearman; needs the engine's diagnostics.)

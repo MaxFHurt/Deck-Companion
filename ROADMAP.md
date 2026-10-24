@@ -222,6 +222,23 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.15 (build 160, 24 October 2026; owner: "the thinking and waiting needs to be expedited without cutting corners")
+
+Measured first (one core): the whole-card search is most of the wait (7-14 s; 1,750-3,750 candidates, each a full deck
+score on the stored practice games), the score check 1-3 s, building the list 0.5-1.7 s.
+- **Saved upgrade lists** (`recSave` / `recRestore`): a finished list is saved with everything it depends on (the deck and
+  its settings, the build, the engine choice, the card data date, the commander's play data); opening the deck again with
+  nothing changed shows the same list at once. Turtle Power: 11.8 s the first time, 0.3 s reopened, card for card and score
+  for score the same as working it out again. A change, Regenerate (`recDrop`) or new data works it out again. The last 12
+  decks' lists are kept. Tests start with saving off (S.recFresh) so they keep testing the search; UI-B160-01 tests saving.
+- **Skipping cards that can't win: not done.** No safe upper bound exists: one card moves several parts of the deck score
+  (synergy, job balance, curve, practice games), and a card's value depends on the rest of the deck (which jobs it still
+  needs), so per-card caching would not be exact either. Any shortcut could change a pick, so none was made.
+- **Benchmark in one command** (`benchall.js`): the engine's picks for a deck are worked out once and judged with both player
+  deck sets (bench.js RCACHE, a per-run cache keyed by the engine's files and settings), with the sets side by side on four
+  cores: all fifteen numbers and the weighted ones in about 4 minutes instead of about 14, identical values.
+- Benchmark identical to 0.9.14 on all fifteen numbers. UI suite: 120 + UI-B160-01 (B81-02, GEN-03, BUY-01 pass alone).
+
 ## Version 0.9.14 (build 159, 24 October 2026; owner: Phase 3 options "A then B")
 
 - **A. Jobs shown from both card readings** (`jobsShown`, display only): against Scryfall's tags on equal terms the live app

@@ -1634,11 +1634,9 @@ function openRegen() {
     '<div class="panel" role="dialog" aria-label="Regenerate picks"><div class="ph"><h2>Regenerate picks?</h2><small>' +
     esc(d.name) +
     '</small><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
-    '<p class="note" style="margin:0">This releases the ' +
-    n +
-    ' pick' +
-    (n === 1 ? '' : 's') +
-    ' currently holding a place, fetches the latest data, and builds the list again from scratch. Cards in your deck, your library, cards you ruled out and your swap history stay as they are. You can undo it.</p>' +
+    '<p class="note" style="margin:0">This fetches the latest data and builds the list again from scratch' +
+    (n ? ', and releases the ' + n + ' alternative' + (n === 1 ? '' : 's') + ' you chose' : '') +
+    '. Cards in your deck, your library, cards you ruled out and your swap history stay as they are. You can undo it.</p>' +
     '<div class="row"><button class="btn pri" data-act="regen-go">Regenerate</button><button class="btn" data-act="close">Cancel</button></div></div>';
   $('#modal').hidden = false;
 }
@@ -1656,6 +1654,7 @@ async function doRegen() {
   d.recPrev = d.recP || {};
   d.recP = {};
   d.regenAt = new Date().toISOString().slice(0, 10);
+  recDrop(d); // the saved list is not used again
   let fresh = false;
   if (c) {
     const slug = edhSlug(c.n),
