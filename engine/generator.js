@@ -662,30 +662,44 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
   ).map(c => ({c, s: baseScore(c, tmp, ctx).s, land: tags(c).land, ty: mainType(c), th: !!themeOf(c, TH)}));
   // A stand-in is strictly under the tier's price and does the same job as the card it stands in for (its main job; for a
   // card with no job, the same card type), the same rule as upgrade alternatives.
-  const alt = (x, cap) => {
-    const tx = tags(x),
-      ty = mainType(x),
-      j = mainJob(x.n);
-    let best = null,
-      bs = -1e9;
-    for (const p of pool) {
-      if (p.used || !(p.c.p < cap) || !(x.p == null || p.c.p < x.p) || p.land !== tx.land) continue;
-      if (!p.land && (j ? !jobsOf(p.c.n).includes(j) : p.ty !== ty || jobsOf(p.c.n).some(r => JOBS.includes(r)))) continue;
-      if (p.land && ![...landColors(x)].filter(k => ctx.ident.includes(k)).every(k => landColors(p.c).has(k))) continue;
-      let s = p.s + (p.ty === ty ? 3 : 0) + (p.th ? 2 : 0),
-        share = 0;
-      tags(p.c).roles.forEach(r => {
-        if (tx.roles.has(r)) share++;
-      });
-      s += share * 2;
-      if (s > bs) {
-        bs = s;
-        best = p;
+  // loose (owner, 25 Oct: "it is okay to recommend another card that may not be quite as useful to the deck but provides value
+  // to the slot rather than just filling it with anything"): when no card does the same job, the best card under the price that
+  // still serves the slot: it shares a job with the Apex card or fits one of the deck's plans the Apex card is there for.
+  const AIMS = new Map(),
+    aimsOf = y => {
+      if (!AIMS.has(y._k)) AIMS.set(y._k, new Set((tmp.aims || []).filter(a => matchAim(y, a, ctx.tribe) >= 0.7)));
+      return AIMS.get(y._k);
+    },
+    alt = (x, cap, loose) => {
+      const tx = tags(x),
+        ty = mainType(x),
+        j = mainJob(x.n),
+        xa = loose ? aimsOf(x) : null;
+      let best = null,
+        bs = -1e9;
+      for (const p of pool) {
+        if (p.used || !(p.c.p < cap) || !(x.p == null || p.c.p < x.p) || p.land !== tx.land) continue;
+        if (loose) {
+          if (p.land) continue;
+          const roles = tags(p.c).roles;
+          if (![...tx.roles].some(r => roles.has(r)) && ![...aimsOf(p.c)].some(a => xa.has(a))) continue;
+        } else if (!p.land && (j ? !jobsOf(p.c.n).includes(j) : p.ty !== ty || jobsOf(p.c.n).some(r => JOBS.includes(r))))
+          continue;
+        if (p.land && ![...landColors(x)].filter(k => ctx.ident.includes(k)).every(k => landColors(p.c).has(k))) continue;
+        let s = p.s + (p.ty === ty ? 3 : 0) + (p.th ? 2 : 0),
+          share = 0;
+        tags(p.c).roles.forEach(r => {
+          if (tx.roles.has(r)) share++;
+        });
+        s += share * 2;
+        if (s > bs) {
+          bs = s;
+          best = p;
+        }
       }
-    }
-    if (best) best.used = true;
-    return best ? best.c.n : null;
-  };
+      if (best) best.used = true;
+      return best ? best.c.n : null;
+    };
   const basic = (splitBasics(1, ctx)[0] || {}).n || null,
     own = ownAll || new Set();
   const out = tmp.cards.map((en, i) => {
@@ -717,6 +731,16 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
         S0.b = alt(c, 3);
       }
     } else S0.b = alt(c, 3);
+    if (UP.looseAll) (delete S0.m, delete S0.b); // tests only: every slot takes the loose pass, to check what it picks
+    // no card under the price does the same job: the closest card that still serves the slot (loose), marked so
+    if (c.p >= 12 && !S0.m && !S0.b) {
+      S0.m = alt(c, 12, true);
+      if (S0.m) S0.mx = true;
+    }
+    if (!S0.b && !S0.land) {
+      S0.b = alt(c, 3, true);
+      if (S0.b) S0.bx = true;
+    }
     if (!S0.b && S0.land && basic) S0.b = basic;
     if (!S0.b) delete S0.b;
     return S0;
@@ -1156,8 +1180,12 @@ function fitBudget(d, total, own) {
   d.budget = Object.assign({}, d.budget, {cost: left});
   return left;
 }
+// A slot's card at a price level: its own card for that level, else (Mid) the Apex card when it already fits, else a cheaper
+// level's card (a Budget card is under $12 too; owner, 25 Oct: Mid had left such slots open).
 function planPick(s, t) {
-  return t === 'apex' ? s.a : t === 'mid' ? s.m || s.a : s.b || s.m || s.a;
+  if (t === 'apex') return s.a;
+  if (t === 'mid') return s.m || (underCap((find(s.a) || {}).p, 'mid') ? s.a : s.b || s.a);
+  return s.b || s.m || s.a;
 }
 function fillDeck(d) {
   const r = recommend(d, 0, true);

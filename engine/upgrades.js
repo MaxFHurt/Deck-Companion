@@ -2051,6 +2051,7 @@ const UP = {
   starve: 0.08,
   lfix: 1,
   sjx: 1,
+  looseAll: 0, // tests only (generator buildPlan): every cheaper stand-in from the loose pass
   weakD: 0.2,
   weakA: 1,
   trim: 1,

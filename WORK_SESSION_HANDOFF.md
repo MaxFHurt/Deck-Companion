@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 21 October 2026. Live: Version 0.9.17 (build 162; renamed printings are shown under their printed name, then the real name). Open question to the owner: generation process (Mid falls back to the Budget version; empty slots: empty / basic / best at price; remove the polish step?). Benchmark: one command for all fifteen numbers (plus weighted), about 4 min: `node benchall.js <engineDir> <label>` in the tests folder (UP etc. pass through). The wide set's EDHREC pages are in data3/edhrec.
+Last updated: 21 October 2026. Live: Version 0.9.18 (build 163; generated Mid and Budget decks derive from the Apex build: same card, a cheaper card that does the same job, or the closest card that still serves the slot). Open question to the owner: keep the polish step (extra score-raising swaps after deriving a Mid/Budget deck)?
 **Next: the engine redesign** (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Owner, 20 Oct: "all the
 engine rework stays here until we're sure we are doing better choices. I still want all the options available that were
 available before... I don't want to change our app. Just the way choices are made behind the scenes." Decisions: the rules

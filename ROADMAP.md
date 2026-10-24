@@ -222,6 +222,20 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.18 (build 163, 25 October 2026; owner: Apex first, then Mid and Budget as cheaper versions of it; "it is okay to recommend another card that may not be quite as useful to the deck but provides value to the slot rather than just filling it with anything")
+
+- **Mid uses the Budget card** when a slot has no Mid card of its own (`planPick`): a $1 card fits under $12. Before, 11-12
+  Mid slots per deck were left open (Captain America, Doctor Doom) and filled with the best Mid card overall.
+- **Loose stand-ins** (buildPlan `alt(x, cap, true)`): when no card under the price does the same job, the best card under the
+  price that still serves the slot (shares a job with the Apex card, or fits a deck plan it is there for), marked mx / bx.
+  Real decks rarely need it (0 slots across ten commanders, 0 in a one-set deck); forced on every slot (UP.looseAll, tests
+  only) it picks Rip Apart for Cyclonic Rift, We Say Thee Nay! for Fierce Guardianship, Patriot, Shield Wielder for Flawless
+  Maneuver. Only a slot nothing serves falls back to the best card at that price.
+- The Building window shows only the deck-building steps (the card-data download's "Connection to Scryfall dropped" message
+  showed there). UI-GEN-03 waits up to 60 s for its deck (about 20 s in the tests on 0.9.17 too).
+- Benchmark identical on all fifteen numbers. UI suite 125 (B81-02, B135-01 pass alone; B144-02's 2 s limit is met by 0.9.17
+  and 0.9.18 alike, 1.5-1.8 s).
+
 ## Version 0.9.17 (build 162, 25 October 2026; owner: "alternate printings of cards as the original card name and the wrong card being displayed")
 
 - A deck's themed set printings (ensureTheme) now keep the name printed on them (Scryfall flavor_name; cache dc.theme2 ->

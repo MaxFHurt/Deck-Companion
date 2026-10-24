@@ -427,8 +427,9 @@ function phHtml(c) {
   );
 }
 function setStatus(t) {
+  // the Building window shows the deck-building steps only (not the card-data download's messages)
   const gb = $('#genbuild-msg');
-  if (gb && t) gb.textContent = t;
+  if (gb && t && /^(Thinking|Reading)/.test(t)) gb.textContent = t;
   const el = $('#status');
   if (el) {
     const was = el.hidden;
