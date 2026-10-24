@@ -2090,7 +2090,7 @@ function apexFor(d) {
   const k = apexKey(d),
     lk = 'dc.apx.' + strHash(k);
   const withTot = v => {
-    if (v && !v.tot && !apexFor.tbusy) {
+    if (v && (!v.tot || !v.tot.parts) && !apexFor.tbusy) {
       apexFor.tbusy = true;
       setTimeout(() => {
         try {
@@ -2321,12 +2321,71 @@ function statDelta(v, ref, unit) {
 function refOrder(T) {
   return T && {budget: T.budget, mid: Math.max(T.mid, T.budget), apex: Math.max(T.apex, T.mid, T.budget)};
 }
-// one decimal when two marks would round to the same number but are not the same
-function markNums(T0, e) {
-  const r = [T0.budget, T0.mid, T0.apex],
-    tie = r.some((v, i) => i && Math.round(v) === Math.round(r[i - 1]) && Math.abs(v - r[i - 1]) >= 0.05),
-    f = v => (tie ? +v.toFixed(1) : Math.round(v));
-  return {you: e.total, budget: f(T0.budget), mid: f(T0.mid), apex: f(T0.apex)};
+// Deck power (owner, 25 Oct: "Budget being 87 and Apex being 91 is too tight"): the deck score placed on this deck's own builds,
+// Budget build 70, Mid 85, Apex 100, in between by the score. Below Budget the scale runs to 0 at 25 score points under the
+// Budget build (a precon lands around 50); above the Apex build each score point adds 3. The deck score itself (what upgrades
+// are chosen by) is unchanged.
+const POWER_MARKS = {budget: 70, mid: 85, apex: 100},
+  POWER_FLOOR = 25;
+function powerOf(x, T) {
+  const b = T.budget,
+    m = T.mid,
+    a = T.apex;
+  if (x >= a) return 100 + 3 * (x - a);
+  if (x >= m) return 85 + (15 * (x - m)) / Math.max(0.01, a - m);
+  if (x >= b) return 70 + (15 * (x - b)) / Math.max(0.01, m - b);
+  return Math.max(0, 70 - (70 * (b - x)) / POWER_FLOOR);
+}
+// What keeps a deck below the next level (owner's choice B): each part of its score against that level's build, the biggest
+// weighted gaps first, with the part's own explanation (which jobs are short, how many finishers).
+const SCORE_PART = {synergy: 'Synergy', balance: 'Balance', quality: 'Card quality', routes: 'Win routes', mana: 'Mana'},
+  PART_FIX = {
+    synergy: 'more cards that fit the deck’s plans',
+    balance: 'cover the jobs players run (ramp, draw, removal, wipes, lands)',
+    quality: 'stronger cards',
+    routes: 'more ways to win: finishers, combos, protection, recursion',
+    mana: 'smoother mana: lands, colours, curve'
+  };
+function gapHtml(e, T0r, lvl) {
+  const next = lvl === 'Starter' ? 'budget' : lvl === 'Budget' ? 'mid' : lvl === 'Mid' ? 'apex' : null,
+    P = next && T0r && T0r.parts && T0r.parts[next];
+  if (!P || !e || !e.parts) return '';
+  const W = typeof EV_W !== 'undefined' ? EV_W : {},
+    gaps = Object.keys(P)
+      .filter(k => e.parts[k] != null && P[k] != null && P[k] - e.parts[k] >= 3)
+      .map(k => ({k, d: P[k] - e.parts[k], w: (P[k] - e.parts[k]) * (W[k] || 10)}))
+      .sort((a, b) => b.w - a.w);
+  const ahead = Object.keys(P).filter(k => e.parts[k] != null && P[k] != null && e.parts[k] - P[k] >= 3);
+  if (!gaps.length) return '';
+  return (
+    '<div class="gapbox"><p class="note" style="margin:0"><b>What keeps it below ' +
+    TIERS[next].label +
+    '</b> (this deck’s ' +
+    TIERS[next].label +
+    ' build, part by part):</p><ul class="gaps">' +
+    gaps
+      .map(
+        g =>
+          '<li><b>' +
+          SCORE_PART[g.k] +
+          ' ' +
+          e.parts[g.k] +
+          ' vs ' +
+          P[g.k] +
+          '</b>: ' +
+          PART_FIX[g.k] +
+          (e.why && e.why[g.k] ? ' <small class="note">(' + esc(e.why[g.k]) + ')</small>' : '') +
+          '</li>'
+      )
+      .join('') +
+    '</ul>' +
+    (ahead.length
+      ? '<p class="note" style="margin:0">Already ahead of it on ' +
+        ahead.map(k => SCORE_PART[k].toLowerCase()).join(', ') +
+        '.</p>'
+      : '') +
+    '</div>'
+  );
 }
 function tmeterHtml(qp, mk, lvl, sc, power) {
   const lo = mk ? Math.max(0, Math.floor(Math.min(qp, mk.budget) - 8)) : 0,
@@ -2335,9 +2394,7 @@ function tmeterHtml(qp, mk, lvl, sc, power) {
     lab = (k, name, v) => '<span class="tml ' + k + '"><i></i>' + name + ' <b>' + v + '</b></span>';
   return (
     '<div class="tmeter" role="img" aria-label="' +
-    (power ? 'Deck power ' : 'Card quality ') +
-    qp +
-    '% of the Apex build; ' +
+    (power ? 'Deck power ' + qp + ' (Budget build 70, Mid 85, Apex 100); ' : 'Card quality ' + qp + '% of the Apex build; ') +
     lvl +
     ' level"><i><b style="width:' +
     x(qp).toFixed(1) +
@@ -2495,11 +2552,13 @@ function statsHtml(d, A, R, mode) {
   // tier meter: the deck's cards between random playable cards (0) and the Apex build (100), with the best Budget and Mid builds marked
   // Apex progress is deck power: the deck's whole score against the Budget, Mid and Apex reference builds scored the same way
   // (Apex = 100). Card quality alone could put a strong deck below Budget. Before the references are scored, card quality stands in.
-  const T0 = refOrder((apexFor(d) || {}).tot),
+  const T0r = (apexFor(d) || {}).tot,
+    T0 = refOrder(T0r),
     pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
+    pwr = pw != null ? powerOf(e.exact, T0) : null, // deck power: Budget build 70, Mid 85, Apex 100 (owner, 25 Oct)
     pc = v => Math.max(0, Math.min(100, Math.round(v)));
-  const mk = pw != null ? {budget: pc((100 * T0.budget) / T0.apex), mid: pc((100 * T0.mid) / T0.apex)} : q.marks,
-    qp = pw != null ? pc(pw) : q.vsApex;
+  const mk = pw != null ? {budget: POWER_MARKS.budget, mid: POWER_MARKS.mid} : q.marks,
+    qp = pw != null ? pc(pwr) : q.vsApex;
   // the level compares unrounded scores (0.9.3 fix: 95.6% of Apex and a Budget mark at 95.74% both rounded to 96 read as Budget)
   const lvl =
     qp == null || !mk
@@ -2530,23 +2589,30 @@ function statsHtml(d, A, R, mode) {
             ? 'The tier meter appears once the deck has 90 or more cards.'
             : 'The tier meter appears once the card data has finished downloading.') +
         '</p>'
-      : tmeterHtml(qp, mk, lvl, pw != null ? markNums(T0, e) : null, pw != null) +
+      : tmeterHtml(
+          qp,
+          mk,
+          lvl,
+          pw != null ? {you: Math.round(pwr), budget: POWER_MARKS.budget, mid: POWER_MARKS.mid, apex: POWER_MARKS.apex} : null,
+          pw != null
+        ) +
         (pw != null
           ? '<p class="note" style="margin:0">Your deck is at <b>' +
             lvl +
             '</b> level' +
             (lvl === 'Starter' ? ' (below the best Budget build)' : '') +
-            ': it scores ' +
+            ': power <b>' +
+            Math.round(pwr) +
+            '</b>, on this deck’s own builds: the best all-under-$3 build is 70, all-under-$12 85, Apex 100 (deck score ' +
             e.total +
-            ', ' +
-            (pw > 100.5 ? 'above' : Math.round(pw) + '% of') +
-            ' the Apex build’s ' +
-            Math.round(T0.apex) +
-            '. The marks show where the best all-under-$3 (' +
+            '; the builds score ' +
             Math.round(T0.budget) +
-            ') and all-under-$12 (' +
+            ', ' +
             Math.round(T0.mid) +
-            ') builds score.</p>'
+            ' and ' +
+            Math.round(T0.apex) +
+            ').</p>' +
+            gapHtml(e, T0r, lvl)
           : '<p class="note" style="margin:0">Your cards are at <b>' +
             lvl +
             '</b> level' +
@@ -2558,10 +2624,13 @@ function statsHtml(d, A, R, mode) {
             (B && B.q != null && B.q !== qp ? ' since ' + B.at : '') +
             '. The marks show where the best all-under-$3 and all-under-$12 builds land.</p>');
   const strip =
-    '<div class="statbar" role="status" aria-live="polite"><span><b>' +
-    (e ? e.total : '—') +
-    '</b>/100' +
-    (e ? statDelta(e.total, prev && prev.score) : '') +
+    '<div class="statbar" role="status" aria-live="polite"><span>' +
+    (pwr != null
+      ? 'Power <b>' +
+        Math.round(pwr) +
+        '</b>' +
+        (prev && prev.score != null ? statDelta(Math.round(pwr), Math.round(powerOf(prev.score, T0))) : '')
+      : '<b>' + (e ? e.total : '—') + '</b>/100' + (e ? statDelta(e.total, prev && prev.score) : '')) +
     '</span>' +
     (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') +
     // the price level is a rule on what the deck may cost, shown apart from the power tier (owner, 20 Oct); a generated deck
@@ -2595,7 +2664,15 @@ function statsHtml(d, A, R, mode) {
     return (
       strip +
       '<div class="grp">' +
-      (qp == null ? tierMeter : tmeterHtml(qp, mk, lvl, pw != null ? markNums(T0, e) : null, pw != null)) +
+      (qp == null
+        ? tierMeter
+        : tmeterHtml(
+            qp,
+            mk,
+            lvl,
+            pw != null ? {you: Math.round(pwr), budget: POWER_MARKS.budget, mid: POWER_MARKS.mid, apex: POWER_MARKS.apex} : null,
+            pw != null
+          )) +
       '</div>'
     );
   return (

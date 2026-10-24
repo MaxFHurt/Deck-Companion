@@ -175,14 +175,16 @@ function apexRef0(d) {
 // evaluateDeck (the same score the player's deck gets). Apex progress places the player's deck on this scale, Apex = 100.
 function refScores(d, AR) {
   if (!AR || !AR.cards) return null;
-  const out = {};
+  const out = {parts: {}}; // each build's parts too: what a deck lacks against the next level (owner, 25 Oct)
   for (const t of ['budget', 'mid', 'apex']) {
     const u = JSON.parse(JSON.stringify(d));
     delete u.plan;
     u.tier = t;
     u.cards = AR.cards[t].filter(x => x && x.n).map(x => ({n: x.n, q: x.q, l: false}));
     try {
-      out[t] = +evaluateDeck(u, {apex: AR, games: 100}).exact.toFixed(2);
+      const e = evaluateDeck(u, {apex: AR, games: 100});
+      out[t] = +e.exact.toFixed(2);
+      out.parts[t] = e.parts;
     } catch (e) {
       return null;
     }
@@ -480,6 +482,9 @@ function evaluateDeck(d, opt) {
       Math.round(100 * S.floodT8) +
       '%';
   } else why.mana = 'available once the deck has its full 100 cards';
+  // the parts' weights and where a part stops rising (UP.evW / UP.evSuff override them: score experiments, 25 Oct)
+  const EVW = UP.evW || EV_W,
+    SU = UP.evSuff || EV_SUFF;
   const raw = {synergy: syn, balance: bal, quality: qual, routes, mana},
     parts = {};
   let total = 0;
@@ -491,7 +496,7 @@ function evaluateDeck(d, opt) {
   const pastMax = k => {
     if (!UP.unc || (UP.uncK && UP.uncK !== k)) return 0;
     if (k === 'quality') return qOver;
-    if (EV_SUFF[k]) return Math.max(0, raw[k] / EV_SUFF[k] - 1) * 100;
+    if (SU[k]) return Math.max(0, raw[k] / SU[k] - 1) * 100;
     const a = k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k],
       top = a[1] > a[0] ? 60 + (25 * (raw[k] - a[0])) / (a[1] - a[0]) : 0;
     return Math.max(0, top - 100);
@@ -499,7 +504,7 @@ function evaluateDeck(d, opt) {
   let wsum = 0,
     exact = 0;
   const contrib = {};
-  for (const k in EV_W) {
+  for (const k in EVW) {
     if (k === 'mana' && !S) {
       parts[k] = null;
       continue;
@@ -507,15 +512,15 @@ function evaluateDeck(d, opt) {
     const pe =
       k === 'quality' && qExact != null
         ? qExact
-        : EV_SUFF[k]
-          ? 100 * Math.min(1, raw[k] / EV_SUFF[k])
+        : SU[k]
+          ? 100 * Math.min(1, raw[k] / SU[k])
           : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]);
-    cmp += ((pe + UP.unc * pastMax(k)) * EV_W[k]) / 100; // stage 2: the smoother ways-to-win, shifted so a typical deck keeps its score
+    cmp += ((pe + UP.unc * pastMax(k)) * EVW[k]) / 100; // stage 2: the smoother ways-to-win, shifted so a typical deck keeps its score
     parts[k] = k === 'quality' && qPct != null ? qPct : Math.round(pe);
-    total += (parts[k] * EV_W[k]) / 100;
-    exact += (pe * EV_W[k]) / 100;
-    contrib[k] = (pe * EV_W[k]) / 100;
-    wsum += EV_W[k];
+    total += (parts[k] * EVW[k]) / 100;
+    exact += (pe * EVW[k]) / 100;
+    contrib[k] = (pe * EVW[k]) / 100;
+    wsum += EVW[k];
   }
   if (wsum && wsum < 100) {
     total = (total * 100) / wsum;

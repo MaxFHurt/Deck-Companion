@@ -391,7 +391,7 @@ const stt = await page.evaluate(async () => { const out = {}; const wq = async (
   out.first = document.querySelector('.statbar').textContent; out.base = JSON.parse(JSON.stringify(d.base || null)); out.firstTop = !!document.querySelector('#statscroll > .statbar:first-child');
   out.health = document.querySelectorAll('#stats-more .hi').length; out.meter = !!document.querySelector('.tmeter b'); out.left = /Upgrades left/.test(document.querySelector('#stats-more').textContent);
   S.tab = 'up'; render(); const b = document.querySelector('.paths [data-act="swap"][data-v$="|apex"]'), [i] = b.dataset.v.split('|'), p = recsFor(d).paths[+i].opts.apex, price = (find(p.add).p || 0) * p.q; b.click(); await new Promise(r => setTimeout(r, 300)); S.tab = 'stats'; render(); await wq();
-  out.swaps = num('.statbar', /Swaps (\d+)/); out.spent = num('.statbar', /Spent \$(\d+)/); out.expectSpent = Math.round(price); out.score = num('.statbar', /^(\d+)\/100/); out.evalScore = evalFor(d).total; out.baseKept = d.base && out.base && d.base.score === out.base.score;
+  out.swaps = num('.statbar', /Swaps (\d+)/); out.spent = num('.statbar', /Spent \$(\d+)/); out.expectSpent = Math.round(price); out.score = num('#stats-more .sgrid', /Deck score(\d+)/); /* 0.9.19: the strip shows deck power; the deck score is in Build stats */ out.evalScore = evalFor(d).total; out.baseKept = d.base && out.base && d.base.score === out.base.score;
   out.deltaShown = out.score === out.base.score || /since/.test(document.querySelector('#stats-more .sgrid').textContent);
   document.querySelector('[data-act="stats-reset"]').click(); document.querySelector('#confirm [data-act="conf-yes"]').click(); await new Promise(r => setTimeout(r, 200)); out.reset = d.base.score === evalFor(d).total;
   return out; });
@@ -1512,6 +1512,21 @@ const b162 = await page.evaluate(async () => { const out = {};
   $('#modal').hidden = true; PRINT.map = new Map(); PRINT.key = ''; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B162-01', 'Version 0.9.17: a card shown in a printing that carries another name is named by that printing, then its real name, on the upgrade sheet and in the card window', b162.sheetOk && b162.cardOk, JSON.stringify(b162));
 } catch (e) { QUIET = false; T('UI-B162-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
+// Version 0.9.19 (owner, 25 Oct: "Budget being 87 and Apex being 91 is too tight"): deck power on the deck's own builds (Budget
+// build 70, Mid 85, Apex 100) on the strip and the meter, and what keeps the deck below the next level, part by part.
+const b164 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  for (let i = 0; i < 200 && !(apexFor(d) && apexFor(d).tot && apexFor(d).tot.parts); i++) { await new Promise(r => setTimeout(r, 100)); if (i % 10 === 0) render(); }
+  S.view = 'decks'; S.open = true; S.tab = 'stats'; render(); await new Promise(r => setTimeout(r, 300)); render();
+  const strip = (document.querySelector('.statbar') || {}).textContent || '', leg = (document.querySelector('.tm-leg') || {}).textContent || '';
+  out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.marks = /Budget\s*70/.test(leg) && /Mid\s*85/.test(leg) && /Apex\s*100/.test(leg);
+  const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round(powerOf(e.exact, T));
+  out.gaps = [...document.querySelectorAll('.gapbox li')].map(x => x.textContent.slice(0, 40)); out.gapOk = out.lvl === 'Apex' || out.gaps.length > 0;
+  out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-B164-01', 'Version 0.9.19: the strip and meter show deck power on this deck’s own builds (Budget 70, Mid 85, Apex 100); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
+} catch (e) { QUIET = false; T('UI-B164-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-IPAD-02')) { try { if (SHARD) await RESET();
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);

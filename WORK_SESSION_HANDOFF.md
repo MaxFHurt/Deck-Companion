@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 21 October 2026. Live: Version 0.9.18 (build 163; generated Mid and Budget decks derive from the Apex build: same card, a cheaper card that does the same job, or the closest card that still serves the slot). Open question to the owner: keep the polish step (extra score-raising swaps after deriving a Mid/Budget deck)?
+Last updated: 21 October 2026. Live: Version 0.9.19 (build 164; deck power on the deck's own builds, Budget 70 / Mid 85 / Apex 100, and what keeps a deck below the next level). Open question to the owner: keep the polish step (extra score-raising swaps after deriving a Mid/Budget deck)?
 **Next: the engine redesign** (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Owner, 20 Oct: "all the
 engine rework stays here until we're sure we are doing better choices. I still want all the options available that were
 available before... I don't want to change our app. Just the way choices are made behind the scenes." Decisions: the rules

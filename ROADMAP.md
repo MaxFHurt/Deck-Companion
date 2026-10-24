@@ -222,6 +222,23 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.19 (build 164, 25 October 2026; owner: "Budget being 87 and Apex being 91 is too tight ... Combo of A and B, for sure. Let's try C as well")
+
+Why the tiers sat close: the deck score is synergy 30 + balance 25 + card quality 20 + win routes 15 + mana 10, and synergy and
+balance reach 100 on any well-built deck (a precon too), so card strength moves only a fifth of it (Turtle Power: precon 83.6,
+Budget build 87.5, Mid 90.5, Apex 92.2; Avengers' Budget build 91.0 above its Mid build 90.3).
+- **A. Deck power** (`powerOf`, display only): the deck score placed on the deck's own builds, Budget build 70, Mid 85, Apex
+  100, in between by the score; below Budget it reaches 0 at 25 score points under the Budget build (a precon lands near 50);
+  past Apex each score point adds 3. On the strip ("Power 50") and the tier meter; the deck score stays in Build stats.
+- **B. What keeps it below the next level** (`gapHtml`): each part against that level's build, biggest weighted gaps first,
+  with the part's own explanation (Turtle Power: win routes 29 vs 59, card quality 64 vs 86; already ahead on mana). The
+  reference builds' parts are saved with them (refScores `parts`; saved references are scored again once).
+- **C. Reweighting the score: tried, not kept.** UP.evW / UP.evSuff (off) override the weights and where a part stops rising.
+  Quality 40 (synergy 20, balance 15): test @10 0.198 -> 0.207, wide row@5 0.429 -> 0.433, but tuneall @10 0.139 -> 0.136,
+  holdout @10 0.213 -> 0.212. Plus later caps: tuneall @10 0.132. Quality 30: wide @10 0.303 -> 0.307 but tuneall @10 0.138,
+  holdout 0.212. The Budget-to-Apex gap widens only a little (Turtle 4.7 -> 6.4 at quality 40), so with A it is no gain.
+- Benchmark identical to 0.9.18 on all fifteen numbers. UI-B164-01 added; UI-STATS-01 reads the deck score from Build stats.
+
 ## Version 0.9.18 (build 163, 25 October 2026; owner: Apex first, then Mid and Budget as cheaper versions of it; "it is okay to recommend another card that may not be quite as useful to the deck but provides value to the slot rather than just filling it with anything")
 
 - **Mid uses the Budget card** when a slot has no Mid card of its own (`planPick`): a $1 card fits under $12. Before, 11-12
