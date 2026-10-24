@@ -1895,22 +1895,23 @@ function planDeck(cmdName, extraAims, partner, opts) {
   });
   return nd;
 }
+// Every way of generating builds the whole deck list (owner, 24 Oct: "I don't want to manually add all the cards"). With no price
+// level chosen the deck is built like a precon: at Budget (every card under $3), the level nearest a retail precon (Turtle
+// Power's precon scores 80 against the best Budget build's 87). A commander with no strategy of its own is built on what its
+// players build (EDHREC themes) or, with none, on card strength and jobs alone, like a precon.
 async function startPlan(cmdName, seeds, extraAims, partner, opts) {
+  opts = Object.assign({}, opts);
+  const preconLike = !opts.fill;
+  if (preconLike) opts.fill = 'budget';
   const c = find(cmdName),
     nd = planDeck(cmdName, extraAims, partner, opts);
   if (!nd) return null;
-  if (!nd.aims.length) {
-    openDraft(nd);
-    (seeds || []).forEach(x => {
-      if (x.n !== c.n && x.n !== nd.partner && x.ci.every(k => ctxOf(nd).ident.includes(k))) {
-        addCard(nd, x.n, 1);
-        nd.cards[nd.cards.length - 1].l = true;
-      }
-    });
-    toast('Pick your mechanics in the Build panel, then press Fill.');
-    return nd;
-  }
-  const G = await genRun(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet(), opts && opts.fill);
+  if (!nd.aims.length)
+    try {
+      const ea = await edhAimsFor(c);
+      if (ea.length) nd.aims = ea;
+    } catch (e) {}
+  const G = await genRun(nd, seeds || [], S.gen.own ? ownSet() : null, ownSet(), opts.fill);
   openDraft(nd);
   S.tab = 'up';
   S.planShow = 0;
@@ -1928,7 +1929,7 @@ async function startPlan(cmdName, seeds, extraAims, partner, opts) {
             '; the rest stay open.'
           : '';
     // The deck is built straight into the decklist at the chosen price level; the stronger picks stay as its upgrades.
-    if (opts && opts.fill) {
+    {
       const k = G.k;
       S.tab = 'list';
       toast(
@@ -1940,6 +1941,8 @@ async function startPlan(cmdName, seeds, extraAims, partner, opts) {
           TIERS[opts.fill].label +
           '.' +
           short +
+          (preconLike ? ' No price level was chosen, so it is built like a precon (Budget: every card under $3).' : '') +
+          (!nd.aims.length ? ' This commander has no strategy of its own, so the deck is built on card strength and jobs.' : '') +
           (opts.fill === 'apex' ? '' : ' The Upgrades tab shows the steps up.') +
           (nd.budget && nd.budget.total && nd.budget.cost != null
             ? nd.budget.cost <= nd.budget.total
@@ -1951,7 +1954,7 @@ async function startPlan(cmdName, seeds, extraAims, partner, opts) {
                 '.'
             : '')
       );
-    } else toast('Designed a ' + n + '-card build for ' + c.n + '.' + short + ' Add the cards you want from the Upgrades tab.');
+    }
   }
   return nd;
 }

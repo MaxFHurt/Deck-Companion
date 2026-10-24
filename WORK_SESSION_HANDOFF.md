@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 21 October 2026. Live: Version 0.9.15 (build 160; finished upgrade lists are saved and reopen at once). Benchmark: one command for all fifteen numbers (plus weighted), about 4 min: `node benchall.js <engineDir> <label>` in the tests folder (UP etc. pass through). The wide set's EDHREC pages are in data3/edhrec.
+Last updated: 21 October 2026. Live: Version 0.9.16 (build 161; every way of generating builds the full deck list, Budget (precon-like) when no level is chosen). Benchmark: one command for all fifteen numbers (plus weighted), about 4 min: `node benchall.js <engineDir> <label>` in the tests folder (UP etc. pass through). The wide set's EDHREC pages are in data3/edhrec.
 **Next: the engine redesign** (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Owner, 20 Oct: "all the
 engine rework stays here until we're sure we are doing better choices. I still want all the options available that were
 available before... I don't want to change our app. Just the way choices are made behind the scenes." Decisions: the rules

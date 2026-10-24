@@ -222,6 +222,18 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.16 (build 161, 24 October 2026; owner: "When generating a deck in any way, you should generate that deck with a full deck list at the appropriate tier. If none is assigned, you should make a commander deck equivalent to a precon.")
+
+- **Every way of generating builds the whole list** (`startPlan`): Build around my cards (seed-go) used to design a build plan
+  you added from by hand, and a commander with no strategy of its own (49 of the 357 most-played) opened an empty deck asking for
+  mechanics. Now both fill all 99 cards. A chosen price level is kept (Generate, Theme build).
+- **No level chosen: built like a precon**, at Budget (every card under $3): the level nearest a retail precon (Turtle Power's
+  precon scores 80, the best Budget build 87). The toast says so.
+- **No strategy of its own:** the commander's EDHREC themes lead; with none, the deck is built on card strength and jobs.
+- Build-plan decks saved before keep working (plan slots, alternatives, Regenerate around my cards); the tests make one with
+  `planOnly` (the old way) to keep testing them. UI-B161-01 added; UI-B160-01 checks the upgrade list's own thinking note.
+- Engine bundle unchanged (same sources hash as 0.9.15): benchmark identical. UI suite 124 (B146-02, GEN-03, BUY-01 pass alone).
+
 ## Version 0.9.15 (build 160, 24 October 2026; owner: "the thinking and waiting needs to be expedited without cutting corners")
 
 Measured first (one core): the whole-card search is most of the wait (7-14 s; 1,750-3,750 candidates, each a full deck
