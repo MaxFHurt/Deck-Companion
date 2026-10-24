@@ -222,6 +222,41 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.11 (build 156, 24 October 2026; owner: "Catch up on the chat and get to work")
+
+The owner's list (24 Oct):
+- **Held picks removed.** A pick shown once no longer holds its slot ("Apply all" refused to run when a held pick differed
+  from the one shown: held_pick_changed). Only an alternative the player chooses is kept ("Your choice").
+- **Tiers in order.** On a row, Mid is the best of the rest under $12 and Budget the best of the rest under $3 by deck-score
+  gain, so a Budget card never scores above Mid (engine `tierCols`). "Apply all" for a tier uses the strongest card on the row
+  at that price (a cheap Apex card is also the Mid pick, `tierPick`); Apex stays the engine's own pick. When two tiers make
+  the same swaps the list says why (the strongest cards already cost under $12). An empty column says when the card above
+  already costs under its price. The bar's Budget / Mid / Apex marks are kept in order and show a decimal on near-ties.
+- **Tier buttons say what the new cards cost to buy** ("14 cards · $151 to buy"); the cards taken out are no longer
+  subtracted (the "−$3" for eleven cards).
+- **One swap re-thinks only its slot** (`keepRecs` / `carryRecs`): the checked list stays, the swapped row leaves, and the
+  card that went in is no longer offered elsewhere. Undo, Regenerate and other edits still work the list out again.
+- **Buy list kept.** The suggested buys are worked out once and saved with the deck (`d.buySnap`), each with a Bought mark
+  (`d.bought`); Refresh suggestions works them out again (it asks first).
+- **Generate asks first** (`genConfirm`: art, type, rules text, colours, price, EDHREC decks, strategy) and keeps a
+  "Building your deck" window with live progress until the new deck opens (`genBuilding`).
+- **Profile → Upgrade engine:** Current or Classic (0.9.3), kept on the device (`dc.engine`); `ENGINE_OLD` now also turns off
+  the newer plans and the xPlan bonus. Old engine on the benchmark: tuneall 0.248 / 0.250 / 0.129 (current 0.252 / 0.254 /
+  0.136), test 0.298 / 0.300 / 0.191 (0.299 / 0.299 / 0.198), holdout 0.300 / 0.300 / 0.211 (0.301 / 0.301 / 0.213);
+  corpus5 likewise. On Turtle Power both engines pick nearly the same Apex cards (Six, Sun Titan, Craterhoof...): the
+  generic-power picks come from the whole-card search (0.9.3), not from the engine change.
+
+Also: misread.js widened to 160 commanders (EDHX=data3/edhrec: 109 more EDHREC pages): 62 -> 11. New plans offered to
+every player, never auto-picked: Infect / poison, -1/-1 counters, Mill (opponents), Pillow fort, Dice rolling, Legends /
+historic, X spells; wording for Shrines and Sagas, land tutors, burn amplifiers, extra blocks, mass blink, lure, life
+thresholds, dies-and-returns, commanders you control, legend pump, {0} casting, Protean Hulk; scry / surveil count lightly for
+Top of library. Two broad patterns ("when this creature dies", "search for a basic land") and self-mill in the Mill plan
+lowered a number and were narrowed. Practice games play by more rules (UP.v2sim on): creatures are summoning sick, a
+creature tapped for mana doesn't attack, rocks pay only what they net; the Practice panel shows each turn's unblocked
+attack and the damage by turn 8 (practiceGames matches simulate game for game). Phase 3 trials (counterspells, protection,
+tutors, ramp from the reader): none raised the benchmark; off. Benchmark identical to 0.9.10 on all twelve numbers. UI
+suite: 119 + UI-B156-01 pass (B81-02, B135-01, B146-02, GEN-03 pass alone; they clash only when run three side by side).
+
 ## Version 0.9.10 (build 155, 21 October 2026; owner: "finish all the cards, don't ask for permission")
 
 misread.js 12 -> 0: every card on the 52 test commanders' upgrade lists now shows a reason tied to the deck's plans. New

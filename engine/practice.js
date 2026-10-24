@@ -467,7 +467,9 @@ function practiceGames(d, games, seed) {
       flood: 0,
       landsT4: [],
       noPlayT3: 0,
-      mull: 0
+      mull: 0,
+      dmg: [0, 0, 0, 0, 0, 0, 0, 0],
+      kill: []
     },
     rnd = rng32(seed || 1),
     logs = [],
@@ -508,7 +510,9 @@ function practiceGames(d, games, seed) {
       cz = cmds.slice();
     let cmdT = 0,
       stuckAny = false,
-      ramped = 0;
+      ramped = 0,
+      dmg = 0,
+      killT = 0;
     for (let turn = 1; turn <= 10; turn++) {
       const T = {turn, draw: '', land: '', tapped: false, cast: [], mana: 0, spent: 0};
       G.turns.push(T);
@@ -641,7 +645,15 @@ function practiceGames(d, games, seed) {
               cols: x.cols.length ? x.cols.filter(k => ident.includes(k)) : ['C']
             })
           );
-        else if (x.perm) bf.push({mana: 0, cols: [], power: x.power, creature: x.creature, artifact: x.artifact});
+        else if (x.perm)
+          bf.push({
+            mana: 0,
+            cols: [],
+            power: x.power,
+            creature: x.creature,
+            artifact: x.artifact,
+            sickNow: !!UP.v2sim && x.creature && !x.haste
+          });
         if (x.ramp) {
           ramped += x.ramp;
           for (let r = 0; r < x.ramp; r++) bf.push({land: true, mana: 1, cols: ident.slice(), tappedNow: true, wake: turn + 1});
@@ -658,6 +670,14 @@ function practiceGames(d, games, seed) {
         }
         for (let q = 0; q < (x.draw || 0); q++) if (lib.length) hand.push(lib.shift());
       }
+      // combat basics (UP.v2sim), as in simulate(): the panel shows each turn's attack and the running total
+      if (UP.v2sim) {
+        T.attack = bf.reduce((a, s) => a + (s.creature && s.power > 0 && !s.sickNow && !s.usedCount ? s.power : 0), 0);
+        dmg += T.attack;
+        T.dmg = dmg;
+        if (turn <= 8) R.dmg[turn - 1] += dmg;
+        if (!killT && dmg >= 40) killT = turn;
+      }
       bf.forEach(s => {
         s.used = false;
         s.usedCount = 0;
@@ -672,14 +692,16 @@ function practiceGames(d, games, seed) {
       if (turn === 8 && L + hand.filter(c => simCard(c, ident).land).length - ramped >= 9) R.flood++; // flood: 9+ of the ~15 cards seen by turn 8 are lands
     }
     R.cmdTurn.push(cmdT || 11);
+    R.kill.push(killT || 11);
     if (stuckAny) R.colourStuck++;
+    G.killT = killT;
     G.cmdTurn = cmdT || 0;
     G.stuck = stuckAny;
   }
   const n = R.games,
     med = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
-  return {
-    logs,
+  const combat = UP.v2sim ? {damageT1to8: R.dmg.map(v => +(v / n).toFixed(1)), killMedianTurn: med(R.kill)} : {};
+  return Object.assign({logs}, combat, {
     games: n,
     cmdMedianTurn: med(R.cmdTurn),
     cmdByT4: R.cmdTurn.filter(t => t <= 4).length / n,
@@ -691,7 +713,7 @@ function practiceGames(d, games, seed) {
     floodT8: +(R.flood / n).toFixed(3),
     mulligan: +(R.mull / n).toFixed(3),
     landsT4: +(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)
-  };
+  });
 }
 // ----- combos (Commander Spellbook, via the card-data job; see tools/build-combos.mjs) -----
 // COMBOS.list: {keys, names, ci, win, what, decks, bt, note}; COMBOS.by: card key -> combos it is in.

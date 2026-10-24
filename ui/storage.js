@@ -427,6 +427,8 @@ function phHtml(c) {
   );
 }
 function setStatus(t) {
+  const gb = $('#genbuild-msg');
+  if (gb && t) gb.textContent = t;
   const el = $('#status');
   if (el) {
     const was = el.hidden;

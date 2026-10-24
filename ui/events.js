@@ -144,6 +144,11 @@ const CONFIRM = {
   ],
   'want-undo': (v, n) => ['Remove ' + n + ' from the buy list?', 'The card comes off the buy list. No deck changes.', 'Remove'],
   'mywant-rm': () => ['Remove from your buy list?', 'The card comes off your own buy list.', 'Remove'],
+  'buy-refresh': () => [
+    'Refresh the suggested buys?',
+    'The suggestions are worked out again from the current upgrade list, so some cards may change. Cards you added yourself, and the Bought marks, stay.',
+    'Refresh'
+  ],
   'lib-clear': () => [
     'Empty your library?',
     'Every card you marked as owned is removed from your library, for all your decks.',
@@ -926,6 +931,7 @@ function handleAct(act, v, n, pArg) {
       }
       const ap0 = rowCols(d, recsFor(d), L, +i).apex,
         top = !!ap0 && ap0.p.add === p.add;
+      keepRecs(d, p);
       doSwap(d, p, top ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(t) + 1));
       toast('Swapped ' + p.cut + ' for ' + p.add + '.');
       break;
@@ -1543,6 +1549,27 @@ function handleAct(act, v, n, pArg) {
       toast('Removed ' + x.n + ' from the buy list.');
       break;
     }
+    case 'buy-got': {
+      if (!d || !n) return;
+      const k = keyOf(n),
+        had = (d.bought || []).some(x => keyOf(x) === k);
+      d.bought = (d.bought || []).filter(x => keyOf(x) !== k).concat(had ? [] : [n]);
+      toast(
+        had ? n + ' is no longer marked bought.' : n + ' is marked bought. It stays on this list until it goes into the deck.'
+      );
+      break;
+    }
+    case 'engine-mode':
+      if (v === engineMode()) return;
+      lsSet('dc.engine', v);
+      toast(v === 'old' ? 'Switching to the Classic engine…' : 'Switching to the Current engine…');
+      setTimeout(() => location.reload(), 400); // every card's reading is cached for the session: a fresh start uses the new engine
+      return;
+    case 'buy-refresh':
+      if (!d) return;
+      delete d.buySnap;
+      toast('Buy list suggestions worked out again from the current upgrades.');
+      break;
     case 'gset-rm':
       S.gen.sets.splice(+v, 1);
       if (!S.gen.sets.length) S.gen.setsMust = false;
@@ -1581,6 +1608,15 @@ function handleAct(act, v, n, pArg) {
       return;
     }
     case 'gen-pick':
+      genConfirm(n);
+      loadEdh(n).then(() => {
+        if (!$('#modal').hidden && $('.gconfirm') && find(n)) genConfirm(n);
+      });
+      return;
+    case 'gen-pick-back':
+      openGenerate();
+      return;
+    case 'gen-pick-ok':
       S.gen.cmd = n;
       S.gen.partner = '';
       openGenerate();
@@ -1730,7 +1766,7 @@ function handleAct(act, v, n, pArg) {
     case 'gen-go': {
       const c = find(S.gen.cmd);
       if (!c) return;
-      $('#modal').hidden = true;
+      genBuilding(c); // the window stays up while the deck is built (owner, 24 Oct: it went back to the landing page)
       const g = S.gen,
         p = find(g.partner),
         sets = (g.sets || []).slice(),
@@ -1768,6 +1804,7 @@ function handleAct(act, v, n, pArg) {
             )
           )
         );
+        if ($('#genbuild')) $('#modal').hidden = true;
         touch();
         render();
       })();
@@ -1857,6 +1894,7 @@ function handleAct(act, v, n, pArg) {
         toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.');
         return;
       }
+      keepRecs(d, p);
       doSwap(d, p, TIER_KEYS.length);
       toast('Swapped ' + p.cut + ' for ' + p.add + '.');
       break;
@@ -1953,6 +1991,7 @@ function handleAct(act, v, n, pArg) {
         toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.');
         return;
       }
+      keepRecs(d, p);
       doSwap(d, p, TIER_KEYS.indexOf(t) + 1);
       toast('Swapped ' + p.cut + ' for ' + p.add + '.');
       break;

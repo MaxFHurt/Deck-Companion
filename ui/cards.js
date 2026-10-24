@@ -31,6 +31,27 @@ function viewProfile() {
       .join('') || '<p class="note">No decks saved.</p>') +
     '</div>' +
     '</section>' +
+    // owner, 24 Oct ("is it possible to recover where we were?"): the engine from before the engine change (0.9.3) stays
+    // selectable on this device; every version is also kept in the project history
+    '<section class="panel"><div class="ph"><h2>Upgrade engine</h2><small>This device</small></div><p class="note" style="margin:0;max-width:75ch">Which engine picks your upgrades and builds generated decks. <b>Current</b> reads every card’s rules and knows more deck plans. <b>Classic</b> picks the way the app did before the engine change (0.9.3). Your decks are not changed; the upgrade lists are worked out again.</p><div class="row">' +
+    [
+      ['new', 'Current'],
+      ['old', 'Classic (0.9.3)']
+    ]
+      .map(
+        ([k, label]) =>
+          '<button class="btn' +
+          (engineMode() === k ? ' pri' : '') +
+          '" data-act="engine-mode" data-v="' +
+          k +
+          '" aria-pressed="' +
+          (engineMode() === k) +
+          '">' +
+          label +
+          '</button>'
+      )
+      .join('') +
+    '</div></section>' +
     backupPanel() +
     '<section class="panel"><div class="ph"><h2>Card database</h2><small>' +
     (DBINFO.source === 'full'

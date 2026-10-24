@@ -1350,13 +1350,18 @@ function buyData(d) {
     const c = find(p.add);
     return {n: p.add, q: p.q, p: c ? c.p : null, t, gain: p.gain || 0};
   };
-  const groups = R.paths
-    .map(L => ({
-      cut: L.cut,
-      g: grp(find(L.cut)),
-      opts: TIER_KEYS.filter(t => L.opts[t] && !L.opts[t].beaten)
-        .map(t => item(L.opts[t], t))
-        .sort((a, b) => a.gain - b.gain)
+  // the suggestions are worked out once and kept with the deck (owner, 24 Oct: cards already bought vanished when the engine
+  // changed); a card that went into the deck, or whose card it replaces left, drops out; Refresh works them out again
+  const snap = hasPlan ? null : buySnap(d, R),
+    bought = new Set((d.bought || []).map(keyOf));
+  const groups = (snap ? snap.groups : [])
+    .filter(G => entryOf(d, G.cut))
+    .map(G => ({
+      cut: G.cut,
+      g: grp(find(G.cut)),
+      opts: G.opts
+        .filter(o => !hasCard(d, o.n) || isBasic(o.n))
+        .map(o => Object.assign(item({add: o.n, q: o.q, gain: o.gain}, o.t), {got: bought.has(keyOf(o.n))}))
     }))
     .filter(G => G.opts.length)
     .sort((a, b) => order.indexOf(a.g) - order.indexOf(b.g) || a.cut.localeCompare(b.cut));
@@ -1392,6 +1397,21 @@ function buyData(d) {
   });
   const count = groups.reduce((s, G) => s + G.opts.length, 0) + fixes.length + want.length;
   return {groups, fixes, want, count};
+}
+function buySnap(d, R) {
+  if (d.buySnap && d.buySnap.groups) return d.buySnap;
+  if (!R || R.pending || (R.pool && !R.poolDone) || !R.paths.length) return null;
+  d.buySnap = {
+    at: new Date().toISOString().slice(0, 10),
+    groups: R.paths.map(L => ({
+      cut: L.cut,
+      opts: TIER_KEYS.filter(t => L.opts[t] && !L.opts[t].beaten)
+        .map(t => ({n: L.opts[t].add, q: L.opts[t].q, t, gain: L.opts[t].gain || 0}))
+        .sort((a, b) => a.gain - b.gain)
+    }))
+  };
+  persistSoon();
+  return d.buySnap;
 }
 function buyText(d) {
   const B = buyData(d),
@@ -1451,7 +1471,22 @@ function buyHtml(d) {
       '</span><em>' +
       (G.opts.length > 1 ? G.opts.length + ' options' : '1 option') +
       '</em></button>' +
-      G.opts.map(row).join('') +
+      G.opts
+        .map(
+          x =>
+            '<div class="row" style="flex-wrap:nowrap;gap:6px"><div style="flex:1;min-width:0">' +
+            row(x) +
+            '</div><button class="btn sm' +
+            (x.got ? ' pri' : '') +
+            '" data-act="buy-got" data-n="' +
+            esc(x.n) +
+            '" aria-pressed="' +
+            !!x.got +
+            '" title="Mark that you have bought this card">' +
+            (x.got ? 'Bought ✓' : 'Bought?') +
+            '</button></div>'
+        )
+        .join('') +
       '</div>'
     );
   };
@@ -1497,6 +1532,11 @@ function buyHtml(d) {
   return (
     wantHtml +
     '<p class="note" style="margin:0">Grouped by the card being replaced. Each group lists the cards that could take its place, weakest to strongest, so you only need one per group.' +
+    (d.buySnap && d.buySnap.at
+      ? ' Suggestions as worked out on ' +
+        d.buySnap.at +
+        '; they stay put until you refresh them. <button class="btn sm" data-act="buy-refresh">Refresh suggestions</button>'
+      : '') +
     (DBINFO.complete ? '' : ' Card data is still downloading, so this list will grow.') +
     '</p>' +
     (B.fixes.length

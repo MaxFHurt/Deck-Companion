@@ -8,7 +8,7 @@
 const fs = require('fs'), path = require('path'), H = require('./h.js')(path.resolve(process.argv[2])), X = H.ctx, run = H.run;
 if (process.env.UP){ X.__up = JSON.parse(process.env.UP); run('Object.assign(UP, __up)'); }
 const minSyn = +(process.argv[3] || 0.2), minInc = +(process.argv[4] || 0.1);
-const dirs = ['../snapshot/edhrec', '../data2/edhrec'].map(d => path.resolve(__dirname, d)).filter(fs.existsSync), seen = new Set();
+const dirs = ['../snapshot/edhrec', '../data2/edhrec'].concat(process.env.EDHX ? ['../' + process.env.EDHX] : []).map(d => path.resolve(__dirname, d)).filter(fs.existsSync), seen = new Set();
 const REV = run('(() => { const r = {}; for (const k in TAG_OF) r[TAG_OF[k]] = k; if (typeof TAG_ALIAS === "object") Object.assign(r, TAG_ALIAS); return r; })()');
 let total = 0, cmds = 0;
 for (const dir of dirs) for (const f of fs.readdirSync(dir).filter(f => /^[a-z0-9-]+\.json$/.test(f))){

@@ -33,15 +33,13 @@ function watchAlerts(d) {
   } // and for the theme pages and the Apex reference the score check uses
   const R = recsFor(d),
     out = [];
-  let ch = false,
-    freed = false;
+  let ch = false;
   if (R.pending || (R.pool && !R.poolDone)) return [];
   if (!d.recP) d.recP = {}; // picks are held once shown: after the whole-card search (0.9.3)
   (R.unlock || []).forEach(k => {
     if (d.recP[k]) {
       delete d.recP[k];
       ch = true;
-      freed = true;
     }
   }); // a clearly better card took the slot
   R.paths.forEach(L =>
@@ -53,13 +51,7 @@ function watchAlerts(d) {
       const k = norm(p.add),
         cap = TIERS[t].cap,
         r = d.recP[k];
-      if (!r) {
-        if (t === 'apex' || underCap(c.p, t)) {
-          d.recP[k] = {t, p: c.p, at: new Date().toISOString().slice(0, 10), pair: JSON.parse(JSON.stringify(p))};
-          ch = true;
-        }
-        return;
-      }
+      if (!r) return; // picks are no longer held once shown (owner, 24 Oct: held picks blocked swaps); only a chosen alternative is kept
       if (!r.pair && r.t === t) {
         r.pair = JSON.parse(JSON.stringify(p));
         ch = true;
@@ -73,15 +65,6 @@ function watchAlerts(d) {
     const c = find(en.n);
     if (c && !legalIn(c, d.format) && !ok.has(norm(en.n))) out.push({kind: 'legal', n: en.n});
   });
-  // holding the picks already on screen does not change them, so the checked list stays valid (no second pass)
-  if (ch && !freed && recsFor.v === R) {
-    R.paths.forEach(L =>
-      Object.values(L.opts).forEach(p => {
-        if (d.recP[norm(p.add)]) p.held = true;
-      })
-    );
-    recsFor.k = recsKey(d);
-  }
   if (ch) persistSoon();
   return out;
 }
@@ -1416,25 +1399,34 @@ function rowCols(d, R, L, i) {
   const O = L.opts,
     out = {},
     shown = new Set();
-  // the best card for the slot is its Apex card: with no Apex pick of its own, the best cheaper pick moves up (not copied)
-  const okp = p => p && !(d.format === 'commander' && hasCard(d, p.add)),
-    best = [O.apex, O.mid, O.budget].find(okp);
-  if (best && best !== O.apex) {
-    out.apex = {p: best, src: best === O.mid ? 'mid' : 'budget', kind: 'moved'};
-    shown.add(norm(best.add));
-  }
+  // strongest first (tierCols): Apex the best card on the row, Mid and Budget the best of the rest at their price, each card once,
+  // so a cheaper column never scores above a dearer one (owner, 24 Oct)
+  const cols = tierCols(O, p => d.format === 'commander' && hasCard(d, p.add));
   for (const t of ['apex', 'mid', 'budget']) {
-    if (out[t]) continue;
-    const p = O[t] && !(d.format === 'commander' && hasCard(d, O[t].add)) ? O[t] : null;
-    if (p && !shown.has(norm(p.add))) {
-      out[t] = {p, src: t, kind: 'own'};
+    const p = cols[t];
+    if (p) {
+      const src = p === O.apex ? 'apex' : p === O.mid ? 'mid' : 'budget';
+      out[t] = {p, src, kind: src === t ? 'own' : 'moved'};
       shown.add(norm(p.add));
     } else
       out[t] = {
         p: null,
-        note:
-          (L.none && L.none[t]) ||
-          (O.apex ? 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score after the cards above it.' : '')
+        note: (() => {
+          // a stronger card above already costs under this price: it is this tier's pick too (Apply all uses it)
+          const up = ['apex', 'mid'].find(u => u !== t && out[u] && out[u].p && tierFits(out[u].p, t));
+          return up
+            ? 'The ' +
+                TIERS[up].label +
+                ' card already costs under $' +
+                TIERS[t].cap +
+                ', so it is the ' +
+                TIERS[t].label +
+                ' pick too.'
+            : (L.none && L.none[t]) ||
+                (O.apex
+                  ? 'No card under $' + TIERS[t].cap + ' that does this job raises the deck score after the cards above it.'
+                  : '');
+        })()
       };
   }
   out.shown = shown;
@@ -1548,18 +1540,21 @@ function capBox(d, t) {
     '</ul></details></div>'
   );
 }
+// A tier's swaps: how many, what the new cards cost to buy (cards you own are free; the cards taken out are not subtracted,
+// owner 24 Oct: "−$3" for eleven new cards made no sense), and which cards (to tell when two tiers make the same swaps).
 function tierSum(d, R, t) {
   let n = 0,
     cost = 0;
+  const keys = [];
   R.paths.forEach(L => {
     const p = tierPick(L, t);
     if (!p || !entryOf(d, p.cut)) return;
     n += p.q;
-    const a = find(p.add),
-      c = find(p.cut);
-    cost += ((p.own ? 0 : (a && a.p) || 0) - ((c && c.p) || 0)) * p.q;
+    const a = find(p.add);
+    cost += (p.own ? 0 : (a && a.p) || 0) * p.q;
+    keys.push(p.cut + '>' + p.add);
   });
-  return {n, cost};
+  return {n, cost, keys: keys.join('|')};
 }
 // How big a step a pick is over the card it replaces, from the app's upgrade score. Words rather than percentages: a weak
 // current card scores near zero, so a percentage would mislead.
@@ -2317,6 +2312,18 @@ function statDelta(v, ref, unit) {
 // Apex progress bar (Build 131): zoomed to the range that matters (from a little below the lower of your deck and the Budget
 // build up to Apex), with Budget, Mid and Apex each marked in their own colour and labelled with their power score in a legend
 // row under the bar (labels never overlap).
+// The reference builds are scored by practice games, so a cheaper one can land a hair above a dearer one: the marks are kept in
+// order (a build allowed every card under $12 can always match the under-$3 one; Apex can match both) (owner, 24 Oct).
+function refOrder(T) {
+  return T && {budget: T.budget, mid: Math.max(T.mid, T.budget), apex: Math.max(T.apex, T.mid, T.budget)};
+}
+// one decimal when two marks would round to the same number but are not the same
+function markNums(T0, e) {
+  const r = [T0.budget, T0.mid, T0.apex],
+    tie = r.some((v, i) => i && Math.round(v) === Math.round(r[i - 1]) && Math.abs(v - r[i - 1]) >= 0.05),
+    f = v => (tie ? +v.toFixed(1) : Math.round(v));
+  return {you: e.total, budget: f(T0.budget), mid: f(T0.mid), apex: f(T0.apex)};
+}
 function tmeterHtml(qp, mk, lvl, sc, power) {
   const lo = mk ? Math.max(0, Math.floor(Math.min(qp, mk.budget) - 8)) : 0,
     x = v => Math.max(0, Math.min(100, (100 * (v - lo)) / Math.max(1, 100 - lo)));
@@ -2475,7 +2482,7 @@ function statsHtml(d, A, R, mode) {
   // tier meter: the deck's cards between random playable cards (0) and the Apex build (100), with the best Budget and Mid builds marked
   // Apex progress is deck power: the deck's whole score against the Budget, Mid and Apex reference builds scored the same way
   // (Apex = 100). Card quality alone could put a strong deck below Budget. Before the references are scored, card quality stands in.
-  const T0 = (apexFor(d) || {}).tot,
+  const T0 = refOrder((apexFor(d) || {}).tot),
     pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
     pc = v => Math.max(0, Math.min(100, Math.round(v)));
   const mk = pw != null ? {budget: pc((100 * T0.budget) / T0.apex), mid: pc((100 * T0.mid) / T0.apex)} : q.marks,
@@ -2510,13 +2517,7 @@ function statsHtml(d, A, R, mode) {
             ? 'The tier meter appears once the deck has 90 or more cards.'
             : 'The tier meter appears once the card data has finished downloading.') +
         '</p>'
-      : tmeterHtml(
-          qp,
-          mk,
-          lvl,
-          pw != null ? {you: e.total, budget: Math.round(T0.budget), mid: Math.round(T0.mid), apex: Math.round(T0.apex)} : null,
-          pw != null
-        ) +
+      : tmeterHtml(qp, mk, lvl, pw != null ? markNums(T0, e) : null, pw != null) +
         (pw != null
           ? '<p class="note" style="margin:0">Your deck is at <b>' +
             lvl +
@@ -2581,15 +2582,7 @@ function statsHtml(d, A, R, mode) {
     return (
       strip +
       '<div class="grp">' +
-      (qp == null
-        ? tierMeter
-        : tmeterHtml(
-            qp,
-            mk,
-            lvl,
-            pw != null ? {you: e.total, budget: Math.round(T0.budget), mid: Math.round(T0.mid), apex: Math.round(T0.apex)} : null,
-            pw != null
-          )) +
+      (qp == null ? tierMeter : tmeterHtml(qp, mk, lvl, pw != null ? markNums(T0, e) : null, pw != null)) +
       '</div>'
     );
   return (
@@ -2635,15 +2628,7 @@ function statsHtml(d, A, R, mode) {
               '">' +
               TIERS[x.t].label +
               ' · ' +
-              (x.s.n
-                ? x.s.n +
-                  ' swap' +
-                  (x.s.n === 1 ? '' : 's') +
-                  ' · ' +
-                  (x.s.cost >= 0 ? '+' : '−') +
-                  '$' +
-                  Math.abs(x.s.cost).toFixed(0)
-                : 'done') +
+              (x.s.n ? x.s.n + ' swap' + (x.s.n === 1 ? '' : 's') + ' · $' + x.s.cost.toFixed(0) + ' to buy' : 'done') +
               '</span>'
           )
           .join('') +

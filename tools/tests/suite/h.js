@@ -16,7 +16,7 @@ module.exports = function load(dir, files){
   run(`(()=>{const rows=[];for(const o of __raw){const c=fromScryfall(o);if(c)rows.push(c);} const best=new Map();for(const c of rows){const k=norm(c.n),o=best.get(k);if(!o||(o.p==null&&c.p!=null))best.set(k,c);} buildIndex(mergeLibrary(typeof STARTER!=='undefined'?STARTER:parseStarter(STARTER_RAW),[...best.values()])); BTAGS={mld:new Set(__tags.mld.map(norm)),turns:new Set(__tags.turns.map(norm)),v:1};})()`);
   if (fs.existsSync(CF) && !module.exports.noCombos && run('typeof useCombos') === 'function'){ ctx.__cj = JSON.parse(zlib.gunzipSync(fs.readFileSync(CF))); run('useCombos(__cj)'); delete ctx.__cj; }
   // EDHREC play data for a commander, read exactly as ui.js loadEdh() reads it.
-  function edh(name){ const f = pick(SNAP + '/edhrec/' + slug(name) + '.json', D2 + '/edhrec/' + slug(name) + '.json'); if (!fs.existsSync(f)){ run(`EDH={key:'',map:null,decks:0,state:'fail'}`); return 0; }
+  function edh(name){ let f = pick(SNAP + '/edhrec/' + slug(name) + '.json', D2 + '/edhrec/' + slug(name) + '.json'); if (!fs.existsSync(f) && process.env.EDHX) f = path.resolve(__dirname, '..', process.env.EDHX, slug(name) + '.json'); if (!fs.existsSync(f)){ run(`EDH={key:'',map:null,decks:0,state:'fail'}`); return 0; }
     const j = JSON.parse(fs.readFileSync(f)), seen = new Map(); let decks = 0;
     ((j.container && j.container.json_dict && j.container.json_dict.cardlists) || []).forEach(L => (L.cardviews || []).forEach(v => { if (!v.name || !v.potential_decks) return; decks = Math.max(decks, v.potential_decks);
       const inc = Math.min(1, v.num_decks / v.potential_decks), old = seen.get(v.name); if (!old || inc > old[1]) seen.set(v.name, [v.name, inc, +(v.synergy || 0).toFixed(3)]); }));

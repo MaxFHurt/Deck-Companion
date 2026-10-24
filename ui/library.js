@@ -617,7 +617,20 @@ function capList(d, t) {
 // What the upgrade list depends on. The buy list, Considering, ignored alerts, the player and the name don't change any
 // suggestion, so editing them doesn't rework the list (which used to jump the page back to the top). Nor do the deck's version
 // snapshots (one is added on a change, such as putting a card on the buy list; found 20 Oct) or a generated deck's budget.
-const RECS_SKIP = new Set(['want', 'lack', 'consider', 'ignoreH', 'player', 'name', 'folder', 'dtags', 'versions', 'budget']);
+const RECS_SKIP = new Set([
+  'want',
+  'lack',
+  'consider',
+  'ignoreH',
+  'player',
+  'name',
+  'folder',
+  'dtags',
+  'versions',
+  'budget',
+  'buySnap',
+  'bought'
+]);
 function recsKey(d) {
   return JSON.stringify([
     JSON.stringify(d, (k, v) => (RECS_SKIP.has(k) ? undefined : v)),
@@ -634,8 +647,39 @@ function recsKey(d) {
     BTAGS.v
   ]);
 }
+// Held picks are gone (owner, 24 Oct): a pick the app showed is not kept once shown; only an alternative the player chose is.
+function dropHolds(d) {
+  for (const k in d.recP || {}) if (!d.recP[k] || !d.recP[k].chosen) delete d.recP[k];
+}
+// A swap made from the upgrade list re-thinks only its own slot (owner, 24 Oct: "no need to regenerate the entire deck every
+// time"): the checked list is kept, the swapped row leaves it, and the card that went in is no longer offered on other rows.
+// Everything else (a card added by hand, Undo, Regenerate, new data) still works the list out again.
+function keepRecs(d, p) {
+  const R = recsFor.v;
+  recsFor.carry = R && !R.pending && (!R.pool || R.poolDone) ? {id: d.id, R, cut: p.cut, add: p.add} : null;
+}
+function carryRecs(d, key) {
+  const cy = recsFor.carry;
+  recsFor.carry = null;
+  if (!cy || cy.id !== d.id || cy.R !== recsFor.v) return null;
+  const R = cy.R;
+  R.paths = R.paths.filter(L => norm(L.cut) !== norm(cy.cut) || entryOf(d, L.cut));
+  R.paths.forEach(L => {
+    for (const t of Object.keys(L.opts)) {
+      const p = L.opts[t];
+      if (p && norm(p.add) === norm(cy.add) && !isBasic(p.add) && hasCard(d, p.add)) delete L.opts[t];
+    }
+  });
+  R.paths = R.paths.filter(L => Object.values(L.opts).some(Boolean));
+  ROWC.k = null;
+  recsFor.k = key;
+  recsFor.done(d);
+  return R;
+}
 function recsFor(d) {
+  dropHolds(d);
   const key = recsKey(d);
+  if (recsFor.k !== key && carryRecs(d, key)) return recsFor.v;
   if (recsFor.k !== key) {
     recsFor.k = key;
     upgradePaths.own = ownSet();

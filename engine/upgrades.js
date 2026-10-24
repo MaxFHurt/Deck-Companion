@@ -1835,13 +1835,34 @@ function poolPromote(Q, d) {
   return freed;
 } // the held picks that lost their place: their holds are released
 const RANK_THEME = 0.1;
+// A row's cards strongest first (owner, 24 Oct: a Budget card never scores above Mid, nor Mid above Apex). A card's score is its
+// gain in the deck score (dScore); before the score check has run, the engine's order stands (Apex, Mid, Budget).
+const tierFits = (p, t) => t === 'apex' || p.own || underCap((find(p.add) || {}).p, t);
+function tierRank(ps) {
+  const known = ps.every(p => p.dScore != null);
+  return known ? ps.slice().sort((a, b) => b.dScore - a.dScore) : ps.slice();
+}
+// What "Apply all" uses for a tier: the strongest card on the row that fits its price (a cheap Apex card is also the Mid pick).
+// Apex is the engine's own pick (it may lead with a card players run over a hair more score, so it is not re-ranked).
 function tierPick(L, t) {
-  const a = L.opts.apex;
-  if (!a) return t === 'budget' ? L.opts.budget || null : L.opts.mid || L.opts.budget || null; // the Apex pick was dropped by the score check
-  if (t === 'apex') return a;
-  const ap = (find(a.add) || {}).p;
-  if (a.own || underCap(ap, t)) return a;
-  return t === 'mid' ? L.opts.mid || L.opts.budget || null : L.opts.budget || null;
+  const O = L.opts;
+  if (t === 'apex' && O.apex) return O.apex;
+  return tierRank([O.apex, O.mid, O.budget].filter(Boolean)).find(p => tierFits(p, t)) || null;
+}
+// The three columns shown on a row: Apex the strongest card, Mid the strongest of the rest under $12, Budget the strongest of the
+// rest under $3, each card once. skip(p) leaves out a card (one already in the deck).
+function tierCols(O, skip) {
+  const seen = new Set(),
+    ok = p => p && !(skip && skip(p)) && !seen.has(norm(p.add)) && seen.add(norm(p.add)),
+    out = {};
+  if (ok(O.apex)) out.apex = O.apex;
+  const ps = tierRank([O.mid, O.budget].filter(ok));
+  for (const t of ['apex', 'mid', 'budget']) {
+    if (out[t]) continue;
+    const i = ps.findIndex(p => tierFits(p, t));
+    if (i >= 0) out[t] = ps.splice(i, 1)[0];
+  }
+  return out;
 }
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
@@ -1852,9 +1873,29 @@ const UP = {
   optW: 0, // engine v2: weight of what the commander's bracket 4 decks run more than its decks overall (EDHREC optimized page)
   optN: 100,
   optMin: 30,
-  newTh: ['flying', 'defenders', 'goad', 'untap', 'theft', 'evasion', 'stax', 'voting', 'clones', 'cheat', 'topdeck', 'combo'], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
+  newTh: [
+    'flying',
+    'defenders',
+    'goad',
+    'untap',
+    'theft',
+    'evasion',
+    'stax',
+    'voting',
+    'clones',
+    'cheat',
+    'topdeck',
+    'combo',
+    'infect',
+    'minus',
+    'mill',
+    'pillowfort',
+    'dice',
+    'legends',
+    'xspells'
+  ], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
   xPlan: 0.25, // engine v2: weight of fitting another plan this commander's players build (xPlansOf); owner took the trade-off 21 Oct
-  v2sim: 0, // engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
+  v2sim: 1, // on from 0.9.11 (benchmark identical; owner: "Do all 5"). engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,
   polG: 0.3,
   midOpen: 0,

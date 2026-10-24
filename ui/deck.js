@@ -43,6 +43,12 @@ function practiceHtml(d) {
           (S100.cmdMedianTurn > 10 ? '11+' : S100.cmdMedianTurn) +
           ')'
         : '') +
+      (S100.killMedianTurn
+        ? '; unblocked attacks deal ' +
+          S100.damageT1to8[7] +
+          ' damage by turn 8 on average' +
+          (S100.killMedianTurn <= 10 ? ' (40 damage usually by turn ' + S100.killMedianTurn + ')' : '')
+        : '') +
       '.</p>';
   if (!G) return h + '</details>';
   const card = n => '<button class="chip pgc" data-act="card" data-n="' + esc(n) + '">' + esc(n.split(' // ')[0]) + '</button>';
@@ -71,7 +77,9 @@ function practiceHtml(d) {
       : '') +
     '</div>';
   h +=
-    '<table class="pg"><thead><tr><th>Turn</th><th>Draw</th><th>Land</th><th>Cast</th><th>Mana</th></tr></thead><tbody>' +
+    '<table class="pg"><thead><tr><th>Turn</th><th>Draw</th><th>Land</th><th>Cast</th><th>Mana</th>' +
+    (UP.v2sim ? '<th>Attack</th>' : '') +
+    '</tr></thead><tbody>' +
     G.turns
       .slice(0, 8)
       .map(
@@ -90,12 +98,14 @@ function practiceHtml(d) {
           T.spent +
           ' of ' +
           T.mana +
-          '</td></tr>'
+          '</td>' +
+          (UP.v2sim ? '<td>' + (T.attack || 0) + ' <small>(' + (T.dmg || 0) + ' total)</small></td>' : '') +
+          '</tr>'
       )
       .join('') +
     '</tbody></table>';
   h +=
-    '<p class="note" style="margin:0">The deck score plays 300 of these. Play is simple on purpose: a land each turn (the one that adds a missing colour), then the commander, mana cards, card draw and the costliest spell it can cast.</p>';
+    '<p class="note" style="margin:0">The deck score plays 300 of these. Play is simple on purpose: a land each turn (the one that adds a missing colour), then the commander, mana cards, card draw and the costliest spell it can cast. Creatures can’t attack or tap for mana the turn they arrive (unless they have haste), a creature tapped for mana doesn’t attack, and every attack is unblocked.</p>';
   return h + '</details>';
 }
 function upPanel(d, A, mode) {
@@ -421,12 +431,26 @@ function upPanel(d, A, mode) {
             TIERS[t].label +
             ' Swaps</b><span>' +
             (ts.n
-              ? ts.n + ' card' + (ts.n === 1 ? '' : 's') + ' ' + (ts.cost < 0 ? '−' : '') + '$' + Math.abs(ts.cost).toFixed(0)
+              ? ts.n + ' card' + (ts.n === 1 ? '' : 's') + ' · $' + ts.cost.toFixed(0) + ' to buy'
               : 'No worthwhile upgrades') +
             '</span></button>'
           );
         }).join('') +
         '</div>' +
+        // owner, 24 Oct: when two tiers make exactly the same swaps, say why (the strongest cards already cost under that price)
+        (TS.apex.n && TS.mid.keys === TS.apex.keys
+          ? '<p class="note">Mid and Apex make the same swaps: every strongest card for this deck already costs under $' +
+            TIERS.mid.cap +
+            '.' +
+            (TS.budget.keys === TS.mid.keys ? ' So does Budget (all under $' + TIERS.budget.cap + ').' : '') +
+            '</p>'
+          : TS.mid.n && TS.budget.keys === TS.mid.keys
+            ? '<p class="note">Budget and Mid make the same swaps: the strongest cards you can get under $' +
+              TIERS.mid.cap +
+              ' all cost under $' +
+              TIERS.budget.cap +
+              '.</p>'
+            : '') +
         // owner, 19 Oct ("all of them"): what all the Apex swaps do together, and the best decks with every new card under $3 and $12
         '<div class="tierx">' +
         (TS.apex.n && packLine(R, 'apex', TS.apex.n)
@@ -550,7 +574,7 @@ function upPanel(d, A, mode) {
                   '</p></div>'
                 );
               const inh =
-                col.kind === 'moved'
+                col.kind === 'moved' && t === 'apex'
                   ? '<span class="chip gold" title="No stronger card was found for this slot, so this is its Apex card.">Best card for this slot</span>'
                   : '';
               return (
@@ -562,9 +586,7 @@ function upPanel(d, A, mode) {
                 side('in', p.add, p.q) +
                 '<div class="row">' +
                 inh +
-                (p.held
-                  ? '<span class="chip" title="Holds its place until you swap it in, exclude it, or regenerate">Held</span>'
-                  : '') +
+                (p.held ? '<span class="chip" title="The alternative you chose for this slot">Your choice</span>' : '') +
                 (p.own ? '<span class="chip good">You own this</span>' : '') +
                 (p.pc ? pcChip(p) : col.kind === 'alt' ? scoreChip(p.dScore) : upChip(L, src) + driftChip(d, p.add, src)) +
                 gcChip(p, R) +
@@ -1415,6 +1437,57 @@ function themeBuildBox() {
     genBudgetBox(null, 'gen-tbudget') +
     '</div>'
   );
+}
+// Picking a commander for Generate asks first (owner, 24 Oct): its art, type, rules text, colours, price and how many decks
+// players have built with it, then Build with it or Pick another.
+function genConfirm(n) {
+  const c = find(n);
+  if (!c) return;
+  const st = detectStrategy(c),
+    ed = EDH.key === c.n && EDH.state === 'ok' && EDH.decks;
+  $('#modal').innerHTML =
+    '<div class="panel" role="dialog" aria-label="Use this commander?"><div class="ph"><h2>Build a deck with ' +
+    esc(c.n.split(' // ')[0]) +
+    '?</h2><button class="ico" data-act="gen-pick-back" aria-label="Back">×</button></div><div class="detail gconfirm">' +
+    cardHtml(c, false) +
+    '<div class="grp"><b>' +
+    esc(c.n) +
+    '</b><p class="note" style="margin:0">' +
+    esc(c.t || '') +
+    (c.m ? ' · ' + esc(c.m) : '') +
+    '</p><p style="white-space:pre-line;margin:6px 0">' +
+    esc(c.o || '') +
+    '</p>' +
+    (c.pt ? '<p class="note" style="margin:0">' + esc(c.pt) + '</p>' : '') +
+    '<div class="row">' +
+    (c.ci.length ? c.ci : ['C']).map(k => '<span class="chip">' + k + '</span>').join('') +
+    '<span class="chip">' +
+    money(c) +
+    '</span>' +
+    (ed ? '<span class="chip good">' + ed.toLocaleString() + ' decks on EDHREC</span>' : '') +
+    '</div>' +
+    (st.themes.length
+      ? '<span class="lab">Strategy it will follow</span><div class="row">' +
+        st.themes
+          .map(k => '<span class="chip gold">' + (k === 'tribal' ? st.tribe + ' tribal' : THEMES[k].label) + '</span>')
+          .join('') +
+        '</div>'
+      : '') +
+    '<div class="row" style="margin-top:10px"><button class="btn pri" data-act="gen-pick-ok" data-n="' +
+    esc(c.n) +
+    '">Build with this commander</button><button class="btn" data-act="gen-pick-back">Pick another</button></div></div></div></div>';
+  $('#modal').hidden = false;
+}
+// While a generated deck is built: the commander's art and what the app is doing now (setStatus fills #genbuild-msg), until the
+// new deck opens.
+function genBuilding(c) {
+  $('#modal').innerHTML =
+    '<div class="panel" role="dialog" aria-label="Building your deck" id="genbuild"><div class="ph"><h2>Building your ' +
+    esc(c.n.split(',')[0]) +
+    ' deck</h2></div><div class="detail">' +
+    cardHtml(c, false) +
+    '<div class="grp"><p class="note think" id="genbuild-msg" style="margin:0">Getting ready…</p><p class="note" style="margin:0">This takes a few seconds (longer on a phone). The new deck opens here when it is ready.</p></div></div></div>';
+  $('#modal').hidden = false;
 }
 function openGenerate() {
   genPrefetchSoon();
