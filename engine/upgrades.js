@@ -1835,6 +1835,78 @@ function poolPromote(Q, d) {
   return freed;
 } // the held picks that lost their place: their holds are released
 const RANK_THEME = 0.1;
+// Stick to the theme (owner, 24 Oct; a deck setting, d.stick, off unless the player turns it on): each row's picks come from
+// the cards on theme for the deck that still raise its score: the commander's franchise and creature types (themeOf) or one of
+// the deck's plans. Of those, the best is the Apex card, then the best of the rest under $12 and under $3; each card once
+// across the list. A row with no on-theme card that raises the score keeps its usual picks.
+function stickTheme(d, R) {
+  if (!d || !d.stick || !R || !R.paths || !R.paths.length) return;
+  const TC = themeCtx(d),
+    ctx = ctxOf(d),
+    aims = (d.aims || []).filter(a => a !== 'tribal'),
+    onTheme = c =>
+      !!c &&
+      (!!themeOf(c, TC) ||
+        aims.some(a => matchAim(c, a, ctx.tribe) >= 0.7) ||
+        (!!ctx.tribe && matchAim(c, 'tribal', ctx.tribe) >= 0.7)),
+    why = c => themeOf(c, TC) || aimLabel(aims.find(a => matchAim(c, a, ctx.tribe) >= 0.7) || 'tribal') + ' (on theme)',
+    own = upgradePaths.own,
+    T3 = ['apex', 'mid', 'budget'];
+  const taken = new Set();
+  R.paths.forEach(L => T3.forEach(t => L.opts[t] && taken.add(norm(L.opts[t].add))));
+  const rows = R.paths
+    .map(L => {
+      const seen = new Map();
+      const add = (n, v) => {
+        const c = n && find(n);
+        if (!c || v == null || v < SCORE_MIN || hasCard(d, c.n) || !onTheme(c)) return;
+        const k = norm(c.n);
+        if (!seen.has(k) || seen.get(k).v < v) seen.set(k, {c, v});
+      };
+      T3.forEach(t => L.opts[t] && add(L.opts[t].add, L.opts[t].dScore));
+      (L.finds || []).forEach(f => add(f.n, f.dScore));
+      T3.forEach(t => ((L.alts || {})[t] || []).forEach(a => add(a.n, a.dScore)));
+      if (L.top) add(L.top.n, L.top.dScore);
+      return {L, list: [...seen.values()].sort((a, b) => b.v - a.v)};
+    })
+    .filter(x => x.list.length)
+    .sort((a, b) => b.list[0].v - a.list[0].v);
+  for (const {L, list} of rows) {
+    const O = L.opts,
+      base = O.apex || O.mid || O.budget;
+    if (!base) continue;
+    const mine = new Set(T3.map(t => O[t] && norm(O[t].add)).filter(Boolean)),
+      free = list.filter(x => !taken.has(x.c._n) || mine.has(x.c._n));
+    if (!free.length) continue;
+    T3.forEach(t => O[t] && taken.delete(norm(O[t].add)));
+    const out = {};
+    for (const t of T3) {
+      const i = free.findIndex(x => t === 'apex' || (own && own.has(x.c._n)) || underCap(x.c.p, t));
+      if (i >= 0) out[t] = free.splice(i, 1)[0];
+    }
+    T3.forEach(t => {
+      const x = out[t];
+      if (!x) {
+        delete O[t];
+        return;
+      }
+      const old = T3.map(k => O[k]).find(p => p && norm(p.add) === x.c._n);
+      O[t] = Object.assign({}, old || base, {
+        t,
+        add: x.c.n,
+        dScore: x.v,
+        held: false,
+        pc: false,
+        own: !!(own && own.has(x.c._n)),
+        gc: !!x.c.gc,
+        why: old ? old.why : [why(x.c)],
+        alt: base.add
+      });
+      taken.add(x.c._n);
+    });
+    L.stuck = true;
+  }
+}
 // A row's cards strongest first (owner, 24 Oct: a Budget card never scores above Mid, nor Mid above Apex). A card's score is its
 // gain in the deck score (dScore); before the score check has run, the engine's order stands (Apex, Mid, Budget).
 const tierFits = (p, t) => t === 'apex' || p.own || underCap((find(p.add) || {}).p, t);
@@ -1909,7 +1981,9 @@ const UP = {
     'pillowfort',
     'dice',
     'legends',
-    'xspells'
+    'xspells',
+    'weenies',
+    'bigmana'
   ], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
   xPlan: 0.25, // engine v2: weight of fitting another plan this commander's players build (xPlansOf); owner took the trade-off 21 Oct
   v2sim: 1, // on from 0.9.11 (benchmark identical; owner: "Do all 5"). engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)

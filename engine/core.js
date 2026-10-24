@@ -187,7 +187,7 @@ const THEMES = {
   },
   spells: {
     label: 'Spellslinger',
-    re: /instant or sorcery|instant and sorcery|noncreature spell|magecraft|prowess|copy (target|that) (instant|sorcery|spell)/i,
+    re: /instant or sorcery|instant and sorcery|noncreature spell|magecraft|prowess|copy (target|that) (instant|sorcery|spell)|\bprepared\b/i,
     type: /Instant|Sorcery/
   },
   artifacts: {label: 'Artifacts', re: /\bartifacts?\b|treasure token|thopter|affinity|metalcraft/i, type: /Artifact/},
@@ -288,7 +288,7 @@ const THEMES = {
     v2: true,
     pick: false,
     label: 'Free casting / cascade',
-    re: /without paying (?:its|their|that spell's) mana costs?|\bcascade\b|\bdiscover (?:\d+|x)\b|put (?:a|any number of|up to \w+) [^.]*(?:creature|permanent) cards?[^.]*? (?:from your hand|from among them) onto the battlefield|pay \{0\} rather than pay the mana cost|search your library for [^.]*creature cards[^.]*put them onto the battlefield/i
+    re: /without paying (?:its|their|that spell's) mana costs?|\bcascade\b|\bdiscover (?:\d+|x)\b|put (?:a|any number of|up to \w+) [^.]*(?:creature|permanent) cards?[^.]*? (?:from your hand|from among them) onto the battlefield|pay \{0\} rather than pay the mana cost|^when you cast this spell|search your library for [^.]*creature cards[^.]*put them onto the battlefield/i
   },
   topdeck: {
     v2: true,
@@ -323,6 +323,18 @@ const THEMES = {
     pick: false,
     label: 'Legends / historic',
     re: /\blegendary (?:creatures?|permanents?|spells?|cards?)\b|\bhistoric\b/i
+  },
+  weenies: {
+    v2: true,
+    pick: false,
+    label: 'Small creatures',
+    re: /(?:mana value|power) (?:2|two|1|one) or less|creatures? (?:cards? )?with (?:mana value|power) (?:2|1) or less/i
+  },
+  bigmana: {
+    v2: true,
+    pick: false,
+    label: 'Big mana',
+    re: /unspent mana|mana (?:pool )?(?:doesn't|don't) empty|mana value (?:7|8|9|10) or greater|double the (?:amount of )?mana|add (?:that much|an amount of) (?:\{C\}|mana)/i
   },
   xspells: {v2: true, pick: false, label: 'X spells', re: /\{X\} in (?:its|their) mana costs?|spells? with \{X\}/i},
   // a card that is a piece of a short known combo (Commander Spellbook; matchAim reads the combo list, which loads later)
@@ -664,7 +676,9 @@ const TAG_OF = {
   pillowfort: 'pillow-fort',
   dice: 'die-roll',
   legends: 'legends',
-  xspells: 'x-spells'
+  xspells: 'x-spells',
+  weenies: 'weenies',
+  bigmana: 'big-mana'
 };
 // The plans the app offers: every one above except a new plan that is switched off (UP.newTh)
 const themeKeys = () => Object.keys(THEMES).filter(k => !THEMES[k].v2 || UP.newTh.includes(k));
@@ -673,7 +687,7 @@ const TAG_ALIAS = {
   'toughness-matters': 'defenders',
   goad: 'goad',
   'power-matters': 'big',
-  'big-mana': 'big',
+
   historic: 'legends',
   scry: 'topdeck',
   surveil: 'topdeck'

@@ -1450,6 +1450,21 @@ const b157 = await page.evaluate(async () => { const out = {}; const sy = S.sync
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
 T('UI-B157-01', 'Version 0.9.12: every upgrade row has an Apex card, the best card for the slot whatever it costs; Undo asks before undoing and Cancel changes nothing', b157.rows > 0 && b157.apexAll && b157.apexBest && b157.undoBtn && b157.asks && b157.cancelKeeps, JSON.stringify(b157));
 } catch (e) { QUIET = false; T('UI-B157-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B158-01')) { try { if (SHARD) await RESET();
+// Version 0.9.13 (owner, 24 Oct): Stick to the theme, a deck setting: on, every row's picks are cards on theme for the deck
+// that raise its score (franchise, creature types or plans); off, the strongest cards as before.
+const b158 = await page.evaluate(async () => { const out = {}; const sy = S.syncRecs; S.syncRecs = false; const full = async () => { for (let i = 0; i < 1200; i++) { const R = recsFor(d); if (!R.pending && (!R.pool || R.poolDone)) break; await new Promise(r => setTimeout(r, 100)); if (i % 20 === 0) render(); } render(); };
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander); await loadThemes(d.commander, d.aims);
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await full();
+  const TC = themeCtx(d), ctx = ctxOf(d), on = c => !!themeOf(c, TC) || d.aims.some(a => matchAim(c, a, ctx.tribe) >= 0.7);
+  const share = () => { const R = recsFor(d), A = R.paths.map(L => tierPick(L, 'apex')).filter(Boolean); return A.filter(p => on(find(p.add))).length / Math.max(1, A.length); };
+  out.off = +share().toFixed(2); const b = document.querySelector('[data-act="stick"]'); out.btn = !!b; if (b) b.click(); await new Promise(r => setTimeout(r, 100)); await full();
+  out.stick = !!d.stick; out.on = +share().toFixed(2); out.label = /Stick to the theme: On/.test((document.querySelector('[data-act="stick"]') || {}).textContent || '');
+  out.raise = recsFor(d).paths.every(L => { const p = tierPick(L, 'apex'); return !p || p.dScore == null || p.dScore >= 0.05; });
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
+T('UI-B158-01', 'Version 0.9.13: Stick to the theme (a deck setting) makes the Apex picks on-theme cards that still raise the score; off by default', b158.btn && b158.stick && b158.label && b158.on > b158.off && b158.on >= 0.8 && b158.raise, JSON.stringify(b158));
+} catch (e) { QUIET = false; T('UI-B158-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-IPAD-02')) { try { if (SHARD) await RESET();
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);

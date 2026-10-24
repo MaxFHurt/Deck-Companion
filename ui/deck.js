@@ -411,6 +411,19 @@ function upPanel(d, A, mode) {
         ' from your library</b><ul><li class="pro"><i>+</i>You already own ' +
         (R.count.free === 1 ? 'a card' : 'cards') +
         ' that would improve this deck, so there is nothing to buy. They are listed first below.</li></ul><div class="row" style="margin-top:8px"><button class="btn sm" data-act="swap-all" data-v="free">Make all free swaps</button></div></div>';
+    // Stick to the theme (owner, 24 Oct): a deck setting; on, every pick is a card on theme for the deck that raises its score
+    h +=
+      '<div class="row"><button class="btn sm' +
+      (d.stick ? ' pri' : '') +
+      '" data-act="stick" aria-pressed="' +
+      !!d.stick +
+      '" title="Picks only cards that fit this deck’s theme (its franchise, creature types and plans) and still raise its score">Stick to the theme: ' +
+      (d.stick ? 'On' : 'Off') +
+      '</button><small class="note">' +
+      (d.stick
+        ? 'Every pick fits the deck’s theme. A slot with no on-theme upgrade keeps its usual picks.'
+        : 'Turn on to pick only on-theme cards (raw power can win otherwise).') +
+      '</small></div>';
     // Version 0.9.3 (owner, 19 Oct): the tiers are one row of three buttons, each applying that tier's swaps (it asks first):
     // "Apply All Budget Swaps" over "4 cards $5".
     {

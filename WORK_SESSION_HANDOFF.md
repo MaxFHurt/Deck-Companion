@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 21 October 2026. Live: Version 0.9.12 (build 157; every row has an Apex card, Undo always asks first), pushed straight to main (owner, 24 Oct: "Catch up on the chat and get to work"). misread.js: 0 cards on the 52 test commanders, 11 on 160 (EDHX=data3/edhrec). Held picks are gone; Profile → Upgrade engine offers Classic (0.9.3).
+Last updated: 21 October 2026. Live: Version 0.9.13 (build 158; Stick to the theme deck setting; misread.js 5 on 160 commanders), pushed straight to main (owner, 24 Oct: "Catch up on the chat and get to work"). misread.js: 0 cards on the 52 test commanders, 11 on 160 (EDHX=data3/edhrec). Held picks are gone; Profile → Upgrade engine offers Classic (0.9.3).
 **Next: the engine redesign** (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Owner, 20 Oct: "all the
 engine rework stays here until we're sure we are doing better choices. I still want all the options available that were
 available before... I don't want to change our app. Just the way choices are made behind the scenes." Decisions: the rules

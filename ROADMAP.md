@@ -222,6 +222,21 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.13 (build 158, 24 October 2026; owner: "Yes" to Stick to the theme, "Fix the problem cards")
+
+- **Stick to the theme** (a deck setting on the Upgrades tab, `d.stick`, off by default; engine `stickTheme`): each row's picks
+  are rebuilt from the cards on theme for the deck that still raise its score (the commander's franchise and creature types,
+  or one of the deck's plans): the best is the Apex card, then the best of the rest under $12 and under $3, each card once.
+  A row with no on-theme upgrade keeps its usual picks. Turtle Power: on-theme Apex picks 43% -> 100% (Sun Titan, Sheoldred,
+  Craterhoof give way to Evolution Witness, Raphael, Splinter's Technique). The generic power picks come from the
+  whole-card search; the score check alone already picks 93% on theme.
+- misread.js on 160 commanders 11 -> 5: new plans offered to all, never auto-picked: Small creatures (EDHREC weenies; Raise
+  the Past for Arabella) and Big mana (big-mana; Zhulodok and Horizon Stone for Omnath); "prepared" counts for Spellslinger
+  (Codie), a cast trigger for Free casting / cascade (Oblivion Sower for Zhulodok), colourless cards for Eldrazi (Ancient
+  Stirrings for Ulalek). Left (one-offs with no plan behind them): Giant Growth (Xyris), Radagast the Brown, Molecule Man
+  (Omnath), Return to the Light Realms (Dack), Timber Protector (Doran's deck is not built as Treefolk).
+- Benchmark identical to 0.9.12 on all twelve numbers. UI-B158-01 added.
+
 ## Version 0.9.12 (build 157, 24 October 2026; owner: "There should always be an apex card" / "The undo button should not undo anything without confirmation")
 
 - **Every row has an Apex card** (engine `apexOf`): the slot's best card holds the Apex slot whatever it costs. With no Apex

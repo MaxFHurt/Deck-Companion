@@ -354,6 +354,8 @@ function tribeMatch(c, tribe) {
   if (re.test(frontType(c).split('—')[1] || '')) return 1;
   const o = (c.o || '').replace(/\b(?:[A-Z][\w']* )+Role\b/g, '');
   if (re.test(o) || (alt && alt.test(o))) return 1;
+  // Eldrazi decks run colourless cards that care about colourless (Ancient Stirrings for Ulalek; misread.js, 24 Oct)
+  if (tribe === 'Eldrazi' && /\bcolorless (?:card|spell|creature|permanent)s?\b/i.test(o)) return 0.7;
   return /chosen type|shares a creature type|changeling/i.test(c.o || '') ? 0.7 : 0;
 }
 const subtypes = c => (frontType(c).split('—')[1] || '').trim().split(/\s+/).filter(Boolean);

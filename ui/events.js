@@ -1598,6 +1598,11 @@ function handleAct(act, v, n, pArg) {
       toast(v === 'old' ? 'Switching to the Classic engine…' : 'Switching to the Current engine…');
       setTimeout(() => location.reload(), 400); // every card's reading is cached for the session: a fresh start uses the new engine
       return;
+    case 'stick':
+      if (!d) return;
+      d.stick = !d.stick;
+      toast(d.stick ? 'Upgrades now stick to the theme. Working them out again…' : 'Upgrades pick the strongest cards again.');
+      break;
     case 'buy-refresh':
       if (!d) return;
       delete d.buySnap;

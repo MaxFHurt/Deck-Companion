@@ -693,6 +693,7 @@ function recsFor(d) {
           try {
             const b = evalFor(d);
             if (b) scoreCheck(d, R, {apex: apexFor(d), base: b});
+            stickTheme(d, R);
           } catch (e) {
             console.error(e);
           }
@@ -771,6 +772,7 @@ function poolRun(d, R, k) {
       if (r && r.vals && r.vals.length === Q.total) {
         poolApply(Q, r.vals);
         poolFree(d, poolPromote(Q, d));
+        stickTheme(d, R);
         ROWC.k = null;
         R.poolDone = true;
         R.poolMs = r.ms;
@@ -803,6 +805,7 @@ function poolSlices(d, R, Q) {
     }
     // every row's Highest score appears at once, when the search is done: nothing shifts while it runs
     poolFree(d, poolPromote(Q, d));
+    stickTheme(d, R);
     ROWC.k = null;
     R.poolDone = true;
     render();
