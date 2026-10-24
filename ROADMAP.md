@@ -222,6 +222,16 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.12 (build 157, 24 October 2026; owner: "There should always be an apex card" / "The undo button should not undo anything without confirmation")
+
+- **Every row has an Apex card** (engine `apexOf`): the slot's best card holds the Apex slot whatever it costs. With no Apex
+  pick of its own, or when a cheaper pick raises the deck score clearly more (by more than SCORE_MIN; a Players' choice Apex
+  pick keeps its place), the cheaper card moves up to Apex and leaves its column; no cheaper card is forced into Mid or
+  Budget. "Apply all Apex" and the buy list use the same columns (the buy list no longer labels the slot's best card Budget).
+- **Undo always asks first** with what it will undo: the main Undo (deck bar and floating button), a card's Undo swap,
+  Undo last regenerate and Undo rebuild. Cancel changes nothing.
+- Benchmark identical to 0.9.11 on all twelve numbers. UI-B157-01 added; UI-B81-02 confirms its Undo.
+
 ## Version 0.9.11 (build 156, 24 October 2026; owner: "Catch up on the chat and get to work")
 
 The owner's list (24 Oct):

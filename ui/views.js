@@ -1403,12 +1403,16 @@ function buySnap(d, R) {
   if (!R || R.pending || (R.pool && !R.poolDone) || !R.paths.length) return null;
   d.buySnap = {
     at: new Date().toISOString().slice(0, 10),
-    groups: R.paths.map(L => ({
-      cut: L.cut,
-      opts: TIER_KEYS.filter(t => L.opts[t] && !L.opts[t].beaten)
-        .map(t => ({n: L.opts[t].add, q: L.opts[t].q, t, gain: L.opts[t].gain || 0}))
-        .sort((a, b) => a.gain - b.gain)
-    }))
+    // the same columns the upgrade list shows (tierCols): the slot's best card is its Apex card, whatever it costs
+    groups: R.paths.map(L => {
+      const C = tierCols(L.opts, p => p.beaten);
+      return {
+        cut: L.cut,
+        opts: TIER_KEYS.filter(t => C[t])
+          .map(t => ({n: C[t].add, q: C[t].q, t, gain: C[t].gain || 0}))
+          .sort((a, b) => a.gain - b.gain)
+      };
+    })
   };
   persistSoon();
   return d.buySnap;

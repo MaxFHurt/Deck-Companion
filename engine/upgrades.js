@@ -1843,20 +1843,37 @@ function tierRank(ps) {
   return known ? ps.slice().sort((a, b) => b.dScore - a.dScore) : ps.slice();
 }
 // What "Apply all" uses for a tier: the strongest card on the row that fits its price (a cheap Apex card is also the Mid pick).
-// Apex is the engine's own pick (it may lead with a card players run over a hair more score, so it is not re-ranked).
+// The Apex slot always holds the best card for the slot (owner, 24 Oct): the engine's Apex pick, or, when it has none or a
+// cheaper pick raises the deck score clearly more, that cheaper card. A Players' choice Apex pick (listed on the players'
+// word, its score about even) keeps its place. The card that moves up leaves its cheaper column; no cheaper card is forced in.
+function apexOf(O, ok) {
+  const a = O.apex && ok(O.apex) ? O.apex : null,
+    rest = tierRank([O.mid, O.budget].filter(p => p && ok(p))),
+    b = rest[0];
+  if (!a) return b || null;
+  if (b && !a.pc && a.dScore != null && b.dScore != null && b.dScore > a.dScore + SCORE_MIN) return b;
+  return a;
+}
+// What "Apply all" uses for a tier: Apex the slot's best card; Mid and Budget the strongest card on the row at their price
+// (a cheap Apex card is also their pick).
 function tierPick(L, t) {
   const O = L.opts;
-  if (t === 'apex' && O.apex) return O.apex;
+  if (t === 'apex') return apexOf(O, () => true);
   return tierRank([O.apex, O.mid, O.budget].filter(Boolean)).find(p => tierFits(p, t)) || null;
 }
-// The three columns shown on a row: Apex the strongest card, Mid the strongest of the rest under $12, Budget the strongest of the
-// rest under $3, each card once. skip(p) leaves out a card (one already in the deck).
+// The three columns shown on a row: Apex the slot's best card (apexOf), Mid the strongest of the rest under $12, Budget the
+// strongest of the rest under $3, each card once. skip(p) leaves out a card (one already in the deck).
 function tierCols(O, skip) {
   const seen = new Set(),
     ok = p => p && !(skip && skip(p)) && !seen.has(norm(p.add)) && seen.add(norm(p.add)),
-    out = {};
-  if (ok(O.apex)) out.apex = O.apex;
-  const ps = tierRank([O.mid, O.budget].filter(ok));
+    use = p => p && !(skip && skip(p)),
+    out = {},
+    ap = apexOf(O, use);
+  if (ap) {
+    out.apex = ap;
+    seen.add(norm(ap.add));
+  }
+  const ps = tierRank([O.apex, O.mid, O.budget].filter(ok));
   for (const t of ['apex', 'mid', 'budget']) {
     if (out[t]) continue;
     const i = ps.findIndex(p => tierFits(p, t));

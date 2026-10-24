@@ -144,6 +144,39 @@ const CONFIRM = {
   ],
   'want-undo': (v, n) => ['Remove ' + n + ' from the buy list?', 'The card comes off the buy list. No deck changes.', 'Remove'],
   'mywant-rm': () => ['Remove from your buy list?', 'The card comes off your own buy list.', 'Remove'],
+  // owner, 24 Oct: no Undo happens without confirming what it will undo
+  undo: () => {
+    const u = UNDO.stack[UNDO.stack.length - 1];
+    return [
+      'Undo ' + (u && u.label ? '“' + u.label + '”' : 'the last change') + '?',
+      u
+        ? 'Your decks go back to how they were just before ' +
+          (u.label ? '“' + u.label + '”' : 'the last change') +
+          '. You can undo again after that, one change at a time.'
+        : 'There is nothing to undo.',
+      'Undo it'
+    ];
+  },
+  'undo-card': (v, n) => {
+    const d = cur(),
+      en = d && d.cards.find(x => x.n === n),
+      hh = en && en.hist && en.hist[en.hist.length - 1];
+    return [
+      'Undo the swap for ' + n + '?',
+      hh ? n + ' comes out and ' + hh.n + ' goes back in.' : n + ' goes back to the card it replaced.',
+      'Undo swap'
+    ];
+  },
+  'plan-regen-undo': () => [
+    'Undo the rebuild?',
+    'The deck’s cards go back to what they were before it was rebuilt.',
+    'Undo rebuild'
+  ],
+  'regen-undo': () => [
+    'Undo the last Regenerate?',
+    'The upgrade picks go back to what they were before you pressed Regenerate. Your deck’s cards do not change.',
+    'Undo regenerate'
+  ],
   'buy-refresh': () => [
     'Refresh the suggested buys?',
     'The suggestions are worked out again from the current upgrade list, so some cards may change. Cards you added yourself, and the Bought marks, stay.',
@@ -354,7 +387,7 @@ function confirmDone(yes) {
   if (!yes || !P) return;
   if (P.act === 'del-deck') S.confirmDel = P.v;
   if (P.act === 'lib-clear') S.confirmLib = true;
-  UNDO.label = P.label;
+  if (P.act !== 'undo') UNDO.label = P.label;
   handleAct(P.act, P.v, P.n, P.p);
 }
 document.addEventListener('click', ev => {

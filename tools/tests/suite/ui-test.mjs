@@ -515,9 +515,9 @@ const b81b = await page.evaluate(async () => { const out = {}; const d = S.profi
   cf.querySelector('[data-act="conf-no"]').click(); out.cancelKeeps = cf.hidden && S.profile.decks.some(x => x.id === cp.id);
   S.tab = 'up'; render(); const db = document.querySelector('[data-act="dismiss"]'); if (db){ const dn = db.dataset.n; db.click(); out.dismissAsks = !document.querySelector('#confirm').hidden && !(cur().dismissed || []).includes(dn); document.querySelector('#confirm [data-act="conf-no"]').click(); }
   S.tab = 'list'; render(); document.querySelector('[data-act="del-deck"]').click(); document.querySelector('#confirm [data-act="conf-yes"]').click(); out.deleted = !S.profile.decks.some(x => x.id === cp.id);
-  document.querySelector('#undo-fab').click(); out.undoDelete = S.profile.decks.some(x => x.id === cp.id);
+  document.querySelector('#undo-fab').click(); { const cf = document.querySelector('#confirm'); out.undoAsks = !!cf && !cf.hidden; if (out.undoAsks) cf.querySelector('[data-act="conf-yes"]').click(); } out.undoDelete = S.profile.decks.some(x => x.id === cp.id);
   S.deckId = cp.id; S.open = true; S.tab = 'list'; render(); const before = JSON.stringify(cur().cards), nm = cur().cards.find(e => !isBasic(e.n)).n; handleAct('rm', '', nm); touch();
-  out.removed = !cur().cards.some(e => e.n === nm); document.querySelector('#undo-fab').click(); out.undoRemove = JSON.stringify(cur().cards) === before;
+  out.removed = !cur().cards.some(e => e.n === nm); document.querySelector('#undo-fab').click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } out.undoRemove = JSON.stringify(cur().cards) === before;
   // pop-up frame: the title row and frame stay, only the body scrolls
   openCard(nm); await new Promise(r => setTimeout(r, 50)); const pn = document.querySelector('#modal > .panel'), mb = pn && pn.querySelector(':scope > .mbody');
   out.framed = !!mb && getComputedStyle(pn).overflow === 'hidden' && ['auto', 'scroll'].includes(getComputedStyle(mb).overflowY) && !!pn.querySelector(':scope > .ph'); $('#modal').hidden = true;
@@ -1436,6 +1436,20 @@ const b156 = await page.evaluate(async () => { const out = {}; const sy = S.sync
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
 T('UI-B156-01', 'Version 0.9.11: no held picks; Budget never scores above Mid on a row; tier buttons say what the new cards cost; one swap keeps the rest of the list; buy suggestions kept with Bought marks and Refresh; Generate asks before using a commander and keeps a Building window up', b156.rows > 0 && !b156.holds && b156.order && b156.btn && b156.swapped && b156.kept && b156.snap && b156.got && b156.refresh && b156.confirm && b156.back && b156.building, JSON.stringify(b156));
 } catch (e) { QUIET = false; T('UI-B156-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B157-01')) { try { if (SHARD) await RESET();
+// Version 0.9.12 (owner, 24 Oct): every row has an Apex card (the slot's best card, even a cheap one: it is not shown as Budget),
+// and no Undo happens without confirming it (Cancel changes nothing).
+const b157 = await page.evaluate(async () => { const out = {}; const sy = S.syncRecs; S.syncRecs = true;
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander); await loadThemes(d.commander, d.aims);
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await recsReady(d); render();
+  const R = recsFor(d); out.rows = R.paths.length; out.apexAll = R.paths.every((L, i) => { const c = rowCols(d, R, L, i); return !!(c.apex && c.apex.p); });
+  out.apexBest = R.paths.every((L, i) => { const c = rowCols(d, R, L, i), a = c.apex.p; return ['mid', 'budget'].every(t => !c[t] || !c[t].p || a.pc || a.dScore == null || c[t].p.dScore == null || c[t].p.dScore <= a.dScore + 0.05); });
+  d.name = d.name + ' x'; touch(); render(); const n0 = UNDO.stack.length; const ub = document.querySelector('[data-act="undo"]'); out.undoBtn = !!ub; if (ub) ub.click(); await new Promise(r => setTimeout(r, 100));
+  const cf = document.querySelector('#confirm'); out.asks = !!cf && !cf.hidden; if (out.asks) cf.querySelector('[data-act="conf-no"]').click(); await new Promise(r => setTimeout(r, 100)); out.cancelKeeps = UNDO.stack.length === n0;
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
+T('UI-B157-01', 'Version 0.9.12: every upgrade row has an Apex card, the best card for the slot whatever it costs; Undo asks before undoing and Cancel changes nothing', b157.rows > 0 && b157.apexAll && b157.apexBest && b157.undoBtn && b157.asks && b157.cancelKeeps, JSON.stringify(b157));
+} catch (e) { QUIET = false; T('UI-B157-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-IPAD-02')) { try { if (SHARD) await RESET();
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
