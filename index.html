@@ -179,7 +179,7 @@ button.pip.on{opacity:1;border-color:#fff;box-shadow:0 0 14px rgba(185,147,255,.
 .dl .pnm, .ph .pnm{font-weight:400;font-size:.82em;opacity:.65}
 #pic-note:empty{display:none}
 .card.real{position:relative} .card.real .flip{position:absolute;right:8px;top:8px;z-index:2}
-.aimp{display:flex;flex-direction:column} .aimp .bfoot{flex:none;display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid #2a1d55;margin-top:8px} .aimp .bfoot .btn{width:auto}
+.aimp{display:flex;flex-direction:column} .aimp .bfoot{flex:none;display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid #2a1d55;margin-top:8px} .aimp .bfoot .btn{width:auto} .aimp .bfoot{flex-wrap:wrap;gap:6px} .aimp .bfoot .capbox.cb0{flex:1 1 40%} .aimp .bfoot .capbox{flex:1 1 100%;margin:0!important;padding:0!important;border:0!important;font-size:12px} .aimp .bfoot .capbox>.btn{width:100%}
 .bsec summary{cursor:pointer;list-style:none;display:flex;flex-direction:column;gap:3px} .bsec summary::-webkit-details-marker{display:none} .bsec summary .lab::before{content:'▸ ';color:var(--glow)} .bsec[open] summary .lab::before{content:'▾ '} .bsec[open] summary{margin-bottom:8px}
 .bsum{font-size:13px;color:var(--ink);line-height:1.35;overflow-wrap:anywhere} .bsec[open] .bsum{color:var(--mute)}
 .dmeta summary{cursor:pointer;list-style:none} .dmeta[open] summary{margin-bottom:8px}
@@ -335,7 +335,7 @@ button.card:hover{box-shadow:0 0 0 2px var(--glow),0 0 22px rgba(141,92,255,.7);
 .hfix{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .fixsw{display:flex;flex-direction:column;gap:6px}.swaphero{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}.swaphero .arrow{font-size:20px;color:var(--chrome)}.fixsw .sw{width:100%}
 #undo-fab{position:fixed;left:16px;bottom:16px;z-index:40;display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:22px;border:1px solid var(--glow);background:#2a1660;color:#fff;font:600 13px var(--label);letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 18px rgba(0,0,0,.5)}
-#undo-fab[hidden]{display:none}.aka{font-weight:400;opacity:.75;font-size:.85em}.gapbox{margin-top:6px}.gaps{margin:4px 0 0;padding-left:18px}.gaps li{margin:2px 0}.tab em{white-space:nowrap}@media (max-width:560px){.tab em{font-size:11px;padding-left:5px;padding-right:5px}}body.has-fab #main{padding-bottom:72px}
+#undo-fab[hidden]{display:none}.aka{font-weight:400;opacity:.75;font-size:.85em}.gapbox{margin-top:6px}.hgrid.compact{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:12px}.hgrid.compact .hi{max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gaps{margin:4px 0 0;padding-left:18px}.gaps li{margin:2px 0}.tab em{white-space:nowrap}@media (max-width:560px){.tab em{font-size:11px;padding-left:5px;padding-right:5px}}body.has-fab #main{padding-bottom:72px}
 .undo-in{display:inline-flex;align-items:center;gap:6px}.undo-in svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
 .sheethead .shnav{min-height:40px;padding:8px 16px;font-size:15px;font-weight:600}
 .alt3{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}.alt3 .a3{display:flex;flex-direction:column;gap:2px}.alt3 .sw{border-left-color:var(--chrome2)}.alt3 .sw span{font-weight:500}#undo-fab svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -454,7 +454,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 164; window.VERSION = '0.9.19';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
+window.BUILD = 165; window.VERSION = '0.9.20';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
 (function(){
   var last = 0;
   function check(){

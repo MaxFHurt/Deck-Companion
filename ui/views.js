@@ -459,10 +459,20 @@ function metaBox(d) {
   );
 }
 // Regenerate upgrades sits at the foot of the Build panel (it rebuilds the suggestions from these settings; the deck's cards stay).
+// The best decks with every new card under $3 and $12 sit here too (owner, 25 Oct: moved from the Upgrades tab).
 function buildFoot(d) {
-  return isAimed(d) && d.cards.length && !(d.plan && d.plan.length)
-    ? '<div class="bfoot"><button class="btn pri" data-act="regen" title="Weigh every upgrade again from these settings; the cards in your deck stay as they are">Regenerate upgrades</button></div>'
-    : '';
+  if (!(isAimed(d) && d.cards.length && !(d.plan && d.plan.length))) return '';
+  let caps = '';
+  if (d.format === 'commander')
+    try {
+      const R = recsFor(d);
+      if (R && !R.pending && (!R.pool || R.poolDone) && R.paths.length) caps = ['budget', 'mid'].map(t => capBox(d, t)).join('');
+    } catch (e) {}
+  return (
+    '<div class="bfoot">' +
+    caps +
+    '<button class="btn pri" data-act="regen" title="Weigh every upgrade again from these settings; the cards in your deck stay as they are">Regenerate upgrades</button></div>'
+  );
 }
 // Customised Build panel sections fold into one-line headers that always show their settings (Build 133); a section that still
 // needs input starts open, and each remembers being opened or closed.

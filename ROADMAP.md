@@ -222,6 +222,26 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.20 (build 165, 26 October 2026; owner: "The stats page should be just that, stats ... Gameplans and upgrade plans should all be on the upgrades tab")
+
+- **Layout.** Upgrades now holds the meter (You / Budget 70 / Mid 85 / Apex 100), the level sentence, what keeps the deck below
+  the next level, Path to Apex, Upgrades left and the game plan ("Game plan: how X works and how the deck wins", moved out of the
+  deck score's details), all under the progress bar and above the upgrades. Build stats keeps the strip, the stat tiles, a short
+  health list (several items per line) and the rest of the analysis. The Apply All Budget / Mid / Apex buttons sit below the
+  upgrade rows; the "Best deck with every card under $3 / $12" buttons are in the left Build pane above Regenerate upgrades.
+- **The Mind Stone read as weak (owner's screenshot).** "Fits Graveyard" was wrong: the keyword list for the graveyard theme
+  held "harness" and "∞" (the Infinity Stones' mechanic, not a graveyard one); both removed (rules 32/32, misread unchanged,
+  benchmark identical on all 15 numbers). "Ranks below nearly every spell" came from play data: a card first printed in June
+  has had four months to be picked up (EDHREC rank 3784, in 8% of T'Challa decks) while Mind Stone is a top-40 staple. The card
+  window now says a card first printed in the last 12 months is new and has little play data yet, and does not mark it down for
+  that (fit text only; the upgrade scoring is unchanged). Card data now keeps each card's first-printing month (Scryfall's
+  `reprint: false`); it fills in on the next card-data refresh. "Score unchanged" is the measured result of that swap (the deck
+  score moves less than its smallest step), not play data.
+- **Tests:** UI-B126-01, UI-B132-01, UI-B164-01, UI-B81-01, UI-SCORE-01 and UI-STATS-01 follow the move; new UI-B165-01 checks
+  the new arrangement. UI-B133-01 caught the left pane running 10 px past an iPad screen, so the two buttons sit side by side
+  ("Best deck under $3" / "$12", full wording on hover). Full suite: all pass but the known timing tests; UI-B144-02 now takes
+  2.0-2.5 s against its 2 s limit on this test machine even on the live 0.9.19 code (not this change).
+
 ## After 0.9.19 (25 October 2026): switches for the Mid/Budget polish decision (all at today's behaviour)
 
 - UP.tierPolish (1): the polish rounds on a generated Mid / Budget deck after it is made from the Apex build (UP.polish also

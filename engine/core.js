@@ -372,8 +372,6 @@ const KW_THEMES = {
     'descend 4',
     'descend 8',
     'undergrowth',
-    'harness',
-    '∞',
     'collect evidence',
     'gravestorm'
   ],

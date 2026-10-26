@@ -114,6 +114,7 @@ function fromScryfall(o) {
     rar: o.rarity || '',
     cn: o.collector_number || '',
     gc: !!o.game_changer,
+    nw: o.reprint === false && o.released_at ? o.released_at.slice(0, 7) : '', // first printing's month, for new cards with little play data yet
     fn: o.flavor_name || f0.flavor_name || '',
     src: 'full',
     df: !!(f && f.length === 2 && f[0].image_uris && f[1].image_uris),

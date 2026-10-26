@@ -424,12 +424,15 @@ function upPanel(d, A, mode) {
         ? 'Every pick fits the deck’s theme. A slot with no on-theme upgrade keeps its usual picks.'
         : 'Turn on to pick only on-theme cards (raw power can win otherwise).') +
       '</small></div>';
+    // owner, 25 Oct: the Apply all buttons sit below the upgrade sheets and suggestions; the best decks under $3 and $12 moved to
+    // the Build panel (buildFoot)
+    let tierBlock = '';
     // Version 0.9.3 (owner, 19 Oct): the tiers are one row of three buttons, each applying that tier's swaps (it asks first):
     // "Apply All Budget Swaps" over "4 cards $5".
     {
       const TS = {};
       TIER_KEYS.forEach(t => (TS[t] = tierSum(d, R, t)));
-      h +=
+      tierBlock =
         '<div class="tierbtns" role="group" aria-label="Apply a tier">' +
         TIER_KEYS.map(t => {
           const ts = TS[t];
@@ -469,7 +472,6 @@ function upPanel(d, A, mode) {
         (TS.apex.n && packLine(R, 'apex', TS.apex.n)
           ? '<p class="note tierpack">All Apex swaps together: ' + packLine(R, 'apex', TS.apex.n) + '</p>'
           : '') +
-        ['budget', 'mid'].map(t => capBox(d, t)).join('') +
         '</div>';
     }
     const show = S.pathShow || 12,
@@ -633,6 +635,7 @@ function upPanel(d, A, mode) {
       (sheet ? '</div>' : '');
     if (!sheet && PV.length > show)
       h += '<button class="btn" data-act="path-more">Show ' + Math.min(12, PV.length - show) + ' more</button>';
+    h += tierBlock;
   }
   h += '</div>';
   // the record of upgrades made, each with Undo, sits at the bottom of the list
@@ -648,7 +651,7 @@ function upPanel(d, A, mode) {
   }
   h += outHtml;
   h +=
-    '<div class="grp"><span class="lab">Start the picks over</span><p class="note" style="margin:0">Picks you have been shown keep their place so the list stays steady. Regenerate fetches the latest card and play data and weighs every option again, including newly released cards. Your deck, library and swap history are not touched.</p><div class="row"><button class="btn" data-act="regen">Regenerate picks</button>' +
+    '<div class="grp"><span class="lab">Start the picks over</span><p class="note" style="margin:0">The list is worked out once and kept until something changes. Regenerate fetches the latest card and play data and weighs every option again, including newly released cards. Your deck, library and swap history are not touched.</p><div class="row"><button class="btn" data-act="regen">Regenerate picks</button>' +
     (d.recPrev ? '<button class="btn sm" data-act="regen-undo">Undo last regenerate</button>' : '') +
     '</div></div>';
   return h + '</div>';

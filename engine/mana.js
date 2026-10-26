@@ -520,10 +520,15 @@ function evalFit(d, c, sw) {
       }
       // that ranking already counts how rarely players run it, so a card hitting two or more plans isn't marked down twice
       else if (pc <= 0.15) {
-        const up = sw && sw.dScore != null && sw.dScore >= SCORE_MIN;
-        if (!multi && !up) pts -= 1;
+        const up = sw && sw.dScore != null && sw.dScore >= SCORE_MIN,
+          nw = newCard(c);
+        if (!multi && !up && !nw) pts -= 1;
         cons.push(
-          up
+          nw
+            ? 'It is a new card (first printed ' +
+                nw +
+                '), so players have had little time to pick it up; on the play data so far it rates below most spells in the deck.'
+            : up
             ? 'On play data and fit alone it rates below nearly every spell in the deck' +
                 '; the score gain comes from the swap itself (see above).'
             : 'By my scoring it ranks below nearly every spell already in the deck.'
@@ -557,4 +562,14 @@ function evalFit(d, c, sw) {
     return {level: im[2], title: im[1] + ' · ' + fitT.toLowerCase(), fit: level, impact: im[1], pros, cons};
   }
   return {level, title: fitT, fit: level, pros, cons};
+}
+
+// A card first printed in the last 12 months (owner, 26 Oct: The Mind Stone read as weak): its play data is still catching up,
+// so the card window says so instead of marking it down. Returns the month it was printed, or ''.
+function newCard(c) {
+  if (!c.nw) return '';
+  const [y, m] = c.nw.split('-').map(Number),
+    now = new Date(),
+    ago = (now.getFullYear() - y) * 12 + now.getMonth() + 1 - m;
+  return ago >= 0 && ago <= 12 ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1] + ' ' + y : '';
 }

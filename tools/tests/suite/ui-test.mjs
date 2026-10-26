@@ -191,7 +191,9 @@ if (RUN('UI-SCORE-01')) { try { if (SHARD) await RESET();
 // 12. Deck score: five categories with reasons, how the commander works (reviewed profile), how the deck wins.
 await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(900);
 for (let i = 0; i < 40 && await page.evaluate(() => !/% of the Apex build/.test(document.body.textContent)); i++) await page.waitForTimeout(250);
-const sc = await page.evaluate(() => { const det = document.querySelector('#score-more'); if (det) det.open = true; const t = document.body.textContent; return {score:/Deck score · \d+ of 100/.test(t), cats:['Synergy', 'Balance', 'Card quality', 'Win routes', 'Mana and curve'].every(x => t.includes(x)), profile:/How T.Challa works/.test(t) && /Vibranium tokens are artifacts, not creatures/.test(t), wins:/How it wins/.test(t), apex:(/Card quality: (\d+)% of the Apex build/.exec(t) || [])[1], tierLine:/% of the best build with every card under \$(3|12)/.test(t), tier:cur().tier}; });
+const sc = await page.evaluate(() => { const det = document.querySelector('#score-more'); if (det) det.open = true; const t = document.body.textContent; return {score:/Deck score · \d+ of 100/.test(t), cats:['Synergy', 'Balance', 'Card quality', 'Win routes', 'Mana and curve'].every(x => t.includes(x)), profile:null, wins:null, apex:(/Card quality: (\d+)% of the Apex build/.exec(t) || [])[1], tierLine:/% of the best build with every card under \$(3|12)/.test(t), tier:cur().tier}; });
+{ const gp = await page.evaluate(() => { S.tab = 'up'; render(); const det = document.querySelector('#plan-more'); if (det) det.open = true; const t = det ? det.textContent : '';   /* 0.9.20: the game plan moved to Upgrades */
+  const r = {profile:/How T.Challa works/.test(t) && /Vibranium tokens are artifacts, not creatures/.test(t), wins:/How it wins/.test(t)}; S.tab = 'stats'; render(); return r; }); sc.profile = gp.profile; sc.wins = gp.wins; }
 T('UI-SCORE-01', 'Deck score shows five categories with reasons, card quality as a share of the Apex build (plus the under-$3/$12 line for Budget and Mid decks), the commander’s reviewed profile, and how the deck wins', sc.score && sc.cats && sc.profile && sc.wins && +sc.apex >= 0 && +sc.apex <= 100 && (sc.tier === 'apex' || sc.tierLine), JSON.stringify(sc));
 } catch (e) { QUIET = false; T('UI-SCORE-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-GEN-01')) { try { if (SHARD) await RESET();
@@ -389,7 +391,7 @@ const stt = await page.evaluate(async () => { const out = {}; const wq = async (
   await loadPreconLive('avengers-assemble', 'Avengers Assemble'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; await loadEdh(d.commander); await loadThemes(d.commander, d.aims); render(); await wq();
   const num = (sel, re) => +((re.exec(document.querySelector(sel).textContent) || [])[1]);
   out.first = document.querySelector('.statbar').textContent; out.base = JSON.parse(JSON.stringify(d.base || null)); out.firstTop = !!document.querySelector('#statscroll > .statbar:first-child');
-  out.health = document.querySelectorAll('#stats-more .hi').length; out.meter = !!document.querySelector('.tmeter b'); out.left = /Upgrades left/.test(document.querySelector('#stats-more').textContent);
+  out.health = document.querySelectorAll('#stats-more .hi').length; S.tab = 'up'; render(); out.meter = !!document.querySelector('#upscroll .tmeter b'); out.left = /Upgrades left/.test(document.querySelector('#upscroll').textContent); S.tab = 'stats'; render();   /* 0.9.20: on Upgrades */
   S.tab = 'up'; render(); const b = document.querySelector('.paths [data-act="swap"][data-v$="|apex"]'), [i] = b.dataset.v.split('|'), p = recsFor(d).paths[+i].opts.apex, price = (find(p.add).p || 0) * p.q; b.click(); await new Promise(r => setTimeout(r, 300)); S.tab = 'stats'; render(); await wq();
   out.swaps = num('.statbar', /Swaps (\d+)/); out.spent = num('.statbar', /Spent \$(\d+)/); out.expectSpent = Math.round(price); out.score = num('#stats-more .sgrid', /Deck score(\d+)/); /* 0.9.19: the strip shows deck power; the deck score is in Build stats */ out.evalScore = evalFor(d).total; out.baseKept = d.base && out.base && d.base.score === out.base.score;
   out.deltaShown = out.score === out.base.score || /since/.test(document.querySelector('#stats-more .sgrid').textContent);
@@ -500,7 +502,7 @@ const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true;
   if (out.fixBtn){ document.querySelector('[data-act="h-fix"][data-v="Ramp"]').click(); const m = document.querySelector('#modal'); out.menu = /Fix: Ramp/.test(m.textContent); out.swaps = m.querySelectorAll('[data-act="fix-swap"]').length; out.scoreShown = m.querySelectorAll('.opt .chip').length > 0;
     const g = S.fixG[0]; out.allAddRamp = g.L.every(p => tags(find(p.add)).roles.has('ramp')); m.querySelector('[data-act="fix-swap"]').click(); out.rampUp = analyze(d).roles.ramp === before + 1;
     document.querySelector('#modal [data-act="h-ignore"][data-v="Ramp"]').click(); out.ignored = (d.ignoreH || []).includes('Ramp'); render(); out.unignoreBtn = !!document.querySelector('[data-act="h-unignore"][data-v="Ramp"]'); }
-  out.tips = !!document.querySelector('.apextips') || /Path to Apex/.test(document.body.textContent);
+  S.tab = 'up'; render(); out.tips = !!document.querySelector('.apextips') || /Path to Apex/.test(document.body.textContent);   /* on Upgrades since 0.9.20 */
   Object.keys(d).forEach(k => delete d[k]); Object.assign(d, JSON.parse(save)); S.profile.want = JSON.parse(saveW); S.upOrd = null; recsFor.k = null; render(); return out; });   // leaves the deck and the buy list exactly as it found them
 T('UI-B81-01', 'Build 81: decklist A–Z inside each type; a card goes on My buy list without touching any deck and shows on My decks; Upgrades sort by biggest impact; Game Changers have their own chip; a Ramp alert opens a Fix menu of swaps that each add ramp (with score effect), a swap raises ramp by one, and the alert can be ignored and un-ignored; Path to Apex tips show', b81.alpha && b81.mine && b81.mineShown && b81.impactSorted && b81.sortBar && b81.gcChip !== false && b81.fixBtn && b81.menu && b81.swaps > 0 && b81.scoreShown && b81.allAddRamp && b81.rampUp && b81.ignored && b81.unignoreBtn && b81.tips, JSON.stringify(b81));
 } catch (e) { QUIET = false; T('UI-B81-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -1047,9 +1049,9 @@ if (RUN('UI-B126-01')) { try { if (SHARD) await RESET();
 // progress at the top, then the upgrades. Both show the score and the progress bar.
 const b126 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; render(); await recsReady(d); render();
   const tabs = [...document.querySelectorAll('.tabs [data-act="tab"]')].map(b => b.dataset.v), st = document.querySelector('#statscroll'), out = {order:tabs.indexOf('list') + 1 === tabs.indexOf('stats') && tabs.indexOf('stats') + 1 === tabs.indexOf('up')};
-  out.statsHas = !!(st && st.querySelector('.statbar') && st.querySelector('.tmeter') && st.querySelector('.hgrid')); S.tab = 'up'; render(); const up = document.querySelector('#upscroll');
+  out.statsHas = !!(st && st.querySelector('.statbar') && st.querySelector('.hgrid')); out.statsNoMeter = !!(st && !st.querySelector('.tmeter'));   /* 0.9.20: the meter moved to Upgrades (owner 26 Oct) */ S.tab = 'up'; render(); const up = document.querySelector('#upscroll');
   out.upHas = !!(up && up.querySelector('.statbar') && up.querySelector('.tmeter')); out.upNoHealth = !(up && up.querySelector('.hgrid')); out.paths = !!(up && up.querySelector('.paths')); return out; });
-T('UI-B126-01', 'Build stats tab sits between Decklist and Upgrades with the analysis (score, Apex progress, health); Upgrades shows the score and Apex progress, then the upgrades', Object.values(b126).every(v => v === true), JSON.stringify(b126));
+T('UI-B126-01', 'Build stats tab sits between Decklist and Upgrades with the analysis (score, health; no Apex progress since 0.9.20); Upgrades shows the score and Apex progress, then the upgrades', Object.values(b126).every(v => v === true), JSON.stringify(b126));
 } catch (e) { QUIET = false; T('UI-B126-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B127-01')) { try { if (SHARD) await RESET();
 // 77. Build 127: upgrade sheets. One upgrade at a time as four cards (your card, Budget, Mid, Apex) with picture, score change and
@@ -1099,9 +1101,9 @@ if (RUN('UI-B132-01')) { try { if (SHARD) await RESET();
 const b132 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(d); render();
   const up = document.querySelector('#upscroll'), bs = [...up.querySelectorAll('.tierbtns [data-act="swap-all"]')], out = {tiers:bs.map(b => b.dataset.v).join(',')};
   out.oneRow = new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size === 1; out.text = bs.every(b => /^Apply All (Budget|Mid|Apex) Swaps$/i.test(b.querySelector('b').textContent) && /^(\d+ cards? · \$\d+ to buy|No worthwhile upgrades)$/.test(b.querySelector('span').textContent));
-  const t = up.textContent; out.gone = !/Apex progress|Your deck is at|Upgrade paths|How the tiers work|The strongest card for each slot/i.test(t) && !up.querySelector('.tiertabs');
-  S.tab = 'stats'; render(); out.statsKeeps = /Your deck is at/.test(document.querySelector('#statscroll').textContent); S.tab = 'up'; render(); return out; });
-T('UI-B132-01', 'Tiers are one row of three buttons ("Apply All Budget Swaps" over "N cards · $X to buy", owner 24 Oct); the Upgrades tab drops the Apex progress label, the level sentence, the Upgrade paths label and How the tiers work; Build stats keeps the sentence', b132.tiers === 'budget,mid,apex' && b132.oneRow && b132.text && b132.gone && b132.statsKeeps, JSON.stringify(b132));
+  const t = up.textContent; out.gone = !/Apex progress|Upgrade paths|How the tiers work|The strongest card for each slot/i.test(t) && !up.querySelector('.tiertabs'); out.upSentence = /Your deck is at/.test(t);
+  S.tab = 'stats'; render(); out.statsKeeps = !/Your deck is at/.test(document.querySelector('#statscroll').textContent);   /* 0.9.20 (owner 26 Oct): the sentence and Path to Apex live on Upgrades; Build stats is stats only */ S.tab = 'up'; render(); return out; });
+T('UI-B132-01', 'Tiers are one row of three buttons ("Apply All Budget Swaps" over "N cards · $X to buy", owner 24 Oct); the Upgrades tab drops the Apex progress label, the Upgrade paths label and How the tiers work and shows the level sentence; Build stats does not (0.9.20)', b132.tiers === 'budget,mid,apex' && b132.oneRow && b132.text && b132.gone && b132.upSentence && b132.statsKeeps, JSON.stringify(b132));
 } catch (e) { QUIET = false; T('UI-B132-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B133-01')) { try { if (SHARD) await RESET();
 // 82. Build 133: the customised Build panel folds into one-line headers that always show their settings (format, mechanics,
@@ -1518,15 +1520,30 @@ if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 const b164 = await page.evaluate(async () => { const out = {};
   await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
   for (let i = 0; i < 200 && !(apexFor(d) && apexFor(d).tot && apexFor(d).tot.parts); i++) { await new Promise(r => setTimeout(r, 100)); if (i % 10 === 0) render(); }
-  S.view = 'decks'; S.open = true; S.tab = 'stats'; render(); await new Promise(r => setTimeout(r, 300)); render();
+  S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await new Promise(r => setTimeout(r, 300)); render();   /* the meter and gaps are on Upgrades since 0.9.20 */
   const strip = (document.querySelector('.statbar') || {}).textContent || '', leg = (document.querySelector('.tm-leg') || {}).textContent || '';
   out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.marks = /Budget\s*70/.test(leg) && /Mid\s*85/.test(leg) && /Apex\s*100/.test(leg);
   const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round(powerOf(e.exact, T));
   out.gaps = [...document.querySelectorAll('.gapbox li')].map(x => x.textContent.slice(0, 40)); out.gapOk = out.lvl === 'Apex' || out.gaps.length > 0;
-  out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
+  S.tab = 'stats'; render(); out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B164-01', 'Version 0.9.19: the strip and meter show deck power on this deck’s own builds (Budget 70, Mid 85, Apex 100); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
 } catch (e) { QUIET = false; T('UI-B164-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B165-01')) { try { if (SHARD) await RESET();
+// Version 0.9.20 (owner, 26 Oct: "The stats page should be just that, stats"): Path to Apex, the meter, upgrades left and the game
+// plan sit on Upgrades under the progress bar; Build stats keeps a short one-line-per-few health list; the Apply All buttons sit below
+// the upgrade rows; the "Best deck with every card under $X" buttons sit in the left Build pane.
+const b165 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.syncRecs = false; render(); await recsReady(d);
+  for (let i = 0; i < 150 && recsFor.v && recsFor.v.pool && !recsFor.v.poolDone; i++) await new Promise(r => setTimeout(r, 100)); render();
+  const up = document.querySelector('#upscroll'), out = {};
+  out.upMeter = !!up.querySelector('.tmeter'); out.upTips = !!up.querySelector('.apextips') || /Path to Apex/i.test(up.textContent); out.upPlan = !!up.querySelector('#plan-more');
+  const rows = [...up.querySelectorAll('.paths .path')], tb = up.querySelector('.tierbtns'); out.tiersBelow = !!(tb && rows.length && tb.getBoundingClientRect().top >= rows[rows.length - 1].getBoundingClientRect().bottom - 1);
+  out.capsLeft = document.querySelectorAll('.aimp .bfoot [data-act="cap-show"]').length === 2 && !up.querySelector('[data-act="cap-show"]');
+  S.tab = 'stats'; render(); const st = document.querySelector('#statscroll'), hg = st.querySelector('.hgrid');
+  out.statsClean = !st.querySelector('.tmeter') && !st.querySelector('.apextips') && !st.querySelector('#plan-more') && !/Path to Apex|Upgrades left/i.test(st.textContent);
+  out.healthShort = !!(hg && hg.getBoundingClientRect().height < 90); S.tab = 'up'; render(); return out; });
+T('UI-B165-01', 'Version 0.9.20: Path to Apex, the meter and the game plan are on Upgrades; Build stats is stats only with a short health list; Apply All buttons sit below the upgrade rows; the under-$X buttons sit in the left pane', Object.values(b165).every(v => v === true), JSON.stringify(b165));
+} catch (e) { QUIET = false; T('UI-B165-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-IPAD-02')) { try { if (SHARD) await RESET();
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
   await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);

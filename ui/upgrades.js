@@ -1491,9 +1491,11 @@ function capBox(d, t) {
   const cap = TIERS[t].cap;
   if (!(S.capOpen && S.capOpen[d.id + t]))
     return (
-      '<div class="capbox" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><button class="btn sm" data-act="cap-show" data-v="' +
+      '<div class="capbox cb0" style="margin-top:8px;border-top:1px solid var(--line,#8884);padding-top:8px"><button class="btn sm" data-act="cap-show" data-v="' +
       t +
-      '">Best deck with every card under $' +
+      '" title="Best deck with every card under $' +
+      cap +
+      '">Best deck under $' +
       cap +
       '</button></div>'
     );
@@ -2154,39 +2156,17 @@ function evalFor(d) {
   EVC.set(d.id, {key: k2, base: key, v});
   return v;
 }
-function scoreHtml(d, A) {
+// The game plan (owner, 25 Oct: "Gameplans and upgrade plans should all be on the upgrades tab"): how the commander works (its
+// needs) and how the deck wins (combos, finishers, a combo one card away), on the Upgrades tab.
+function gamePlanHtml(d, A) {
   if (d.format !== 'commander' || !A.ctx.cmd || A.size < 90 || !DBINFO.complete) return '';
   const e = evalFor(d);
   if (!e) return '';
-  const L = {synergy: 'Synergy', balance: 'Balance', quality: 'Card quality', routes: 'Win routes', mana: 'Mana and curve'};
-  const bar = k => {
-    const v = e.parts[k],
-      cls = v >= 75 ? 'good' : v >= 50 ? 'warn' : 'bad';
-    return (
-      '<div class="meter ' +
-      cls +
-      '"><span>' +
-      L[k] +
-      '</span><i><b style="width:' +
-      v +
-      '%"></b></i><span>' +
-      v +
-      '</span></div>'
-    );
-  };
   const pr = e.profile,
     cmdN = esc(A.ctx.cmd.n.split(',')[0]),
     wins = e.combos.win,
     near = e.combos.near.filter(x => x.x.win).slice(0, 3);
-  let more =
-    '<p class="note" style="margin:0">' +
-    Object.keys(L)
-      .map(k => '<b>' + L[k] + '</b> (' + EV_W[k] + '% of the score): ' + esc(e.why[k]))
-      .join('<br>') +
-    '</p>' +
-    '<p class="note" style="margin:0">60 is like a typical real deck for its commander; 85 is like the best tenth. Mana and curve come from ' +
-    e.sim.games +
-    ' practice games played out by the app (no opponents). The score judges how the deck is built, not how a game will go.</p>';
+  let more = '';
   if (pr && (pr.plan || e.needs.length))
     more +=
       '<span class="lab">How ' +
@@ -2211,29 +2191,6 @@ function scoreHtml(d, A) {
           '</div>'
         : '') +
       (pr.reviewed ? '' : '<p class="note" style="margin:0">Read from the commander’s text; not a reviewed profile.</p>');
-  if (e.weak.length) {
-    const by = new Map();
-    e.weak.forEach(w => {
-      if (!by.has(w.n)) by.set(w.n, w);
-    });
-    more +=
-      '<span class="lab">Cards this deck barely supports</span>' +
-      [...by.values()]
-        .slice(0, 6)
-        .map(
-          w =>
-            '<p class="note" style="margin:0"><b>' +
-            esc(w.n) +
-            '</b> needs ' +
-            esc(w.label) +
-            ': the deck has ' +
-            (w.share ? Math.round(w.have * 100) + '%' : w.have) +
-            ' (usually ' +
-            (w.share ? Math.round(w.min * 100) + '%' : w.min) +
-            ' or more).</p>'
-        )
-        .join('');
-  }
   more +=
     '<span class="lab">How it wins</span>' +
     (wins.length
@@ -2277,6 +2234,72 @@ function scoreHtml(d, A) {
         ? '<p class="note" style="margin:0">Loading combo data…</p>'
         : '') +
     (COMBOS.list.length ? '<p class="note" style="margin:0">Combos from Commander Spellbook.</p>' : '');
+  return (
+    '<details class="more grp" id="plan-more"' +
+    (S.planOpen ? ' open' : '') +
+    '><summary><span class="lab" style="margin:0">Game plan: how ' +
+    cmdN +
+    ' works and how the deck wins</span></summary><div class="grp" style="margin-top:8px">' +
+    more +
+    '</div></details>'
+  );
+}
+function scoreHtml(d, A) {
+  if (d.format !== 'commander' || !A.ctx.cmd || A.size < 90 || !DBINFO.complete) return '';
+  const e = evalFor(d);
+  if (!e) return '';
+  const L = {synergy: 'Synergy', balance: 'Balance', quality: 'Card quality', routes: 'Win routes', mana: 'Mana and curve'};
+  const bar = k => {
+    const v = e.parts[k],
+      cls = v >= 75 ? 'good' : v >= 50 ? 'warn' : 'bad';
+    return (
+      '<div class="meter ' +
+      cls +
+      '"><span>' +
+      L[k] +
+      '</span><i><b style="width:' +
+      v +
+      '%"></b></i><span>' +
+      v +
+      '</span></div>'
+    );
+  };
+  const pr = e.profile,
+    cmdN = esc(A.ctx.cmd.n.split(',')[0]),
+    wins = e.combos.win,
+    near = e.combos.near.filter(x => x.x.win).slice(0, 3);
+  let more =
+    '<p class="note" style="margin:0">' +
+    Object.keys(L)
+      .map(k => '<b>' + L[k] + '</b> (' + EV_W[k] + '% of the score): ' + esc(e.why[k]))
+      .join('<br>') +
+    '</p>' +
+    '<p class="note" style="margin:0">60 is like a typical real deck for its commander; 85 is like the best tenth. Mana and curve come from ' +
+    e.sim.games +
+    ' practice games played out by the app (no opponents). The score judges how the deck is built, not how a game will go.</p>';
+  if (e.weak.length) {
+    const by = new Map();
+    e.weak.forEach(w => {
+      if (!by.has(w.n)) by.set(w.n, w);
+    });
+    more +=
+      '<span class="lab">Cards this deck barely supports</span>' +
+      [...by.values()]
+        .slice(0, 6)
+        .map(
+          w =>
+            '<p class="note" style="margin:0"><b>' +
+            esc(w.n) +
+            '</b> needs ' +
+            esc(w.label) +
+            ': the deck has ' +
+            (w.share ? Math.round(w.have * 100) + '%' : w.have) +
+            ' (usually ' +
+            (w.share ? Math.round(w.min * 100) + '%' : w.min) +
+            ' or more).</p>'
+        )
+        .join('');
+  }
   const qq = e.quality || {},
     qLine = qq.pending
       ? '<p class="note think" style="margin:-2px 0 4px">Thinking… measuring card quality against this deck’s Apex build</p>'
@@ -2296,9 +2319,7 @@ function scoreHtml(d, A) {
       .join('') +
     '<details class="more" id="score-more"' +
     (S.scoreOpen ? ' open' : '') +
-    '><summary>Why, how ' +
-    cmdN +
-    ' works, and how the deck wins</summary><div class="grp" style="margin-top:8px">' +
+    '><summary>Why each part scores as it does</summary><div class="grp" style="margin-top:8px">' +
     more +
     '</div></details></div>'
   );
@@ -2655,30 +2676,29 @@ function statsHtml(d, A, R, mode) {
       : '') +
     '</div>'; // the play-data chip sits at the bar's right end (owner, 19 Oct)
   const open1 = S.statsOpen !== false;
-  const prog =
-    '<div class="grp"><div class="row" style="justify-content:space-between"><span class="lab" style="margin:0">Apex progress</span></div>' +
-    tierMeter +
-    '</div>';
-  // Upgrades tab (owner, 19 Oct): the bar and its legend only; the label and the explanation stay on Build stats
+  // Upgrades tab (owner, 25 Oct: "the path to apex ... needs to be on the upgrades tab ... under the progress bar"; "Gameplans and
+  // upgrade plans should all be on the upgrades tab"): the bar, where the deck stands and what keeps it below the next level, the
+  // Path to Apex, the upgrades left at each level and how the commander works and wins. Build stats keeps the stats.
+  const leftHtml = left.length
+    ? '<div class="grp"><span class="lab">Upgrades left</span><div class="row">' +
+      left
+        .map(
+          x =>
+            '<span class="chip' +
+            (x.s.n ? '' : ' good') +
+            '">' +
+            TIERS[x.t].label +
+            ' · ' +
+            (x.s.n ? x.s.n + ' swap' + (x.s.n === 1 ? '' : 's') + ' · $' + x.s.cost.toFixed(0) + ' to buy' : 'done') +
+            '</span>'
+        )
+        .join('') +
+      '</div></div>'
+    : '';
   if (mode === 'compact')
-    return (
-      strip +
-      '<div class="grp">' +
-      (qp == null
-        ? tierMeter
-        : tmeterHtml(
-            qp,
-            mk,
-            lvl,
-            pw != null ? {you: Math.round(pwr), budget: POWER_MARKS.budget, mid: POWER_MARKS.mid, apex: POWER_MARKS.apex} : null,
-            pw != null
-          )) +
-      '</div>'
-    );
+    return strip + '<div class="grp">' + tierMeter + '</div>' + apexTips(d, A, R, e, HA, lvl) + leftHtml + gamePlanHtml(d, A);
   return (
     strip +
-    prog +
-    apexTips(d, A, R, e, HA, lvl) +
     '<details class="stats grp" id="stats-more"' +
     (open1 ? ' open' : '') +
     '><summary><span class="lab" style="margin:0">Build stats</span></summary>' +
@@ -2708,27 +2728,14 @@ function statsHtml(d, A, R, mode) {
     '</b><span class="note">$' +
     wCost.toFixed(0) +
     '</span></div></div>' +
-    (left.length
-      ? '<span class="lab">Upgrades left</span><div class="row">' +
-        left
-          .map(
-            x =>
-              '<span class="chip' +
-              (x.s.n ? '' : ' good') +
-              '">' +
-              TIERS[x.t].label +
-              ' · ' +
-              (x.s.n ? x.s.n + ' swap' + (x.s.n === 1 ? '' : 's') + ' · $' + x.s.cost.toFixed(0) + ' to buy' : 'done') +
-              '</span>'
-          )
-          .join('') +
-        '</div>'
-      : '') +
-    '<span class="lab">Health</span><div class="hgrid">' +
+    // Health in one compact row (owner, 25 Oct: it should not take much vertical space)
+    '<span class="lab">Health</span><div class="hgrid compact">' +
     H.map(
       x =>
         '<span class="hi ' +
         (ign.has(x.k) ? 'ign' : x.s) +
+        '" title="' +
+        esc(x.k + ': ' + x.t) +
         '"><i></i><b>' +
         x.k +
         '</b> ' +
