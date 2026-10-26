@@ -222,6 +222,13 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.21 (build 166, 26 October 2026; owner: "How can a deck's score be 0? ... When 1 card enters the deck's power should be above 0")
+
+- Deck power below the Budget build was a straight line that reached 0 at 25 score points under it, so a half-built deck
+  (score 57 against a Budget build of 90) showed power 0. It is now a curve, 70 x (score / Budget's)^(Budget's / 25): just as
+  steep near Budget (a precon moves 56 -> 57), 0 only for an empty deck, and at least 1 for any deck with a score (that deck
+  now reads 13). UI only: the deck score and upgrades are unchanged. UI-B164-01 checks the floor.
+
 ## Version 0.9.20 (build 165, 26 October 2026; owner: "The stats page should be just that, stats ... Gameplans and upgrade plans should all be on the upgrades tab")
 
 - **Layout.** Upgrades now holds the meter (You / Budget 70 / Mid 85 / Apex 100), the level sentence, what keeps the deck below

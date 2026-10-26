@@ -2343,9 +2343,11 @@ function refOrder(T) {
   return T && {budget: T.budget, mid: Math.max(T.mid, T.budget), apex: Math.max(T.apex, T.mid, T.budget)};
 }
 // Deck power (owner, 25 Oct: "Budget being 87 and Apex being 91 is too tight"): the deck score placed on this deck's own builds,
-// Budget build 70, Mid 85, Apex 100, in between by the score. Below Budget the scale runs to 0 at 25 score points under the
-// Budget build (a precon lands around 50); above the Apex build each score point adds 3. The deck score itself (what upgrades
-// are chosen by) is unchanged.
+// Budget build 70, Mid 85, Apex 100, in between by the score. Below Budget the scale curves down to 0 at a score of 0 (owner,
+// 26 Oct: "When 1 card enters the deck's power should be above 0"): 70 x (score / Budget's)^(Budget's / 25), as steep near
+// Budget as the old straight line that ran out at 25 points under it, so a precon still lands around 55; any deck with a
+// score is at least 1. Above the Apex build each score point adds 3. The deck score itself (what upgrades are chosen by) is
+// unchanged.
 const POWER_MARKS = {budget: 70, mid: 85, apex: 100},
   POWER_FLOOR = 25;
 function powerOf(x, T) {
@@ -2355,7 +2357,8 @@ function powerOf(x, T) {
   if (x >= a) return 100 + 3 * (x - a);
   if (x >= m) return 85 + (15 * (x - m)) / Math.max(0.01, a - m);
   if (x >= b) return 70 + (15 * (x - b)) / Math.max(0.01, m - b);
-  return Math.max(0, 70 - (70 * (b - x)) / POWER_FLOOR);
+  if (!(x > 0) || !(b > 0)) return 0;
+  return Math.max(1, 70 * Math.pow(x / b, b / POWER_FLOOR));
 }
 // What keeps a deck below the next level (owner's choice B): each part of its score against that level's build, the biggest
 // weighted gaps first, with the part's own explanation (which jobs are short, how many finishers).

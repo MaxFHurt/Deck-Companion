@@ -1523,11 +1523,11 @@ const b164 = await page.evaluate(async () => { const out = {};
   S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await new Promise(r => setTimeout(r, 300)); render();   /* the meter and gaps are on Upgrades since 0.9.20 */
   const strip = (document.querySelector('.statbar') || {}).textContent || '', leg = (document.querySelector('.tm-leg') || {}).textContent || '';
   out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.marks = /Budget\s*70/.test(leg) && /Mid\s*85/.test(leg) && /Apex\s*100/.test(leg);
-  const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round(powerOf(e.exact, T));
+  const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round(powerOf(e.exact, T)); out.floor = powerOf(0, T) === 0 && powerOf(5, T) >= 1 && powerOf(T.budget - 1, T) > 60;   /* 0.9.21: only an empty deck is 0 */
   out.gaps = [...document.querySelectorAll('.gapbox li')].map(x => x.textContent.slice(0, 40)); out.gapOk = out.lvl === 'Apex' || out.gaps.length > 0;
   S.tab = 'stats'; render(); out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
-T('UI-B164-01', 'Version 0.9.19: the strip and meter show deck power on this deck’s own builds (Budget 70, Mid 85, Apex 100); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
+T('UI-B164-01', 'Version 0.9.19: the strip and meter show deck power on this deck’s own builds (Budget 70, Mid 85, Apex 100); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.floor && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
 } catch (e) { QUIET = false; T('UI-B164-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B165-01')) { try { if (SHARD) await RESET();
 // Version 0.9.20 (owner, 26 Oct: "The stats page should be just that, stats"): Path to Apex, the meter, upgrades left and the game
