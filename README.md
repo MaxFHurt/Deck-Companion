@@ -1,5 +1,10 @@
 # Deck Companion
 
+> **Moved (31 Oct 2026).** Deck Companion is now the Deck Builder in Commander Companion:
+> https://maxfhurt.github.io/CommanderCompanion/rebuild/deck/ (code: `MaxFHurt/CommanderCompanion`, folder `rebuild/deck`).
+> The page here only forwards there and saves nothing, so an old copy left open can no longer save over the new app's decks.
+> The rest of this repository is kept for its history, its `test-data` and `card-data` branches.
+
 A Magic: The Gathering deck builder for Commander and Standard.
 
 - Import a plain-text decklist or pick cards through search
