@@ -1,5 +1,6 @@
 // Saves a trimmed snapshot of the card data Deck Companion uses, so the recommendation engine can be tested offline.
 // Run by .github/workflows/card-data.yml; output goes to ./out and is published on the card-data branch.
+// MODE=prices (the daily 4 a.m. Eastern run) refreshes only the cards and prices.json.gz; the full run (Mondays) does everything.
 import fs from 'node:fs'; import zlib from 'node:zlib';
 const H = {'User-Agent':'DeckCompanion-tests/1.0', 'Accept':'application/json'}, sleep = ms => new Promise(r => setTimeout(r, ms));
 async function get(url, tries = 6){ let last = ''; for (let i = 0; i < tries; i++){ try { const r = await fetch(url, {headers:H}); if (r.status === 404) return null; if (r.ok) return await r.json(); last = 'HTTP ' + r.status + ' ' + (await r.text()).slice(0, 160); } catch (e) { last = String(e && e.message || e); } await sleep(2500 * (i + 1)); } throw new Error('gave up: ' + url.slice(0, 90) + ' :: ' + last); }
@@ -14,8 +15,19 @@ try {
   let url = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent('(legal:commander or legal:standard) game:paper prefer:usd-low') + '&unique=cards&order=edhrec', cards = [];
   while (url){ const j = await get(url); (j.data || []).forEach(o => cards.push(keep(o))); url = j.has_more ? j.next_page : null; await sleep(250); }
   fs.writeFileSync('out/cards.json.gz', zlib.gzipSync(JSON.stringify(cards))); meta.cards = cards.length;
-} catch (e) { meta.notes.push('cards: ' + e.message); meta.cards = prev.cards; meta.cardsAt = prev.cardsAt || prev.at; }
+  // Prices on their own (the Deck Builder downloads this small file every day): each card's cheapest printing, in US
+  // dollars. Scryfall's usd prices are TCGplayer's, so that is the source shown. `at` is when the download started.
+  const px = {at:meta.at, source:'tcgplayer.com', p:{}};
+  for (const c of cards){ const pr = c.prices || {}, v = parseFloat(pr.usd || pr.usd_foil || pr.usd_etched); if (!isNaN(v) && !(c.name in px.p)) px.p[c.name] = v; }
+  fs.writeFileSync('out/prices.json.gz', zlib.gzipSync(JSON.stringify(px))); meta.prices = Object.keys(px.p).length; meta.pricesAt = px.at;
+} catch (e) { meta.notes.push('cards: ' + e.message); meta.cards = prev.cards; meta.cardsAt = prev.cardsAt || prev.at; meta.prices = prev.prices; meta.pricesAt = prev.pricesAt; }
 if (!meta.cardsAt) meta.cardsAt = meta.at;
+// The daily run (MODE=prices) stops here; everything below is refreshed on the weekly run and kept from the last one.
+if (process.env.MODE === 'prices'){
+  const m = Object.assign({}, prev, {at:meta.at, cards:meta.cards, cardsAt:meta.cardsAt, prices:meta.prices, pricesAt:meta.pricesAt, notes:meta.notes});
+  fs.writeFileSync('out/meta.json', JSON.stringify(m, null, 1)); console.log(JSON.stringify({cards:m.cards, prices:m.prices, pricesAt:m.pricesAt, notes:m.notes}, null, 1));
+  process.exit(0);
+}
 // 2. Sets, and the bracket tag lists.
 try { const sets = await get('https://api.scryfall.com/sets'); fs.writeFileSync('out/sets.json', JSON.stringify((sets.data || []).map(s => ({code:s.code, name:s.name, set_type:s.set_type, released_at:s.released_at, card_count:s.card_count, parent_set_code:s.parent_set_code, digital:s.digital})))); } catch (e) { meta.notes.push('sets: ' + e.message); }
 const tags = {}; for (const [k, q] of [['mld', 'otag:mass-land-denial'], ['turns', 'otag:extra-turn']]){ tags[k] = []; try { let u = 'https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q + ' legal:commander') + '&unique=cards'; while (u){ const j = await get(u); if (!j) break; (j.data || []).forEach(o => tags[k].push(o.name)); u = j.has_more ? j.next_page : null; await sleep(120); } } catch (e) { meta.notes.push('tags ' + k + ': ' + e.message); } }
