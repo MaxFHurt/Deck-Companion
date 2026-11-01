@@ -50,6 +50,19 @@ empower the player, not demean them. The scoring itself is not to change in this
    numbers against the target), why it matters in a game, and how to fix it (the existing direct-swap fixes from the
    Fix menu, plus Ignore). Healthy indicators are listed briefly at the bottom so the player sees what is going well.
 
+6. **A back button on every page.** Every page and sub-view (including pop-ups that act as pages) gets a visible back
+   button that returns to where the player came from. Browser/OS back should do the same.
+7. **iPad safe area.** On iPad, page content and buttons sit under the status/info bar and can't be tapped. Respect the
+   safe area on every page and fixed header: `viewport-fit=cover` with `env(safe-area-inset-*)` padding (nothing in the
+   app uses safe-area insets today). Check iPad portrait and landscape, and as a home-screen app.
+8. **Searched cards replace by function.** When the player searches a card on the Upgrades page, the suggested card to
+   replace should be one doing the same job, not simply the lowest-scoring card. A removal sorcery replaces a removal
+   card; ramp replaces ramp; a land replaces a land (as now); the same for draw, wipes, protection and the other jobs.
+   Pick the best cut among cards sharing the incoming card's jobs, ranked by the swap's score change. If the deck is short
+   of the incoming card's job (deck health), the cut may come from elsewhere so the swap fixes the shortage, and never
+   from a job the deck is short of. Only when no card shares the job, fall back to the best cut overall. Say why in the
+   suggestion, e.g. "Replaces Murder (also removal)". This keeps search suggestions in line with deck health.
+
 Report back: for one real deck, its raw deck score and the Budget, Mid and Apex builds' raw scores, so the owner can see
 how close together the three builds sit.
 
