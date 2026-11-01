@@ -40,6 +40,16 @@ empower the player, not demean them. The scoring itself is not to change in this
    Mid upgrades whenever they raise power. Check whether anything hides or demotes them once the deck's power exceeds that
    tier, and fix it if so.
 
+5. **Deck health in one line, colour-coded.** Replace the compact row of indicators (`hgrid compact` in `statsHtml`) with
+   a single line whose colour is the deck's overall status, taken from the worst indicator that isn't ignored:
+   **red** = needs attention now (any `bad`: rule problems, far short of a job, mana stuck often),
+   **yellow** = playable but needs attention (any `warn`, including open slots), **green** = healthy (all `good`).
+   The line names the status and the problem areas in a few words, e.g. "Health: needs attention · Removal, Mana" or
+   "Health: healthy". `info` indicators (Interaction) never set the colour.
+   Tapping it opens a pop-up with the full picture: every indicator that isn't good, each with what is wrong (the
+   numbers against the target), why it matters in a game, and how to fix it (the existing direct-swap fixes from the
+   Fix menu, plus Ignore). Healthy indicators are listed briefly at the bottom so the player sees what is going well.
+
 Report back: for one real deck, its raw deck score and the Budget, Mid and Apex builds' raw scores, so the owner can see
 how close together the three builds sit.
 
