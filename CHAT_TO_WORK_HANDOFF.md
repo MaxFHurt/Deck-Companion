@@ -55,6 +55,10 @@ empower the player, not demean them. The scoring itself is not to change in this
 7. **iPad safe area.** On iPad, page content and buttons sit under the status/info bar and can't be tapped. Respect the
    safe area on every page and fixed header: `viewport-fit=cover` with `env(safe-area-inset-*)` padding (nothing in the
    app uses safe-area insets today). Check iPad portrait and landscape, and as a home-screen app.
+   **Done in Deck Builder 0.9.27 (build 172, Commander Companion build 52, 1 Nov):** the page, the deck screen, pop-ups and the
+   undo button keep inside the safe area (end of `rebuild/deck/cc-theme.css`), and the deck screen's working area ends above the
+   home bar (`safeBottom()` in `rebuild/deck/ui/cards.js`). Checked in Chromium with emulated iPad insets; still to be checked
+   on the owner's iPad.
 8. **Searched cards replace by function.** When the player searches a card on the Upgrades page, the suggested card to
    replace should be one doing the same job, not simply the lowest-scoring card. A removal sorcery replaces a removal
    card; ramp replaces ramp; a land replaces a land (as now); the same for draw, wipes, protection and the other jobs.
