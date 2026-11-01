@@ -23,7 +23,25 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 ## To Work
 
-(nothing waiting)
+Upgrades page, Apex progress (owner, 1 Nov 2026). Principle: a deck is judged by its power against the Budget, Mid and Apex
+builds' power (each scored by the same evaluator), never by how closely its cards resemble those builds. Progress should
+empower the player, not demean them. The scoring itself is not to change in this round.
+
+1. **One number on the Upgrades page: deck power.** Showing "deck score 51" beside "power 85" makes a Mid-strength deck
+   look weak. Keep the raw deck score out of the Upgrades page's headline and stats; it can stay in a details/expand view
+   and on the deck page.
+2. **Show each swap's gain in power, not raw score points.** Between Mid and Apex one score point is several power points,
+   so "+0.8" hides real progress. Label swaps with the power change (e.g. "+4 power"), using the same `powerOf` mapping as
+   the bar, so the player can see swaps add up to the next build.
+3. **Positive framing.** Lead with what the deck has passed ("Stronger than this deck's Budget build"), then the next
+   build and how far to it. Drop the "Starter" label for decks below Budget (find a neutral one) and reword the
+   "What keeps it below…" box as "To reach <next build>".
+4. **Tier picks keep coming after a tier is passed.** A deck above its Budget or Mid build must still be offered Budget and
+   Mid upgrades whenever they raise power. Check whether anything hides or demotes them once the deck's power exceeds that
+   tier, and fix it if so.
+
+Report back: for one real deck, its raw deck score and the Budget, Mid and Apex builds' raw scores, so the owner can see
+how close together the three builds sit.
 
 ## To Chat
 
