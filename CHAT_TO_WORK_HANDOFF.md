@@ -25,7 +25,11 @@ replace old entries instead of adding to them, and delete anything no longer rel
 
 - **Done (2 Nov, Deck Builder 0.9.29 / Commander Companion build 55):** items 3 and 5 below (positive lead line, "To reach
   <next build>", "Foundation" for below Budget; deck health as one colour-coded line with the full picture in a Show all details
-  pop-up), and item 7 (iPad safe area, 0.9.27). Still to do: 1, 2, 4, 6, 8.
+  pop-up), and item 7 (iPad safe area, 0.9.27). Then (2 Nov): 1 already met (power is the only headline; deck score only in
+  the details pop-up and Build stats); 2 swaps labelled in power (0.9.30); 4 checked, nothing hides Budget or Mid picks after a
+  tier is passed, no change needed; 8 searched cards replace by job (0.9.31); 6 Back button on every page and browser back
+  (0.9.32; pop-ups keep their ×). **All eight items are done.** Released with minimum tests (owner's choice): the full Deck
+  Builder UI suite has not been run since 0.9.29.
 
 ## To Work
 
