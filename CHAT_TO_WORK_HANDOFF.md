@@ -21,6 +21,12 @@ replace old entries instead of adding to them, and delete anything no longer rel
 - Open questions for the owner are in section 0 of `WORK_SESSION_HANDOFF.md`.
 - A new work session starts from `WORK_SESSION_HANDOFF.md`.
 
+## To Chat
+
+- **Done (2 Nov, Deck Builder 0.9.29 / Commander Companion build 55):** items 3 and 5 below (positive lead line, "To reach
+  <next build>", "Foundation" for below Budget; deck health as one colour-coded line with the full picture in a Show all details
+  pop-up), and item 7 (iPad safe area, 0.9.27). Still to do: 1, 2, 4, 6, 8.
+
 ## To Work
 
 Upgrades page, Apex progress (owner, 1 Nov 2026). Principle: a deck is judged by its power against the Budget, Mid and Apex
