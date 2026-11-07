@@ -36,6 +36,11 @@ jobs:
           mode=prices; { [ "$dow" = 1 ] || [ "${{ github.event_name }}" != schedule ]; } && mode=full
           echo "go=$go" >> "$GITHUB_OUTPUT"; echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "New York offset $off, weekday $dow: run=$go, mode=$mode"
+      - name: Keep the online games server awake
+        # Commander Companion's online games run on a free Supabase project, which pauses after a week with no use.
+        # Asking for a game code that does not exist reads the games table (404), which counts as use. Never fails the job.
+        continue-on-error: true
+        run: curl -sS -o /dev/null -w 'Rules server answered %{http_code}\n' --max-time 30 https://wdngytwilqxcdoqtefgg.supabase.co/functions/v1/games/ZZZZZZ || true
       - if: steps.when.outputs.go == 'yes'
         uses: actions/checkout@v4
       - if: steps.when.outputs.go == 'yes'
