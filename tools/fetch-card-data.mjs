@@ -1,12 +1,14 @@
 // Saves a trimmed snapshot of the card data Deck Companion uses, so the recommendation engine can be tested offline.
+// Since Deck Builder 0.9.40 the app itself downloads cards.json.gz from the card-data branch instead of Scryfall's search,
+// so every field the app reads must be kept here (defense, reprint and flavor names added 7 Nov 2026).
 // Run by .github/workflows/card-data.yml; output goes to ./out and is published on the card-data branch.
 // MODE=prices (the daily 4 a.m. Eastern run) refreshes only the cards and prices.json.gz; the full run (Mondays) does everything.
 import fs from 'node:fs'; import zlib from 'node:zlib';
 const H = {'User-Agent':'DeckCompanion-tests/1.0', 'Accept':'application/json'}, sleep = ms => new Promise(r => setTimeout(r, ms));
 async function get(url, tries = 6){ let last = ''; for (let i = 0; i < tries; i++){ try { const r = await fetch(url, {headers:H}); if (r.status === 404) return null; if (r.ok) return await r.json(); last = 'HTTP ' + r.status + ' ' + (await r.text()).slice(0, 160); } catch (e) { last = String(e && e.message || e); } await sleep(2500 * (i + 1)); } throw new Error('gave up: ' + url.slice(0, 90) + ' :: ' + last); }
-const keep = o => { const x = {}; for (const k of ['object','layout','games','name','mana_cost','cmc','type_line','oracle_text','color_identity','edhrec_rank','set','set_name','id','oracle_id','rarity','collector_number','game_changer','power','toughness','loyalty','released_at']) if (o[k] !== undefined) x[k] = o[k];
+const keep = o => { const x = {}; for (const k of ['object','layout','games','name','mana_cost','cmc','type_line','oracle_text','color_identity','edhrec_rank','set','set_name','id','oracle_id','rarity','collector_number','game_changer','power','toughness','loyalty','released_at','defense','reprint','flavor_name']) if (o[k] !== undefined) x[k] = o[k];
   x.legalities = {commander:o.legalities && o.legalities.commander, standard:o.legalities && o.legalities.standard}; x.prices = {usd:o.prices && o.prices.usd, usd_foil:o.prices && o.prices.usd_foil, usd_etched:o.prices && o.prices.usd_etched};
-  if (o.card_faces) x.card_faces = o.card_faces.map(f => ({name:f.name, type_line:f.type_line, oracle_text:f.oracle_text, mana_cost:f.mana_cost, power:f.power, toughness:f.toughness, loyalty:f.loyalty})); return x; };
+  if (o.card_faces) x.card_faces = o.card_faces.map(f => ({name:f.name, type_line:f.type_line, oracle_text:f.oracle_text, mana_cost:f.mana_cost, power:f.power, toughness:f.toughness, loyalty:f.loyalty, defense:f.defense, flavor_name:f.flavor_name})); return x; };
 fs.mkdirSync('out/edhrec', {recursive:true}); const meta = {at:new Date().toISOString(), notes:[]};
 // ./out starts as the previous snapshot (the workflow checks it out), so a section that fails keeps its old files.
 let prev = {}; try { prev = JSON.parse(fs.readFileSync('out/meta.json', 'utf8')); } catch (e) {}
