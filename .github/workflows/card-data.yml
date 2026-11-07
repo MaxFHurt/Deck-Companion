@@ -4,11 +4,12 @@ name: Card data snapshot
 # Runs every day at 4:00 a.m. New York time: cards and prices only (prices.json.gz, read by the Deck Builder), and
 # everything (EDHREC pages, combos, tags) on Mondays. GitHub's schedule is in UTC only, so it is set for both 08:00 UTC
 # (4 a.m. EDT) and 09:00 UTC (4 a.m. EST) and the "When" step keeps the one that is 4 a.m. in New York that day.
+# Minute 17, not 0 (7 Nov 2026): GitHub started the on-the-hour runs 7 to 8 hours late (about 11:30 a.m. New York).
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *'
-    - cron: '0 9 * * *'
+    - cron: '17 8 * * *'
+    - cron: '17 9 * * *'
   push:
     branches: [main]
     paths: ['.github/workflows/card-data.yml', 'tools/fetch-card-data.mjs', 'tools/build-combos.mjs', 'tools/commanders.txt']
@@ -29,7 +30,7 @@ jobs:
           go=yes
           if [ "${{ github.event_name }}" = schedule ]; then
             # -0400 (EDT): the 08:00 UTC run is 4 a.m.; -0500 (EST): the 09:00 UTC run is. A late start still counts.
-            want='0 8 * * *'; [ "$off" = "-0500" ] && want='0 9 * * *'
+            want='17 8 * * *'; [ "$off" = "-0500" ] && want='17 9 * * *'
             [ "${{ github.event.schedule }}" = "$want" ] || go=no
           fi
           mode=prices; { [ "$dow" = 1 ] || [ "${{ github.event_name }}" != schedule ]; } && mode=full
