@@ -1,0 +1,51 @@
+name: Card strength data
+# Card strength for Commander Companion's Deck Builder (engine/strength.js; roadmap 6.1, owner 8 Nov 2026): how often each
+# EDHREC bracket of the top ~950 commanders plays each card. Written to the card-data branch next to the daily snapshot:
+#   strength.json.gz (every card's two ratings, ~40 KB) and strength/<commander>.json (~6 KB each, read when a deck opens).
+# Weekly (Tuesday 06:41 UTC, after Monday's full snapshot), about 5,700 EDHREC pages. It never touches main or the live site,
+# and shares the card-data job's queue so the two never push at the same time.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 6 * * 2'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/strength-data.yml', 'tools/strength/**']
+permissions:
+  contents: write
+concurrency:
+  group: card-data
+  cancel-in-progress: false
+jobs:
+  strength:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scryfall oracle cards (colour identities)
+        run: |
+          url=$(curl -sS -H 'User-Agent: CommanderCompanion/1.0' https://api.scryfall.com/bulk-data/oracle-cards | python3 -c 'import json,sys; print(json.load(sys.stdin)["jsonl_download_uri"])')
+          curl -sS -H 'User-Agent: CommanderCompanion/1.0' -o oracle.jsonl.gz "$url"
+      - name: EDHREC brackets for the top commanders
+        run: |
+          mkdir -p work/br
+          python3 -I tools/strength/slugs.py tools/commanders.txt > work/extra.txt
+          python3 -I tools/strength/fetch.py work
+      - name: Ratings
+        run: |
+          RW='{"exhibition": 0, "core": 0.5, "upgraded": 1, "optimized": 3, "cedh": 4}' OUT=work/r_new.json python3 -I tools/strength/rate.py work oracle.jsonl.gz
+          RW='{"exhibition": 0, "core": 0.5, "upgraded": 1, "optimized": 3, "cedh": 0}' OUT=work/r_casual.json python3 -I tools/strength/rate.py work oracle.jsonl.gz
+      - name: Start from the current card-data branch
+        run: git clone --depth 1 -b card-data "https://github.com/${{ github.repository }}.git" out
+      - name: Write and publish
+        run: |
+          rm -rf out/strength; python3 -I tools/strength/pack.py work "$(date -u +%F)" out
+          cd out
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Card strength $(date -u +%F)" || exit 0
+          git push "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" card-data
