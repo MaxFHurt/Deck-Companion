@@ -1,0 +1,148 @@
+{
+ "at": "2026-11-13T17:14:55.535Z",
+ "notes": [],
+ "cards": 32642,
+ "prices": 32631,
+ "pricesAt": "2026-11-13T17:14:55.535Z",
+ "cardsAt": "2026-11-13T17:14:55.535Z",
+ "truth": {
+  "removal": 6264,
+  "creature-removal": 5349,
+  "spot-removal": 5243,
+  "fight": 0,
+  "bite": 161,
+  "ramp": 2229,
+  "mana-rock": 363,
+  "mana-dork": 432,
+  "draw": 4195,
+  "card-advantage": 5984,
+  "boardwipe": 919,
+  "sweeper": 919,
+  "board-wipe": 919,
+  "counterspell": 528,
+  "tutor": 1140,
+  "fog": 94,
+  "protection": 1200,
+  "gives-hexproof": 162,
+  "gives-indestructible": 270,
+  "gives-protection": 118,
+  "recursion": 2190,
+  "burn": 2950,
+  "edict": 417
+ },
+ "alt": 621,
+ "altQuery": "has:flavorname",
+ "edhrec": {
+  "Captain America, Team Leader": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Doctor Doom, King of Latveria": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Ghalta, Primal Hunger": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Heroes in a Half Shell": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "T'Challa, the Black Panther": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Lathril, Blade of the Elves": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Emmara, Soul of the Accord": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Isperia, Supreme Judge": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Gisa and Geralf": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Kardur, Doomscourge": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Atarka, World Render": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Wilhelt, the Rotcleaver": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Neyali, Suns' Vanguard": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Hakbal of the Surging Soul": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Pantlaza, Sun-Favored": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Bello, Bard of the Brambles": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Atraxa, Praetors' Voice": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Urza, Chief Artificer": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Anikthea, Hand of Erebos": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Edgar Markov": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "The Ur-Dragon": [
+   "main",
+   ".budget",
+   ".expensive"
+  ],
+  "Leonardo, the Balance": [
+   "main",
+   ".budget",
+   ".expensive"
+  ]
+ },
+ "combos": 11992
+}
